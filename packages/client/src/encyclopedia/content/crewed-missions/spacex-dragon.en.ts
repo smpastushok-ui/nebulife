@@ -1,0 +1,529 @@
+import type { Lesson } from '../../types.js';
+
+const lesson: Lesson = {
+  slug: 'spacex-dragon',
+  language: 'en',
+  section: 'crewed-missions',
+  order: 9,
+  difficulty: 'beginner',
+  readingTimeMin: 11,
+  title: 'SpaceX Dragon — Commercial Access to Orbit',
+  subtitle: 'How a private company restored the United States\' ability to launch astronauts, and what this means for the future of crewed spaceflight.',
+
+  hero: {
+    cacheKey: 'spacex-dragon-hero',
+    prompt:
+      'Photorealistic illustration for a science encyclopedia: SpaceX Crew Dragon capsule approaching the International Space Station against deep black space, Earth visible below in blue and white. ' +
+      'Capsule shown with open docking port, solar panels deployed, SpaceX livery visible. Station solar arrays catch sunlight. ' +
+      'Hard sci-fi style, dark space background, technically detailed. ' +
+      'Add the following text labels on the image: "Crew Dragon", "ISS docking port", "Earth orbit".',
+    alt: 'SpaceX Crew Dragon capsule approaching the International Space Station with Earth visible below',
+    caption:
+      'Crew Dragon during its approach to the International Space Station. Autonomous docking without crew input during the final approach is one of the defining technical features of this spacecraft.',
+    aspectRatio: '16:9',
+  },
+
+  body: [
+    {
+      paragraphs: [
+        'For nine years after the Space Shuttle program ended in 2011, the United States had no crewed ' +
+        'spacecraft of its own. To put an astronaut on orbit, NASA paid Russia for a seat on a Soyuz — ' +
+        'a price that eventually exceeded eighty million dollars per seat. Dependence on a foreign vehicle ' +
+        'for access to a station the United States helped build and fund was considered a strategic vulnerability.',
+
+        'In May 2020, two NASA astronauts — Bob Behnken and Doug Hurley — launched aboard Crew Dragon ' +
+        'on the demonstration mission called Demo-2. It was the first crewed launch from American soil ' +
+        'in nine years, and the first time in history that a commercial company had carried humans ' +
+        'to orbit in a vehicle it had developed with its own engineering and under its own direction. ' +
+        'A moment with both technical and symbolic weight.',
+
+        'Behind that achievement lies a broader paradigm shift — from a government monopoly on crewed ' +
+        'spaceflight to a model where NASA is the customer of a service, not the sole manufacturer ' +
+        'of the vehicle. That shift took decades to negotiate, billions of dollars to fund, ' +
+        'and differs fundamentally from how the Mercury, Gemini, and Apollo programs were built ' +
+        'in the previous century.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'spacex-dragon-demo2-launch',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: Falcon 9 rocket launching from Kennedy Space Center pad 39A at dusk, brilliant white exhaust plume illuminating the launch complex. ' +
+          'Rocket ascending through low clouds, American coast and ocean visible. Hard sci-fi style, dramatic lighting. ' +
+          'Add the following text labels on the image: "Falcon 9", "Launch Complex 39A", "Demo-2 mission".',
+        alt: 'Falcon 9 rocket launches from Kennedy Space Center Launch Complex 39A on the Demo-2 mission',
+        caption:
+          'The Demo-2 launch in May 2020. The Falcon 9 booster delivered Crew Dragon to orbit, then returned and landed on an autonomous drone ship in the Atlantic Ocean.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'The commercial crew program and the logic of the market',
+      level: 2,
+      paragraphs: [
+        'In 2014, NASA announced the results of its Commercial Crew Transportation Capability competition — ' +
+        'a program intended to hand the development of crew transport vehicles to orbit over to the private sector. ' +
+        'SpaceX received a contract for two billion six hundred million dollars. ' +
+        'Boeing received one for four billion two hundred million. ' +
+        'Both companies were to develop their own spacecraft and certify them ' +
+        'for regular flights to the International Space Station.',
+
+        'The logic of the program differed from the traditional NASA approach. Previously, the agency ' +
+        'specified every system in detail and purchased the hardware at the end. ' +
+        'Now it defined requirements for the outcome — safely deliver astronauts to the station and ' +
+        'return them — and left the method of development to the company. ' +
+        'This allowed commercial engineering practices, less bureaucracy, and potentially lower costs.',
+
+        'The results of the two companies diverged sharply. SpaceX completed development, ' +
+        'flew the uncrewed Demo-1 demonstration in 2019, and the crewed Demo-2 in 2020. ' +
+        'Boeing suffered chronic technical problems with Starliner: the first uncrewed test in 2019 ' +
+        'failed due to a software error. After multiple delays, Starliner finally flew a crewed test ' +
+        'in 2024 — but the crew\'s return had to be postponed due to thruster failures and helium leaks. ' +
+        'Astronauts Butch Wilmore and Suni Williams, who had planned to spend a week on the station, ' +
+        'ultimately stayed for more than eight months. Crew Dragon brought them home.',
+      ],
+    },
+
+    {
+      heading: 'What Crew Dragon is, technically',
+      level: 2,
+      paragraphs: [
+        'Crew Dragon is a conical capsule designed to carry up to four astronauts. ' +
+        'Its predecessor, the cargo Dragon, had been making regular trips to the station since 2012 ' +
+        'and became the first commercial spacecraft to berth at the International Space Station. ' +
+        'Crew Dragon is a significantly evolved variant, adding life support systems, pressure suits, ' +
+        'a new docking adapter, and a crew launch escape system.',
+
+        'The launch escape system is one of the principal differences from earlier American spacecraft. ' +
+        'Instead of a solid-propellant escape tower mounted above the capsule — as on Mercury and Apollo — ' +
+        'Dragon uses integrated SuperDraco engines built directly into the capsule\'s hull. ' +
+        'They can pull the capsule away from a failing rocket at any point during ascent, ' +
+        'from the pad all the way to orbit. The system was tested in 2020: ' +
+        'a deliberately disabled Falcon 9 began to break up, and the capsule successfully ' +
+        'pulled away and splashed down in the ocean.',
+
+        'Docking to the station is handled autonomously. The spacecraft approaches the target port, ' +
+        'aligns itself using lidar sensors and cameras, and docks without a human operator ' +
+        'at the controls during the final approach. ' +
+        'This is a fundamental departure from the manual docking practiced on Soyuz. ' +
+        'The crew can take over manually in an emergency, but under nominal conditions ' +
+        'their role is to monitor and confirm, not to fly.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'spacex-dragon-capsule-cutaway',
+        prompt:
+          'Photorealistic scientific illustration for a science encyclopedia: cutaway diagram of SpaceX Crew Dragon capsule showing internal crew seats (4 positions), touchscreen interface panels, life support equipment, SuperDraco abort thrusters visible in outer hull pods, docking mechanism at nose. ' +
+          'Dark technical background, hard sci-fi style, labeled components. ' +
+          'Add the following text labels on the image: "crew seats", "touchscreen controls", "SuperDraco thrusters", "docking port", "heat shield".',
+        alt: 'Cutaway of SpaceX Crew Dragon capsule showing crew seats, touchscreen controls, SuperDraco thrusters, and docking port',
+        caption:
+          'Crew Dragon in cross-section. The cockpit interface uses touchscreens rather than the traditional toggles and switches, a significant departure in cabin design philosophy.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Falcon 9: the rocket that comes back',
+      level: 2,
+      paragraphs: [
+        'Dragon does not exist in isolation — its capabilities are inseparable from its launch vehicle. ' +
+        'Falcon 9 is a two-stage rocket that differs fundamentally from all previous commercial launchers ' +
+        'in that its first stage returns and is reused. After separation, the stage flips around, ' +
+        'fires its engines to slow for reentry, then executes a controlled vertical landing — ' +
+        'either back at the launch site near Florida, or on an autonomous drone ship at sea.',
+
+        'The economic effect of this is difficult to overstate. The first stage accounts for ' +
+        'a large fraction of the total rocket\'s cost. If it can be flown ten, fifteen, or more times, ' +
+        'the cost per launch falls substantially. The principle is the same one that separates aviation ' +
+        'from shipbuilding: airplanes do not sink after every flight. ' +
+        'SpaceX carried this concept to practical scale in a way the Space Shuttle had only promised.',
+
+        'For crewed missions, additional conservatism applies: NASA requires that a reused booster ' +
+        'have verified flight history and pass rigorous inspection. The safety standard is higher ' +
+        'than for cargo missions, but the fact that a rocket first stage can be reused in service ' +
+        'of a crewed flight at all is something that the previous century considered too ambitious ' +
+        'for routine application.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Crew Dragon versus Soyuz: size and parameter comparison',
+        svg: `<svg viewBox="0 0 700 360" xmlns="http://www.w3.org/2000/svg">
+  <rect width="700" height="360" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Title -->
+  <text x="350" y="24" fill="#aabbcc" font-family="monospace" font-size="12" text-anchor="middle">Crew Dragon and Soyuz MS — comparison</text>
+
+  <!-- Dragon capsule shape (left) -->
+  <!-- Cone body -->
+  <polygon points="160,60 220,200 100,200" fill="#334455" stroke="#7bb8ff" stroke-width="1.5" opacity="0.85"/>
+  <!-- Trunk cylinder below capsule -->
+  <rect x="110" y="200" width="100" height="60" fill="#223344" stroke="#7bb8ff" stroke-width="1" opacity="0.7"/>
+  <!-- Solar panels -->
+  <rect x="60" y="210" width="45" height="12" fill="#44ff88" opacity="0.6"/>
+  <rect x="215" y="210" width="45" height="12" fill="#44ff88" opacity="0.6"/>
+  <!-- Labels -->
+  <text x="160" y="278" fill="#7bb8ff" font-family="monospace" font-size="11" text-anchor="middle">Crew Dragon</text>
+  <text x="160" y="294" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">height: 8.1 m (with trunk)</text>
+  <text x="160" y="308" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">diameter: 3.7 m</text>
+  <text x="160" y="322" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">crew: up to 4</text>
+  <text x="160" y="336" fill="#44ff88" font-family="monospace" font-size="9" text-anchor="middle">seat cost: ~$60M</text>
+
+  <!-- Soyuz shape (right) -->
+  <!-- Service module cylinder -->
+  <rect x="430" y="170" width="80" height="70" fill="#332211" stroke="#ff8844" stroke-width="1" opacity="0.75"/>
+  <!-- Orbital module sphere -->
+  <ellipse cx="470" cy="145" rx="40" ry="30" fill="#443322" stroke="#ff8844" stroke-width="1" opacity="0.75"/>
+  <!-- Descent module cone -->
+  <polygon points="470,60 510,145 430,145" fill="#554433" stroke="#ff8844" stroke-width="1.5" opacity="0.8"/>
+  <!-- Solar panels -->
+  <rect x="360" y="190" width="65" height="14" fill="#ff8844" opacity="0.5"/>
+  <rect x="515" y="190" width="65" height="14" fill="#ff8844" opacity="0.5"/>
+  <!-- Labels -->
+  <text x="470" y="278" fill="#ff8844" font-family="monospace" font-size="11" text-anchor="middle">Soyuz MS</text>
+  <text x="470" y="294" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">height: 7.0 m</text>
+  <text x="470" y="308" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">diameter: 2.7 m (descent module)</text>
+  <text x="470" y="322" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">crew: up to 3</text>
+  <text x="470" y="336" fill="#cc4444" font-family="monospace" font-size="9" text-anchor="middle">seat cost: ~$80M</text>
+
+  <!-- Height scale bar -->
+  <line x1="335" y1="60" x2="335" y2="240" stroke="#334455" stroke-width="1" stroke-dasharray="3,4"/>
+  <text x="335" y="255" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">scale is approximate</text>
+</svg>`,
+        caption:
+          'Crew Dragon and Soyuz MS — the two active crewed spacecraft serving the International Space Station. Dragon carries up to four and splashes down in the ocean. Soyuz accommodates three and lands on the Kazakh steppe under parachutes with solid-propellant retro-rockets for the final touchdown.',
+      },
+    },
+
+    {
+      heading: 'Beyond the station: civilian missions',
+      level: 2,
+      paragraphs: [
+        'Regular crew rotation flights to the International Space Station are only part of the picture. ' +
+        'SpaceX built Dragon as a commercial vehicle capable of flying orbital missions ' +
+        'for clients who are not government agencies.',
+
+        'In September 2021, Dragon flew Inspiration4 — the first entirely civilian orbital spaceflight ' +
+        'in history. There was not a single professional astronaut in the government sense on board. ' +
+        'Four people spent approximately three days on orbit at an altitude that exceeded ' +
+        'the station\'s orbit. The mission demonstrated concretely that crewed spaceflight ' +
+        'was ceasing to be the exclusive prerogative of governments and their selected pilots.',
+
+        'In 2024, the Polaris Dawn mission added another precedent. During that flight, ' +
+        'two crew members conducted the first commercial spacewalk — ' +
+        'and did so in suits designed by SpaceX rather than in traditional NASA pressure suits. ' +
+        'The spacewalk differed from those conducted at the station: Dragon has no airlock, ' +
+        'so the entire pressurized volume was depressurized, and all four crew members ' +
+        'remained in their suits throughout the activity. Technically risky. ' +
+        'Conceptually, a demonstration that commercial operators can independently conduct operations ' +
+        'that previously required complex government infrastructure.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'spacex-dragon-polaris-dawn-eva',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: astronaut in SpaceX-designed EVA spacesuit floating outside Dragon capsule in low Earth orbit, holding a safety tether, visor reflecting sunlit Earth below. Dragon capsule visible nearby with open hatch. Deep black space with Earth curvature in background. Silhouetted figure, no visible face. Hard sci-fi style. ' +
+          'Add the following text labels on the image: "SpaceX EVA suit", "Crew Dragon", "first commercial spacewalk".',
+        alt: 'Astronaut in SpaceX spacesuit conducting a spacewalk during Polaris Dawn — the first commercial extravehicular activity',
+        caption:
+          'Polaris Dawn in 2024: the first commercial spacewalk. The suits were designed by SpaceX. There was no dedicated airlock — the entire capsule depressurized for the activity.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'The customer model: what changed for NASA',
+      level: 2,
+      paragraphs: [
+        'The fundamental change the commercial program introduced is not technical but managerial. ' +
+        'NASA shifted from developer of spacecraft to purchaser of a transportation service. ' +
+        'The agency specifies outcomes: crew safety, system reliability, orbital parameters, ' +
+        'docking standards. How those outcomes are achieved is the company\'s decision.',
+
+        'The consequences are measurable. The Space Shuttle program cost an average of ' +
+        'approximately one billion five hundred million dollars per flight. ' +
+        'Crew Dragon on regular crew rotation missions to the station costs roughly ' +
+        'two hundred to two hundred and fifty million dollars per flight. ' +
+        'An order-of-magnitude reduction while maintaining safety requirements. ' +
+        'Part of the saving comes from smaller vehicle size, part from a different operating model.',
+
+        'Critics point out that the model is not without risk: if the sole commercial provider ' +
+        'encounters problems, NASA has no independent means of crew access to orbit. ' +
+        'That is exactly why the agency awarded contracts to two companies — SpaceX and Boeing. ' +
+        'In practice, Dragon has flown the overwhelming majority of crewed missions ' +
+        'while Starliner worked through certification and technical difficulties. ' +
+        'Starliner\'s first non-test operational mission is expected in the mid-2020s.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Commercial crew model: customer versus contractor',
+        svg: `<svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg">
+  <rect width="700" height="280" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Title -->
+  <text x="350" y="24" fill="#aabbcc" font-family="monospace" font-size="12" text-anchor="middle">Traditional model vs. Commercial Crew Program</text>
+
+  <!-- LEFT: Traditional -->
+  <rect x="20" y="40" width="300" height="200" rx="4" fill="rgba(50,30,10,0.4)" stroke="#ff8844" stroke-width="1"/>
+  <text x="170" y="62" fill="#ff8844" font-family="monospace" font-size="11" text-anchor="middle">Traditional (Apollo, Shuttle)</text>
+
+  <rect x="40" y="76" width="260" height="30" rx="3" fill="rgba(80,50,20,0.5)" stroke="#ff8844" stroke-width="0.5"/>
+  <text x="170" y="96" fill="#aabbcc" font-family="monospace" font-size="10" text-anchor="middle">NASA designs + builds + operates</text>
+
+  <rect x="40" y="116" width="260" height="30" rx="3" fill="rgba(80,50,20,0.5)" stroke="#ff8844" stroke-width="0.5"/>
+  <text x="170" y="136" fill="#aabbcc" font-family="monospace" font-size="10" text-anchor="middle">contractors execute NASA specs</text>
+
+  <rect x="40" y="156" width="260" height="30" rx="3" fill="rgba(80,50,20,0.5)" stroke="#ff8844" stroke-width="0.5"/>
+  <text x="170" y="176" fill="#aabbcc" font-family="monospace" font-size="10" text-anchor="middle">government owns the vehicle</text>
+
+  <rect x="40" y="196" width="260" height="30" rx="3" fill="rgba(80,50,20,0.5)" stroke="#ff8844" stroke-width="0.5"/>
+  <text x="170" y="216" fill="#aabbcc" font-family="monospace" font-size="10" text-anchor="middle">cost: up to $1.5B per flight</text>
+
+  <!-- RIGHT: Commercial -->
+  <rect x="380" y="40" width="300" height="200" rx="4" fill="rgba(10,40,30,0.4)" stroke="#44ff88" stroke-width="1"/>
+  <text x="530" y="62" fill="#44ff88" font-family="monospace" font-size="11" text-anchor="middle">Commercial Crew Program</text>
+
+  <rect x="400" y="76" width="260" height="30" rx="3" fill="rgba(20,60,40,0.5)" stroke="#44ff88" stroke-width="0.5"/>
+  <text x="530" y="96" fill="#aabbcc" font-family="monospace" font-size="10" text-anchor="middle">NASA defines outcome requirements</text>
+
+  <rect x="400" y="116" width="260" height="30" rx="3" fill="rgba(20,60,40,0.5)" stroke="#44ff88" stroke-width="0.5"/>
+  <text x="530" y="136" fill="#aabbcc" font-family="monospace" font-size="10" text-anchor="middle">company designs, builds, operates</text>
+
+  <rect x="400" y="156" width="260" height="30" rx="3" fill="rgba(20,60,40,0.5)" stroke="#44ff88" stroke-width="0.5"/>
+  <text x="530" y="176" fill="#aabbcc" font-family="monospace" font-size="10" text-anchor="middle">company owns the vehicle</text>
+
+  <rect x="400" y="196" width="260" height="30" rx="3" fill="rgba(20,60,40,0.5)" stroke="#44ff88" stroke-width="0.5"/>
+  <text x="530" y="216" fill="#aabbcc" font-family="monospace" font-size="10" text-anchor="middle">cost: ~$200–250M per flight</text>
+
+  <!-- Arrow between -->
+  <text x="350" y="148" fill="#7bb8ff" font-family="monospace" font-size="18" text-anchor="middle">&#x2192;</text>
+</svg>`,
+        caption:
+          'The difference between the traditional and commercial models goes beyond cost. It concerns who bears development risk and who owns the intellectual property in the vehicle. SpaceX can sell the same transportation service to other clients; NASA pays only for the delivery outcome.',
+      },
+    },
+
+    {
+      heading: 'Cargo Dragon and the resupply line to the station',
+      level: 3,
+      paragraphs: [
+        'In parallel with crewed flights, SpaceX operates regular cargo missions to the ' +
+        'International Space Station using Cargo Dragon — a modified version without crew life support. ' +
+        'Cargo Dragon does not just deliver supplies; it also returns hardware to Earth — ' +
+        'a capability the Space Shuttle had but that Progress and the Japanese HTV lacked. ' +
+        'Scientific samples, equipment requiring repair, and experiment results ' +
+        'return in the capsule, which splashes down off the coast of Florida.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'spacex-dragon-cargo-berthing',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: Cargo Dragon capsule berthed to the International Space Station node, robotic arm (Canadarm2) visible having captured it, Earth below. Station solar arrays and truss structure visible. Hard sci-fi style, dark space background, technically detailed. ' +
+          'Add the following text labels on the image: "Cargo Dragon", "Canadarm2", "ISS berthing port".',
+        alt: 'Cargo Dragon berthed to the International Space Station after capture by the Canadarm2 robotic arm',
+        caption:
+          'Unlike Crew Dragon, which docks autonomously, Cargo Dragon is captured by the station\'s Canadarm2 robotic arm and then moved to its berthing port.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'What comes next: commercial stations and the Moon',
+      level: 2,
+      paragraphs: [
+        'Dragon as a platform has reached operational maturity, but its role in the broader picture ' +
+        'of crewed spaceflight is still taking shape. NASA is evaluating its use for missions to ' +
+        'future commercial orbital stations, which are intended to replace the International Space Station ' +
+        'after its planned deorbit at the end of the 2020s. Several companies — ' +
+        'Axiom Space, Vast, Starlab — have already received NASA contracts to develop commercial stations. ' +
+        'Dragon could serve as the crew transport vehicle for them.',
+
+        'The Moon is a separate matter. For the Artemis program, NASA selected Starship, not Dragon. ' +
+        'Dragon is optimized for low Earth orbit and docking to the International Space Station. ' +
+        'The Moon requires fundamentally more delta-V and a vehicle capable of landing on and ' +
+        'ascending from the lunar surface. Starship is a separate, far larger program.',
+
+        'In the meantime, Dragon remains the only NASA-certified crew transportation system to orbit ' +
+        'as of the mid-2020s. Every rotation mission to the station builds operational heritage. ' +
+        'And every civilian mission — Inspiration4, Polaris Dawn, Axiom Space missions to the station — ' +
+        'expands the universe of people who might find themselves in orbit not as a state-selected pilot ' +
+        'but as a researcher, a philanthropist, or eventually something more like a passenger.',
+      ],
+    },
+  ],
+
+  glossary: [
+    {
+      term: 'Commercial Crew Program',
+      definition:
+        'A NASA initiative, structured in the 2010s, under which the agency funds private companies to develop and operate crew transport vehicles to low Earth orbit. NASA acts as the customer for a service rather than the developer of the hardware.',
+    },
+    {
+      term: 'Launch escape system',
+      definition:
+        'A system capable of pulling the crewed capsule away from a failing rocket at any point during ascent. Dragon uses integrated SuperDraco liquid engines built into the capsule hull rather than the traditional external solid-propellant escape tower.',
+    },
+    {
+      term: 'Autonomous docking',
+      definition:
+        'A process in which the spacecraft independently approaches and docks to the station without active human piloting during the final approach, using lidar sensors, cameras, and its own guidance system.',
+    },
+    {
+      term: 'Low Earth orbit',
+      definition:
+        'An orbit at altitudes between approximately two hundred and two thousand kilometers above Earth. The International Space Station flies at roughly four hundred kilometers. Dragon is optimized for this region.',
+    },
+    {
+      term: 'Delta-V',
+      definition:
+        'The change in velocity required for an orbital maneuver. Reaching low Earth orbit requires approximately nine kilometers per second of delta-V. Reaching the Moon requires considerably more.',
+    },
+    {
+      term: 'Extravehicular activity',
+      definition:
+        'Work conducted by astronauts outside the pressurized hull of a spacecraft or station. Requires a pressure suit with its own life support. Polaris Dawn in 2024 conducted the first commercial extravehicular activity.',
+    },
+    {
+      term: 'Reusable first stage',
+      definition:
+        'A technology by which the rocket\'s first stage, after separation, returns and lands for reuse. SpaceX implemented this for Falcon 9, substantially lowering the cost per launch.',
+    },
+    {
+      term: 'Crew rotation mission',
+      definition:
+        'A regular crewed flight to the station intended to exchange its crew. Dragon conducts crew rotation missions for NASA under designations Crew-1, Crew-2, and so on, typically every six months.',
+    },
+  ],
+
+  quiz: [
+    {
+      question: 'Why did the United States go nine years without a crewed spacecraft of its own after the Space Shuttle ended?',
+      options: [
+        'NASA decided to abandon crewed spaceflight entirely',
+        'The Space Shuttle program continued flying until 2020',
+        'Between the Shuttle\'s end in 2011 and Crew Dragon\'s first flight in 2020, the United States had no certified crewed vehicle of its own development',
+        'The United States relied on Boeing Starliner throughout that period',
+      ],
+      correctIndex: 2,
+      explanation:
+        'The Space Shuttle flew its final mission in 2011. Until Crew Dragon flew Demo-2 in May 2020, the United States had no crewed launch vehicle of its own and paid Russia for seats aboard Soyuz.',
+    },
+    {
+      question: 'What fundamentally distinguishes the commercial crew approach from the Apollo and Shuttle programs?',
+      options: [
+        'NASA abandoned rockets entirely and moved to alternative launch systems',
+        'NASA acts as the customer for a transportation service rather than the developer of the vehicle — the company owns the spacecraft',
+        'The commercial program allows anyone to buy a seat with no training required',
+        'There is no difference — the program management philosophy remained identical',
+      ],
+      correctIndex: 1,
+      explanation:
+        'The core distinction is a change in NASA\'s role. Previously the agency designed the vehicle and contracted suppliers for components. Now it defines outcome requirements and purchases a delivery service from a company that owns the vehicle and can sell the same service to other clients.',
+    },
+    {
+      question: 'Which 2021 mission was the first entirely civilian orbital spaceflight with no professional government astronaut aboard?',
+      options: [
+        'Demo-2 (Behnken and Hurley, 2020)',
+        'Polaris Dawn (2024)',
+        'Inspiration4 (2021)',
+        'Crew-1 (2020)',
+      ],
+      correctIndex: 2,
+      explanation:
+        'Inspiration4 in September 2021 was the first orbital flight with an entirely civilian crew. Four people with no government astronaut status spent approximately three days on orbit. Polaris Dawn in 2024 was a separate mission notable for the first commercial spacewalk.',
+    },
+    {
+      question: 'How does the Crew Dragon launch escape system differ from the escape towers used on Mercury and Apollo?',
+      options: [
+        'Dragon has no launch escape system — the weight saving was judged acceptable',
+        'Dragon uses a separate rescue module that detaches on its own rocket',
+        'Dragon uses integrated SuperDraco liquid engines built into the capsule hull rather than an external solid-propellant escape tower',
+        'The Dragon escape system is identical to Apollo — an external solid-propellant tower',
+      ],
+      correctIndex: 2,
+      explanation:
+        'Mercury and Apollo mounted a solid-propellant escape tower above the capsule that was jettisoned after clearing the atmosphere. Dragon integrates SuperDraco engines directly into its hull. They can activate at any point in ascent and remain on the vehicle throughout the entire flight.',
+    },
+    {
+      question: 'What was the primary driver of lower per-launch costs for Falcon 9 compared to earlier launch vehicles?',
+      options: [
+        'Significantly lower thrust and a simpler overall design',
+        'Government subsidies unavailable to other manufacturers',
+        'Recovery and reuse of the rocket\'s first stage',
+        'Removal of safety systems to reduce mass',
+      ],
+      correctIndex: 2,
+      explanation:
+        'The first stage accounts for a large share of a rocket\'s total cost. After separation, the Falcon 9 first stage returns and lands vertically — on the launch site or on a drone ship at sea — and can be relaunched. This fundamentally reduced the per-flight cost compared to expendable launchers.',
+    },
+  ],
+
+  sources: [
+    {
+      title: 'NASA — Commercial Crew Program Overview',
+      url: 'https://www.nasa.gov/human-spaceflight/commercial-crew/',
+      meta: 'NASA, open access, updated 2025',
+    },
+    {
+      title: 'SpaceX — Crew Dragon: Vehicle Overview',
+      url: 'https://www.spacex.com/vehicles/dragon/',
+      meta: 'SpaceX official site, 2025',
+    },
+    {
+      title: 'NASA — Demo-2 Mission Overview (SpaceX Crew Dragon)',
+      url: 'https://www.nasa.gov/mission/demo-2/',
+      meta: 'NASA, May 2020',
+    },
+    {
+      title: 'Inspiration4 — Mission Documentation',
+      url: 'https://inspiration4.com/',
+      meta: 'Inspiration4, September 2021',
+    },
+    {
+      title: 'Polaris Dawn — Mission Overview',
+      url: 'https://polarisprogram.com/dawn/',
+      meta: 'Polaris Program, 2024',
+    },
+    {
+      title: 'NASA — Boeing Starliner Crew Flight Test Mission Updates',
+      url: 'https://www.nasa.gov/mission/boeing-starliner-crew-flight-test/',
+      meta: 'NASA, 2024–2025',
+    },
+    {
+      title: 'NASA OIG — NASA\'s Management of the Commercial Crew Program',
+      url: 'https://oig.nasa.gov/docs/IG-21-004.pdf',
+      meta: 'NASA Office of Inspector General, 2021, open access',
+    },
+    {
+      title: 'Berger E. — Liftoff: The Desperate Early Days That Launched SpaceX',
+      url: 'https://www.harpercollins.com/products/liftoff-eric-berger',
+      meta: 'Harper Collins, 2021 — authoritative non-fiction account of SpaceX',
+    },
+    {
+      title: 'FAA — Commercial Human Space Transportation Report',
+      url: 'https://www.faa.gov/space/additional_resources/commercial_space_transportation_reports/',
+      meta: 'Federal Aviation Administration, open access',
+    },
+    {
+      title: 'Ars Technica — SpaceX Crew Dragon archive',
+      url: 'https://arstechnica.com/tag/crew-dragon/',
+      meta: 'Ars Technica, 2019–2025, journalism',
+    },
+  ],
+
+  lastVerified: '2026-05-06',
+};
+
+export default lesson;

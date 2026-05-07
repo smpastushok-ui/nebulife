@@ -1,0 +1,552 @@
+import type { Lesson } from '../../types.js';
+
+const lesson: Lesson = {
+  slug: 'nebulae-types',
+  language: 'uk',
+  section: 'astronomy',
+  order: 3,
+  difficulty: 'beginner',
+  readingTimeMin: 11,
+  title: 'Туманності — типи та фізика',
+  subtitle: 'Від хмар, що народжують зорі, до решток вибухів і прощальних вздихів вмираючих світил.',
+
+  hero: {
+    cacheKey: 'nebulae-types-hero',
+    prompt:
+      'Photorealistic illustration for a science encyclopedia: a dramatic composite of nebula types arranged in deep space — ' +
+      'left side shows a vivid red-orange emission nebula with glowing ionized hydrogen gas and embedded young hot stars, ' +
+      'center shows a blue reflection nebula with dust scattering starlight, ' +
+      'right side shows a colorful ring-shaped planetary nebula with a white dwarf at center. ' +
+      'Hard sci-fi style, ultra-detailed, dark space background with subtle star field, cinematic lighting. ' +
+      'Add the following text labels on the image: "emission nebula", "reflection nebula", "planetary nebula".',
+    alt: 'Три типи туманностей у космосі — емісійна, відбивна та планетарна — як представники різних фізичних процесів',
+    caption:
+      'Туманності — не одне явище, а ціле сімейство об\'єктів з різною природою. Червоне світіння свідчить про іонізований водень, синє — про розсіяне зоряне світло, а концентричні кільця — про останній подих зорі на кшталт нашого Сонця.',
+    aspectRatio: '16:9',
+  },
+
+  body: [
+    {
+      paragraphs: [
+        'Слово "туманність" колись означало просто щось розмите у телескопі — і під цю категорію підпадало все: ' +
+        'від далеких галактик до газових хмар у нашій Галактиці. Сьогодні термін набагато точніший. ' +
+        '_Туманність_ — це хмара газу й пилу в міжзоряному просторі, що має власну природу світіння або видима у відбитому, ' +
+        'поглиненому чи просто прохідному світлі. За цим простим визначенням ховається кілька принципово різних явищ.',
+
+        'Деякі туманності — це колиски зір: щільні молекулярні хмари, де гравітація поступово стискає газ до утворення нових сонць. ' +
+        'Інші — навпаки, залишки смерті: розширювані оболонки, викинуті вмираючою зорею, або уламки катастрофічних вибухів. ' +
+        'Розрізнити їх дозволяють не лише форма і колір, а й фізика — механізм, що змушує газ світитися або залишатися темним.',
+      ],
+    },
+
+    {
+      heading: 'Емісійні туманності — іонізоване серце галактики',
+      level: 2,
+      paragraphs: [
+        'Найяскравіші та найбільш впізнавані туманності — **емісійні**. Їх колір — переважно червоно-рожевий, ' +
+        'з вкрапленнями блакитного й зеленого. Це не відбите чужe світло, а власне випромінювання газу: ' +
+        'атоми водню, кисню і сірки поглинають жорсткий ультрафіолет від молодих масивних зір і потім ' +
+        'повертають енергію у вигляді фотонів конкретних довжин хвиль.',
+
+        'Механізм зветься **фотоіонізацією**. Ультрафіолетовий фотон вибиває електрон із атома водню — ' +
+        'атом стає іоном. Через якийсь час вільний електрон знову захоплюється ядром і "каскадує" ' +
+        'вниз по рівнях енергії, щоразу випускаючи фотон. Перехід між другим і першим рівнями ' +
+        'дає характеристичну червону лінію H-альфа з довжиною хвилі близько шістсот п\'ятдесяти шести нанометрів — ' +
+        'саме той колір, що домінує на знімках більшості емісійних туманностей.',
+
+        'Такі туманності астрофізики часто позначають як регіони _ЗЙО два_ (зіркового йонізованого кисню... ні — правильна назва: ' +
+        '**регіони ейч-два** або **Аш-два регіони**): хмари нейтрального міжзоряного водню, що іонізуються молодими зорями. ' +
+        'Туманність Оріона — найближчий до нас великий регіон активного зореутворення, ' +
+        'розташована на відстані близько тисячі трьохсот п\'ятдесяти світлових років. ' +
+        'Це не просто гарна хмара: в її надрах зараз народжуються сотні зір, ' +
+        'і JWST у двадцять другому і двадцять третьому роках передав зображення, ' +
+        'де видно протопланетні диски і молоді зоряні об\'єкти з безпрецедентною деталізацією.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'nebulae-types-emission-orion',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: the Orion Nebula as a glowing emission nebula — ' +
+          'vivid red-pink ionized hydrogen gas fills the frame, with a bright central cluster of hot blue-white young stars (the Trapezium cluster) ' +
+          'illuminating surrounding gas clouds, dark dust lanes cutting through the nebulosity, subtle green glow from doubly ionized oxygen. ' +
+          'Hard sci-fi style, deep black space background, dramatic lighting from the central stellar cluster. ' +
+          'Add the following text labels on the image: "Trapezium cluster", "ionized hydrogen", "dust lane", "H-alpha emission".',
+        alt: 'Туманність Оріона — емісійна туманність з яскраво-червоним іонізованим воднем і центральним зоряним скупченням',
+        caption:
+          'Туманність Оріона — це регіон активного зореутворення, де ультрафіолет від молодих гарячих зір скупчення Трапеція іонізує оточуючий водень. Червоне світіння — характеристична лінія H-альфа, зелений відтінок — двічі іонізований кисень.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'Відбивні туманності — пил, що розсіює зоряне світло',
+      level: 2,
+      paragraphs: [
+        'Якщо зоря недостатньо гаряча, щоб іонізувати оточуючий газ, але оточена хмарою пилу, ' +
+        'виникає зовсім інший ефект. Дрібні порошинки, переважно крижані частинки з графітовим або силікатним серцем, ' +
+        'розсіюють світло зорі у всі боки — так само як земна атмосфера розсіює сонячне світло і робить небо синім. ' +
+        'Через те що дрібні частинки розсіюють короткі хвилі (синє світло) ефективніше, ' +
+        'такі **відбивні туманності** зазвичай мають характерний синій або синювато-білий відтінок.',
+
+        'Класичний приклад — туманність навколо зоряного скупчення Плеяди. ' +
+        'Зорі Плеяд самі по собі не досить гарячі для іонізації — їх спектральний клас B, ' +
+        'ультрафіолет є, але не достатньо жорсткий. Натомість вони підсвічують хмару пилу, ' +
+        'крізь яку проходить скупчення у своєму русі крізь Галактику. ' +
+        'Ця хмара ніяк не пов\'язана генетично зі скупченням — просто космічний збіг, що дає нам ' +
+        'один із найкрасивіших прикладів відбивних туманностей на всьому небі.',
+
+        'Відбивні й емісійні туманності не виключають одна одну — в одній хмарі можуть поєднуватися обидва процеси. ' +
+        'Туманність Оріона, наприклад, містить ділянки і яскравого емісійного світіння, ' +
+        'і темних областей, де пил лише відбиває чи поглинає світло.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'nebulae-types-reflection-pleiades',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: the Pleiades star cluster surrounded by a reflection nebula — ' +
+          'bright blue-white B-type stars embedded in wispy blue-grey dust clouds that scatter their light, ' +
+          'subtle blue nebulosity with dark dust filaments, faint star field in the deep black background, ' +
+          'delicate streaks of scattered light around each bright star. ' +
+          'Hard sci-fi style, dark space background, soft diffuse glow. ' +
+          'Add the following text labels on the image: "Pleiades cluster", "dust scattering", "reflected starlight", "blue nebulosity".',
+        alt: 'Плеяди оточені відбивною туманністю — синювата хмара пилу розсіює світло молодих зір скупчення',
+        caption:
+          'Відбивна туманність навколо Плеяд — хмара пилу, що підсвічується зорями скупчення. Синій відтінок пояснюється тим самим механізмом, що робить земне небо синім: дрібні частинки розсіюють короткі хвилі світла ефективніше.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Планетарні туманності — прощання зорі',
+      level: 2,
+      paragraphs: [
+        'Назва вводить в оману: до планет ці структури не мають жодного стосунку. ' +
+        'Астрономи вісімнадцятого і дев\'ятнадцятого століть назвали їх так через округлий, дископодібний вигляд у малі телескопи — ' +
+        'схожість на диски планет Урана і Нептуна. Сьогодні ми знаємо: **планетарна туманність** — ' +
+        'це розширювана оболонка газу, яку зоря з масою, подібною до сонячної, скидає наприкінці свого червоногігантського етапу.',
+
+        'Механізм такий: коли в ядрі зорі вичерпується гелій, зовнішні оболонки починають нестабільно пульсувати ' +
+        'і поступово "здуваються" у вигляді повільного зоряного вітру. ' +
+        'Потім, у фінальному спалаху нестабільності, зоря різко скидає залишок зовнішньої оболонки. ' +
+        'Оголена гаряча серцевина — майбутній _білий карлик_ — опромінює цей газ жорстким ультрафіолетом, ' +
+        'змушуючи його світитися. Виникає структура, що зазвичай нагадує кільце, бульбашку або метелика — ' +
+        'залежно від кута спостереження і симетрії скидання.',
+
+        'Туманність Котяче Око (NGC 6543) — один із найдетальніше вивчених прикладів: ' +
+        'концентричні оболонки свідчать про те, що зоря скидала матерію хвилями протягом тисяч років. ' +
+        'JWST зробив зображення подібних структур із деталізацією, що дозволяє бачити ' +
+        'тонкі нитки й вузлики в оболонках, де гарячий газ стикається з холоднішим навколишнім середовищем. ' +
+        'Планетарні туманності живуть відносно недовго — кілька десятків тисяч років — ' +
+        'перед тим як розчинитися в міжзоряному просторі.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Типи туманностей і механізми світіння',
+        svg: `<svg viewBox="0 0 700 380" xmlns="http://www.w3.org/2000/svg">
+  <rect width="700" height="380" fill="rgba(10,15,25,0.5)" rx="4"/>
+
+  <!-- Column headers -->
+  <text x="116" y="30" fill="#aabbcc" font-family="monospace" font-size="11" text-anchor="middle" font-weight="bold">Емісійна</text>
+  <text x="350" y="30" fill="#aabbcc" font-family="monospace" font-size="11" text-anchor="middle" font-weight="bold">Відбивна</text>
+  <text x="584" y="30" fill="#aabbcc" font-family="monospace" font-size="11" text-anchor="middle" font-weight="bold">Планетарна</text>
+
+  <!-- Dividers -->
+  <line x1="233" y1="15" x2="233" y2="365" stroke="#334455" stroke-width="0.8" opacity="0.7"/>
+  <line x1="467" y1="15" x2="467" y2="365" stroke="#334455" stroke-width="0.8" opacity="0.7"/>
+
+  <!-- === Emission nebula column === -->
+  <!-- Hot star -->
+  <circle cx="116" cy="85" r="16" fill="#aad4ff" stroke="#7bb8ff" stroke-width="1.5"/>
+  <text x="116" y="89" fill="#020510" font-family="monospace" font-size="8" text-anchor="middle" font-weight="bold">O/B</text>
+  <!-- UV rays -->
+  <line x1="128" y1="78" x2="165" y2="65" stroke="#7bb8ff" stroke-width="1" stroke-dasharray="3,2" opacity="0.8"/>
+  <line x1="132" y1="85" x2="170" y2="85" stroke="#7bb8ff" stroke-width="1" stroke-dasharray="3,2" opacity="0.8"/>
+  <line x1="128" y1="92" x2="165" y2="105" stroke="#7bb8ff" stroke-width="1" stroke-dasharray="3,2" opacity="0.8"/>
+  <text x="152" y="60" fill="#7bb8ff" font-family="monospace" font-size="8">UV</text>
+  <!-- Gas cloud -->
+  <ellipse cx="190" cy="85" rx="28" ry="22" fill="rgba(204,68,68,0.25)" stroke="#cc4444" stroke-width="1.2"/>
+  <!-- Photon out -->
+  <line x1="218" y1="80" x2="228" y2="70" stroke="#ff8844" stroke-width="1.2"/>
+  <line x1="218" y1="85" x2="228" y2="85" stroke="#cc4444" stroke-width="1.2"/>
+  <line x1="218" y1="90" x2="228" y2="100" stroke="#cc4444" stroke-width="1.2"/>
+  <!-- Labels -->
+  <text x="116" y="115" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">гаряча зоря</text>
+  <text x="190" y="118" fill="#cc4444" font-family="monospace" font-size="9" text-anchor="middle">іонізований</text>
+  <text x="190" y="130" fill="#cc4444" font-family="monospace" font-size="9" text-anchor="middle">газ H II</text>
+  <text x="116" y="155" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">Механізм:</text>
+  <text x="116" y="168" fill="#44ff88" font-family="monospace" font-size="9" text-anchor="middle">фотоіонізація</text>
+  <text x="116" y="185" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">+ рекомбінація</text>
+  <text x="116" y="210" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">Колір: червоний</text>
+  <text x="116" y="225" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">(H-альфа 656 нм)</text>
+  <text x="116" y="250" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">Приклад:</text>
+  <text x="116" y="265" fill="#7bb8ff" font-family="monospace" font-size="9" text-anchor="middle">туманн. Оріона</text>
+  <!-- mini emission nebula sketch -->
+  <ellipse cx="116" cy="315" rx="40" ry="28" fill="rgba(204,68,68,0.3)" stroke="#cc4444" stroke-width="1"/>
+  <circle cx="116" cy="315" r="5" fill="#aad4ff"/>
+
+  <!-- === Reflection nebula column === -->
+  <!-- Cooler star -->
+  <circle cx="350" cy="85" r="13" fill="#ffee88" stroke="#ffd050" stroke-width="1.5"/>
+  <text x="350" y="89" fill="#020510" font-family="monospace" font-size="8" text-anchor="middle" font-weight="bold">B/A</text>
+  <!-- Light rays to dust -->
+  <line x1="362" y1="78" x2="395" y2="65" stroke="#ffee88" stroke-width="1" opacity="0.7"/>
+  <line x1="363" y1="85" x2="396" y2="85" stroke="#ffee88" stroke-width="1" opacity="0.7"/>
+  <line x1="362" y1="92" x2="395" y2="105" stroke="#ffee88" stroke-width="1" opacity="0.7"/>
+  <!-- Dust cloud -->
+  <ellipse cx="420" cy="85" rx="24" ry="20" fill="rgba(100,120,160,0.3)" stroke="#8899aa" stroke-width="1.2"/>
+  <text x="420" y="90" fill="#8899aa" font-family="monospace" font-size="7" text-anchor="middle">пил</text>
+  <!-- Scattered light -->
+  <line x1="430" y1="75" x2="445" y2="62" stroke="#7bb8ff" stroke-width="1.2"/>
+  <line x1="435" y1="85" x2="452" y2="85" stroke="#7bb8ff" stroke-width="1.2"/>
+  <line x1="430" y1="96" x2="445" y2="110" stroke="#7bb8ff" stroke-width="1.2"/>
+  <text x="456" y="62" fill="#7bb8ff" font-family="monospace" font-size="8">розсіяне</text>
+  <!-- Labels -->
+  <text x="350" y="115" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">тепліша зоря</text>
+  <text x="350" y="155" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">Механізм:</text>
+  <text x="350" y="168" fill="#44ff88" font-family="monospace" font-size="9" text-anchor="middle">розсіювання</text>
+  <text x="350" y="185" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">на пилових зернах</text>
+  <text x="350" y="210" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">Колір: синій</text>
+  <text x="350" y="225" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">(Релеєве розсіян.)</text>
+  <text x="350" y="250" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">Приклад:</text>
+  <text x="350" y="265" fill="#7bb8ff" font-family="monospace" font-size="9" text-anchor="middle">туманн. Плеяд</text>
+  <!-- mini reflection nebula sketch -->
+  <ellipse cx="350" cy="315" rx="38" ry="24" fill="rgba(68,100,170,0.3)" stroke="#7bb8ff" stroke-width="1"/>
+  <circle cx="330" cy="310" r="4" fill="#ffee88"/>
+
+  <!-- === Planetary nebula column === -->
+  <!-- White dwarf center -->
+  <circle cx="584" cy="85" r="6" fill="#ddeeff" stroke="#aabbcc" stroke-width="1.5"/>
+  <!-- Shells -->
+  <ellipse cx="584" cy="85" rx="22" ry="18" fill="none" stroke="#44ff88" stroke-width="1.5" opacity="0.8"/>
+  <ellipse cx="584" cy="85" rx="36" ry="28" fill="none" stroke="#cc4444" stroke-width="1.2" opacity="0.7"/>
+  <ellipse cx="584" cy="85" rx="50" ry="40" fill="none" stroke="#ff8844" stroke-width="0.8" opacity="0.5"/>
+  <!-- UV arrows outward -->
+  <line x1="590" y1="79" x2="600" y2="64" stroke="#7bb8ff" stroke-width="0.8" stroke-dasharray="2,2" opacity="0.7"/>
+  <line x1="590" y1="85" x2="608" y2="85" stroke="#7bb8ff" stroke-width="0.8" stroke-dasharray="2,2" opacity="0.7"/>
+  <!-- Labels -->
+  <text x="584" y="138" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">білий карлик</text>
+  <text x="584" y="155" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">Механізм:</text>
+  <text x="584" y="168" fill="#44ff88" font-family="monospace" font-size="9" text-anchor="middle">UV від карлика</text>
+  <text x="584" y="185" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">іонізує скинуті</text>
+  <text x="584" y="198" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">оболонки</text>
+  <text x="584" y="215" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">Колір: різний</text>
+  <text x="584" y="230" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">(O III зелений,</text>
+  <text x="584" y="243" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">H-α червоний)</text>
+  <text x="584" y="265" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">Приклад:</text>
+  <text x="584" y="280" fill="#7bb8ff" font-family="monospace" font-size="9" text-anchor="middle">Котяче Око</text>
+  <!-- mini planetary nebula sketch -->
+  <ellipse cx="584" cy="335" rx="36" ry="24" fill="none" stroke="#44ff88" stroke-width="1.5"/>
+  <ellipse cx="584" cy="335" rx="20" ry="12" fill="none" stroke="#cc4444" stroke-width="1"/>
+  <circle cx="584" cy="335" r="4" fill="#ddeeff"/>
+</svg>`,
+        caption:
+          'Три основні типи туманностей розрізняються механізмом: емісійна світиться власним іонізованим газом, відбивна — розсіює зоряне світло на пилі, планетарна — це скинута оболонка зорі, що іонізується ультрафіолетом центрального білого карлика.',
+      },
+    },
+
+    {
+      heading: 'Залишки наднових — звукові хвилі космосу',
+      level: 2,
+      paragraphs: [
+        'Коли масивна зоря вибухає як наднова, вона викидає в простір кілька сонячних мас речовини ' +
+        'зі швидкістю від кількох тисяч до кількох десятків тисяч кілометрів на секунду. ' +
+        'Ця хвиля, стикаючись із навколишнім міжзоряним газом, стискає і розігріває його до мільйонів кельвінів. ' +
+        'Виникає **залишок наднової** — розширювана оболонка розпеченого газу, що світиться у широкому діапазоні: ' +
+        'від радіохвиль через видиме світло до рентгенівського випромінювання.',
+
+        'Крабоподібна туманність (М1 у сузір\'ї Тільця) — підручниковий приклад. ' +
+        'У дванадцятому столітті китайські і японські астрономи зафіксували нову яскраву зірку на денному небі — ' +
+        'вибух наднової, видимий неозброєним оком. Розширювана оболонка досі збільшується зі швидкістю ' +
+        'приблизно тисяча п\'ятсот кілометрів на секунду. ' +
+        'В її серці обертається **пульсар** — нейтронна зоря, що робить тридцять обертів на секунду ' +
+        'і накачує туманність потоком заряджених частинок, змушуючи її випромінювати в рентгенівському діапазоні.',
+
+        'Серпанкова туманність у Лебеді — приклад старшого залишку. ' +
+        'Вибух стався кілька десятків тисяч років тому, і за цей час хвиля розширилась ' +
+        'на понад ста світлових років. Тонкі павутинні нитки газу — місця, де ударна хвиля ' +
+        'стикається з нерівномірно розподіленим міжзоряним середовищем. ' +
+        'JWST виявив у таких нитках структури на масштабі, недоступному попереднім телескопам, — ' +
+        'вузлики й волокна, де відбуваються складні процеси змішування і охолодження.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'nebulae-types-supernova-remnant-crab',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: the Crab Nebula supernova remnant — ' +
+          'a chaotic tangle of glowing filaments in red, orange, and blue against deep black space, ' +
+          'central pulsar region showing a bright white-blue knot of synchrotron radiation, ' +
+          'delicate thread-like wisps of ejected stellar material criss-crossing the nebula, ' +
+          'outer edges showing faint red hydrogen emission. ' +
+          'Hard sci-fi style, detailed scientific illustration, dramatic structure. ' +
+          'Add the following text labels on the image: "pulsar", "synchrotron emission", "expanding filaments", "supernova 1054 CE".',
+        alt: 'Крабоподібна туманність — залишок наднової дванадцятого сторіччя з пульсаром у центрі та заплутаними нитками розпеченого газу',
+        caption:
+          'Крабоподібна туманність розширюється вже понад тисячу років після вибуху наднової. Пульсар у центрі накачує туманність енергією, породжуючи синхротронне випромінювання, видиме аж до рентгенівського діапазону.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Темні хмари і молекулярні комплекси',
+      level: 2,
+      paragraphs: [
+        'Не всі туманності видно у власному або відбитому світлі. **Темні туманності** — ' +
+        'це щільні хмари молекулярного газу й пилу, що поглинають світло розташованих за ними об\'єктів. ' +
+        'Вони не сяють — вони вирізаються темними силуетами на яскравому тлі.',
+
+        'Туманність Кінська Голова у сузір\'ї Оріона — один із найвідоміших прикладів. ' +
+        'Характерний силует — темний язик газу і пилу, виступаючий із щільної молекулярної хмари ' +
+        'на тлі яскравої емісійної туманності IC 434. ' +
+        'Ніяке оптичне зображення не передавало внутрішньої структури цих хмар — ' +
+        'аж поки інфрачервоні інструменти JWST не проникли крізь пил і не показали ' +
+        'численні молоді зоряні об\'єкти, що формуються всередині.',
+
+        'Молекулярні хмари — справжні заводи зір. Вони складаються переважно із молекулярного водню, ' +
+        'оксиду вуглецю, аміаку та сотень органічних молекул. ' +
+        'Температура всередині — від десяти до тридцяти кельвінів: мало не абсолютний нуль. ' +
+        'Саме в таких умовах гравітація поступово перемагає тиск газу, і в найщільніших ядрах хмар ' +
+        'починається колапс, що зрештою дає початок новим зорям. ' +
+        'Темна туманність і зоряне ясло — це одне й те саме, побачене з різних боків.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'nebulae-types-horsehead-dark',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: the Horsehead Nebula — ' +
+          'a dark dense pillar of gas and dust shaped like a horse\'s head silhouetted against a vivid glowing red-orange emission nebula background (IC 434), ' +
+          'the dark nebula\'s edge dramatically lit by nearby star Sigma Orionis, ' +
+          'faint blue reflection nebulosity near the base of the pillar, ' +
+          'deep black space beyond the emission region. ' +
+          'Hard sci-fi style, dramatic and detailed. ' +
+          'Add the following text labels on the image: "dark molecular cloud", "IC 434 emission nebula", "dust pillar", "Horsehead".',
+        alt: 'Туманність Кінська Голова — темна молекулярна хмара на тлі яскравої емісійної туманності IC 434',
+        caption:
+          'Кінська Голова — темна туманність, що поглинає світло яскравої емісійної туманності позаду. Усередині цієї хмари зараз народжуються нові зорі, невидимі в оптичному діапазоні, але чітко помітні на інфрачервоних знімках JWST.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Що JWST змінив у нашому розумінні туманностей',
+      level: 2,
+      paragraphs: [
+        'Космічний телескоп Джеймса Вебба, що розпочав наукові спостереження у двадцять другому році, ' +
+        'буквально переписав атлас туманностей. ' +
+        'Його інфрачервоні камери бачать крізь пил там, де оптичні телескопи стикаються з непрозорою завісою. ' +
+        'Зображення туманності Оріона виявили сотні протопланетних дисків — так звані _проплідів_ — ' +
+        'що формуються всередині хмари під впливом ультрафіолету від масивних сусідніх зір. ' +
+        'Деякі з цих дисків стрімко руйнуються — процес зветься _фотоіспаренням_ — ' +
+        'і майбутні планетні системи встигнуть сформуватися лише якщо зроблять це достатньо швидко.',
+
+        'У планетарних туманностях JWST розкриває структури, яких раніше не могла побачити жодна обсерваторія. ' +
+        'Знімок туманності Ріан-Туманність Південного Кільця (NGC 3132) показав, що в її центрі — ' +
+        'не одна, а дві зорі: зоря, що насправді скинула оболонку, і її компаньйонка. ' +
+        'Взаємодія між ними і визначила складну форму туманності — ' +
+        'щось, що телескопи до JWST просто не могли роздивитися.',
+
+        'У залишках наднових JWST фіксує деталі ударних хвиль на масштабах, ' +
+        'де відбувається реальне перемішування важких елементів у міжзоряне середовище. ' +
+        'Вуглець, кисень, кремній і залізо, синтезовані всередині зорі, ' +
+        'розкидуються вибухом по сотнях світлових років — і зрештою стають частиною ' +
+        'нових молекулярних хмар і, можливо, нових планетних систем. ' +
+        'Туманності — це не просто красиві картинки. Це хімічна кухня Всесвіту, ' +
+        'де матерія переходить від зорі до зорі, від покоління до покоління.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'nebulae-types-jwst-southern-ring',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: JWST view of the Southern Ring planetary nebula NGC 3132 — ' +
+          'dramatic shells of glowing gas in red, orange, and blue forming concentric rings around a central binary star pair, ' +
+          'outer shell of ionized hydrogen in deep red, inner shells in teal-green from ionized oxygen, ' +
+          'faint dusty central region with two visible stellar sources, intricate filamentary structure between shells. ' +
+          'Infrared false-color scientific aesthetic, hard sci-fi style, dark space background. ' +
+          'Add the following text labels on the image: "dying star", "companion star", "ionized shells", "NGC 3132".',
+        alt: 'Туманність Південного Кільця NGC 3132 — знімок JWST показав два зоряні джерела в центрі та концентричні іонізовані оболонки',
+        caption:
+          'JWST виявив у туманності Південного Кільця другу зорю в центрі — компаньйонку, що відіграла роль у формуванні складної форми оболонок. Цей знімок став першою наочною демонстрацією того, як двозоряна система формує планетарну туманність.',
+        aspectRatio: '16:9',
+      },
+    },
+  ],
+
+  glossary: [
+    {
+      term: 'Емісійна туманність',
+      definition:
+        'Хмара іонізованого газу (переважно водню), що світиться власним світлом завдяки фотоіонізації від ультрафіолетового випромінювання розташованих поруч масивних зір. Характерний червоно-рожевий колір — лінія H-альфа іонізованого водню.',
+    },
+    {
+      term: 'Фотоіонізація',
+      definition:
+        'Процес, у якому ультрафіолетовий фотон вибиває електрон з атома, перетворюючи його на іон. Коли електрон знову захоплюється, атом випускає фотони конкретних довжин хвиль — так виникає власне світіння емісійної туманності.',
+    },
+    {
+      term: 'Відбивна туманність',
+      definition:
+        'Хмара пилу, що не має власного джерела іонізуючого випромінювання, але розсіює видиме світло від розташованих поряд зір. Має характерний синій колір через ефективніше розсіювання коротких хвиль.',
+    },
+    {
+      term: 'Планетарна туманність',
+      definition:
+        'Розширювана оболонка газу, скинута зорею малої або середньої маси наприкінці червоногігантської фази. Іонізується ультрафіолетом центрального білого карлика. До планет не має жодного стосунку — назва виникла через дископодібний вигляд у старовинні телескопи.',
+    },
+    {
+      term: 'Залишок наднової',
+      definition:
+        'Розширювана оболонка речовини, викинутої при вибуху масивної зорі. Ударна хвиля нагріває навколишній газ до мільйонів кельвінів, породжуючи яскраве випромінювання від радіо до рентгенівського діапазону.',
+    },
+    {
+      term: 'Темна туманність',
+      definition:
+        'Щільна хмара молекулярного газу і пилу, що поглинає світло розташованих за нею об\'єктів. Не має власного світіння — помітна як темний силует на тлі яскравіших об\'єктів. Є осередком зореутворення.',
+    },
+    {
+      term: 'Регіон HII',
+      definition:
+        'Хмара іонізованого водню (HII — позначення однократно іонізованого атому водню) навколо гарячих зір класу O і B. Синонім поняття "емісійна туманність" у контексті зореутворення. H позначає водень, II — одну втрачену електронну оболонку.',
+    },
+    {
+      term: 'Синхротронне випромінювання',
+      definition:
+        'Електромагнітне випромінювання заряджених частинок (зазвичай електронів), що рухаються зі швидкостями, близькими до швидкості світла, у магнітному полі. Домінує в залишках наднових із пульсарами — наприклад, у Крабоподібній туманності.',
+    },
+    {
+      term: 'Фотоіспарення диска (фотоевапорація)',
+      definition:
+        'Руйнування протопланетного диска молодої зорі під впливом жорсткого ультрафіолетового випромінювання від сусідніх масивних зір. Спостерігається в регіонах HII, таких як туманність Оріона. JWST уперше зафіксував цей процес безпосередньо.',
+    },
+  ],
+
+  quiz: [
+    {
+      question: 'Чому більшість емісійних туманностей мають червоно-рожевий колір?',
+      options: [
+        'Вони відбивають червоне світло сусідніх холодних зір',
+        'Іонізований водень при рекомбінації випускає фотон лінії H-альфа — червоне випромінювання з довжиною хвилі близько 656 нанометрів',
+        'Пил у туманності поглинає сині хвилі і пропускає червоні',
+        'Газ нагрітий до температури, при якій чорне тіло випромінює в червоному діапазоні',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Емісійні туманності світяться завдяки фотоіонізації: ультрафіолет від молодих зір вибиває електрони з водню, а при рекомбінації атоми випускають фотони конкретних довжин хвиль. Найпотужніша — лінія H-альфа (близько 656 нанометрів), що лежить у червоній частині спектра. Саме вона відповідає за характерний рожево-червоний колір цих об\'єктів.',
+    },
+    {
+      question: 'Чим відбивна туманність відрізняється від емісійної?',
+      options: [
+        'Відбивна туманність набагато гарячіша',
+        'Відбивна туманність не має власного світіння — вона розсіює на пилових зернах світло сусідніх зір',
+        'Відбивна туманність складається з кисню, а емісійна — з водню',
+        'Відбивна туманність завжди оточує зорю, що вибухнула',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Відбивна туманність не має власного механізму іонізації — вона просто розсіює на пилових частинках видиме світло від сусідніх зір. Через те що дрібні пилові зерна ефективніше розсіюють короткі хвилі (синє світло), відбивні туманності виглядають синіми або синювато-білими — яскравий контраст із червоними емісійними туманностями.',
+    },
+    {
+      question: 'Що насправді є в центрі планетарної туманності?',
+      options: [
+        'Нейтронна зоря, що обертається',
+        'Чорна діра зоряної маси',
+        'Білий карлик — оголена серцевина колишньої зорі',
+        'Протозоря, що тільки народжується',
+      ],
+      correctIndex: 2,
+      explanation:
+        'Планетарна туманність утворюється, коли зоря з масою, схожою на сонячну, скидає зовнішні оболонки наприкінці свого розвитку. В центрі залишається дуже гаряча серцевина — білий карлик. Саме він опромінює скинутий газ жорстким ультрафіолетом, змушуючи його іонізуватися і світитися.',
+    },
+    {
+      question: 'Чим залишок наднової фізично відрізняється від планетарної туманності?',
+      options: [
+        'Залишок наднової холодніший і менший',
+        'Залишок наднової утворений вибухом масивної зорі і містить речовину, розігріту до мільйонів кельвінів ударною хвилею',
+        'Планетарна туманність завжди більша за залишок наднової',
+        'Обидва об\'єкти фізично ідентичні, різниця лише в розмірі',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Планетарна туманність — повільно скинута оболонка зорі малої маси, іонізована ультрафіолетом білого карлика. Залишок наднової — наслідок катастрофічного вибуху масивної зорі: речовина розлітається з тисячами кілометрів на секунду і породжує ударну хвилю, що розігріває навколишній газ до мільйонів кельвінів. Залишки наднових яскраво світяться у рентгенівському діапазоні.',
+    },
+    {
+      question: 'Чому темні туманності вважаються осередками зореутворення, а не просто "порожніми" хмарами пилу?',
+      options: [
+        'Тому що в них немає газу, тільки пил, а пил є сировиною для планет',
+        'Тому що вони розташовані поряд із уже утвореними зорями, які і є джерелом зореутворення',
+        'Тому що їх щільні та холодні надра — саме ті умови, де гравітація може подолати газовий тиск і спровокувати колапс у нові зорі',
+        'Тому що темні туманності є залишками давніх наднових',
+      ],
+      correctIndex: 2,
+      explanation:
+        'Темні молекулярні хмари — найщільніші й найхолодніші структури міжзоряного середовища. При температурах від десяти до тридцяти кельвінів і густині, що перевищує навколишній простір у тисячі разів, гравітаційне стискання може подолати термічний тиск газу. У найщільніших ядрах таких хмар починається колапс, що дає початок новим зорям. JWST підтвердив це, виявивши всередині темних туманностей, таких як Кінська Голова, численні молоді зоряні об\'єкти.',
+    },
+  ],
+
+  sources: [
+    {
+      title: 'NASA JWST — Orion Nebula Protoplanetary Disks',
+      url: 'https://www.nasa.gov/missions/webb/nasas-webb-captures-stellar-birth-in-orion-nebula/',
+      meta: 'NASA Webb press release, 2023',
+    },
+    {
+      title: 'NASA JWST — Southern Ring Nebula NGC 3132',
+      url: 'https://www.nasa.gov/image-feature/goddard/2022/webb-sees-dying-star-s-final-performance-in-fine-detail',
+      meta: 'NASA Webb press release, 2022',
+    },
+    {
+      title: 'NASA JWST — Horsehead Nebula',
+      url: 'https://www.nasa.gov/missions/webb/nasa-s-james-webb-space-telescope-explores-the-horsehead-nebula-like-never-before/',
+      meta: 'NASA Webb press release, 2024',
+    },
+    {
+      title: 'ESA — What is a Nebula?',
+      url: 'https://www.esa.int/Science_Exploration/Space_Science/What_is_a_nebula',
+      meta: 'ESA Science, educational resource',
+    },
+    {
+      title: 'NASA — Crab Nebula (M1) Overview',
+      url: 'https://science.nasa.gov/mission/hubble/science/explore-the-night-sky/hubble-messier-catalog/messier-1/',
+      meta: 'NASA Science, Hubble Messier catalog',
+    },
+    {
+      title: 'Osterbrock D.E. — Astrophysics of Gaseous Nebulae and Active Galactic Nuclei (2nd ed.)',
+      url: 'https://uscibooks.aip.org/books/astrophysics-of-gaseous-nebulae-and-active-galactic-nuclei-2nd-ed/',
+      meta: 'University Science Books, 2006 — standard reference',
+    },
+    {
+      title: 'Dyson J.E., Williams D.A. — The Physics of the Interstellar Medium (2nd ed.)',
+      url: 'https://www.routledge.com/The-Physics-of-the-Interstellar-Medium/Dyson-Williams/p/book/9780750304320',
+      meta: 'Institute of Physics Publishing, 1997',
+    },
+    {
+      title: 'McCray R. — Supernova 1987A Revisited — Annual Review of Astronomy and Astrophysics',
+      url: 'https://www.annualreviews.org/doi/abs/10.1146/annurev.astro.43.072103.150755',
+      meta: 'ARA&A, 2005, open access',
+    },
+    {
+      title: 'Bally J. et al. — Externally Illuminated Young Stellar Environments in the Orion Nebula',
+      url: 'https://iopscience.iop.org/article/10.3847/2041-8213/acac75',
+      meta: 'ApJL 2023 — JWST observations of proplyds, open access',
+    },
+    {
+      title: 'NASA — Planetary Nebulae: Overview',
+      url: 'https://science.nasa.gov/universe/stars/planetary-nebulae/',
+      meta: 'NASA Science, updated 2024',
+    },
+  ],
+
+  lastVerified: '2026-05-06',
+};
+
+export default lesson;

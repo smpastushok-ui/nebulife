@@ -1,0 +1,309 @@
+{
+  "slug": "planetary-atmospheres",
+  "language": "en",
+  "section": "planetology",
+  "order": 13,
+  "difficulty": "intermediate",
+  "readingTimeMin": 12,
+  "title": "Planetary Atmospheres",
+  "subtitle": "From a primordial hydrogen envelope to a runaway greenhouse: how atmospheric composition determines a planet's fate.",
+  "hero": {
+    "cacheKey": "planetary-atmospheres-hero",
+    "prompt": "Photorealistic illustration for a science encyclopedia: composite view of four planetary atmospheres in space — Earth (blue, with white cloud swirls), Venus (dense yellowish-white cloud deck), Mars (thin reddish-brown haze), and a gas giant hot Jupiter (deep blue with swirling storm bands) — arranged as a dramatic four-panel comparison, dark space background, hard sci-fi style, cinematic lighting. Add the following text labels on the image: \"Earth\", \"Venus\", \"Mars\", \"Hot Jupiter\".",
+    "alt": "Four planets with different types of atmospheres: Earth, Venus, Mars, and a hot Jupiter",
+    "caption": "Planetary atmospheres across the solar system — from Earth's transparent blue veil to Venus's opaque cloud deck and Mars's barely visible rust-colored haze. Each formed and evolved along its own path.",
+    "aspectRatio": "16:9"
+  },
+  "body": [
+    {
+      "paragraphs": [
+        "An atmosphere is not merely air. It is the product of billions of years of chemical and geological evolution: a layer of gas held by a planet's gravity that determines whether liquid water exists, whether warmth persists, and whether anything resembling biology is even conceivable. Three neighboring planets — Venus, Earth, and Mars — were born under similar conditions, yet their atmospheres led them to fundamentally different endings: inferno, haven, and void.",
+        "That difference does not begin with climate. It begins with the source: where the atmosphere came from and why it survived. The answer divides cleanly into two categories — the primary atmosphere and the secondary — each with its own formation mechanism, its own composition, and its own survival horizon."
+      ]
+    },
+    {
+      "heading": "Primary and Secondary Atmospheres: Two Origins",
+      "level": 2,
+      "paragraphs": [
+        "At the dawn of planetary formation, the young Sun was surrounded by a gas and dust cloud known as the **_solar nebula_**. The lightest elements — hydrogen and helium — were the most abundant. Planets that grew massive enough could gravitationally capture these light gases and build a **_primary atmosphere_** — a direct sample of the solar nebula. Jupiter and Saturn did exactly that: their hydrogen and helium envelopes are relics of the solar system's first few million years. Uranus and Neptune captured less, but retained their primary layers as well.",
+        "The rocky planets — Earth, Venus, Mars — never reached that threshold. Whatever primary atmosphere they might have had was stripped away by the solar wind and photoionization within the first few hundred million years. Instead they built a **_secondary atmosphere_** — one that comes from within. Volcanoes continuously vented carbon dioxide, water vapor, sulfur, and nitrogen into space. On Earth, water condensed into oceans, carbon dioxide was absorbed by rocks and living organisms, and what remained was a balance of nitrogen and oxygen. Venus and Mars chose different paths.",
+        "The key distinction between primary and secondary atmospheres lies in composition and timing. A primary atmosphere is mostly hydrogen and helium, formed very early. A secondary atmosphere consists of heavier gases from volcanic or ionic sources, built up over the planet's geological lifetime. Titan, Saturn's largest moon, represents a special case of secondary atmosphere: a dense nitrogen and methane envelope that has persisted for billions of years and remains chemically active today."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "atmo-primary-secondary-comparison",
+        "prompt": "Photorealistic illustration for a science encyclopedia: split-screen diagram comparing gas giant Jupiter (left, showing thick hydrogen-helium primary atmosphere captured from solar nebula) versus rocky Earth (right, showing thin blue secondary atmosphere from volcanic outgassing and biology), dark space background, scientific cross-section style, hard sci-fi. Add the following text labels on the image: \"Primary Atmosphere (H2/He)\", \"Solar Nebula Origin\", \"Secondary Atmosphere (N2/O2/CO2)\", \"Volcanic Outgassing\".",
+        "alt": "Comparison of a gas giant's primary atmosphere and a rocky planet's secondary atmosphere",
+        "caption": "Gas giants captured their primary atmosphere directly from the solar nebula. Rocky planets built a secondary atmosphere through volcanic outgassing from their interiors — a fundamentally different process.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "Escape Mechanisms: Why Atmospheres Disappear",
+      "level": 2,
+      "paragraphs": [
+        "Holding an atmosphere is not trivial. Even when gases are present, they can leave — and do — through several distinct pathways, depending on the planet's mass, its distance from the star, and whether it has a magnetic field.",
+        "**_Jeans escape_** is the most fundamental mechanism. In any gas, molecules move at a range of velocities. Those at the top of the atmosphere that reach escape velocity — the second cosmic velocity — simply fly off into space if they do not collide with other molecules on the way out. For light gases, hydrogen and helium, this happens even at Earth, which is why they are nearly absent from our atmosphere. Mars, with its lower mass and weaker gravity, lost heavier gases through this process as well.",
+        "**_Hydrodynamic escape_** is a more intense variant, characteristic of hot planets close to their stars. When the upper layers of an atmosphere are heated by the star's X-ray and ultraviolet radiation intensely enough, a continuous outward flow of gas develops — not individual molecules departing, but a collective hydrodynamic outflow. Hot Jupiters — gas giants orbiting closer to their stars than Mercury orbits the Sun — experience this continuously and have probably already lost substantial fractions of their atmospheres.",
+        "**_Solar wind sputtering_** and **_photodissociation_** complete the picture. Charged particles in the solar wind can knock molecules out of the upper atmosphere, while ultraviolet radiation breaks molecules into atoms, after which lighter atoms escape more readily. Mars lost the bulk of its atmosphere through these processes after its magnetic field weakened and stopped shielding the surface from the solar wind — a transition that occurred over the first few billion years of its history."
+      ]
+    },
+    {
+      "diagram": {
+        "title": "Atmospheric Escape Mechanisms",
+        "svg": "<svg viewBox=\"0 0 580 340\" xmlns=\"http://www.w3.org/2000/svg\" width=\"100%\">\n  <rect width=\"580\" height=\"340\" fill=\"rgba(10,15,25,0.5)\" rx=\"4\"/>\n\n  <!-- Planet -->\n  <circle cx=\"290\" cy=\"190\" r=\"60\" fill=\"#4488aa\" opacity=\"0.7\"/>\n  <text x=\"290\" y=\"195\" text-anchor=\"middle\" fill=\"#020510\" font-family=\"monospace\" font-size=\"11\" font-weight=\"bold\">PLANET</text>\n\n  <!-- Atmosphere shell -->\n  <circle cx=\"290\" cy=\"190\" r=\"85\" fill=\"none\" stroke=\"#44ff88\" stroke-width=\"1.5\" stroke-dasharray=\"6,3\" opacity=\"0.7\"/>\n  <text x=\"290\" y=\"95\" text-anchor=\"middle\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"10\">Atmosphere</text>\n\n  <!-- Jeans escape — top right -->\n  <line x1=\"348\" y1=\"130\" x2=\"430\" y2=\"70\" stroke=\"#ff8844\" stroke-width=\"1.4\"/>\n  <circle cx=\"430\" cy=\"70\" r=\"4\" fill=\"#ff8844\"/>\n  <circle cx=\"450\" cy=\"52\" r=\"3\" fill=\"#ff8844\" opacity=\"0.6\"/>\n  <circle cx=\"468\" cy=\"38\" r=\"2\" fill=\"#ff8844\" opacity=\"0.4\"/>\n  <text x=\"436\" y=\"88\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"10\">Jeans Escape</text>\n  <text x=\"436\" y=\"100\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">(light molecules)</text>\n\n  <!-- Solar wind sputtering — left -->\n  <line x1=\"60\" y1=\"130\" x2=\"200\" y2=\"160\" stroke=\"#cc4444\" stroke-width=\"1.2\"/>\n  <line x1=\"60\" y1=\"155\" x2=\"200\" y2=\"175\" stroke=\"#cc4444\" stroke-width=\"1.2\"/>\n  <line x1=\"60\" y1=\"180\" x2=\"200\" y2=\"190\" stroke=\"#cc4444\" stroke-width=\"1.2\"/>\n  <text x=\"8\" y=\"118\" fill=\"#cc4444\" font-family=\"monospace\" font-size=\"10\">Solar Wind /</text>\n  <text x=\"8\" y=\"130\" fill=\"#cc4444\" font-family=\"monospace\" font-size=\"10\">Sputtering</text>\n  <!-- Knocked molecules -->\n  <circle cx=\"185\" cy=\"135\" r=\"3\" fill=\"#ff8844\" opacity=\"0.8\"/>\n  <line x1=\"185\" y1=\"135\" x2=\"155\" y2=\"100\" stroke=\"#ff8844\" stroke-width=\"0.8\"/>\n  <circle cx=\"195\" cy=\"155\" r=\"3\" fill=\"#ff8844\" opacity=\"0.7\"/>\n  <line x1=\"195\" y1=\"155\" x2=\"170\" y2=\"115\" stroke=\"#ff8844\" stroke-width=\"0.8\"/>\n\n  <!-- Hydrodynamic escape — top -->\n  <path d=\"M 270 105 Q 260 60 255 30\" fill=\"none\" stroke=\"#7bb8ff\" stroke-width=\"1.8\"/>\n  <path d=\"M 290 105 Q 290 55 290 22\" fill=\"none\" stroke=\"#7bb8ff\" stroke-width=\"1.8\"/>\n  <path d=\"M 310 105 Q 320 60 325 30\" fill=\"none\" stroke=\"#7bb8ff\" stroke-width=\"1.8\"/>\n  <text x=\"290\" y=\"15\" text-anchor=\"middle\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"10\">Hydrodynamic</text>\n  <text x=\"290\" y=\"27\" text-anchor=\"middle\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">escape (hot planets)</text>\n\n  <!-- Photodissociation — bottom right -->\n  <line x1=\"430\" y1=\"200\" x2=\"360\" y2=\"240\" stroke=\"#ffcc44\" stroke-width=\"1.2\" stroke-dasharray=\"4,2\"/>\n  <text x=\"432\" y=\"198\" fill=\"#ffcc44\" font-family=\"monospace\" font-size=\"10\">UV / Photodissociation</text>\n  <text x=\"432\" y=\"210\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">(molecule splitting)</text>\n\n  <text x=\"290\" y=\"325\" text-anchor=\"middle\" fill=\"#667788\" font-family=\"monospace\" font-size=\"9\">Simplified. All processes act simultaneously.</text>\n</svg>",
+        "caption": "Four main atmospheric escape mechanisms: Jeans escape, hydrodynamic escape, solar wind sputtering, and photodissociation. Mars experienced all four after its magnetic field weakened and ceased to shield the surface from the solar wind."
+      }
+    },
+    {
+      "heading": "The Greenhouse Effect: From Savior to Destroyer",
+      "level": 2,
+      "paragraphs": [
+        "The greenhouse effect arises when an atmosphere transmits visible sunlight but absorbs the infrared thermal radiation emitted by the planet's surface. In itself it is neither good nor bad — it simply exists, and the intensity of it determines surface temperature.",
+        "On Venus it spiraled out of control. When young Venus was warmer and closer to the Sun, water in its atmosphere became a trap: water vapor — itself a potent greenhouse gas — warmed the planet further, which evaporated more water, which warmed it still more. This self-reinforcing feedback chain, known as a **_runaway greenhouse effect_**, drove surface temperatures past four hundred and fifty degrees Celsius. The water long since dissociated and escaped. The atmosphere today stands at ninety times Earth's atmospheric pressure, composed almost entirely of carbon dioxide, with clouds of sulfuric acid. Soviet spacecraft that landed on Venus in the twentieth century survived no longer than an hour.",
+        "Earth rests in equilibrium. Carbon dioxide and water vapor hold the surface roughly fifteen degrees Celsius warmer than it would be without any atmosphere at all. The calcium-silicate weathering cycle and photosynthesis remove excess carbon dioxide, preventing the effect from running away. This balance is stable — but it is not indestructible.",
+        "Mars is the opposite extreme: its atmosphere is so thin that the greenhouse effect is barely perceptible. The average surface temperature is around minus sixty degrees Celsius even though carbon dioxide is present. A pressure below one percent of Earth's simply cannot retain heat."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "greenhouse-venus-earth-mars",
+        "prompt": "Photorealistic illustration for a science encyclopedia: three planet cross-sections side by side — Venus (left, thick CO2 atmosphere glowing yellow-orange, runaway greenhouse arrows showing trapped heat), Earth (center, balanced thin blue atmosphere with moderate heat retention), Mars (right, extremely thin reddish atmosphere, heat escaping freely into space), dark space background, scientific diagram style, hard sci-fi. Add the following text labels on the image: \"Venus: Runaway Greenhouse\", \"Earth: Balanced\", \"Mars: Too Thin\".",
+        "alt": "Comparison of the greenhouse effect on Venus, Earth, and Mars",
+        "caption": "Three rocky planets, three greenhouse outcomes. Venus: a runaway heating loop. Earth: a delicate balance. Mars: too little atmosphere to hold any warmth at all.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "Structure of Earth's Atmosphere",
+      "level": 2,
+      "paragraphs": [
+        "Earth's atmosphere is not a uniform layer of gas. It is organized vertically into distinct zones, each with its own temperature profile and its own function.",
+        "The **_troposphere_** is the lowest layer — where we live and where weather forms. Temperature drops with altitude at roughly six and a half degrees Celsius per kilometer. This is called the **_lapse rate_**. At around ten to twelve kilometers altitude lies the tropopause, where temperature stabilizes.",
+        "The **_stratosphere_** extends to roughly fifty kilometers. Here temperature increases with altitude — because the ozone layer absorbs ultraviolet radiation from the Sun. This is a thermal inversion. Because of it, the stratosphere is stable and nearly free of vertical mixing: thunderstorms can push clouds up to the tropopause, but no higher.",
+        "The **_mesosphere_** (from fifty to eighty kilometers) cools again. Most meteors burn up here, and this is the coldest point in Earth's atmosphere: down to minus ninety degrees Celsius. The **_thermosphere_**, above eighty kilometers, sees a dramatic temperature rise — hundreds to thousands of degrees, but the density of molecules is so low that heat in the ordinary sense is nearly absent. The International Space Station and most satellites orbit here. The **_exosphere_** is the transition zone between the atmosphere and interplanetary space, where individual molecules travel on independent ballistic trajectories."
+      ]
+    },
+    {
+      "diagram": {
+        "title": "Layers of Earth's Atmosphere: Altitude and Temperature",
+        "svg": "<svg viewBox=\"0 0 560 420\" xmlns=\"http://www.w3.org/2000/svg\" width=\"100%\">\n  <rect width=\"560\" height=\"420\" fill=\"rgba(10,15,25,0.5)\" rx=\"4\"/>\n\n  <!-- Y axis — altitude -->\n  <line x1=\"90\" y1=\"20\" x2=\"90\" y2=\"390\" stroke=\"#667788\" stroke-width=\"1\"/>\n  <!-- X axis — temperature -->\n  <line x1=\"90\" y1=\"390\" x2=\"520\" y2=\"390\" stroke=\"#667788\" stroke-width=\"1\"/>\n\n  <!-- Altitude labels -->\n  <text x=\"78\" y=\"394\" text-anchor=\"end\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">0</text>\n  <text x=\"78\" y=\"330\" text-anchor=\"end\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">12</text>\n  <text x=\"78\" y=\"250\" text-anchor=\"end\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">50</text>\n  <text x=\"78\" y=\"185\" text-anchor=\"end\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">80</text>\n  <text x=\"78\" y=\"105\" text-anchor=\"end\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">200</text>\n  <text x=\"30\" y=\"210\" text-anchor=\"middle\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"10\" transform=\"rotate(-90,30,210)\">Altitude (km)</text>\n\n  <!-- Temperature tick marks -->\n  <text x=\"130\" y=\"404\" text-anchor=\"middle\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">-90</text>\n  <text x=\"220\" y=\"404\" text-anchor=\"middle\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">-50</text>\n  <text x=\"310\" y=\"404\" text-anchor=\"middle\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">-20</text>\n  <text x=\"390\" y=\"404\" text-anchor=\"middle\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">+15</text>\n  <text x=\"480\" y=\"404\" text-anchor=\"middle\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">+800</text>\n  <text x=\"310\" y=\"415\" text-anchor=\"middle\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"10\">Temperature (°C)</text>\n\n  <!-- Layer backgrounds -->\n  <!-- Troposphere: 0-12 km, y: 330-390 -->\n  <rect x=\"91\" y=\"330\" width=\"429\" height=\"60\" fill=\"#4488aa\" opacity=\"0.08\"/>\n  <!-- Stratosphere: 12-50 km, y: 250-330 -->\n  <rect x=\"91\" y=\"250\" width=\"429\" height=\"80\" fill=\"#44ff88\" opacity=\"0.05\"/>\n  <!-- Mesosphere: 50-80 km, y: 185-250 -->\n  <rect x=\"91\" y=\"185\" width=\"429\" height=\"65\" fill=\"#7bb8ff\" opacity=\"0.06\"/>\n  <!-- Thermosphere: 80-200 km, y: 105-185 -->\n  <rect x=\"91\" y=\"105\" width=\"429\" height=\"80\" fill=\"#ff8844\" opacity=\"0.05\"/>\n  <!-- Exosphere: 200+ km, y: 20-105 -->\n  <rect x=\"91\" y=\"20\" width=\"429\" height=\"85\" fill=\"#cc4444\" opacity=\"0.04\"/>\n\n  <!-- Temperature profile curve -->\n  <polyline\n    points=\"390,390 157,330 310,250 130,185 480,105\"\n    fill=\"none\" stroke=\"#7bb8ff\" stroke-width=\"2\" stroke-linejoin=\"round\"/>\n  <!-- Dots at key transitions -->\n  <circle cx=\"390\" cy=\"390\" r=\"3\" fill=\"#7bb8ff\"/>\n  <circle cx=\"157\" cy=\"330\" r=\"3\" fill=\"#7bb8ff\"/>\n  <circle cx=\"310\" cy=\"250\" r=\"3\" fill=\"#7bb8ff\"/>\n  <circle cx=\"130\" cy=\"185\" r=\"3\" fill=\"#7bb8ff\"/>\n\n  <!-- Dashed boundary lines -->\n  <line x1=\"91\" y1=\"330\" x2=\"520\" y2=\"330\" stroke=\"#667788\" stroke-width=\"0.7\" stroke-dasharray=\"4,3\"/>\n  <line x1=\"91\" y1=\"250\" x2=\"520\" y2=\"250\" stroke=\"#667788\" stroke-width=\"0.7\" stroke-dasharray=\"4,3\"/>\n  <line x1=\"91\" y1=\"185\" x2=\"520\" y2=\"185\" stroke=\"#667788\" stroke-width=\"0.7\" stroke-dasharray=\"4,3\"/>\n  <line x1=\"91\" y1=\"105\" x2=\"520\" y2=\"105\" stroke=\"#667788\" stroke-width=\"0.7\" stroke-dasharray=\"4,3\"/>\n\n  <!-- Layer name labels -->\n  <text x=\"522\" y=\"368\" fill=\"#4488aa\" font-family=\"monospace\" font-size=\"10\">Tropo-</text>\n  <text x=\"522\" y=\"380\" fill=\"#4488aa\" font-family=\"monospace\" font-size=\"10\">sphere</text>\n  <text x=\"522\" y=\"300\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"10\">Strato-</text>\n  <text x=\"522\" y=\"312\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"10\">sphere</text>\n  <text x=\"522\" y=\"222\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"10\">Meso-</text>\n  <text x=\"522\" y=\"234\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"10\">sphere</text>\n  <text x=\"522\" y=\"148\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"10\">Thermo-</text>\n  <text x=\"522\" y=\"160\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"10\">sphere</text>\n  <text x=\"522\" y=\"58\" fill=\"#cc4444\" font-family=\"monospace\" font-size=\"10\">Exo-</text>\n  <text x=\"522\" y=\"70\" fill=\"#cc4444\" font-family=\"monospace\" font-size=\"10\">sphere</text>\n\n  <text x=\"290\" y=\"12\" text-anchor=\"middle\" fill=\"#667788\" font-family=\"monospace\" font-size=\"9\">Simplified. Thermosphere is truncated — actual temperature 500–2000 °C.</text>\n</svg>",
+        "caption": "Vertical structure of Earth's atmosphere. The temperature profile (blue curve) reveals alternating warming and cooling with altitude — those reversals define the boundaries between layers."
+      }
+    },
+    {
+      "heading": "Circulation: How Atmospheres Mix",
+      "level": 2,
+      "paragraphs": [
+        "The Sun heats the equator far more intensely than the poles, and the atmosphere works continuously to equalize that temperature difference. The result is global circulation — a system of winds that redistributes heat and moisture around the planet.",
+        "In the tropics, warm air rises, travels toward the subtropics, cools, and descends. This is the **_Hadley cell_** — the largest convective movement in Earth's atmosphere. In the mid-latitudes, the **_Ferrel cell_** plays a similar role, though its circulation is more complex, driven not by direct convection but by large-scale eddies. Over the poles sit the **_polar cells_**: cold air descends and spreads toward the mid-latitudes.",
+        "The **_Coriolis effect_** is what transforms straight air movement into the curving wind systems we observe. Earth rotates, and air moving across its surface experiences an apparent deflection: to the right in the Northern Hemisphere, to the left in the Southern. This is why cyclones and anticyclones spin in opposite directions on opposite sides of the equator, and why trade winds and westerlies maintain their persistent directions. On planets with different rotation rates, the Coriolis effect differs: Venus rotates so slowly that its atmosphere shows almost no Coriolis signature at all."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "hadley-ferrel-polar-cells",
+        "prompt": "Photorealistic illustration for a science encyclopedia: Earth atmosphere global circulation cells diagram, showing three pairs of circulation cells on both hemispheres — Hadley cells near equator (warm rising air), Ferrel cells in mid-latitudes, Polar cells at poles, with arrows showing air movement directions, blue for cool descending air, red-orange for warm rising air, dark space background, globe view, hard sci-fi style. Add the following text labels on the image: \"Hadley Cell\", \"Ferrel Cell\", \"Polar Cell\", \"Trade Winds\", \"Westerlies\".",
+        "alt": "Diagram of Earth's global atmospheric circulation: Hadley, Ferrel, and Polar cells",
+        "caption": "Three pairs of convective cells in each hemisphere govern the global distribution of winds, precipitation, and climate zones. The Hadley cell is the most powerful: it transfers tropical heat to the subtropics.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "Exotic Atmospheres: Beyond the Solar System",
+      "level": 2,
+      "paragraphs": [
+        "The discovery of thousands of exoplanets overturned our assumptions about what atmospheres can be. The class of planets known as **_hot Jupiters_** — gas giants on orbits compressed to within a few million kilometers of their star — exist in a regime impossible in our own system. Their atmospheric temperatures reach thousands of degrees. Iron and silicates vaporize and condense into clouds. Some of them may have iron rain.",
+        "A notable example is TrES-2b, known as the darkest planet yet found: it reflects less than one percent of its star's light. The precise cause of this extreme absorption is not established, but sodium and potassium molecules in the atmosphere are suspected. At the other end of the spectrum sit young planets wrapped in brilliant reflective cloud layers.",
+        "In 2022, the James Webb Space Telescope made the first direct detection of carbon dioxide in the atmosphere of an exoplanet — WASP-39b. It was a scientific landmark: for the first time, the molecular signature of a specific gas was directly measured in the atmosphere of a world beyond our solar system. The method is transit spectroscopy: as a planet passes in front of its star, some of the starlight filters through the planet's atmosphere, and a spectrograph records which wavelengths were absorbed. That success opened a prospect: if the telescope can see carbon dioxide, it can in principle also detect oxygen and methane — potential markers of biological chemistry."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "hot-jupiter-atmosphere",
+        "prompt": "Photorealistic illustration for a science encyclopedia: hot Jupiter exoplanet in extremely close orbit around a bright star, planet showing deep blue and teal swirling atmosphere with iron vapor clouds, tidally locked so one side is in permanent scorching daylight, other in night, star filling a large portion of the background, plasma tail of escaping atmosphere, dark space, hard sci-fi style. Add the following text labels on the image: \"Dayside >1000°C\", \"Tidally Locked\", \"Escaping Atmosphere\", \"Iron Clouds\".",
+        "alt": "Hot Jupiter in close orbit around a star, with iron clouds and an escaping atmosphere",
+        "caption": "Hot Jupiters are gas giants orbiting closer to their stars than Mercury orbits the Sun. Extreme irradiation heats their atmospheres to thousands of degrees and drives hydrodynamic escape of gas into space.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "Titan and Triton: Two Atmospheric Anomalies",
+      "level": 2,
+      "paragraphs": [
+        "**_Titan_** is Saturn's largest moon and the only moon in the solar system with a genuine dense atmosphere. Surface pressure is approximately one and a half times that of Earth. The composition is mostly nitrogen, around five percent methane, and trace quantities of other organic molecules. But the most remarkable feature is not the composition — it is that methane on Titan plays the same role that water plays on Earth: it evaporates, condenses into clouds, and falls as rain into liquid methane lakes. This is the **_methane cycle_** — a chemical analog of Earth's hydrological cycle, running at minus one hundred and seventy degrees Celsius.",
+        "**_Triton_**, Neptune's largest moon, demonstrates a completely different kind of atmospheric dynamics. Its thin atmosphere consists mainly of nitrogen with trace methane. What makes it particularly interesting is that Triton's surface is covered in nitrogen ice, and those ices seasonally sublime: when the Sun warms a polar cap, nitrogen transitions to gas and replenishes the atmosphere, only to condense back as ice in another season. Triton is almost certainly a captured Kuiper Belt object, which explains its retrograde orbit and unusual composition. Nitrogen geysers observed by the Voyager 2 spacecraft in the late twentieth century indicate internal activity even in a world this cold and distant."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "titan-atmosphere-haze",
+        "prompt": "Photorealistic illustration for a science encyclopedia: Titan moon of Saturn atmosphere, thick orange-brown hydrocarbon haze layers visible from space, dark methane lakes on surface visible below, Saturn rings partially visible in background, golden haze gradients at different altitudes, scientific accuracy, hard sci-fi style. Add the following text labels on the image: \"Nitrogen Atmosphere\", \"Haze Layers\", \"Methane Lakes\", \"Saturn (background)\".",
+        "alt": "Titan — Saturn's moon with a dense orange nitrogen-methane atmosphere and methane lakes on the surface",
+        "caption": "Titan's atmosphere is denser than Earth's and the most chemically rich of any known body in the solar system. A methane cycle replaces the water cycle, making Titan a strange mirror of the young Earth.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "Scale Height and What It Tells Us",
+      "level": 3,
+      "paragraphs": [
+        "There is one parameter that precisely characterizes the behavior of any planetary atmosphere: **_scale height_**. It is the vertical distance over which atmospheric pressure drops by a factor of approximately two and seventy-one hundredths — that is, by Euler's number. For Earth this is roughly eight kilometers: at eight kilometers altitude the pressure is half what it is at the surface, at sixteen kilometers it is one quarter, and so on. On Mars, where the atmosphere is lighter and gravity is weaker, the scale height is larger — around eleven kilometers — even though the total quantity of gas is far smaller. On Jupiter the scale height is smaller because the gravity is enormous.",
+        "Scale height depends on atmospheric temperature and the molecular mass of the gas: the hotter the atmosphere and the lighter the molecules, the larger the scale height and the easier it is for gas to escape. This explains why Earth retains nitrogen and oxygen but continuously loses hydrogen: in the warm upper atmosphere, hydrogen reaches the velocities needed for Jeans escape, while molecular nitrogen does not."
+      ]
+    }
+  ],
+  "glossary": [
+    {
+      "term": "Primary atmosphere",
+      "definition": "An atmosphere formed by the gravitational capture of gases directly from the solar nebula. Composed primarily of hydrogen and helium. Characteristic of gas giants; rocky planets lost their primary atmospheres to the solar wind early in solar system history."
+    },
+    {
+      "term": "Secondary atmosphere",
+      "definition": "An atmosphere built up through volcanic outgassing from a planet's interior after the primary atmosphere was lost. Characteristic of Earth, Venus, and Mars. Its composition depends on the planet's geological and biological evolution."
+    },
+    {
+      "term": "Jeans escape",
+      "definition": "An atmospheric loss mechanism in which molecules at the top of the atmosphere reach escape velocity and leave the planet permanently. Most effective for light gases such as hydrogen and helium, and for low-mass planets with weak gravity."
+    },
+    {
+      "term": "Scale height",
+      "definition": "The vertical distance over which atmospheric pressure decreases by a factor of Euler's number (approximately two point seven one). For Earth it is roughly eight kilometers. It describes how rapidly the atmosphere thins with altitude."
+    },
+    {
+      "term": "Lapse rate",
+      "definition": "The rate at which temperature decreases with increasing altitude in the troposphere. In Earth's atmosphere this is approximately six and a half degrees Celsius per kilometer. It controls convective instability and cloud formation."
+    },
+    {
+      "term": "Runaway greenhouse effect",
+      "definition": "A self-amplifying process in which rising temperature causes more greenhouse gas to evaporate, which raises temperature further, creating a positive feedback loop. Believed to have transformed Venus into a hellish world."
+    },
+    {
+      "term": "Coriolis effect",
+      "definition": "An apparent force that deflects moving air masses horizontally due to planetary rotation. Deflects to the right in the Northern Hemisphere and to the left in the Southern. Determines the direction of cyclone rotation and the paths of major wind belts."
+    },
+    {
+      "term": "Transit spectroscopy",
+      "definition": "A technique for studying an exoplanet's atmosphere: as the planet crosses its star, starlight passes through the planetary atmosphere. Spectral analysis of this filtered light reveals the atmosphere's chemical composition."
+    },
+    {
+      "term": "Methane cycle (Titan)",
+      "definition": "The circulation of methane on Titan that is analogous to Earth's water cycle: methane evaporates from lakes, condenses into clouds, and falls as liquid methane rain. It operates at around minus one hundred and seventy degrees Celsius."
+    },
+    {
+      "term": "Hydrodynamic escape",
+      "definition": "An intense atmospheric loss mechanism in which strong ultraviolet and X-ray radiation from a star heats a planet's upper atmosphere to the point where a continuous outward flow of gas develops. Characteristic of hot Jupiters in close stellar orbits."
+    }
+  ],
+  "quiz": [
+    {
+      "question": "Why do gas giants have primary atmospheres while Earth does not?",
+      "options": [
+        "Gas giants formed later, when the solar wind had already weakened",
+        "Gas giants grew massive enough to gravitationally capture hydrogen and helium from the solar nebula",
+        "Earth lost its atmosphere during the collision with Theia that formed the Moon",
+        "Primary atmospheres only exist on planets without a solid surface"
+      ],
+      "correctIndex": 1,
+      "explanation": "Capturing light gases — hydrogen and helium — from the solar nebula requires sufficient mass. Gas giants achieved that threshold in time. Rocky planets, including Earth, were too small, and any primary atmosphere they may have had was dispersed by the solar wind and photoionization."
+    },
+    {
+      "question": "What is Jeans escape, and for which gases is it most effective?",
+      "options": [
+        "Heating of the atmosphere by laser radiation from the star, effective for carbon dioxide",
+        "A collective flow of gas that develops when the upper atmosphere is heated to extreme temperatures",
+        "Individual molecules at the top of the atmosphere reaching escape velocity and leaving permanently; most effective for light gases",
+        "Absorption of gases by the planetary surface through chemical reactions"
+      ],
+      "correctIndex": 2,
+      "explanation": "Jeans escape occurs when molecules in the upper atmosphere acquire enough kinetic energy to exceed escape velocity and leave the planet. For light gases — hydrogen and helium — this threshold is reached far more easily than for heavier molecules such as nitrogen or oxygen."
+    },
+    {
+      "question": "What discovery by the James Webb Space Telescope in 2022 was particularly significant for exoplanet research?",
+      "options": [
+        "The first direct image of Venus's atmosphere from outside the solar system",
+        "Detection of oxygen in Mars's atmosphere",
+        "The first direct detection of carbon dioxide in the atmosphere of exoplanet WASP-39b",
+        "Confirmation of liquid water on the surface of a hot Jupiter"
+      ],
+      "correctIndex": 2,
+      "explanation": "In 2022, the James Webb Space Telescope made the first direct detection of carbon dioxide in the atmosphere of exoplanet WASP-39b using transit spectroscopy. This confirmed that the telescope is capable of detailed chemical analysis of planetary atmospheres beyond our solar system."
+    },
+    {
+      "question": "Why does Mars remain a cold world despite having carbon dioxide in its atmosphere?",
+      "options": [
+        "Carbon dioxide on Mars is not a greenhouse gas",
+        "Mars's atmosphere is so thin that the greenhouse effect is barely perceptible",
+        "Mars is too far from the Sun for any atmosphere to warm it",
+        "Mars has a powerful magnetic field that reflects solar heat"
+      ],
+      "correctIndex": 1,
+      "explanation": "Mars does have a carbon dioxide atmosphere, but its pressure is below one percent of Earth's. With so little gas present, the greenhouse effect is minimal, and most of the solar heat escapes straight back into space. Average surface temperature is around minus sixty degrees Celsius."
+    },
+    {
+      "question": "What is unique about Titan's atmosphere among all moons in the solar system?",
+      "options": [
+        "It is the only atmosphere composed of pure oxygen",
+        "It is the only dense atmosphere on any moon, with a methane cycle analogous to Earth's water cycle",
+        "It is the hottest atmosphere in the solar system",
+        "Titan's atmosphere consists entirely of hydrogen, like a gas giant"
+      ],
+      "correctIndex": 1,
+      "explanation": "Titan is the only moon with a dense atmosphere (pressure slightly above Earth's). It hosts a complete methane cycle: methane evaporates, condenses into clouds, and falls as rain into liquid methane lakes on the surface — a near-perfect chemical analog of Earth's water cycle, but at minus one hundred and seventy degrees Celsius."
+    }
+  ],
+  "sources": [
+    {
+      "title": "Planetary Atmospheres — NASA Science",
+      "url": "https://science.nasa.gov/planetary-science/focus-areas/planetary-atmospheres/",
+      "meta": "NASA Science, overview"
+    },
+    {
+      "title": "Venus Atmosphere — NASA Solar System Exploration",
+      "url": "https://solarsystem.nasa.gov/planets/venus/atmosphere/",
+      "meta": "NASA Solar System Exploration"
+    },
+    {
+      "title": "Mars Atmosphere — NASA Mars Exploration",
+      "url": "https://mars.nasa.gov/all-about-mars/facts/mars-atmosphere/",
+      "meta": "NASA Mars Exploration Program"
+    },
+    {
+      "title": "JWST Detects CO2 in Exoplanet Atmosphere — NASA 2022",
+      "url": "https://www.nasa.gov/missions/webb/nasas-james-webb-space-telescope-captures-clearest-view-yet-of-exoplanets-atmosphere/",
+      "meta": "NASA, August 2022 — WASP-39b first CO2 detection"
+    },
+    {
+      "title": "Titan's Atmosphere — Cassini Mission",
+      "url": "https://science.nasa.gov/mission/cassini/science/titan/",
+      "meta": "NASA Cassini Mission Science"
+    },
+    {
+      "title": "Atmospheric Escape Processes — ESA",
+      "url": "https://www.esa.int/Science_Exploration/Space_Science/How_Mars_lost_its_atmosphere",
+      "meta": "ESA, Mars atmospheric loss"
+    },
+    {
+      "title": "Jeans Escape and Atmospheric Loss — Annual Review of Earth and Planetary Sciences",
+      "url": "https://www.annualreviews.org/doi/10.1146/annurev-earth-060313-054834",
+      "meta": "Annual Review of Earth and Planetary Sciences"
+    },
+    {
+      "title": "TrES-2b — Darkest Known Exoplanet",
+      "url": "https://www.nasa.gov/feature/jpl/dark-worlds-studying-the-darkest-exoplanets",
+      "meta": "NASA JPL, dark exoplanets"
+    },
+    {
+      "title": "Triton — Voyager 2 Findings",
+      "url": "https://solarsystem.nasa.gov/moons/neptune-moons/triton/in-depth/",
+      "meta": "NASA Solar System Exploration, Voyager 2"
+    },
+    {
+      "title": "Runaway Greenhouse Effect — Nature Climate Change",
+      "url": "https://www.nature.com/articles/nclimate1827",
+      "meta": "Nature Climate Change, Goldblatt et al."
+    }
+  ],
+  "lastVerified": "2026-05-06"
+}

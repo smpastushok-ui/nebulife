@@ -1,0 +1,650 @@
+import type { Lesson } from '../../types.js';
+
+const lesson: Lesson = {
+  slug: 'galaxy-types',
+  language: 'en',
+  section: 'astronomy',
+  order: 10,
+  difficulty: 'beginner',
+  readingTimeMin: 11,
+  title: 'Galaxy Types',
+  subtitle: 'From spiral arms to elliptical giants — how the universe organizes stars into island cities.',
+
+  hero: {
+    cacheKey: 'galaxy-types-hero',
+    prompt:
+      'Photorealistic illustration for a science encyclopedia: a montage of four galaxy types arranged in a 2x2 grid against deep black space. ' +
+      'Top-left: a grand face-on spiral galaxy with two blue-white arms and a glowing yellow core. ' +
+      'Top-right: a barred spiral galaxy with a straight central bar and sweeping arms. ' +
+      'Bottom-left: a smooth featureless elliptical galaxy glowing amber-orange. ' +
+      'Bottom-right: an irregular galaxy with asymmetric clumps of blue star-forming regions. ' +
+      'Hard sci-fi style, dark space background, each galaxy sharp and detailed. ' +
+      'Add the following text labels on the image: "Spiral", "Barred Spiral", "Elliptical", "Irregular".',
+    alt: 'The four main galaxy types — spiral, barred spiral, elliptical, and irregular',
+    caption:
+      'Galaxies are divided into four main morphological classes. Each class reflects a different formation history, gas content, and rate of new star birth.',
+    aspectRatio: '16:9',
+  },
+
+  body: [
+    {
+      paragraphs: [
+        'A galaxy is a gravitationally bound system of anywhere from billions to trillions of stars, gas, dust, and dark matter. ' +
+        'The Milky Way, home to our Sun, is one of approximately two trillion galaxies in the observable universe. ' +
+        'Despite that staggering number, galaxies are not chaotic: they cluster into clear morphological classes — ' +
+        'distinctive enough that astronomers recognize them even in images of the deepest cosmos.',
+
+        'In the first half of the twentieth century, American astronomer Edwin Hubble devised a classification scheme ' +
+        'that remains the foundation of galactic morphology. It is known as the _Hubble tuning fork_: ' +
+        'a diagram shaped like a tuning fork, with elliptical galaxies on the left stem and spirals branching to the right. ' +
+        'What Hubble imagined as an evolutionary sequence turned out to be simply a convenient classification map: ' +
+        'galaxies do not smoothly "flow" from one type to another in a single linear progression.',
+
+        'Today, as the James Webb Space Telescope (JWST) peers at galaxies that existed in the first billion years after the Big Bang, ' +
+        'we see that the Hubble classification opens into new questions: why were some early galaxies so massive and already mature? ' +
+        'The answers are reshaping our understanding of how the universe\'s "island cities" form in the first place.',
+      ],
+    },
+
+    {
+      heading: 'The Hubble Tuning Fork: Logic of Classification',
+      level: 2,
+      paragraphs: [
+        'The Hubble scheme divides galaxies into three main branches. The left stem of the tuning fork holds **elliptical** galaxies, ' +
+        'labeled E followed by a number from zero to seven indicating the degree of flattening: ' +
+        'E0 looks like a perfect sphere, E7 like a pronounced ellipse.',
+
+        'The right end branches in two. The upper prong holds **ordinary spiral** galaxies (class S), ' +
+        'the lower prong **barred spiral** galaxies (class SB, from "barred"). ' +
+        'Both branches are subdivided a, b, c by how tightly wound the arms are and how prominent the core: ' +
+        'Sa has a large dense bulge and tightly coiled arms, Sc a small nucleus and widely open arms.',
+
+        'At the branching point sit **lenticular** galaxies (class S0): they have a disk like spirals ' +
+        'but almost no spiral arm structure and little cold gas for new star formation. ' +
+        'Standing apart are **irregular** galaxies (Irr) — those that fit neither branch of the fork.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Hubble Tuning Fork — Morphological Classification of Galaxies',
+        svg: `<svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+  <rect width="720" height="320" fill="rgba(10,15,25,0.7)" rx="4"/>
+
+  <defs>
+    <marker id="gt-arr-en" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+      <polygon points="0 0, 7 3.5, 0 7" fill="#667788"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="360" y="22" fill="#8899aa" font-family="monospace" font-size="11" text-anchor="middle">Hubble Morphological Classification</text>
+
+  <!-- Elliptical galaxies: E0, E3, E7 -->
+  <ellipse cx="72" cy="160" rx="28" ry="28" fill="none" stroke="#ff8844" stroke-width="1.5" opacity="0.85"/>
+  <text x="72" y="200" fill="#ff8844" font-family="monospace" font-size="10" text-anchor="middle">E0</text>
+
+  <ellipse cx="148" cy="160" rx="32" ry="24" fill="none" stroke="#ff8844" stroke-width="1.5" opacity="0.85"/>
+  <text x="148" y="200" fill="#ff8844" font-family="monospace" font-size="10" text-anchor="middle">E3</text>
+
+  <ellipse cx="230" cy="160" rx="40" ry="18" fill="none" stroke="#ff8844" stroke-width="1.5" opacity="0.85"/>
+  <text x="230" y="200" fill="#ff8844" font-family="monospace" font-size="10" text-anchor="middle">E7</text>
+
+  <!-- S0 lenticular at fork -->
+  <ellipse cx="310" cy="160" rx="34" ry="14" fill="none" stroke="#aabbcc" stroke-width="1.5" opacity="0.85"/>
+  <ellipse cx="310" cy="160" rx="14" ry="14" fill="none" stroke="#aabbcc" stroke-width="1" opacity="0.5"/>
+  <text x="310" y="200" fill="#aabbcc" font-family="monospace" font-size="10" text-anchor="middle">S0</text>
+
+  <!-- Arrow from E sequence to S0 -->
+  <line x1="272" y1="160" x2="274" y2="160" stroke="#667788" stroke-width="1.2" marker-end="url(#gt-arr-en)"/>
+
+  <!-- Fork lines from S0 -->
+  <line x1="346" y1="152" x2="390" y2="118" stroke="#667788" stroke-width="1" opacity="0.7"/>
+  <line x1="346" y1="168" x2="390" y2="202" stroke="#667788" stroke-width="1" opacity="0.7"/>
+
+  <!-- Upper branch: Sa, Sb, Sc -->
+  <ellipse cx="420" cy="105" rx="30" ry="11" fill="none" stroke="#7bb8ff" stroke-width="1.5" opacity="0.85"/>
+  <ellipse cx="420" cy="105" rx="12" ry="12" fill="none" stroke="#7bb8ff" stroke-width="1" opacity="0.6"/>
+  <text x="420" y="88" fill="#7bb8ff" font-family="monospace" font-size="10" text-anchor="middle">Sa</text>
+
+  <ellipse cx="510" cy="80" rx="34" ry="12" fill="none" stroke="#7bb8ff" stroke-width="1.5" opacity="0.85"/>
+  <ellipse cx="510" cy="80" rx="9" ry="9" fill="none" stroke="#7bb8ff" stroke-width="1" opacity="0.6"/>
+  <path d="M510,71 Q528,71 532,80 Q528,89 510,89 Q492,89 488,80 Q492,71 510,71" fill="none" stroke="#7bb8ff" stroke-width="0.8" opacity="0.4"/>
+  <text x="510" y="63" fill="#7bb8ff" font-family="monospace" font-size="10" text-anchor="middle">Sb</text>
+
+  <ellipse cx="610" cy="60" rx="40" ry="13" fill="none" stroke="#7bb8ff" stroke-width="1.5" opacity="0.85"/>
+  <ellipse cx="610" cy="60" rx="6" ry="6" fill="none" stroke="#7bb8ff" stroke-width="1" opacity="0.6"/>
+  <text x="610" y="43" fill="#7bb8ff" font-family="monospace" font-size="10" text-anchor="middle">Sc</text>
+
+  <text x="700" y="55" fill="#7bb8ff" font-family="monospace" font-size="11" text-anchor="end">S (spirals)</text>
+
+  <!-- Lower branch: SBa, SBb, SBc -->
+  <ellipse cx="420" cy="215" rx="32" ry="11" fill="none" stroke="#44ff88" stroke-width="1.5" opacity="0.85"/>
+  <line x1="390" y1="215" x2="450" y2="215" stroke="#44ff88" stroke-width="1.8" opacity="0.6"/>
+  <ellipse cx="420" cy="215" rx="11" ry="11" fill="none" stroke="#44ff88" stroke-width="0.8" opacity="0.45"/>
+  <text x="420" y="238" fill="#44ff88" font-family="monospace" font-size="10" text-anchor="middle">SBa</text>
+
+  <ellipse cx="510" cy="240" rx="36" ry="12" fill="none" stroke="#44ff88" stroke-width="1.5" opacity="0.85"/>
+  <line x1="476" y1="240" x2="544" y2="240" stroke="#44ff88" stroke-width="2" opacity="0.6"/>
+  <ellipse cx="510" cy="240" rx="8" ry="8" fill="none" stroke="#44ff88" stroke-width="0.8" opacity="0.4"/>
+  <text x="510" y="263" fill="#44ff88" font-family="monospace" font-size="10" text-anchor="middle">SBb</text>
+
+  <ellipse cx="610" cy="262" rx="42" ry="13" fill="none" stroke="#44ff88" stroke-width="1.5" opacity="0.85"/>
+  <line x1="568" y1="262" x2="652" y2="262" stroke="#44ff88" stroke-width="2.2" opacity="0.6"/>
+  <ellipse cx="610" cy="262" rx="5" ry="5" fill="none" stroke="#44ff88" stroke-width="0.8" opacity="0.4"/>
+  <text x="610" y="285" fill="#44ff88" font-family="monospace" font-size="10" text-anchor="middle">SBc</text>
+
+  <text x="700" y="280" fill="#44ff88" font-family="monospace" font-size="11" text-anchor="end">SB (barred)</text>
+
+  <!-- Elliptical label -->
+  <text x="148" y="270" fill="#ff8844" font-family="monospace" font-size="11" text-anchor="middle">E (ellipticals)</text>
+
+  <!-- Arrows along upper branch -->
+  <line x1="452" y1="103" x2="478" y2="88" stroke="#667788" stroke-width="0.9" opacity="0.6" marker-end="url(#gt-arr-en)"/>
+  <line x1="546" y1="76" x2="568" y2="68" stroke="#667788" stroke-width="0.9" opacity="0.6" marker-end="url(#gt-arr-en)"/>
+
+  <!-- Arrows along lower branch -->
+  <line x1="454" y1="218" x2="472" y2="228" stroke="#667788" stroke-width="0.9" opacity="0.6" marker-end="url(#gt-arr-en)"/>
+  <line x1="548" y1="244" x2="566" y2="252" stroke="#667788" stroke-width="0.9" opacity="0.6" marker-end="url(#gt-arr-en)"/>
+
+  <!-- Arrow E sequence -->
+  <line x1="102" y1="160" x2="112" y2="160" stroke="#667788" stroke-width="0.9" opacity="0.6" marker-end="url(#gt-arr-en)"/>
+  <line x1="184" y1="160" x2="186" y2="160" stroke="#667788" stroke-width="0.9" opacity="0.6" marker-end="url(#gt-arr-en)"/>
+
+  <!-- Irr label -->
+  <text x="360" y="305" fill="#8899aa" font-family="monospace" font-size="10" text-anchor="middle">Irr (irregulars) — outside the scheme</text>
+</svg>`,
+        caption:
+          'The Hubble tuning fork: left stem — elliptical galaxies (E0-E7), fork point — lenticulars (S0), ' +
+          'upper prong — ordinary spirals (Sa-Sc), lower prong — barred spirals (SBa-SBc). ' +
+          'Irregular galaxies fall outside the diagram.',
+      },
+    },
+
+    {
+      heading: 'Spiral and Barred Spiral Galaxies',
+      level: 2,
+      paragraphs: [
+        'Spiral galaxies are perhaps the most recognizable objects in the universe. ' +
+        'A flat disk with arms curling around a glowing central bulge is the image that comes to mind at the word "galaxy." ' +
+        'The Milky Way is a spiral galaxy. Andromeda is a spiral galaxy. ' +
+        'Estimates suggest that spirals and barred spirals together account for more than half of all large galaxies in the modern universe.',
+
+        'In **barred spiral** galaxies (SB), the arms do not emerge directly from the central bulge — ' +
+        'instead, a straight bar of stars and gas runs through the nucleus, with arms beginning at each end of the bar. ' +
+        'The bar channels gas toward the center, fueling star formation and, likely, feeding the central black hole. ' +
+        'Research over recent decades confirmed that the Milky Way is itself a barred spiral: ' +
+        'seen from our position inside the disk, the bar is only detected in radio and infrared wavelengths.',
+
+        'Spiral arms are not rigid structures: stars do not get permanently stuck in them. ' +
+        'The arms are _density waves_ — regions of elevated gravitational compression where new stars form more actively. ' +
+        'Young, hot blue-white stars make the arms appear bright even though they quickly "drift" out of the arm ' +
+        'on cosmic timescales.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'galaxy-types-spiral-barred',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: two galaxies side by side against deep black space. ' +
+          'Left: a classic face-on unbarred spiral galaxy (type Sc) with open, sweeping blue-white arms and a compact golden nucleus, faint dust lanes. ' +
+          'Right: a barred spiral galaxy (type SBb) with a prominent straight glowing bar through the center, arms emerging from bar ends, active star formation shown as blue-white knots. ' +
+          'Hard sci-fi style scientific illustration, dark background, labels in monospace font. ' +
+          'Add the following text labels on the image: "Spiral (S)", "Barred Spiral (SB)", "bar", "spiral arm", "bulge".',
+        alt: 'Side-by-side comparison of a normal spiral and a barred spiral galaxy',
+        caption:
+          'Left: a classic spiral galaxy, arms emerging directly from the bulge. ' +
+          'Right: a barred spiral, with arms beginning at the ends of a straight bar through the nucleus. ' +
+          'The Milky Way belongs to the barred type.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'Elliptical and Lenticular Galaxies',
+      level: 2,
+      paragraphs: [
+        '**Elliptical** galaxies are smooth, almost completely devoid of cold gas and dust. ' +
+        'They have no spiral arms, and their stars are predominantly old, yellowish-orange populations. ' +
+        'The rate of new star birth is minimal: nearly all the gas has either been consumed ' +
+        'or expelled during early collisions with other galaxies.',
+
+        'Class E0 is a nearly perfect sphere of billions of old stars. ' +
+        'Class E7 is a strongly elongated ellipse. ' +
+        'The largest known galaxies in the universe are **giant ellipticals** (so-called cD galaxies) at the centers of clusters: ' +
+        'they contain trillions of stars and formed through billions of years of absorbing smaller neighbors. ' +
+        'One famous example is M87 — a galaxy in the Virgo Cluster whose central supermassive black hole ' +
+        'was first imaged in 2019 by the Event Horizon Telescope.',
+
+        '**Lenticular** galaxies (S0) occupy a middle ground: they have a disk, ' +
+        'but it lacks the structure of spiral arms. ' +
+        'They are often described as "spirals that ran out of gas": gravitational interactions in a dense cluster environment ' +
+        'can strip a galaxy of its cold gas — and it settles into a structure resembling S0.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'galaxy-types-elliptical-giant',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: a massive giant elliptical galaxy (cD type) at the center of a galaxy cluster against deep black space. ' +
+          'Central galaxy is a huge smooth amber-orange ellipsoid glowing brightest at center, surrounded by dozens of smaller galaxies of various types at different distances. ' +
+          'Faint intracluster light visible as a diffuse glow between galaxies. Hard sci-fi style, scientifically accurate. ' +
+          'Add the following text labels on the image: "giant elliptical (cD)", "galaxy cluster", "intracluster light".',
+        alt: 'Giant elliptical galaxy at the center of a cluster — surrounded by dozens of smaller galaxies',
+        caption:
+          'Giant cD-type elliptical galaxies anchor the centers of massive clusters. ' +
+          'They build up through billions of years of cannibalism — absorbing neighboring galaxies — and can contain trillions of stars.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'Dwarf and Irregular Galaxies',
+      level: 2,
+      paragraphs: [
+        'By sheer number, most galaxies in the universe are **dwarfs**: small systems of a few million to a few billion stars. ' +
+        'They appear in all morphological varieties — dwarf ellipticals, dwarf spirals, dwarf irregulars — ' +
+        'but a special subtype is the **dwarf spheroidal** (dSph): ' +
+        'extremely faint satellites of larger galaxies, dominated by old stars with very little gas.',
+
+        'The nearest large neighbors of the Milky Way — the Large and Small Magellanic Clouds — are **irregular dwarf** galaxies: ' +
+        'they lack clear symmetry, their shapes distorted by tidal forces from our Galaxy. ' +
+        'They are visible from the Southern Hemisphere to the naked eye as bright patches near the Milky Way band.',
+
+        '**Irregular** galaxies (Irr) are a catch-all class for anything that does not fit the elliptical or spiral branches. ' +
+        'Sometimes irregular morphology results from a recent merger or gravitational disturbance. ' +
+        'Sometimes it marks a young, chaotic galaxy that has not yet settled into an ordered shape. ' +
+        'Many galaxies in the early universe that JWST observes look exactly like irregulars — ' +
+        'they have not yet acquired the symmetry characteristic of well-developed spirals.',
+      ],
+    },
+
+    {
+      heading: 'Active Galaxies: When the Black Hole Speaks',
+      level: 2,
+      paragraphs: [
+        'All large galaxies harbor a supermassive black hole at their center. ' +
+        'In most of them — including our own Milky Way — that black hole is currently "quiet": ' +
+        'it is not actively accreting matter and generates no dramatic radiation. ' +
+        'In **active galaxies** (those hosting an _active galactic nucleus_, abbreviated AGN), ' +
+        'the black hole is actively accreting — swallowing surrounding gas — ' +
+        'and in the process radiates an enormous amount of energy.',
+
+        '**Quasars** are the most luminous of all active galactic nuclei. ' +
+        'In the mid-twentieth century, radio astronomy revealed point-like sources that looked like stars ' +
+        'but carried baffling spectra. Once astronomers decoded the redshift, the truth emerged: ' +
+        'these "stars" lie billions of light-years away. ' +
+        'To be visible at such distances, they must outshine entire galaxies by factors of thousands. ' +
+        'Quasars are supermassive black holes devouring matter in the early universe.',
+
+        '**Seyfert galaxies** are a milder version of quasars. These are spiral or elliptical galaxies ' +
+        'with an unusually bright and variable nucleus. Their cores vary in brightness over days or weeks — ' +
+        'pointing to a source smaller than a few light-days across. ' +
+        '**Blazars** are active galactic nuclei in which a relativistic jet — a collimated stream of plasma accelerated to near the speed of light — ' +
+        'is aimed almost directly at Earth: this geometry produces extraordinarily bright and rapidly variable emission. ' +
+        'Blazars are powerful sources of gamma radiation and rank among the most distant objects known to science.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'galaxy-types-quasar-jet',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: an active galactic nucleus — quasar with relativistic jet. ' +
+          'Central brilliant white-blue point source (accretion disk around supermassive black hole) surrounded by a glowing torus of hot orange-red gas. ' +
+          'A narrow collimated relativistic plasma jet shoots outward from the poles in vivid blue-white extending far into black space, ' +
+          'creating a diffuse lobe at the jet terminus. Host galaxy faintly visible as amber haze around the core. ' +
+          'Hard sci-fi scientific style, dark space background, dramatic lighting. ' +
+          'Add the following text labels on the image: "accretion disk", "supermassive black hole", "relativistic jet", "hot gas torus".',
+        alt: 'Active galactic nucleus — quasar with accretion disk and relativistic jet',
+        caption:
+          'An active galactic nucleus: a supermassive black hole at the center surrounded by a disk of heated gas. ' +
+          'A fraction of the infalling matter is channeled into a narrow relativistic jet that extends far beyond the galaxy itself.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'Clusters, Superclusters, and Large-Scale Structure',
+      level: 2,
+      paragraphs: [
+        'Galaxies are not alone. They gather in **groups** (a few dozen galaxies, such as the Local Group — ' +
+        'which includes the Milky Way, Andromeda, and more than fifty smaller galaxies) ' +
+        'and in **clusters** (hundreds to thousands of galaxies bound by shared gravity).',
+
+        'Clusters in turn belong to **superclusters** — the largest gravitationally associated structures in the universe. ' +
+        'The Local Group is part of the Laniakea Supercluster, ' +
+        'a colossal assemblage with a mass exceeding one hundred quintillion solar masses ' +
+        'and a span of more than five hundred megaparsecs. ' +
+        'Laniakea encompasses thousands of galaxy groups and clusters connected by _filaments_ of dark matter and hot gas. ' +
+        'Between the filaments lie grand voids where almost no galaxies reside.',
+
+        'This network of filaments, walls, nodes, and voids is called the **cosmic web**. ' +
+        'It grew from tiny fluctuations in density during the first fractions of a second after the Big Bang. ' +
+        'Dark matter provided the scaffold: gravity drew ordinary matter along dark matter filaments, ' +
+        'building galaxies precisely where filaments intersect.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'galaxy-types-cosmic-web',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: large-scale structure of the universe — the cosmic web. ' +
+          'Vast three-dimensional network of dark matter filaments glowing faint blue-white against near-black space background, ' +
+          'with galaxy clusters appearing as bright nodes at filament intersections, ' +
+          'large dark voids between filaments with almost no galaxies. ' +
+          'View as if looking through a cosmological simulation volume spanning hundreds of megaparsecs. ' +
+          'Hard sci-fi scientific style, dramatic depth and scale. ' +
+          'Add the following text labels on the image: "filament", "galaxy cluster node", "cosmic void".',
+        alt: 'The cosmic web — large-scale structure of the universe with filaments, cluster nodes, and voids',
+        caption:
+          'The large-scale structure of the universe resembles a three-dimensional sponge. Galaxies concentrate at nodes and along filaments ' +
+          'where dark matter intersects. Between the filaments lie enormous voids spanning up to several hundred megaparsecs.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'Galaxy Mergers: The Milky Way and Andromeda',
+      level: 2,
+      paragraphs: [
+        'Galaxies are not static: they move relative to each other and collide. ' +
+        'Mergers are one of the primary mechanisms shaping galaxy morphology. ' +
+        'When two spiral galaxies collide, tidal forces shred their arms, ' +
+        'gas clouds are compressed and ignite fierce bursts of star formation — so-called _starburst_ galaxies. ' +
+        'After several passes through each other, the two systems eventually merge into a single elliptical or lenticular galaxy.',
+
+        'Such a fate awaits our own Galaxy. Andromeda (M31) is approaching the Milky Way at roughly ' +
+        'one hundred ten kilometers per second. Approximately four billion years from now the first significant close encounter will occur, ' +
+        'and within six to seven billion years the two galaxies will have completely merged. ' +
+        'The resulting system — sometimes informally called "Milkomeda" — will most likely take the form of an elliptical galaxy.',
+
+        'Stars in such collisions almost never strike each other directly: the distances between them are simply too vast. ' +
+        'But the gas is compressed, gravitational fields intertwine, and new generations of stars are born. ' +
+        'Our Sun will likely not even register the merger in any dramatic way on its own orbital scale: ' +
+        'it may settle into a new orbit within the merged system, but it will not be destroyed.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Galaxy Merger Sequence: Milky Way and Andromeda',
+        svg: `<svg viewBox="0 0 720 200" xmlns="http://www.w3.org/2000/svg">
+  <rect width="720" height="200" fill="rgba(10,15,25,0.7)" rx="4"/>
+
+  <defs>
+    <marker id="gt-merge-arr-en" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+      <polygon points="0 0, 7 3.5, 0 7" fill="#667788"/>
+    </marker>
+  </defs>
+
+  <!-- Stage 1: current -->
+  <ellipse cx="72" cy="100" rx="36" ry="12" fill="none" stroke="#7bb8ff" stroke-width="1.5" opacity="0.9"/>
+  <ellipse cx="72" cy="100" rx="12" ry="12" fill="none" stroke="#7bb8ff" stroke-width="1" opacity="0.5"/>
+  <ellipse cx="125" cy="100" rx="32" ry="11" fill="none" stroke="#ff8844" stroke-width="1.5" opacity="0.9"/>
+  <ellipse cx="125" cy="100" rx="10" ry="10" fill="none" stroke="#ff8844" stroke-width="1" opacity="0.5"/>
+  <text x="98" y="135" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">Today</text>
+  <text x="98" y="148" fill="#667788" font-family="monospace" font-size="8" text-anchor="middle">~2.5 Mly apart</text>
+
+  <!-- Arrow 1 -->
+  <line x1="162" y1="100" x2="194" y2="100" stroke="#667788" stroke-width="1.2" marker-end="url(#gt-merge-arr-en)"/>
+  <text x="178" y="90" fill="#667788" font-family="monospace" font-size="8" text-anchor="middle">~4 Gyr</text>
+
+  <!-- Stage 2: first close encounter -->
+  <ellipse cx="250" cy="95" rx="34" ry="14" fill="none" stroke="#7bb8ff" stroke-width="1.3" opacity="0.8"/>
+  <ellipse cx="270" cy="108" rx="28" ry="11" fill="none" stroke="#ff8844" stroke-width="1.3" opacity="0.8"/>
+  <path d="M220,90 Q200,75 185,68" fill="none" stroke="#7bb8ff" stroke-width="0.8" opacity="0.5" stroke-dasharray="3,2"/>
+  <path d="M298,110 Q318,122 330,128" fill="none" stroke="#ff8844" stroke-width="0.8" opacity="0.5" stroke-dasharray="3,2"/>
+  <text x="258" y="138" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">First encounter</text>
+  <text x="258" y="151" fill="#667788" font-family="monospace" font-size="8" text-anchor="middle">tidal tails form</text>
+
+  <!-- Arrow 2 -->
+  <line x1="308" y1="100" x2="340" y2="100" stroke="#667788" stroke-width="1.2" marker-end="url(#gt-merge-arr-en)"/>
+  <text x="324" y="90" fill="#667788" font-family="monospace" font-size="8" text-anchor="middle">~2 Gyr</text>
+
+  <!-- Stage 3: merging chaos -->
+  <ellipse cx="410" cy="100" rx="42" ry="25" fill="none" stroke="#aabbcc" stroke-width="1.3" opacity="0.7"/>
+  <ellipse cx="400" cy="96" rx="20" ry="10" fill="none" stroke="#7bb8ff" stroke-width="0.8" opacity="0.5" stroke-dasharray="4,2"/>
+  <ellipse cx="420" cy="106" rx="18" ry="9" fill="none" stroke="#ff8844" stroke-width="0.8" opacity="0.5" stroke-dasharray="4,2"/>
+  <circle cx="395" cy="88" r="2" fill="#44ff88" opacity="0.8"/>
+  <circle cx="425" cy="112" r="2" fill="#44ff88" opacity="0.8"/>
+  <circle cx="408" cy="95" r="1.5" fill="#44ff88" opacity="0.6"/>
+  <text x="410" y="142" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">Merger + starburst</text>
+  <text x="410" y="155" fill="#44ff88" font-family="monospace" font-size="8" text-anchor="middle">new stars burst</text>
+
+  <!-- Arrow 3 -->
+  <line x1="456" y1="100" x2="488" y2="100" stroke="#667788" stroke-width="1.2" marker-end="url(#gt-merge-arr-en)"/>
+  <text x="472" y="90" fill="#667788" font-family="monospace" font-size="8" text-anchor="middle">~1 Gyr</text>
+
+  <!-- Stage 4: final elliptical -->
+  <ellipse cx="570" cy="100" rx="45" ry="32" fill="none" stroke="#ff8844" stroke-width="1.8" opacity="0.85"/>
+  <ellipse cx="570" cy="100" rx="20" ry="14" fill="none" stroke="#ff8844" stroke-width="0.8" opacity="0.4"/>
+  <text x="570" y="148" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">"Milkomeda"</text>
+  <text x="570" y="161" fill="#ff8844" font-family="monospace" font-size="8" text-anchor="middle">elliptical</text>
+
+  <!-- Time axis label -->
+  <text x="360" y="188" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">time arrow (~7 billion years to complete merger)</text>
+</svg>`,
+        caption:
+          'Simplified merger sequence of the Milky Way and Andromeda. ' +
+          'After several billion years of approach and initial passes, both galaxies will fuse into a single elliptical system. ' +
+          'Stars rarely collide directly — the distances between them are too great.',
+      },
+    },
+
+    {
+      heading: 'JWST and Galaxies of the Early Universe',
+      level: 2,
+      paragraphs: [
+        'The James Webb Space Telescope, launched in 2021, transformed our understanding of early galaxies. ' +
+        'Before its launch, prevailing theory held that large mature galaxies could not form so quickly — ' +
+        'building trillions of stars takes time. ' +
+        'But JWST\'s first images in 2022 revealed massive, bright-red galaxies ' +
+        'existing within the first billion years of the universe — ' +
+        'a result that caught theoretical astrophysicists off guard.',
+
+        'Through 2023 and into 2025, JWST systematically confirmed: galaxies that existed ' +
+        'when the universe was less than five hundred million years old often carry masses ' +
+        'comparable to the present-day Milky Way — far exceeding what standard models predicted. ' +
+        'Some even show disk-like structure rather than the chaotic clumps that earlier models expected.',
+
+        'JWST has identified galaxies at record redshifts — objects that existed less than three to four hundred million years ' +
+        'after the Big Bang. These are the most distant galaxies known. ' +
+        'Their spectra reveal stellar population compositions, the presence of dust, ' +
+        'and even signs of active galactic nuclei in the earliest cosmic structures. ' +
+        'Each new JWST discovery prompts theorists to revise their models of galaxy formation — ' +
+        'a process that will likely continue for decades to come.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'galaxy-types-jwst-early-universe',
+        prompt:
+          'JWST-style deep field image showing dozens of galaxies at various distances against deep black space. ' +
+          'Foreground: a few large resolved spiral and elliptical galaxies with distinct structure. ' +
+          'Midground and background: progressively smaller and redder galaxies, some showing irregular morphology, some as faint smudges. ' +
+          'Several very distant galaxies appear as tiny red or pink dots or elongated blobs. ' +
+          'Diffraction spikes on bright nearby stars visible. ' +
+          'Infrared false-color aesthetic, detailed, scientifically accurate. ' +
+          'Add the following text labels on the image: "nearby galaxy", "distant galaxy (redshifted)", "early universe galaxy".',
+        alt: 'JWST deep field — galaxies from many cosmic epochs, from nearby to the most distant in the observable universe',
+        caption:
+          'JWST deep fields capture galaxies from multiple epochs simultaneously: nearby ones resolved in detail, ' +
+          'the most distant as tiny red specks that existed less than a billion years after the Big Bang.',
+        aspectRatio: '16:9',
+      },
+    },
+  ],
+
+  glossary: [
+    {
+      term: 'Hubble tuning fork',
+      definition:
+        'The morphological classification scheme for galaxies proposed by Edwin Hubble in the first half of the twentieth century. Shaped like a tuning fork: the left stem holds elliptical galaxies (E0-E7), the fork point lenticulars (S0), and the two prongs ordinary spirals (S) and barred spirals (SB).',
+    },
+    {
+      term: 'Bulge',
+      definition:
+        'The central spherical or ellipsoidal thickening of a galaxy, composed mainly of old stars and a supermassive black hole. In spiral galaxies, the bulge protrudes above and below the plane of the disk.',
+    },
+    {
+      term: 'Density wave',
+      definition:
+        'A gravitational wave propagating through a galaxy disk that compresses gas and stars into spiral arms. Stars do not get permanently trapped in a spiral arm — they simply slow down briefly as the wave passes through them.',
+    },
+    {
+      term: 'Active galactic nucleus',
+      definition:
+        'A luminous central energy source in a galaxy produced by accretion of matter onto a supermassive black hole. Depending on the power output and viewing angle, it may manifest as a quasar, Seyfert galaxy, or blazar.',
+    },
+    {
+      term: 'Quasar',
+      definition:
+        'An extremely luminous active galactic nucleus visible across billions of light-years. The name derives from "quasi-stellar object": in early observations they looked like stars but carried spectra with large redshifts, revealing enormous distances and therefore enormous intrinsic luminosities.',
+    },
+    {
+      term: 'Blazar',
+      definition:
+        'A type of active galactic nucleus in which a relativistic plasma jet is directed almost exactly toward Earth. Blazars appear extraordinarily bright and rapidly variable, emitting across all wavelengths from radio to gamma rays.',
+    },
+    {
+      term: 'Cosmic web',
+      definition:
+        'The large-scale structure of the universe: a network of dark matter filaments along which galaxies align. Massive galaxy clusters occupy the nodes where filaments intersect; between the filaments lie near-empty cosmic voids.',
+    },
+    {
+      term: 'Supercluster',
+      definition:
+        'The largest gravitationally associated structure in the universe — an assemblage of multiple galaxy clusters and groups. The Local Group is part of the Laniakea Supercluster, spanning more than five hundred megaparsecs.',
+    },
+    {
+      term: 'Starburst',
+      definition:
+        'An abnormally high rate of star formation in a galaxy, typically triggered by a collision or merger with another galaxy. Compressed gas clouds form stars at rates hundreds or thousands of times higher than in undisturbed galaxies.',
+    },
+  ],
+
+  quiz: [
+    {
+      question: 'How does a barred spiral galaxy (SB) differ from an ordinary spiral galaxy (S)?',
+      options: [
+        'A barred spiral has more spiral arms',
+        'A barred spiral has a straight bar of stars through its nucleus, with arms beginning at each end of the bar',
+        'Barred spirals contain only old stars while ordinary spirals contain only young stars',
+        'A barred spiral has no central black hole',
+      ],
+      correctIndex: 1,
+      explanation:
+        'In a barred spiral galaxy, the arms do not emerge directly from the central bulge but begin at the ends of a straight bar running through the nucleus. The bar channels gas toward the center, fueling star formation. The Milky Way is itself a barred spiral of type SBbc.',
+    },
+    {
+      question: 'What is a quasar?',
+      options: [
+        'A super-luminous star at the center of our Galaxy',
+        'A compact neutron star that emits regular radio pulses',
+        'An extremely luminous active galactic nucleus — a supermassive black hole actively accreting matter',
+        'A collision of two galaxies producing a burst of star formation',
+      ],
+      correctIndex: 2,
+      explanation:
+        'A quasar is an active galactic nucleus powered by a supermassive black hole devouring vast amounts of gas, releasing more energy than the entire host galaxy. Quasars are visible across billions of light-years and are among the most luminous objects in the universe.',
+    },
+    {
+      question: 'What will happen when the Milky Way and Andromeda merge in roughly six to seven billion years?',
+      options: [
+        'All stars in both galaxies will collide and explode',
+        'Both galaxies will shrink into dwarfs through mass loss',
+        'A new large elliptical galaxy will form; individual stars will almost never collide',
+        'Andromeda will absorb the Milky Way while remaining a spiral',
+      ],
+      correctIndex: 2,
+      explanation:
+        'When two spiral galaxies merge, the stars almost never strike each other directly — the distances between them are far too great. Instead, gravitational interactions move stars onto new orbits, gas is compressed into a starburst, and the end result is typically an elliptical galaxy. Our Sun will likely shift to a new orbit within the merged system but will not be destroyed.',
+    },
+    {
+      question: 'What surprised astronomers when JWST began observing early galaxies in 2022-2025?',
+      options: [
+        'The early universe turned out to contain almost no galaxies',
+        'Massive mature galaxies turned out to be much smaller than models predicted',
+        'Massive mature galaxies were found to exist already in the first billion years after the Big Bang — far earlier than expected',
+        'Early universe galaxies turned out to be morphologically identical to modern ones',
+      ],
+      correctIndex: 2,
+      explanation:
+        'Standard galaxy formation models predicted that massive, mature systems assemble gradually over billions of years. JWST found large — and in some cases morphologically settled — galaxies already within the first billion years after the Big Bang, forcing theorists to revisit models of star and galaxy formation.',
+    },
+    {
+      question: 'Which morphological class does the Milky Way belong to?',
+      options: [
+        'Elliptical galaxy, class E3',
+        'Barred spiral galaxy',
+        'Irregular galaxy',
+        'Lenticular galaxy S0',
+      ],
+      correctIndex: 1,
+      explanation:
+        'The Milky Way is a barred spiral galaxy: a straight bar runs through its nucleus, and spiral arms begin at each end of the bar. This was established in the second half of the twentieth century through radio and infrared observations, which can penetrate the dust of the disk to map the galactic center.',
+    },
+  ],
+
+  sources: [
+    {
+      title: 'Hubble E.P. — Extragalactic nebulae (1926)',
+      url: 'https://ui.adsabs.harvard.edu/abs/1926ApJ....64..321H',
+      meta: 'ApJ 64, 321, 1926 — original classification paper',
+    },
+    {
+      title: 'NASA — Galaxy Classification (Hubble Tuning Fork)',
+      url: 'https://science.nasa.gov/universe/galaxies/',
+      meta: 'NASA Science, official overview, updated 2025',
+    },
+    {
+      title: 'Event Horizon Telescope — M87* black hole image',
+      url: 'https://eventhorizontelescope.org/press-release-april-10-2019',
+      meta: 'EHT Collaboration, ApJL, 2019',
+    },
+    {
+      title: 'NASA JWST — First Deep Field (SMACS 0723)',
+      url: 'https://www.nasa.gov/image-feature/goddard/2022/nasa-s-webb-delivers-deepest-infrared-image-of-universe-ever',
+      meta: 'NASA Webb press release, July 2022',
+    },
+    {
+      title: 'Labbe I. et al. — Massive galaxies within 500 Myr of Big Bang (JWST)',
+      url: 'https://www.nature.com/articles/s41586-023-05786-2',
+      meta: 'Nature, 616, 266–269, 2023',
+    },
+    {
+      title: 'Tully R.B. et al. — The Laniakea supercluster of galaxies',
+      url: 'https://www.nature.com/articles/nature13674',
+      meta: 'Nature, 513, 71–73, 2014',
+    },
+    {
+      title: 'Cox T.J., Loeb A. — The collision between the Milky Way and Andromeda',
+      url: 'https://academic.oup.com/mnras/article/386/1/461/1747741',
+      meta: 'MNRAS, 386, 461–474, 2008',
+    },
+    {
+      title: 'Conselice C.J. — The evolution of galaxy structure over cosmic time',
+      url: 'https://www.annualreviews.org/doi/10.1146/annurev-astro-081913-040037',
+      meta: 'ARA&A, 52, 291–337, 2014',
+    },
+    {
+      title: 'Springel V. et al. — Simulations of the formation, evolution and clustering of galaxies',
+      url: 'https://www.nature.com/articles/nature03597',
+      meta: 'Nature, 435, 629–636, 2005 — Millennium Simulation',
+    },
+    {
+      title: 'NASA JWST Science — Galaxy Formation and Evolution',
+      url: 'https://science.nasa.gov/mission/webb/galaxies/',
+      meta: 'NASA Webb science overview, 2025',
+    },
+  ],
+
+  lastVerified: '2026-05-06',
+};
+
+export default lesson;

@@ -1,0 +1,629 @@
+import type { Lesson } from '../../types.js';
+
+const lesson: Lesson = {
+  slug: 'ice-giants',
+  language: 'en',
+  section: 'planetology',
+  order: 4,
+  difficulty: 'intermediate',
+  readingTimeMin: 12,
+  title: 'Uranus and Neptune — Ice Giants',
+  subtitle: 'The two outermost worlds of the solar system, where supersonic winds howl, diamonds may rain inward, and the first orbital missions are still decades away.',
+
+  hero: {
+    cacheKey: 'ice-giants-hero',
+    prompt:
+      'Photorealistic illustration for a science encyclopedia: side-by-side view of Uranus and Neptune in space, ' +
+      'Uranus is pale aquamarine blue-green with a prominent ring system tilted nearly sideways, axis clearly tilted 98 degrees, ' +
+      'Neptune is deeper vivid cobalt blue with subtle cloud bands and a visible dark oval storm spot, ' +
+      'both planets shown against star-filled dark space background, scientific accuracy, cinematic lighting. ' +
+      'Add the following text labels on the image: "Uranus", "Neptune", "Rings", "98° tilt".',
+    alt: 'Uranus and Neptune side by side — pale aquamarine Uranus with tilted rings and deep-blue Neptune with cloud bands',
+    caption: 'Uranus (left) and Neptune (right) — the two ice giants at the edge of the solar system. Uranus rolls along its orbit nearly on its side due to a 98-degree axial tilt; Neptune hosts the fastest winds of any planet.',
+    aspectRatio: '16:9',
+  },
+
+  body: [
+    {
+      paragraphs: [
+        'Between Saturn and interstellar space sit two planetary worlds about which astronomers know ' +
+        'surprisingly little for bodies in our own solar system. Uranus and Neptune are not gas giants, ' +
+        'though they superficially resemble them. Their nature is different: they consist primarily of hot, ' +
+        'dense fluids — water, ammonia, methane — under pressures that transform these familiar substances into something alien. ' +
+        'Planetary scientists have long placed them in a separate class: ice giants.',
+
+        'The only spacecraft to visit both was the American probe Voyager 2. ' +
+        'It flew past Uranus in 1986 and past Neptune in 1989, captured images, collected data — and continued outward into interstellar space. ' +
+        'No spacecraft has visited either planet since. ' +
+        'Everything we have learned from orbital proximity comes from ground-based telescopes and the Hubble Space Telescope, ' +
+        'and from 2022 onward from the James Webb Space Telescope. ' +
+        'Two worlds in our own cosmic backyard remain one of planetary science\'s largest open gaps.',
+      ],
+    },
+
+    {
+      heading: 'Ice — But Not Cold',
+      level: 2,
+      paragraphs: [
+        'The name "ice giants" misleads people. The word "icy" refers to chemical composition, not temperature. ' +
+        'In planetary science, "ices" are compounds that at room temperature and pressure are liquids or gases: ' +
+        'water, ammonia, methane. Inside Uranus and Neptune, these substances are compressed into a state of hot, ' +
+        'dense fluid at temperatures of thousands of degrees and pressures of millions of atmospheres.',
+
+        'Gas giants — Jupiter and Saturn — consist primarily of hydrogen and helium, much like stars. ' +
+        'Ice giants have a fundamentally different proportion: far more "ices" and far less hydrogen. ' +
+        'This places them in a distinct physical class with different internal dynamics, ' +
+        'a different thermal regime, and, as it turns out, very different atmospheric behavior.',
+
+        'Uranus has a mass of approximately fourteen and a half times that of Earth. ' +
+        'Neptune is slightly heavier, at roughly seventeen Earth masses. ' +
+        'Both planets are far smaller than Jupiter but vastly larger than Earth. ' +
+        'They orbit at significant distances from the Sun: Uranus at roughly nineteen and a half times Earth\'s orbital distance, ' +
+        'Neptune at approximately thirty times that distance.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'ice-giants-interior',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: cutaway cross-section diagram of Uranus interior layers, ' +
+          'showing outer hydrogen-helium atmosphere layer, thick mantle of hot dense water-ammonia-methane ices, ' +
+          'small rocky silicate core at center, labeled layers with clean scientific style, ' +
+          'dark space background, vivid aquamarine and blue color scheme. ' +
+          'Add the following text labels on the image: "H₂/He atmosphere", "Ice mantle (water, ammonia, methane)", "Rocky core", "~50 000 km".',
+        alt: 'Interior structure of an ice giant — from the hydrogen atmosphere through the ice mantle to the rocky core',
+        caption: 'Interior structure of an ice giant: a thin hydrogen-helium atmosphere, a massive mantle of hot compressed "ices," and a relatively small rocky core. Layer boundaries are approximate.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Uranus: The Planet That Rolls on Its Side',
+      level: 2,
+      paragraphs: [
+        'Nearly every planet in the solar system spins like a top — their axes are roughly perpendicular to the orbital plane. ' +
+        'Uranus is the exception: its axis is tilted nearly 98 degrees, meaning the planet rolls along its orbit almost on its side. ' +
+        'One pole points nearly straight at the Sun while the other faces into the darkness of space. ' +
+        'This produces the most extreme seasons in the solar system: ' +
+        'each pole alternately receives an uninterrupted day lasting approximately forty-two Earth years, ' +
+        'then an equally long night.',
+
+        'The origin of this tilt is one of planetology\'s open questions. ' +
+        'The most widely accepted hypothesis holds that early in the solar system\'s formation, ' +
+        'Uranus collided with a body perhaps several Earth masses in size, ' +
+        'and the impact knocked the planet onto its side. ' +
+        'Some models allow for a series of smaller impacts or gravitational resonance interactions with passing bodies. ' +
+        'The precise cause remains debated.',
+
+        'Despite its extreme seasons, Uranus\'s atmosphere appears strangely calm. ' +
+        'When Voyager 2 flew past in 1986, it saw an almost featureless blue-green disc — ' +
+        'minimal clouds, minimal storms. ' +
+        'This puzzled planetary scientists: a planet with such a tilted axis should drive powerful atmospheric turbulence. ' +
+        'Later observations with Hubble and the James Webb Space Telescope have shown that atmospheric activity does exist — ' +
+        'particularly noticeable near solstices — but Uranus overall remains far quieter than Neptune.',
+      ],
+    },
+
+    {
+      heading: 'Neptune: The Stormy Planet',
+      level: 2,
+      paragraphs: [
+        'Neptune is the temperamental opposite of Uranus. ' +
+        'It is the windiest planet in the solar system: wind speeds in its atmosphere reach approximately ' +
+        'two thousand four hundred kilometers per hour — nearly twice the speed of sound on Earth. ' +
+        'When Voyager 2 passed Neptune in 1989, it detected a large dark spot — ' +
+        'an anticyclonic storm roughly the size of Earth. ' +
+        'But when the Hubble Space Telescope turned toward Neptune a few years later, the spot was gone. ' +
+        'It had vanished. New spots had appeared elsewhere.',
+
+        'This distinguishes Neptune fundamentally from Jupiter, whose Great Red Spot has persisted for at least several centuries. ' +
+        'Neptune\'s dark spots live for years, not eternities — they form, drift, and disappear. ' +
+        'In 2022 and 2023, the James Webb Space Telescope obtained new images of Neptune in infrared and visible light, ' +
+        'revealing an unusual bright equatorial band and atmospheric details previously unresolved.',
+
+        'Neptune receives roughly one thousand times less sunlight than Earth does — it is extremely remote. ' +
+        'Yet its atmosphere is far more active than Uranus\'s. ' +
+        'One explanation: Neptune has a substantial internal heat source and radiates roughly twice as much energy into space ' +
+        'as it receives from the Sun. ' +
+        'Uranus, by contrast, shows almost no detectable excess internal heat, ' +
+        'which remains one of the planet\'s central mysteries.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Axial Tilt: Earth, Uranus, and Neptune Compared',
+        svg: `<svg viewBox="0 0 580 320" xmlns="http://www.w3.org/2000/svg" width="100%">
+  <rect width="580" height="320" fill="rgba(10,15,25,0.5)" rx="4"/>
+
+  <!-- Sun indicator -->
+  <text x="16" y="180" fill="#ff8844" font-family="monospace" font-size="10">Sun</text>
+  <line x1="16" y1="185" x2="16" y2="290" stroke="#ff8844" stroke-width="0.6" opacity="0.5"/>
+  <text x="8" y="298" fill="#ff8844" font-family="monospace" font-size="9">direction</text>
+
+  <!-- EARTH -->
+  <text x="100" y="30" text-anchor="middle" fill="#aabbcc" font-family="monospace" font-size="11">Earth</text>
+  <text x="100" y="44" text-anchor="middle" fill="#8899aa" font-family="monospace" font-size="9">tilt 23.4°</text>
+  <!-- Earth planet circle -->
+  <circle cx="100" cy="165" r="32" fill="#4488aa" opacity="0.35"/>
+  <circle cx="100" cy="165" r="32" fill="none" stroke="#7bb8ff" stroke-width="1.4"/>
+  <!-- Earth axis — slightly tilted -->
+  <line x1="107" y1="125" x2="93" y2="205" stroke="#7bb8ff" stroke-width="2" stroke-linecap="round"/>
+  <!-- Earth orbit plane -->
+  <line x1="55" y1="165" x2="145" y2="165" stroke="#667788" stroke-width="0.8" stroke-dasharray="4,3"/>
+  <!-- Earth tilt angle arc -->
+  <path d="M 100 133 A 12 12 0 0 1 106 148" fill="none" stroke="#7bb8ff" stroke-width="1" opacity="0.7"/>
+  <text x="110" y="148" fill="#7bb8ff" font-family="monospace" font-size="9">23°</text>
+
+  <!-- URANUS -->
+  <text x="290" y="30" text-anchor="middle" fill="#aabbcc" font-family="monospace" font-size="11">Uranus</text>
+  <text x="290" y="44" text-anchor="middle" fill="#8899aa" font-family="monospace" font-size="9">tilt 98°</text>
+  <!-- Uranus planet circle -->
+  <circle cx="290" cy="165" r="38" fill="#44ff88" opacity="0.12"/>
+  <circle cx="290" cy="165" r="38" fill="none" stroke="#44ff88" stroke-width="1.4"/>
+  <!-- Uranus rings (tilted sideways) — ellipse -->
+  <ellipse cx="290" cy="165" rx="52" ry="10" fill="none" stroke="#44ff88" stroke-width="1.2" opacity="0.7"/>
+  <!-- Uranus axis — nearly horizontal -->
+  <line x1="248" y1="162" x2="332" y2="168" stroke="#44ff88" stroke-width="2" stroke-linecap="round"/>
+  <!-- Uranus orbit plane -->
+  <line x1="240" y1="165" x2="340" y2="165" stroke="#667788" stroke-width="0.8" stroke-dasharray="4,3"/>
+  <!-- Uranus tilt angle arc -->
+  <path d="M 290 165 A 18 18 0 0 1 308 162" fill="none" stroke="#44ff88" stroke-width="1" opacity="0.7"/>
+  <text x="312" y="160" fill="#44ff88" font-family="monospace" font-size="9">98°</text>
+  <!-- Arrows on axis ends -->
+  <text x="235" y="164" fill="#44ff88" font-family="monospace" font-size="10">N</text>
+  <text x="335" y="172" fill="#44ff88" font-family="monospace" font-size="10">S</text>
+
+  <!-- NEPTUNE -->
+  <text x="480" y="30" text-anchor="middle" fill="#aabbcc" font-family="monospace" font-size="11">Neptune</text>
+  <text x="480" y="44" text-anchor="middle" fill="#8899aa" font-family="monospace" font-size="9">tilt 28.3°</text>
+  <!-- Neptune planet circle -->
+  <circle cx="480" cy="165" r="34" fill="#7bb8ff" opacity="0.18"/>
+  <circle cx="480" cy="165" r="34" fill="none" stroke="#7bb8ff" stroke-width="1.4"/>
+  <!-- Neptune axis — ~28 deg tilt -->
+  <line x1="492" y1="124" x2="468" y2="206" stroke="#7bb8ff" stroke-width="2" stroke-linecap="round"/>
+  <!-- Neptune orbit plane -->
+  <line x1="435" y1="165" x2="525" y2="165" stroke="#667788" stroke-width="0.8" stroke-dasharray="4,3"/>
+  <!-- Neptune tilt angle arc -->
+  <path d="M 480 133 A 14 14 0 0 1 489 146" fill="none" stroke="#7bb8ff" stroke-width="1" opacity="0.7"/>
+  <text x="494" y="146" fill="#7bb8ff" font-family="monospace" font-size="9">28°</text>
+
+  <!-- Legend -->
+  <line x1="30" y1="298" x2="60" y2="298" stroke="#667788" stroke-width="0.8" stroke-dasharray="4,3"/>
+  <text x="65" y="302" fill="#667788" font-family="monospace" font-size="9">orbital plane</text>
+  <line x1="200" y1="298" x2="230" y2="298" stroke="#44ff88" stroke-width="2"/>
+  <text x="235" y="302" fill="#667788" font-family="monospace" font-size="9">rotation axis</text>
+
+  <text x="290" y="318" text-anchor="middle" fill="#667788" font-family="monospace" font-size="9">Not to scale.</text>
+</svg>`,
+        caption: 'Axial tilt comparison: Earth (23 degrees — moderate seasons), Uranus (98 degrees — rolls along its orbit on its side), Neptune (28 degrees — moderate tilt but ferocious winds). Uranus\'s rings are tilted nearly perpendicular to the orbital plane.',
+      },
+    },
+
+    {
+      heading: 'Diamond Rain',
+      level: 2,
+      paragraphs: [
+        'One of the most remarkable phenomena predicted for the interiors of ice giants is a rain of diamonds. ' +
+        'The idea arises from physics: methane in the deep atmospheric layers encounters extreme pressure and temperature. ' +
+        'Carbon is stripped from methane molecules and compressed into a diamond crystal structure. ' +
+        'The tiny diamond crystals, denser than the surrounding material, sink inward — ' +
+        'and by some models accumulate near the core, forming something like a diamond "ocean" or solid shell.',
+
+        'This is not purely speculative. In laboratory settings, researchers have recreated the pressure and temperature ' +
+        'characteristic of the interiors of Uranus and Neptune and observed diamond formation from methane. ' +
+        'Experiments on large laser facilities showed that at conditions of roughly three thousand kelvin and five thousand atmospheres, ' +
+        'the diamond phase of carbon is indeed thermodynamically stable. ' +
+        'Scaled to actual planetary interiors, tonnes of diamonds may be forming and sinking continuously — ' +
+        'a silent, invisible, eternal process in the very heart of these blue worlds.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'diamond-rain-interior',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: artistic cross-section of an ice giant planet interior, ' +
+          'showing deep atmospheric layers where methane molecules break apart under extreme pressure, ' +
+          'tiny diamond crystals forming and sinking through a hot dense fluid, ' +
+          'vivid blue and cyan interior with glittering diamond particles descending, ' +
+          'dark space visible at the top, cinematic hard sci-fi style, scientific accuracy. ' +
+          'Add the following text labels on the image: "Methane (CH₄)", "Diamond crystals forming", "Sinking toward core", "Pressure: ~5 000 atm".',
+        alt: 'Artistic illustration of diamond rain inside an ice giant — diamond crystals sinking through hot dense fluid',
+        caption: 'Diamond rain: deep inside Uranus and Neptune, carbon from methane may crystallize under millions of atmospheres of pressure and sink toward the core. The phenomenon has been confirmed in laboratory conditions.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Rings and Magnetic Fields',
+      level: 2,
+      paragraphs: [
+        'Both planets have rings — dark, thin, and faint compared to Saturn\'s spectacular system. ' +
+        'Uranus\'s rings were discovered in 1977 when the planet passed in front of a star: ' +
+        'astronomers noticed a series of brief dimmings on both sides of the planetary disc — rings. ' +
+        'Neptune\'s rings were confirmed later, partly through Voyager 2. ' +
+        'These rings consist primarily of dark particles — possibly organic compounds or radiation-processed ices — ' +
+        'and reflect light extremely poorly.',
+
+        'The magnetic fields of the ice giants are an anomaly in their own right. ' +
+        'Most planets have magnetic fields resembling a dipole magnet: ' +
+        'roughly symmetric, with the field axis close to the rotation axis. ' +
+        'Uranus and Neptune do not. Their magnetic fields are strongly tilted relative to the rotation axis ' +
+        'and offset from the planetary center. ' +
+        'This indicates that the source of their magnetism is not in the central core but in intermediate layers, ' +
+        'where "ices" under pressure become electrically conducting. ' +
+        'Such a magnetic field geometry may be a defining trait of ice giants as a class — ' +
+        'and it is potentially very common in the universe, since planets of this type are considered ' +
+        'the most frequent kind among discovered exoplanets.',
+      ],
+    },
+
+    {
+      heading: 'Moons: From Miranda to Triton',
+      level: 2,
+      paragraphs: [
+        'Uranus has twenty-seven known moons, named after characters from Shakespeare and Alexander Pope. ' +
+        'The most remarkable is **_Miranda_**: a small moon with the strangest terrain in the solar system. ' +
+        'Its surface combines ancient plains, deep canyons, long escarpments, and — most distinctively — ' +
+        'formations that look as though someone disassembled the moon and reassembled it in the wrong order. ' +
+        'One hypothesis holds that Miranda was shattered by an impact and slowly reassembled under its own gravity. ' +
+        'Verona Rupes — a cliff on Miranda — is considered the tallest known cliff in the solar system, ' +
+        'with an estimated height exceeding twenty kilometers.',
+
+        'Neptune has fourteen known moons. ' +
+        'The largest and most enigmatic is **_Triton_**. ' +
+        'It orbits Neptune in the retrograde direction — against the planet\'s rotation. ' +
+        'This retrograde orbit almost certainly means Triton did not form alongside Neptune ' +
+        'but was captured from the outer solar system — possibly from the Kuiper Belt, ' +
+        'the same region that produced Pluto. ' +
+        'The retrograde orbit is gravitationally unstable over geological timescales: ' +
+        'through tidal interactions, Triton is slowly spiraling inward ' +
+        'and will eventually be torn apart into rings — estimated to occur in several hundred million years.',
+
+        'Voyager 2 discovered active cryogeysers on Triton — eruptions of dark material from subsurface nitrogen ice, ' +
+        'heated by sunlight penetrating through a transparent layer of solid nitrogen on the surface. ' +
+        'Triton is one of the few bodies in the solar system with confirmed geological activity, ' +
+        'and this activity is nothing like conventional volcanism — it is cryogenic, ' +
+        'where the "lava" is liquid nitrogen or ammonia.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'triton-geysers',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: Triton moon of Neptune surface, ' +
+          'pale pinkish nitrogen ice plains with dark streaks from active nitrogen geysers erupting, ' +
+          'thin dark plume rising from surface, Neptune visible as a large vivid blue sphere in the background, ' +
+          'crisp dark space, scientific accuracy, Voyager 2 flyby style. ' +
+          'Add the following text labels on the image: "Nitrogen Geyser", "Dark Plume", "Nitrogen Ice Plains", "Neptune (background)".',
+        alt: 'Triton\'s surface with active nitrogen geysers and dark plumes against the backdrop of Neptune',
+        caption: 'Triton\'s cryogeysers: dark material is ejected from beneath a layer of transparent nitrogen ice, warmed by solar heating. Voyager 2 detected several active geysers during its 1989 flyby.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      diagram: {
+        title: 'Interior Structure of the Ice Giants (Uranus / Neptune)',
+        svg: `<svg viewBox="0 0 560 380" xmlns="http://www.w3.org/2000/svg" width="100%">
+  <rect width="560" height="380" fill="rgba(10,15,25,0.5)" rx="4"/>
+
+  <!-- Title labels -->
+  <text x="148" y="28" text-anchor="middle" fill="#aabbcc" font-family="monospace" font-size="11">URANUS</text>
+  <text x="412" y="28" text-anchor="middle" fill="#aabbcc" font-family="monospace" font-size="11">NEPTUNE</text>
+
+  <!-- ===== URANUS (left) ===== -->
+  <!-- Atmosphere -->
+  <ellipse cx="148" cy="190" rx="118" ry="112" fill="#44ff88" opacity="0.10"/>
+  <ellipse cx="148" cy="190" rx="118" ry="112" fill="none" stroke="#44ff88" stroke-width="1.2" stroke-dasharray="5,3"/>
+  <text x="12" y="92" fill="#44ff88" font-family="monospace" font-size="10">Atmosphere</text>
+  <text x="12" y="104" fill="#8899aa" font-family="monospace" font-size="9">H₂, He, CH₄</text>
+  <line x1="60" y1="96" x2="88" y2="118" stroke="#44ff88" stroke-width="0.7" opacity="0.6"/>
+
+  <!-- Ice mantle -->
+  <ellipse cx="148" cy="190" rx="82" ry="78" fill="#7bb8ff" opacity="0.15"/>
+  <ellipse cx="148" cy="190" rx="82" ry="78" fill="none" stroke="#7bb8ff" stroke-width="1.3"/>
+  <text x="12" y="200" fill="#7bb8ff" font-family="monospace" font-size="10">Ice mantle</text>
+  <text x="12" y="213" fill="#8899aa" font-family="monospace" font-size="9">H₂O, NH₃, CH₄</text>
+  <text x="12" y="225" fill="#8899aa" font-family="monospace" font-size="9">~5 000–10 000 K</text>
+  <line x1="82" y1="207" x2="112" y2="200" stroke="#7bb8ff" stroke-width="0.7" opacity="0.6"/>
+
+  <!-- Rocky core -->
+  <ellipse cx="148" cy="190" rx="34" ry="32" fill="#cc4444" opacity="0.35"/>
+  <ellipse cx="148" cy="190" rx="34" ry="32" fill="none" stroke="#cc4444" stroke-width="1.3"/>
+  <text x="125" y="194" text-anchor="middle" fill="#cc4444" font-family="monospace" font-size="9">Core</text>
+  <text x="248" y="290" fill="#cc4444" font-family="monospace" font-size="9">silicates + metals</text>
+  <line x1="244" y1="285" x2="185" y2="215" stroke="#cc4444" stroke-width="0.7" opacity="0.5"/>
+
+  <!-- Uranus note: almost no excess heat -->
+  <rect x="90" y="332" width="116" height="28" fill="rgba(20,30,45,0.85)" rx="2" stroke="#667788" stroke-width="0.6"/>
+  <text x="148" y="346" text-anchor="middle" fill="#667788" font-family="monospace" font-size="9">Internal heat excess:</text>
+  <text x="148" y="358" text-anchor="middle" fill="#8899aa" font-family="monospace" font-size="9">nearly none detected</text>
+
+  <!-- ===== NEPTUNE (right) ===== -->
+  <!-- Atmosphere -->
+  <ellipse cx="412" cy="190" rx="118" ry="112" fill="#7bb8ff" opacity="0.10"/>
+  <ellipse cx="412" cy="190" rx="118" ry="112" fill="none" stroke="#7bb8ff" stroke-width="1.2" stroke-dasharray="5,3"/>
+  <text x="492" y="92" fill="#7bb8ff" font-family="monospace" font-size="10">Atmosphere</text>
+  <text x="492" y="104" fill="#8899aa" font-family="monospace" font-size="9">H₂, He, CH₄</text>
+  <line x1="490" y1="96" x2="465" y2="118" stroke="#7bb8ff" stroke-width="0.7" opacity="0.6"/>
+
+  <!-- Ice mantle -->
+  <ellipse cx="412" cy="190" rx="82" ry="78" fill="#4488aa" opacity="0.18"/>
+  <ellipse cx="412" cy="190" rx="82" ry="78" fill="none" stroke="#4488aa" stroke-width="1.3"/>
+  <text x="492" y="200" fill="#4488aa" font-family="monospace" font-size="10">Ice mantle</text>
+  <text x="492" y="213" fill="#8899aa" font-family="monospace" font-size="9">H₂O, NH₃, CH₄</text>
+  <line x1="492" y1="204" x2="498" y2="204" stroke="#4488aa" stroke-width="0.7" opacity="0.6"/>
+  <line x1="492" y1="204" x2="462" y2="198" stroke="#4488aa" stroke-width="0.7" opacity="0.6"/>
+
+  <!-- Rocky core -->
+  <ellipse cx="412" cy="190" rx="36" ry="34" fill="#cc4444" opacity="0.35"/>
+  <ellipse cx="412" cy="190" rx="36" ry="34" fill="none" stroke="#cc4444" stroke-width="1.3"/>
+  <text x="390" y="194" text-anchor="middle" fill="#cc4444" font-family="monospace" font-size="9">Core</text>
+
+  <!-- Neptune note: strong internal heat -->
+  <rect x="354" y="332" width="116" height="28" fill="rgba(20,30,45,0.85)" rx="2" stroke="#ff8844" stroke-width="0.6"/>
+  <text x="412" y="346" text-anchor="middle" fill="#ff8844" font-family="monospace" font-size="9">Internal heat excess:</text>
+  <text x="412" y="358" text-anchor="middle" fill="#8899aa" font-family="monospace" font-size="9">~2x solar input</text>
+
+  <!-- Divider -->
+  <line x1="280" y1="40" x2="280" y2="340" stroke="#334455" stroke-width="0.8" stroke-dasharray="4,4"/>
+
+  <text x="280" y="374" text-anchor="middle" fill="#667788" font-family="monospace" font-size="9">Not to scale. Layer boundaries are approximate.</text>
+</svg>`,
+        caption: 'Interior structure of Uranus and Neptune: both planets share a similar three-layer architecture but differ significantly in thermal behavior. Neptune radiates far more heat than it receives from the Sun; Uranus shows almost none.',
+      },
+    },
+
+    {
+      heading: 'Voyager 2 and What Remains',
+      level: 2,
+      paragraphs: [
+        'Voyager 2 remains the only spacecraft to have visited either planet. ' +
+        'The flyby of Uranus in 1986 lasted only a few hours at closest approach. ' +
+        'The flyby of Neptune in 1989 revealed Triton, the Great Dark Spot, ' +
+        'the ring system, and yielded the first detailed images of both planets. ' +
+        'After that, Voyager 2 turned toward the southern celestial hemisphere ' +
+        'and in 2018 crossed the heliopause — the boundary where the solar wind gives way to interstellar medium. ' +
+        'The spacecraft is still in contact.',
+
+        'Much of what we know about these planets is reconstructed from a single rapid flyby of each, ' +
+        'supplemented by ground-based observations and data from the Hubble and James Webb telescopes. ' +
+        'Every new observation adds detail, but the fundamental questions remain the same: ' +
+        'what is happening inside? Where does Neptune\'s heat come from? Why is Uranus tilted? ' +
+        'Do the large moons of Uranus harbor subsurface liquid layers?',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'voyager2-neptune-flyby',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: Voyager 2 spacecraft flying past Neptune in 1989, ' +
+          'spacecraft with golden-foil covered body, dish antenna pointing toward Earth, ' +
+          'Neptune filling the background with vivid blue color and visible cloud bands, ' +
+          'Triton visible as a smaller sphere in the distance, dark star-filled space, ' +
+          'cinematic hard sci-fi render style, scientific accuracy. ' +
+          'Add the following text labels on the image: "Voyager 2", "Neptune", "Triton", "1989".',
+        alt: 'Artistic render of Voyager 2 during its 1989 Neptune flyby — the only spacecraft ever to visit an ice giant',
+        caption: 'Voyager 2 passed Neptune in 1989 — the only spacecraft in history to have approached an ice giant. The next visitor is not expected until the 2040s.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'Future Missions: The Uranus Orbiter and Probe',
+      level: 2,
+      paragraphs: [
+        'In 2022, the American Decadal Survey on Planetary Science — the regular process by which the scientific community ' +
+        'sets priorities for upcoming missions — named a mission to Uranus the top priority ' +
+        'among all large planetary missions through the mid-2030s. ' +
+        'The concept is called the Uranus Orbiter and Probe: ' +
+        'an orbiter that enters orbit around Uranus to study the planet, its rings, and its moons, ' +
+        'while an atmospheric probe descends into the atmosphere and transmits real-time data ' +
+        'on pressure, temperature, and chemical composition.',
+
+        'If the mission is funded and launched around 2032, ' +
+        'it would arrive at Uranus in the early 2040s after a gravity-assist flyby of Jupiter. ' +
+        'That would place nearly sixty years between Voyager 2\'s 1986 flyby and the first orbiting spacecraft. ' +
+        'For comparison: between the first flyby and the first orbiter at Jupiter, twenty-six years elapsed; ' +
+        'at Saturn, twenty-seven. ' +
+        'The ice giants have waited longer than any other planetary category in the solar system.',
+
+        'A mission to Neptune did not receive the top priority in the current Decadal Survey, ' +
+        'but it remains in view — several flagship mission concepts were studied in parallel. ' +
+        'Neptune is of particular scientific interest because of Triton: ' +
+        'a captured Kuiper Belt object, retrograde orbit, cryogeysers — ' +
+        'and no detailed imagery since 1989.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'uranus-orbiter-probe-concept',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: concept render of a spacecraft in orbit around Uranus, ' +
+          'large rectangular solar panels extended, dish antenna pointed away from planet, ' +
+          'Uranus visible below with pale aquamarine color and dark ring system visible as thin arc, ' +
+          'Miranda moon visible in the distance, deep space background. ' +
+          'Add the following text labels on the image: "Uranus Orbiter and Probe (concept)", "Uranus", "Ring system", "Miranda".',
+        alt: 'Concept render of the Uranus Orbiter and Probe — the top-priority mission of American planetary science',
+        caption: 'The Uranus Orbiter and Probe concept — the top priority of American planetary science according to the 2022 Decadal Survey. Target launch window: approximately 2032; arrival in the early 2040s.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Ice Giants Across the Universe',
+      level: 3,
+      paragraphs: [
+        'Uranus and Neptune are not rare on a cosmic scale. ' +
+        'Statistics from exoplanet surveys show that planets sized between Earth and Neptune — ' +
+        'so-called "sub-Neptunes" and "mini-Neptunes" — are the most common type of planet found so far. ' +
+        'Our ice giants may therefore be a key to understanding the most frequent kind of planet in the galaxy.',
+
+        'The difficulty is that those distant planets are seen only through transits or Doppler shifts, ' +
+        'while our own two similar bodies — Uranus and Neptune — have never received an orbiting spacecraft. ' +
+        'Understanding what lies in our own backyard means learning to read the data from billions of similar planets across the galaxy. ' +
+        'This is why a mission to Uranus is not only about Uranus.',
+      ],
+    },
+  ],
+
+  glossary: [
+    {
+      term: 'Ice giants',
+      definition: 'A class of planets — Uranus and Neptune — distinguished from gas giants by a high proportion of "ices": water, ammonia, and methane in a state of hot dense fluid under extreme pressure. The word "icy" refers to chemical composition, not surface temperature.',
+    },
+    {
+      term: 'Cryogeyser',
+      definition: 'A geyser on the surface of an icy body that erupts volatile material — nitrogen, methane, or carbon dioxide — rather than liquid water or magma. Confirmed on Triton (Neptune) and Enceladus (Saturn).',
+    },
+    {
+      term: 'Diamond rain',
+      definition: 'A theoretically predicted and laboratory-confirmed process in which carbon stripped from methane crystallizes into diamonds under the extreme pressures and temperatures of ice giant interiors, then sinks toward the core.',
+    },
+    {
+      term: 'Retrograde orbit',
+      definition: 'An orbit in which the direction of motion is opposite to the rotation of the central body or the majority of other moons. Triton is the largest known moon with a retrograde orbit, strongly suggesting it was captured rather than formed in place.',
+    },
+    {
+      term: 'Kuiper Belt',
+      definition: 'A ring-shaped region beyond Neptune\'s orbit extending from roughly 30 to approximately 50 astronomical units from the Sun. It contains icy bodies, dwarf planets (Pluto, Eris), and is the likely origin of Triton.',
+    },
+    {
+      term: 'Sub-Neptune',
+      definition: 'A class of exoplanets with mass and radius between Earth and Neptune. Currently the most common type detected among exoplanets in the galaxy. Their precise internal structure remains actively debated.',
+    },
+    {
+      term: 'Ice mantle',
+      definition: 'The thick intermediate layer inside an ice giant, composed of water, ammonia, and methane in a hot ionized fluid state under immense pressure. It is the primary internal layer between the atmosphere and the rocky core.',
+    },
+    {
+      term: 'Decadal Survey',
+      definition: 'A regular scientific process in the United States in which the astronomy and planetary science communities collectively establish funding priorities for missions and research over the next decade. The 2022 Survey named the Uranus Orbiter and Probe as the top priority.',
+    },
+    {
+      term: 'Heliopause',
+      definition: 'The boundary where the solar wind pressure is balanced by interstellar medium pressure, marking the effective outer edge of the Sun\'s influence. Voyager 2 crossed the heliopause in 2018, entering interstellar space from the southern heliosphere.',
+    },
+  ],
+
+  quiz: [
+    {
+      question: 'Why are Uranus and Neptune called "ice giants" rather than "gas giants"?',
+      options: [
+        'Because their surfaces are covered in ice and have sub-zero temperatures',
+        'Because they consist primarily of "ices" — water, ammonia, methane — rather than hydrogen and helium like Jupiter and Saturn',
+        'Because they are farther from the Sun and therefore colder than the gas giants',
+        'Because their atmospheres contain frozen methane and ammonia crystals visible from outside',
+      ],
+      correctIndex: 1,
+      explanation: 'The "icy" label refers to the chemical composition of the interiors. Inside ice giants, water, ammonia, and methane exist as hot, dense fluids under colossal pressure — not as surface ice. The distinction separates them physically from hydrogen-dominated gas giants.',
+    },
+    {
+      question: 'What is the most widely accepted explanation for Uranus\'s extreme 98-degree axial tilt?',
+      options: [
+        'The influence of the Sun\'s magnetic field during the early formation of the solar system',
+        'A collision with a large body — a planetesimal or proto-planet — in the early solar system',
+        'Gravitational interaction with Neptune that gradually tipped the axis over billions of years',
+        'Solar wind pressure acting on an asymmetric early atmosphere',
+      ],
+      correctIndex: 1,
+      explanation: 'The most widely accepted hypothesis is a catastrophic impact with a massive body early in the solar system\'s history that knocked Uranus onto its side. The precise details and exact mechanism remain debated.',
+    },
+    {
+      question: 'What is unusual about the magnetic fields of ice giants compared to most other planets?',
+      options: [
+        'They are thousands of times stronger than Earth\'s magnetic field',
+        'They are absent — ice giants have no intrinsic magnetic field',
+        'They are strongly tilted relative to the rotation axis and offset from the planetary center',
+        'They have perfect dipole symmetry, like a bar magnet',
+      ],
+      correctIndex: 2,
+      explanation: 'The magnetic fields of Uranus and Neptune are atypical: tilted tens of degrees from the rotation axis and offset from the geometric center. This indicates the fields are generated in conducting layers within the ice mantle, not in a central core.',
+    },
+    {
+      question: 'Why is Triton\'s retrograde orbit an important scientific clue?',
+      options: [
+        'It shows that Triton formed from the same material as Neptune',
+        'It means Triton is the largest moon in the solar system',
+        'It almost certainly indicates that Triton is a captured object from the outer solar system',
+        'It explains why Neptune itself rotates in the opposite direction',
+      ],
+      correctIndex: 2,
+      explanation: 'Moons that formed alongside a planet orbit in the same direction as the planet\'s rotation. Triton\'s retrograde orbit almost certainly means it was captured — most likely from the Kuiper Belt — rather than accreting in place.',
+    },
+    {
+      question: 'Why is diamond rain in ice giant interiors considered a confirmed physical phenomenon rather than pure hypothesis?',
+      options: [
+        'It was directly observed by Voyager 2 during flybys of both planets',
+        'Diamond crystallization from methane under conditions matching ice giant interiors has been confirmed in laboratory experiments',
+        'The surfaces of Uranus and Neptune show diamond reflections visible through large telescopes',
+        'Theoretical models predict it with 100 percent certainty without any laboratory verification',
+      ],
+      correctIndex: 1,
+      explanation: 'Researchers have recreated conditions of deep ice giant interiors — thousands of kelvin and thousands of atmospheres — in laser facilities and observed diamond crystal formation from methane. This makes the phenomenon physically confirmed, even though direct observation inside the planets is impossible.',
+    },
+  ],
+
+  sources: [
+    {
+      title: 'Uranus — NASA Solar System Exploration',
+      url: 'https://solarsystem.nasa.gov/planets/uranus/overview/',
+      meta: 'NASA Solar System Exploration',
+    },
+    {
+      title: 'Neptune — NASA Solar System Exploration',
+      url: 'https://solarsystem.nasa.gov/planets/neptune/overview/',
+      meta: 'NASA Solar System Exploration',
+    },
+    {
+      title: 'Origins of Uranus\' Unusual Tilt — Nature Geoscience, 2018',
+      url: 'https://www.nature.com/articles/s41561-018-0120-7',
+      meta: 'Kegerreis et al., Nature Geoscience, 2018',
+    },
+    {
+      title: 'Diamond Rain on Ice Giants — Nature Astronomy, 2017',
+      url: 'https://www.nature.com/articles/s41550-017-0219-9',
+      meta: 'Kraus et al., Nature Astronomy, 2017',
+    },
+    {
+      title: 'Decadal Survey on Planetary Science 2023-2032 — Uranus Orbiter and Probe',
+      url: 'https://www.nationalacademies.org/our-work/planetary-science-and-astrobiology-decadal-survey-2023-2032',
+      meta: 'National Academies of Sciences, Engineering, and Medicine, 2022',
+    },
+    {
+      title: 'JWST Imaging of Neptune and Uranus — STScI, 2022-2023',
+      url: 'https://webbtelescope.org/contents/news-releases/2022/news-2022-060',
+      meta: 'STScI / Webb Space Telescope, 2022',
+    },
+    {
+      title: 'Triton: Neptune\'s Captured Moon — NASA JPL',
+      url: 'https://solarsystem.nasa.gov/moons/neptune-moons/triton/in-depth/',
+      meta: 'NASA JPL / Solar System Exploration',
+    },
+    {
+      title: 'Voyager 2 at Uranus and Neptune — NASA History',
+      url: 'https://www.nasa.gov/mission/voyager-2/',
+      meta: 'NASA, official Voyager 2 mission page',
+    },
+    {
+      title: 'Miranda\'s Verona Rupes — USGS Astrogeology',
+      url: 'https://astrogeology.usgs.gov/search/map/Uranus/Voyager/Miranda/Miranda_Voyager_Global_Mosaic_1km',
+      meta: 'USGS Astrogeology Science Center',
+    },
+    {
+      title: 'Ice Giants: The Case for New Missions — Philosophical Transactions of the Royal Society A',
+      url: 'https://royalsocietypublishing.org/doi/10.1098/rsta.2019.0489',
+      meta: 'Fletcher et al., Phil. Trans. R. Soc. A, 2020',
+    },
+  ],
+
+  lastVerified: '2026-05-06',
+};
+
+export default lesson;

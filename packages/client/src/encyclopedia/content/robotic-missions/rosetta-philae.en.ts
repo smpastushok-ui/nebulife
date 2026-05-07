@@ -1,0 +1,639 @@
+import type { Lesson } from '../../types.js';
+
+const lesson: Lesson = {
+  slug: 'rosetta-philae',
+  language: 'en',
+  section: 'robotic-missions',
+  order: 9,
+  difficulty: 'intermediate',
+  readingTimeMin: 12,
+  title: 'Rosetta and Philae — Comet Up Close',
+  subtitle: 'Ten years in transit to land on a rock hurtling between stars. What comet 67P told us about the origins of the Solar System.',
+
+  hero: {
+    cacheKey: 'rosetta-philae-hero',
+    prompt:
+      'Photorealistic illustration for a science encyclopedia: ESA Rosetta spacecraft in orbit around comet 67P/Churyumov-Gerasimenko. ' +
+      'The comet nucleus is a dark duck-shaped double-lobed rocky body, textured with cliffs, boulders, and jets of gas and dust erupting from the sunlit surface. ' +
+      'The spacecraft has two large solar panel wings and a boxy body. ' +
+      'Deep black space background with the Sun as a distant bright point. ' +
+      'Hard sci-fi style, dramatic lighting. ' +
+      'Add the following text labels on the image: "Rosetta orbiter", "comet 67P", "dust jets".',
+    alt: 'Rosetta spacecraft orbiting comet 67P — dark double-lobed rocky nucleus with gas jets, dramatic lighting',
+    caption:
+      'Rosetta in orbit around comet 67P/Churyumov-Gerasimenko. The nucleus consists of two unequal lobes joined by a narrow neck — a shape resembling a rubber duck or a dumbbell. Gas and dust jets erupt from the sunlit surface, constantly nudging the spacecraft off course.',
+    aspectRatio: '16:9',
+  },
+
+  body: [
+    {
+      paragraphs: [
+        'A comet is not merely a beautiful tailed object in the night sky. It is a time capsule. ' +
+        'Frozen residue of material that clumped together in the outer regions of the Solar System ' +
+        'before the planets assumed their present forms. ' +
+        'If you want to understand what our system is made of, you need to reach a comet — ' +
+        'not fly past it, not photograph it from a distance, ' +
+        'but stay alongside it and watch for months.',
+
+        'That is exactly what the Rosetta mission did — the first spacecraft in history to orbit a comet. ' +
+        'It accompanied its target for more than two years, watching that dirty snowball ' +
+        'wake up as it approached the Sun and fall dormant again as it retreated. ' +
+        'And onto the surface of the nucleus, Rosetta released a small lander named Philae — ' +
+        'the first spacecraft ever to achieve a soft landing on a comet nucleus.',
+
+        'The scientific return was generous enough that some results forced a revision of ' +
+        'long-standing ideas about the origin of Earth\'s water and organic molecules. ' +
+        'And the shape of the nucleus, known only after the spacecraft arrived, turned out to be unexpected: ' +
+        'not a smooth sphere or an elongated ellipsoid, ' +
+        'but a two-lobed structure resembling a rubber duck.',
+      ],
+    },
+
+    {
+      heading: 'Ten years to reach the target',
+      level: 2,
+      paragraphs: [
+        'Comet 67P/Churyumov-Gerasimenko travels an elongated orbit around the Sun, ' +
+        'crossing enormous distances between the inner and outer Solar System on each pass. ' +
+        'Sending a spacecraft there required a trick: a direct flight would consume too much propellant. ' +
+        'Rosetta used gravity assists — a technique in which a spacecraft gains or sheds velocity ' +
+        'by flying close to a planet and borrowing some of its kinetic energy.',
+
+        'Launched in 2004, Rosetta made three flybys of Earth and one of Mars, ' +
+        'picking up additional velocity and correcting its heading each time. ' +
+        'Along the way it passed through the asteroid belt twice and photographed two asteroids — ' +
+        'Steins and Lutetia. But the destination lay further still. ' +
+        'In 2011, when Rosetta reached the coldest arc of its trajectory beyond the orbit of Jupiter, ' +
+        'the mission team put the spacecraft into deep hibernation: ' +
+        'most systems shut down to conserve heat and extend component life. ' +
+        'Nearly thirty-one months of silence.',
+
+        'In January 2014 the radio signal finally returned — Rosetta had woken up and ' +
+        'begun preparing for the rendezvous. By August 2014 it had slowed enough ' +
+        'to enter orbit around the nucleus — a lump of rock and ice roughly four kilometers across. ' +
+        'No spacecraft had ever done that before.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'rosetta-philae-trajectory',
+        prompt:
+          'Scientific diagram for an encyclopedia showing the Rosetta spacecraft trajectory from Earth 2004 to comet 67P 2014. ' +
+          'Inner solar system top-down view with the Sun at center. ' +
+          'Orbits of Earth and Mars shown as dashed ellipses. Rosetta trajectory shown as a solid colored curved line with labeled waypoints: ' +
+          '"Earth flyby 1 (2005)", "Mars flyby (2007)", "Earth flyby 2 (2007)", "Earth flyby 3 (2009)", "hibernation 2011-2014", "comet arrival (Aug 2014)". ' +
+          'Hard sci-fi style, dark background, monospace labels, accent colors orange and cyan. ' +
+          'Add the following text labels on the image: "Earth", "Mars", "Rosetta", "comet 67P", "gravity assists".',
+        alt: 'Diagram of the Rosetta trajectory from Earth in 2004 to comet 67P in 2014 — three Earth gravity assists, one Mars gravity assist',
+        caption:
+          'The Rosetta trajectory took ten years and four gravity assists. ' +
+          'Three times the spacecraft returned to Earth, once to Mars, borrowing kinetic energy from each planet — ' +
+          'the only way to accumulate the necessary velocity without carrying an impractical amount of propellant.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'A duck in space: the unexpected shape of the nucleus',
+      level: 2,
+      paragraphs: [
+        'When Rosetta finally closed in and the first detailed images reached scientists, ' +
+        'the initial reaction was surprise: the nucleus of comet 67P was not a single body ' +
+        'but two fragments joined by a narrow neck. ' +
+        'The larger lobe is roughly four kilometers long; the smaller, approximately two and a half kilometers, ' +
+        'is pinched at a narrow waist. ' +
+        'The silhouette looks like a rubber duck or a boulder squeezed at the middle.',
+
+        'Where does such a shape come from? Researchers converge on two explanations. ' +
+        'The first: two separate bodies that formed independently and merged in a very slow collision. ' +
+        'The second: one body whose neck gradually thinned through uneven sublimation — ' +
+        'ice turning directly to gas wherever sunlight fell most intensely. ' +
+        'Analysis of the layered structures inside both lobes favors the first explanation: ' +
+        'this is a **contact binary** object, two bodies that became one.',
+
+        'The shape of the nucleus had practical consequences for the mission. ' +
+        'An orbit around an irregular dumbbell-shaped body is inherently unstable: ' +
+        'the gravitational field is asymmetric, and the gas and dust jets erupting from the surface ' +
+        'constantly push the spacecraft sideways. ' +
+        'Rosetta\'s navigators continuously corrected the trajectory, ' +
+        'and the distance between the spacecraft and the nucleus varied from a few tens ' +
+        'to a few hundred kilometers depending on the comet\'s level of activity.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Nucleus of comet 67P — contact binary geometry',
+        svg: `<svg viewBox="0 0 700 340" xmlns="http://www.w3.org/2000/svg">
+  <rect width="700" height="340" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Title -->
+  <text x="350" y="22" fill="#aabbcc" font-family="monospace" font-size="12" text-anchor="middle">Comet 67P — two-lobed contact binary structure</text>
+
+  <!-- Large lobe -->
+  <ellipse cx="420" cy="185" rx="130" ry="105" fill="rgba(80,60,40,0.6)" stroke="#ff8844" stroke-width="1.5"/>
+  <text x="420" y="182" fill="#ff8844" font-family="monospace" font-size="11" text-anchor="middle">Large lobe</text>
+  <text x="420" y="198" fill="#8899aa" font-family="monospace" font-size="10" text-anchor="middle">~4 km</text>
+
+  <!-- Small lobe -->
+  <ellipse cx="200" cy="175" rx="85" ry="70" fill="rgba(60,45,30,0.6)" stroke="#ff8844" stroke-width="1.5"/>
+  <text x="200" y="172" fill="#ff8844" font-family="monospace" font-size="11" text-anchor="middle">Small lobe</text>
+  <text x="200" y="188" fill="#8899aa" font-family="monospace" font-size="10" text-anchor="middle">~2.5 km</text>
+
+  <!-- Neck -->
+  <path d="M 283 155 Q 310 180 287 205" fill="none" stroke="#7bb8ff" stroke-width="8" stroke-linecap="round" opacity="0.7"/>
+  <path d="M 288 155 Q 315 180 292 205" fill="none" stroke="#7bb8ff" stroke-width="6" stroke-linecap="round" opacity="0.5"/>
+  <text x="315" y="178" fill="#7bb8ff" font-family="monospace" font-size="10" text-anchor="start">neck</text>
+
+  <!-- Jets -->
+  <line x1="200" y1="105" x2="190" y2="55" stroke="#44ff88" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.8"/>
+  <line x1="420" y1="80" x2="440" y2="30" stroke="#44ff88" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.8"/>
+  <line x1="540" y1="160" x2="600" y2="140" stroke="#44ff88" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.7"/>
+  <text x="185" y="48" fill="#44ff88" font-family="monospace" font-size="9" text-anchor="middle">gas</text>
+  <text x="445" y="24" fill="#44ff88" font-family="monospace" font-size="9" text-anchor="middle">gas</text>
+  <text x="608" y="136" fill="#44ff88" font-family="monospace" font-size="9" text-anchor="start">dust+gas</text>
+
+  <!-- Sun direction arrow -->
+  <line x1="60" y1="290" x2="100" y2="260" stroke="#ff8844" stroke-width="2"/>
+  <polygon points="100,260 88,268 96,280" fill="#ff8844"/>
+  <text x="40" y="305" fill="#ff8844" font-family="monospace" font-size="10">Sun</text>
+
+  <!-- Scale bar -->
+  <line x1="540" y1="295" x2="640" y2="295" stroke="#aabbcc" stroke-width="1.5"/>
+  <line x1="540" y1="290" x2="540" y2="300" stroke="#aabbcc" stroke-width="1.5"/>
+  <line x1="640" y1="290" x2="640" y2="300" stroke="#aabbcc" stroke-width="1.5"/>
+  <text x="590" y="312" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">~2 km</text>
+
+  <!-- Caption note -->
+  <text x="350" y="330" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">Shape is schematic. The real nucleus is irregular, covered in cliffs and boulders.</text>
+</svg>`,
+        caption:
+          'The nucleus of comet 67P consists of two unequal lobes joined by a narrow neck. ' +
+          'This structure is characteristic of a contact binary: two bodies that collided at very low speed ' +
+          'in the early Solar System. Gas and dust jets erupt predominantly from sunlit regions.',
+      },
+    },
+
+    {
+      heading: 'Philae: the first landing on a comet nucleus',
+      level: 2,
+      paragraphs: [
+        'In November 2014, three months after orbit insertion, ' +
+        'Rosetta released the Philae lander. ' +
+        'It was perhaps the most difficult landing in the history of robotic missions: ' +
+        'gravity at the nucleus surface is roughly one hundred thousand times weaker than on Earth, ' +
+        'so "landing" meant essentially docking with a slowly rotating boulder. ' +
+        'Philae was designed to fire harpoons and drive screws into the surface at the moment of contact ' +
+        'to prevent bouncing back into space.',
+
+        'The harpoons did not fire. Philae touched the surface, bounced, ' +
+        'rose more than a kilometer into space, and landed a second time in a different spot. ' +
+        'Then it bounced again, less dramatically, and finally came to rest. ' +
+        'The entire sequence stretched over nearly two hours. ' +
+        'When the team understood where Philae had stopped, something else became clear: ' +
+        'it had landed not in an open field but in shadow — wedged between boulders ' +
+        'where the solar panels received almost no sunlight.',
+
+        'Only the primary battery charge remained. ' +
+        'Sixty-four hours of science before total discharge. ' +
+        'In that time Philae probed the soil, measured surface temperatures, ' +
+        'sampled the chemical composition of the coma immediately around the nucleus, ' +
+        'and even attempted to drill into the surface. ' +
+        'Then the lander fell silent. The team on Earth hoped that as the comet moved closer to the Sun, ' +
+        'the panels would eventually catch enough light for Philae to wake again.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'rosetta-philae-landing-site',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: Philae lander on the dark rocky surface of comet 67P. ' +
+          'The lander is a boxy structure with three legs and solar panels, resting at an angle between large dark boulders in shadow. ' +
+          'The comet surface is extremely dark, rough, and dusty with boulders and cliff faces. ' +
+          'Faint sunlight visible from one side. ' +
+          'Hard sci-fi style, dark space background. ' +
+          'Add the following text labels on the image: "Philae lander", "comet surface", "shadowed landing site".',
+        alt: 'Philae lander on the dark rocky surface of comet 67P — spacecraft wedged between boulders in shadow',
+        caption:
+          'Philae came to rest in a shadowed position between boulders, where the solar panels delivered only a fraction of their rated power. ' +
+          'In sixty-four hours of primary battery life, the lander collected unique data on the composition and structure of the comet nucleus.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'What the comet revealed: water, organics, and a "song"',
+      level: 2,
+      paragraphs: [
+        'The scientific value of the mission was determined not by the Philae landing alone ' +
+        'but by two years of continuous observation from orbit. ' +
+        'Rosetta carried twenty-one scientific instruments and witnessed the transformation of the comet ' +
+        'as it approached the Sun — from a nearly inert frozen body ' +
+        'to an object ejecting tons of dust and gas every day.',
+      ],
+    },
+
+    {
+      heading: 'Water that does not match Earth\'s oceans',
+      level: 3,
+      paragraphs: [
+        'One of the mission\'s most discussed findings concerns the isotopic composition of water on comet 67P. ' +
+        'Hydrogen has two stable isotopes: ordinary hydrogen and its heavier variant, deuterium. ' +
+        'The ratio of deuterium to ordinary hydrogen — which scientists abbreviate as the deuterium-to-hydrogen ratio — ' +
+        'differs depending on where and when the water formed. ' +
+        'For Earth\'s oceans this ratio is well characterized.',
+
+        'Rosetta\'s measurements showed that water in the coma of comet 67P contains ' +
+        'roughly three times more deuterium than Earth\'s oceans. ' +
+        'This matters: a long-popular hypothesis held that water arrived on Earth via cometary bombardment ' +
+        'in the early Solar System when impacts were frequent and intense. ' +
+        'The Rosetta data for short-period comets like 67P — ' +
+        'bodies that originate in the Kuiper Belt — significantly complicates that hypothesis. ' +
+        'Earth\'s water evidently has a different origin, or arrived from a different type of comet, ' +
+        'or from carbonaceous chondrite asteroids whose isotopic ratio is closer to Earth\'s.',
+      ],
+    },
+
+    {
+      heading: 'Organic molecules and glycine',
+      level: 3,
+      paragraphs: [
+        'The instruments on Rosetta and Philae detected more than fifty organic molecules ' +
+        'of varying complexity in and around the comet. ' +
+        'Among them was glycine, the simplest amino acid — ' +
+        'a building block of proteins in all known forms of terrestrial life. ' +
+        'Glycine had been found before in meteorites and in cometary material returned by the Stardust mission, ' +
+        'but Rosetta confirmed its presence directly in the coma — ' +
+        'the gas envelope surrounding the active nucleus.',
+
+        'Phosphorus was also detected — another element critical to the structure of ' +
+        'deoxyribonucleic acid, ribonucleic acid, and lipid membranes. ' +
+        'These findings do not prove that comets seeded Earth with the precursors of life, ' +
+        'but they demonstrate that the chemical prerequisites for life are distributed throughout the Solar System ' +
+        'and were present even during the planet-forming era.',
+
+        'A separate surprise was the detection of molecular oxygen — the O2 molecule — ' +
+        'directly in the comet\'s atmosphere. ' +
+        'Oxygen in this form is highly reactive and rarely found uncombined. ' +
+        'Scientists believe it may have been trapped inside the ice of the nucleus since the Solar System formed, ' +
+        'preserved for several billion years in the extremely cold, ' +
+        'solar-wind-sheltered interior of the comet.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'rosetta-philae-outgassing',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: active comet 67P near perihelion, showing intense outgassing. ' +
+          'The dark double-lobed nucleus surrounded by a bright coma of gas and dust jets erupting from multiple regions. ' +
+          'The tail of the comet stretches away from the Sun. Bright white and blue gas streams contrast with the dark rocky nucleus. ' +
+          'Hard sci-fi style, dramatic lighting, deep black space background. ' +
+          'Add the following text labels on the image: "coma (gas + dust)", "nucleus", "dust tail", "ion tail".',
+        alt: 'Active comet 67P near perihelion — dense gas and dust coma, elongated tails, intense outgassing',
+        caption:
+          'As the comet approaches the Sun, surface heating drives intense sublimation — ice converting directly to gas. ' +
+          'In August 2015, near its closest approach to the Sun, comet 67P was ejecting approximately one metric ton of material every second. ' +
+          'This was the most productive period for chemical sampling of the coma.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'The "song" of the comet and finding Philae',
+      level: 2,
+      paragraphs: [
+        'Even before Philae landed, one of Rosetta\'s instruments, measuring oscillations in the magnetic field, ' +
+        'detected something unexpected: the comet was emitting rhythmic oscillations ' +
+        'at a frequency of around forty millihertz — ' +
+        'thousands of times below the threshold of human hearing, ' +
+        'but audible when the frequency is shifted upward. ' +
+        'This "song of the comet" turned out to be caused by interactions between charged particles in the solar wind ' +
+        'and neutral molecules streaming off the nucleus. ' +
+        'Irregular ionization created quasi-periodic structures in the plasma surrounding the comet — ' +
+        'a kind of resonance between the nucleus and the solar flow.',
+
+        'In September 2016, the Optical, Spectroscopic, and Infrared Remote Imaging System — ' +
+        'the camera suite aboard Rosetta — ' +
+        'spotted a small object in a crevice between two boulders. ' +
+        'It was Philae. ' +
+        'Two years after landing, the spacecraft had finally been found, ' +
+        'lying tilted between two rocks. ' +
+        'The discovery confirmed what the sixty-four hours of data had already suggested: ' +
+        'Philae had landed on solid bedrock, not loose dust.',
+
+        'Three weeks after finding Philae it was Rosetta\'s turn. ' +
+        'Propellant was running out. ' +
+        'The team decided to end the mission by colliding the spacecraft with the nucleus — ' +
+        'a slow, controlled descent into a pre-selected region. ' +
+        'On the thirtieth of September 2016, Rosetta impacted comet 67P and stopped transmitting. ' +
+        'The mission, twelve years from launch, was officially over.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'rosetta-philae-philae-rediscovery',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: close-up view of Philae lander wedged between dark boulders on comet surface. ' +
+          'The lander is a boxy white and gold structure, tilted at an angle, one leg visible, solar panels partly in shadow. ' +
+          'Surrounding terrain is extremely dark rocky comet surface, irregular boulders, deep shadows. ' +
+          'Hard sci-fi style, dramatic lighting from one side only. ' +
+          'Add the following text labels on the image: "Philae", "boulder", "comet surface".',
+        alt: 'Philae lander found wedged between two boulders on comet 67P in September 2016 — tilted, one leg visible',
+        caption:
+          'Philae was located only weeks before the end of the mission. ' +
+          'The lander lay tilted between two boulders, in shadow, with solar panels unable to recharge. ' +
+          'But in sixty-four hours of primary battery power it had accomplished what mattered most: ' +
+          'measuring that beneath it lay solid rock, not loose rubble.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Why it matters: comets as archives of the Solar System',
+      level: 2,
+      paragraphs: [
+        'Comets from the Kuiper Belt and the Oort Cloud are remnants of material ' +
+        'that never accreted into the large planets. ' +
+        'They have preserved their substance almost unchanged ' +
+        'from the era when the Solar System was still forming — more than four billion years ago. ' +
+        'This makes them fundamentally different from the planets, ' +
+        'which have been processed by differentiation, volcanism, tectonics, ' +
+        'and billions of years of geological cycling.',
+
+        'The Rosetta mission showed that comet nuclei are not uniform: ' +
+        'different regions of the surface have different chemistry, different porosity, and different activity levels. ' +
+        'Comet 67P is not a monolithic block of featureless ice ' +
+        'but a complex system of layers and regions with their own distinct characteristics. ' +
+        'This complexity suggests that nucleus formation — ' +
+        'the accretion of small bodies in the early protoplanetary disk — ' +
+        'was itself an uneven process with varying conditions at different locations.',
+
+        'The findings on isotopic water composition, molecular oxygen, and organic molecules ' +
+        'have rewritten more than one page in astrochemistry textbooks. ' +
+        'The answer to whether comets brought water to Earth turned out to be more nuanced than yes or no: ' +
+        'it depends on the type of comet. ' +
+        'Short-period comets like 67P — almost certainly not the primary source. ' +
+        'Long-period comets from the Oort Cloud are less well studied, ' +
+        'and some have isotopic compositions closer to Earth\'s.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Deuterium-to-hydrogen ratio: water from 67P versus Earth',
+        svg: `<svg viewBox="0 0 680 300" xmlns="http://www.w3.org/2000/svg">
+  <rect width="680" height="300" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Title -->
+  <text x="340" y="22" fill="#aabbcc" font-family="monospace" font-size="12" text-anchor="middle">Deuterium-to-hydrogen ratio in various water sources</text>
+  <text x="340" y="38" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">(relative to SMOW standard — mean ocean water = 1.0)</text>
+
+  <!-- Baseline axis -->
+  <line x1="60" y1="240" x2="640" y2="240" stroke="#334455" stroke-width="1"/>
+
+  <!-- Earth ocean bar -->
+  <rect x="90" y="175" width="70" height="65" fill="#7bb8ff" opacity="0.85"/>
+  <text x="125" y="168" fill="#7bb8ff" font-family="monospace" font-size="9" text-anchor="middle">1.0x</text>
+  <text x="125" y="257" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">Earth</text>
+  <text x="125" y="268" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">ocean</text>
+
+  <!-- Chondrite meteorites ~1.3x -->
+  <rect x="190" y="157" width="70" height="83" fill="#7bb8ff" opacity="0.65"/>
+  <text x="225" y="150" fill="#7bb8ff" font-family="monospace" font-size="9" text-anchor="middle">~1.3x</text>
+  <text x="225" y="257" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">Chondrites</text>
+  <text x="225" y="268" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">(meteorites)</text>
+
+  <!-- Halley comet ~2x -->
+  <rect x="290" y="110" width="70" height="130" fill="#ff8844" opacity="0.65"/>
+  <text x="325" y="103" fill="#ff8844" font-family="monospace" font-size="9" text-anchor="middle">~2x</text>
+  <text x="325" y="257" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">Halley</text>
+  <text x="325" y="268" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">(comet)</text>
+
+  <!-- Oort cloud comets ~2x avg -->
+  <rect x="390" y="115" width="70" height="125" fill="#ff8844" opacity="0.55"/>
+  <text x="425" y="108" fill="#ff8844" font-family="monospace" font-size="9" text-anchor="middle">~2x</text>
+  <text x="425" y="257" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">Oort Cloud</text>
+  <text x="425" y="268" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">comets</text>
+
+  <!-- 67P/Rosetta ~3x -->
+  <rect x="490" y="45" width="70" height="195" fill="#cc4444" opacity="0.75"/>
+  <text x="525" y="38" fill="#cc4444" font-family="monospace" font-size="9" text-anchor="middle">~3x</text>
+  <text x="525" y="257" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">67P</text>
+  <text x="525" y="268" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">(Rosetta)</text>
+
+  <!-- Reference line at 1.0 -->
+  <line x1="60" y1="175" x2="640" y2="175" stroke="#44ff88" stroke-width="0.8" stroke-dasharray="5,5" opacity="0.6"/>
+  <text x="645" y="178" fill="#44ff88" font-family="monospace" font-size="9">Earth ref.</text>
+
+  <!-- Y axis -->
+  <line x1="60" y1="40" x2="60" y2="240" stroke="#334455" stroke-width="1"/>
+  <text x="18" y="180" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle" transform="rotate(-90,18,145)">D/H (relative units)</text>
+
+  <text x="340" y="292" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">The D/H ratio in comet 67P is three times higher than Earth's oceans — short-period comets are likely not the source of Earth's water.</text>
+</svg>`,
+        caption:
+          'The deuterium-to-hydrogen ratio is an isotopic fingerprint of where and when water formed. ' +
+          'Water in comet 67P contains three times more deuterium than Earth\'s oceans. ' +
+          'Carbonaceous chondrite meteorites are closer in composition to terrestrial water. ' +
+          'This points to asteroids, not short-period comets, as the more likely contributors to Earth\'s oceans.',
+      },
+    },
+
+    {
+      heading: 'Legacy: what the mission changed in Solar System science',
+      level: 2,
+      paragraphs: [
+        'Rosetta and Philae produced more than five hundred scientific papers. ' +
+        'Not all of them reached clear conclusions — many opened new questions instead of closing old ones. ' +
+        'But several results have already become canonical.',
+
+        'First: the nuclei of short-period comets like 67P are not the primary source of Earth\'s water. ' +
+        'Second: organic molecules — including amino acids — are present in cometary material in free form ' +
+        'and could potentially be delivered to planets during impacts. ' +
+        'Third: comet nuclei have complex internal architecture and likely form ' +
+        'through the merger of smaller bodies rather than through monolithic compression of primordial gas and dust.',
+
+        'Technically the mission also set new standards: ' +
+        'landing on a body with negligible gravity, ' +
+        'navigating in orbit around an irregular and actively outgassing object, ' +
+        'maintaining reliable communications across hundreds of millions of kilometers. ' +
+        'These engineering solutions directly influenced the design of subsequent small-body missions — ' +
+        'including the Japanese Hayabusa 2 mission to asteroid Ryugu ' +
+        'and the American Origins, Spectral Interpretation, Resource Identification, Security, ' +
+        'Regolith Explorer spacecraft at asteroid Bennu.',
+      ],
+    },
+  ],
+
+  glossary: [
+    {
+      term: 'Comet',
+      definition:
+        'A small Solar System body composed of ice, dust, and rocky material. When it approaches the Sun, ice sublimates to gas, forming a coma and tail. Comets preserve material almost unchanged from the era when the Solar System formed.',
+    },
+    {
+      term: 'Contact binary',
+      definition:
+        'A celestial body made of two separate fragments joined by a narrow neck. It forms when two independent bodies collide at very low speed. The nucleus of comet 67P has this structure.',
+    },
+    {
+      term: 'Gravity assist',
+      definition:
+        'A navigation technique in which a spacecraft gains or sheds velocity by flying close to a planet and using its gravity. Allows reaching distant targets without carrying impractical amounts of propellant.',
+    },
+    {
+      term: 'Deuterium-to-hydrogen ratio',
+      definition:
+        'The fraction of the heavy hydrogen isotope (deuterium) relative to ordinary hydrogen in a given sample. It serves as an isotopic fingerprint of the conditions under which the material formed. Water in comet 67P has a ratio three times higher than Earth\'s oceans.',
+    },
+    {
+      term: 'Sublimation',
+      definition:
+        'A phase transition directly from solid to gas, bypassing the liquid phase. This is how ice in comet nuclei converts to gas when heated by solar radiation.',
+    },
+    {
+      term: 'Coma',
+      definition:
+        'The gas and dust envelope surrounding an active comet nucleus, produced by sublimation. It can extend hundreds of thousands of kilometers across while the nucleus itself is only a few kilometers wide.',
+    },
+    {
+      term: 'Molecular oxygen',
+      definition:
+        'The O2 molecule in its free, uncombined state. Highly reactive and rarely found without active photosynthetic sources. Its detection in the coma of comet 67P was unexpected; it is thought to have been preserved inside the nucleus ice since the Solar System formed.',
+    },
+    {
+      term: 'Glycine',
+      definition:
+        'The simplest amino acid — a building block of proteins in all known forms of terrestrial life. Detected directly in the coma of comet 67P by Rosetta instruments, and previously found in meteorites and Stardust mission samples.',
+    },
+    {
+      term: 'Perihelion',
+      definition:
+        'The point in an orbit closest to the Sun. For comets, perihelion marks the period of peak activity: sublimation and outgassing reach their maximum rate.',
+    },
+  ],
+
+  quiz: [
+    {
+      question: 'Why does the nucleus of comet 67P have the shape of a rubber duck or a contact binary?',
+      options: [
+        'Uneven sublimation of ice gradually eroded the middle of an originally single body',
+        'A large meteorite impact split the nucleus in two and the pieces later fused back together',
+        'Two separate bodies formed independently and merged in a very slow collision in the early Solar System',
+        'The shape was produced by the solar wind interacting with comet gas jets over billions of years',
+      ],
+      correctIndex: 2,
+      explanation:
+        'Analysis of the layered internal structure of both lobes points to a contact binary origin: two bodies that formed separately and joined in a low-speed collision. The alternative hypothesis — gradual thinning of the neck by sublimation — was considered but did not receive sufficient support from Rosetta data.',
+    },
+    {
+      question: 'What did measuring the deuterium-to-hydrogen ratio in comet 67P water reveal?',
+      options: [
+        'Water in 67P is identical in composition to Earth\'s oceans — confirming the cometary origin of Earth\'s water',
+        'Water in 67P contains roughly three times more deuterium than Earth\'s oceans — complicating the hypothesis that short-period comets delivered Earth\'s water',
+        'Cometary water is completely free of deuterium, indicating it formed in the inner Solar System',
+        'The isotopic ratio was not measured due to instrument failure during hibernation',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Rosetta\'s instruments showed that water in the coma of comet 67P contains roughly three times more deuterium than Earth\'s oceans. This significantly complicates the idea that short-period comets like 67P are the primary source of terrestrial water. Carbonaceous chondrite meteorites have an isotopic composition much closer to Earth\'s oceans and are currently the stronger candidates.',
+    },
+    {
+      question: 'Why did Philae\'s landing on comet 67P end in shadow between boulders?',
+      options: [
+        'The landing was perfect, but the power system failed before surface contact',
+        'Harpoons and anchoring screws failed at touchdown; Philae bounced several times and came to rest between boulders in shadow',
+        'The lander touched down at the planned site but was toppled by a gas jet',
+        'Command signals arrived late due to the communication delay, so landing systems activated too slowly',
+      ],
+      correctIndex: 1,
+      explanation:
+        'At the moment of contact neither the harpoons nor the anchoring screws fired. The extremely weak gravity of the nucleus meant Philae could not hold itself in place — it bounced more than one kilometer into space, landed a second time, bounced once more, and finally came to rest between boulders in a shaded location where the solar panels received insufficient light to recharge.',
+    },
+    {
+      question: 'Which unexpected molecule was detected in the atmosphere of comet 67P?',
+      options: [
+        'Methane, the simplest hydrocarbon, found in unexpectedly high concentration',
+        'Carbon dioxide, at an unusually elevated ratio relative to water vapor',
+        'Molecular oxygen — free O2 molecules, which do not normally survive without an active chemical source',
+        'Ammonia, thanks to unusually stable conditions deep within the nucleus ice',
+      ],
+      correctIndex: 2,
+      explanation:
+        'The detection of molecular oxygen, the O2 molecule, was one of the most surprising results of the mission. In its free form oxygen is highly reactive and quickly bonds with other molecules. Scientists believe it may have been locked inside the nucleus ice since the Solar System formed, preserved for several billion years in the extremely cold interior shielded from the solar wind.',
+    },
+    {
+      question: 'How did the Rosetta mission end in 2016?',
+      options: [
+        'The spacecraft was placed in a parking orbit around the comet and left passively',
+        'Rosetta was directed to a heliocentric orbit to avoid becoming orbital debris',
+        'The spacecraft carried out a controlled descent and impacted the surface of comet 67P',
+        'Contact with Rosetta was lost due to an antenna failure, ending the mission unintentionally',
+      ],
+      correctIndex: 2,
+      explanation:
+        'As propellant approached exhaustion, the team decided to end the mission with a controlled collision with the comet nucleus. This allowed imaging and measurements from the closest possible range right up to impact. On the thirtieth of September 2016, Rosetta struck the surface of comet 67P and ceased transmitting.',
+    },
+  ],
+
+  sources: [
+    {
+      title: 'ESA — Rosetta mission overview',
+      url: 'https://www.esa.int/Science_Exploration/Space_Science/Rosetta',
+      meta: 'Official mission page, open access',
+    },
+    {
+      title: 'Altwegg K. et al. — 67P/Churyumov-Gerasimenko, a Jupiter Family Comet with a High D/H Ratio (Science, 2015)',
+      url: 'https://www.science.org/doi/10.1126/science.1261952',
+      meta: 'Science, 2015',
+    },
+    {
+      title: 'Bieler A. et al. — Abundant molecular oxygen in the coma of comet 67P (Nature, 2015)',
+      url: 'https://www.nature.com/articles/nature15707',
+      meta: 'Nature, 2015',
+    },
+    {
+      title: 'Altwegg K. et al. — Glycine, an amino acid and other prebiotic molecules in comet 67P (Science Advances, 2016)',
+      url: 'https://www.science.org/doi/10.1126/sciadv.1600285',
+      meta: 'Science Advances, 2016, open access',
+    },
+    {
+      title: 'Sierks H. et al. — On the nucleus structure and activity of comet 67P (Science, 2015)',
+      url: 'https://www.science.org/doi/10.1126/science.aaa1044',
+      meta: 'Science, 2015 — nucleus morphology and structure',
+    },
+    {
+      title: 'Fulle M. et al. — Comet 67P/Churyumov-Gerasimenko preserved the pebbles that formed planetesimals (Science, 2016)',
+      url: 'https://www.science.org/doi/10.1126/science.aad4815',
+      meta: 'Science, 2016 — nucleus formation',
+    },
+    {
+      title: 'Boehnhardt H. et al. — The Philae lander mission and science overview (Planetary and Space Science, 2017)',
+      url: 'https://www.sciencedirect.com/science/article/pii/S0032063316301611',
+      meta: 'Planetary and Space Science, 2017',
+    },
+    {
+      title: 'ESA Rosetta blog: Philae found (September 2016)',
+      url: 'https://blogs.esa.int/rosetta/2016/09/05/philae-found/',
+      meta: 'ESA official mission blog, 2016',
+    },
+    {
+      title: 'NASA Science — What Rosetta Taught Us About Comets',
+      url: 'https://science.nasa.gov/solar-system/comets/rosetta/',
+      meta: 'NASA, open access, updated 2024',
+    },
+    {
+      title: 'Goesmann F. et al. — Organic compounds on comet 67P revealed by COSAC mass spectrometry (Science, 2015)',
+      url: 'https://www.science.org/doi/10.1126/science.aab0689',
+      meta: 'Science, 2015 — organic molecules, Philae',
+    },
+  ],
+
+  lastVerified: '2026-05-06',
+};
+
+export default lesson;

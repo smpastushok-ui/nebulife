@@ -1,0 +1,718 @@
+import type { Lesson } from '../../types.js';
+
+const lesson: Lesson = {
+  slug: 'life-support',
+  language: 'en',
+  section: 'space-tech',
+  order: 3,
+  difficulty: 'intermediate',
+  readingTimeMin: 12,
+  title: 'Life Support Systems',
+  subtitle: 'How people breathe, drink, and survive inside a sealed metal can between the stars.',
+
+  hero: {
+    cacheKey: 'life-support-hero',
+    prompt:
+      'Photorealistic illustration for a science encyclopedia: interior of a space station life support module. ' +
+      'Racks of equipment with pipes, filters, condensers, and electronic panels line the curved walls. ' +
+      'Soft blue and white operational lighting. Air circulation ducts visible along the ceiling. ' +
+      'Hard sci-fi style, dark space visible through a small porthole, technically accurate equipment geometry, ' +
+      'no human faces visible — silhouette of an astronaut working in background. ' +
+      'Add the following text labels on the image: "air revitalization", "water recovery", "thermal control".',
+    alt: 'Interior of a space station life support module — filter racks, pipes, thermal panels',
+    caption:
+      'The Environmental Control and Life Support System module on the International Space Station. ' +
+      'Hundreds of meters of plumbing, filters, reactors, and pumps — so that six people can breathe and drink in airless space.',
+    aspectRatio: '16:9',
+  },
+
+  body: [
+    {
+      paragraphs: [
+        'A human being consumes roughly 550 liters of oxygen per day, exhales about 200 liters of carbon dioxide, ' +
+        'and loses more than two liters of water through respiration, sweat, and metabolism. ' +
+        'On Earth that is not a problem — the planetary atmosphere is effectively infinite and compensates for everything. ' +
+        'Inside a sealed capsule between the stars, every gram of exhaled carbon dioxide stays inside. ' +
+        'Without an active processing system, the oxygen runs out within hours ' +
+        'and carbon dioxide reaches toxic concentrations even faster.',
+
+        'The technology that solves this is formally called the Environmental Control and Life Support System. ' +
+        'It is not a single device or even a single compartment. ' +
+        'It is a network of interconnected subsystems — air revitalization, water purification and recovery, ' +
+        'thermal regulation, waste management, and fire detection — that together maintain ' +
+        'a fragile human-compatible microclimate inside the vehicle. ' +
+        'Sustaining that balance in vacuum and microgravity is one of the hardest engineering challenges in crewed spaceflight.',
+
+        'The fundamental division between approaches is as old as the first flights: open loop or closed loop. ' +
+        'In an open loop, consumed resources — oxygen, water, food — are drawn from stored supplies and not replenished. ' +
+        'The Apollo program in the 1960s and early 1970s used exactly this approach: ' +
+        'missions lasted under two weeks, and carrying enough reserves was realistic. ' +
+        'For long-duration missions an open loop becomes untenable — the mass of required supplies exceeds ' +
+        'any practical limit. That is why the second approach, a closed loop with active regeneration, ' +
+        'is the standard for long-duration orbital stations and the baseline for any future interplanetary mission.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'life-support-open-vs-closed',
+        prompt:
+          'Scientific infographic for a space encyclopedia comparing open-loop and closed-loop life support systems side by side. ' +
+          'Left panel: open loop — arrows show consumables flowing in (oxygen tanks, water packs) and waste flowing out (CO2 vented, water dumped). ' +
+          'Right panel: closed loop — circular arrows show oxygen recycled from CO2, water reclaimed from humidity and urine, waste processed. ' +
+          'Hard sci-fi style, dark background, monospace labels, orange for open loop flows, cyan for closed loop cycles. ' +
+          'Add the following text labels on the image: "open loop: consume and vent", "closed loop: regenerate and reuse", "CO2", "O2", "H2O".',
+        alt: 'Comparative infographic of open-loop and closed-loop life support systems',
+        caption:
+          'An open loop is simple but mass-hungry. A closed loop is technically demanding but the only viable option for long missions. ' +
+          'The International Space Station recovers more than 90 percent of oxygen from carbon dioxide ' +
+          'and more than 98 percent of drinking water from collected humidity and urine.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'Air revitalization: from exhale to the next breath',
+      level: 2,
+      paragraphs: [
+        'Every breath extracts oxygen and leaves behind carbon dioxide. ' +
+        'In a sealed volume, carbon dioxide accumulates rapidly: ' +
+        'at concentrations of a few percent it causes headaches and impaired cognition; ' +
+        'at higher concentrations it leads to unconsciousness and death. ' +
+        'Removing carbon dioxide is therefore the first priority of any air revitalization system.',
+
+        'Early spacecraft and emergency situations relied on chemical scrubbers: ' +
+        'lithium hydroxide reacts with carbon dioxide and retains it as carbonate. ' +
+        'The method is reliable and straightforward, but single-use — ' +
+        'spent canisters must be replaced. On Apollo 13, a shortage of lithium hydroxide canisters ' +
+        'became one of the critical crisis points after the oxygen tank rupture in 1970.',
+
+        'On the International Space Station a far more sophisticated component is installed — ' +
+        'the _carbon dioxide removal assembly_. It uses a synthetic adsorbent — zeolite — ' +
+        'that captures carbon dioxide molecules at normal pressure and releases them when heated ' +
+        'in a vacuum chamber. Two alternating adsorption beds allow the system to operate ' +
+        'continuously without consumable canisters. ' +
+        'The separated carbon dioxide does not go into open space but into the next critical component.',
+      ],
+    },
+
+    {
+      heading: 'The Sabatier reactor: carbon dioxide becomes water',
+      level: 3,
+      paragraphs: [
+        'Why not simply vent the carbon dioxide into space? Because it contains oxygen — ' +
+        'the very oxygen that is so expensive and difficult to launch from Earth. ' +
+        'The Sabatier reaction, discovered in the nineteenth century by French chemist Paul Sabatier, ' +
+        'solves two problems simultaneously. At a temperature of approximately 400 degrees Celsius ' +
+        'in the presence of a nickel catalyst, carbon dioxide reacts with hydrogen:',
+
+        'Carbon dioxide plus four hydrogen molecules yields methane plus two water molecules. ' +
+        'The methane is a byproduct (or potentially a fuel cell feedstock), while the water ' +
+        'goes into the purification and recovery system. From the purified water, electrolysis ' +
+        'splits it back into oxygen and hydrogen. The oxygen returns to the cabin; ' +
+        'the hydrogen feeds back into the Sabatier reactor. ' +
+        'The result is a closed loop: carbon dioxide from exhaled breath → Sabatier reaction → ' +
+        'water → electrolysis → oxygen → lungs → carbon dioxide. ' +
+        'The station recovers approximately half of its oxygen this way. ' +
+        'The rest is supplied directly by electrolysis of water from the recovery system.',
+
+        'The fundamental limit: oxygen and hydrogen can only be generated from water, ' +
+        'and water must come either from the recovery system or from Earth in resupply containers. ' +
+        'The better the station collects and recycles water, the more oxygen-independent it becomes.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Closed-loop oxygen-water-carbon dioxide cycle on an orbital station',
+        svg: `<svg viewBox="0 0 700 380" xmlns="http://www.w3.org/2000/svg">
+  <rect width="700" height="380" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Title -->
+  <text x="350" y="22" fill="#aabbcc" font-family="monospace" font-size="12" text-anchor="middle">Closed cycle: O2 — CO2 — H2O on the station</text>
+
+  <!-- Node: Crew -->
+  <rect x="290" y="40" width="120" height="44" rx="3" fill="rgba(68,136,170,0.18)" stroke="#446688" stroke-width="1.5"/>
+  <text x="350" y="57" fill="#7bb8ff" font-family="monospace" font-size="11" text-anchor="middle">Crew</text>
+  <text x="350" y="72" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">inhale O2, exhale CO2</text>
+
+  <!-- Node: CO2 removal -->
+  <rect x="460" y="140" width="130" height="44" rx="3" fill="rgba(204,68,68,0.15)" stroke="#cc4444" stroke-width="1.5"/>
+  <text x="525" y="157" fill="#cc4444" font-family="monospace" font-size="11" text-anchor="middle">CO2 Removal</text>
+  <text x="525" y="172" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">zeolite adsorbent beds</text>
+
+  <!-- Node: Sabatier reactor -->
+  <rect x="460" y="240" width="130" height="44" rx="3" fill="rgba(255,136,68,0.15)" stroke="#ff8844" stroke-width="1.5"/>
+  <text x="525" y="257" fill="#ff8844" font-family="monospace" font-size="11" text-anchor="middle">Sabatier Reactor</text>
+  <text x="525" y="272" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">CO2 + H2 → CH4 + H2O</text>
+
+  <!-- Node: Water recovery -->
+  <rect x="270" y="310" width="160" height="44" rx="3" fill="rgba(68,255,136,0.12)" stroke="#44ff88" stroke-width="1.5"/>
+  <text x="350" y="327" fill="#44ff88" font-family="monospace" font-size="11" text-anchor="middle">Water Recovery</text>
+  <text x="350" y="342" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">condensate + urine → water</text>
+
+  <!-- Node: Electrolysis -->
+  <rect x="100" y="240" width="130" height="44" rx="3" fill="rgba(123,184,255,0.15)" stroke="#7bb8ff" stroke-width="1.5"/>
+  <text x="165" y="257" fill="#7bb8ff" font-family="monospace" font-size="11" text-anchor="middle">Electrolysis</text>
+  <text x="165" y="272" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">H2O → O2 + H2</text>
+
+  <!-- Arrows -->
+  <!-- Crew → CO2 removal (CO2) -->
+  <line x1="410" y1="62" x2="460" y2="155" stroke="#cc4444" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <polygon points="458,148 454,162 466,156" fill="#cc4444"/>
+  <text x="448" y="108" fill="#cc4444" font-family="monospace" font-size="9">CO2</text>
+
+  <!-- CO2 removal → Sabatier -->
+  <line x1="525" y1="184" x2="525" y2="240" stroke="#ff8844" stroke-width="1.5"/>
+  <polygon points="520,236 525,250 530,236" fill="#ff8844"/>
+  <text x="530" y="218" fill="#ff8844" font-family="monospace" font-size="9">CO2</text>
+
+  <!-- Sabatier → Water recovery (H2O) -->
+  <line x1="470" y1="284" x2="430" y2="315" stroke="#44ff88" stroke-width="1.5"/>
+  <polygon points="423,311 434,323 436,309" fill="#44ff88"/>
+  <text x="458" y="308" fill="#44ff88" font-family="monospace" font-size="9">H2O</text>
+
+  <!-- Water recovery → Electrolysis -->
+  <line x1="270" y1="332" x2="230" y2="270" stroke="#7bb8ff" stroke-width="1.5"/>
+  <polygon points="224,274 233,261 238,275" fill="#7bb8ff"/>
+  <text x="228" y="310" fill="#7bb8ff" font-family="monospace" font-size="9">H2O</text>
+
+  <!-- Electrolysis → Crew (O2) -->
+  <line x1="165" y1="240" x2="300" y2="78" stroke="#44ff88" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <polygon points="295,72 305,84 308,70" fill="#44ff88"/>
+  <text x="200" y="150" fill="#44ff88" font-family="monospace" font-size="9">O2</text>
+
+  <!-- Electrolysis → Sabatier (H2) -->
+  <line x1="230" y1="262" x2="460" y2="262" stroke="#ff8844" stroke-width="1" stroke-dasharray="4,4"/>
+  <polygon points="456,257 470,262 456,267" fill="#ff8844"/>
+  <text x="340" y="255" fill="#ff8844" font-family="monospace" font-size="9">H2 (recycled)</text>
+
+  <!-- Crew → Water recovery (condensate) -->
+  <line x1="350" y1="84" x2="350" y2="310" stroke="#7bb8ff" stroke-width="1" stroke-dasharray="4,4" opacity="0.5"/>
+  <polygon points="345,306 350,320 355,306" fill="#7bb8ff" opacity="0.5"/>
+  <text x="355" y="200" fill="#8899aa" font-family="monospace" font-size="9">sweat, humidity</text>
+</svg>`,
+        caption:
+          'Simplified diagram of the closed oxygen-water-carbon dioxide cycle. ' +
+          'The real system is far more complex: redundant filtration stages, backup loops, ' +
+          'air quality sensors, and emergency valves. But the fundamental circular logic is unchanged.',
+      },
+    },
+
+    {
+      heading: 'Water recovery: 98 percent stays aboard',
+      level: 2,
+      paragraphs: [
+        'Water is one of the heaviest cargo items in crewed spaceflight. ' +
+        'Delivering one kilogram to low Earth orbit costs anywhere from several thousand ' +
+        'to several tens of thousands of dollars depending on the launch vehicle. ' +
+        'If six crew members each consume roughly two liters of drinking water per day, ' +
+        'that adds up to more than four metric tons in a single year. ' +
+        'Add water for food preparation, hygiene, cooling, and process use — ' +
+        'and the mass becomes unmanageable without a closed loop.',
+
+        'The water recovery system on the International Space Station collects two fundamentally different streams. ' +
+        'The first is condensate from the air: humid exhalation and perspiration settle ' +
+        'on cooled surfaces, are collected, and fed into a distillation processor. ' +
+        'The second — more challenging in terms of public acceptance — is urine processing. ' +
+        'A specialized vacuum distillation unit heats urine and drives off water vapor, ' +
+        'leaving a concentrated brine. The collected vapor passes through a multi-stage ' +
+        'chemical processor with catalytic oxidizers and ion-exchange resins. ' +
+        'At the output: purified water, with quality monitored by conductivity sensors.',
+
+        'The result: the closed loop returns more than 98 percent of all water aboard ' +
+        'in a form suitable for drinking. Less than two percent is lost irreversibly — ' +
+        'mostly in processing byproducts and micro-leakage. ' +
+        'Those two percent are replenished from Earth by resupply spacecraft. ' +
+        'But the principal cycle is closed. ' +
+        'This is not unpleasant — it is thermodynamics: a water molecule from processed urine ' +
+        'is indistinguishable from one that came from a mountain stream.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'life-support-water-recovery',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: space station water recovery equipment rack. ' +
+          'A compact distillation unit and multi-filtration system mounted in a rack, ' +
+          'with labeled pipes showing urine input on one side and purified water output on the other. ' +
+          'Ion exchange resin cartridges and catalytic oxidizer visible. ' +
+          'Blue status indicator lights, dark metallic finish, zero-gravity environment. ' +
+          'Hard sci-fi style, technical accuracy, no human faces. ' +
+          'Add the following text labels on the image: "urine distillation", "multi-filtration", "purified water", "ion exchange".',
+        alt: 'Water recovery equipment on a space station — distillation unit, ion-exchange filters, and purified water output',
+        caption:
+          'The water recovery system returns more than 98 percent of all moisture on board to a drinkable state — ' +
+          'including condensate and processed urine. Output water quality is continuously monitored ' +
+          'by conductivity and chemical composition sensors.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Thermal control: the problem with no obvious solution',
+      level: 2,
+      paragraphs: [
+        'In vacuum there is no air to carry heat away by convection. ' +
+        'Solar radiation heats sun-facing surfaces to above one hundred degrees Celsius, ' +
+        'while the shaded side cools to minus one hundred or lower. ' +
+        'The equipment inside the station — computers, motors, instruments — also generates heat. ' +
+        'Without thermal control, electronics overheat, water in pipes freezes, ' +
+        'and the crew suffocates in their own warmth.',
+
+        'The first line of regulation is the internal coolant loop, typically water or ' +
+        'a water-alcohol mixture, circulating in closed circuits between heat sources ' +
+        '(equipment and the crew) and heat exchangers. ' +
+        'The internal loop transfers excess heat to the external loop, which carries ammonia. ' +
+        'Ammonia is not an arbitrary choice: it stays liquid over a wide temperature range ' +
+        'and has excellent thermal capacity. The external ammonia loop runs to large radiator panels — ' +
+        'the characteristic grid structures clearly visible in photographs of the International Space Station. ' +
+        'The radiators reject heat into space by the only mechanism available in vacuum: thermal radiation.',
+
+        'The combined radiator area of the station exceeds 2500 square meters. ' +
+        'Through them the system rejects approximately 70 kilowatts of thermal load into space. ' +
+        'For comparison: a typical domestic electric kettle consumes one to two kilowatts. ' +
+        'Adjusting the angle of the radiator panels allows the system to tune heat rejection ' +
+        'in response to changing thermal loads and orbital orientation relative to the Sun.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'life-support-radiators',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: space station exterior with large thermal radiator panels deployed against deep black space. ' +
+          'Rectangular white panels extend from the station truss structure. ' +
+          'One panel partially rotated to show mechanism. Sun visible in upper corner casting strong directional light. ' +
+          'Hard sci-fi style, technically accurate, dramatic lighting. ' +
+          'Add the following text labels on the image: "thermal radiator panels", "ammonia coolant loop", "heat rejection to space".',
+        alt: 'Space station external thermal radiator panels in space — large rectangular panels emit excess heat as thermal radiation',
+        caption:
+          'Thermal radiators are the only way to shed excess heat into the airless void. ' +
+          'Water cannot boil into convection currents; fans have nothing to push. ' +
+          'Only thermal radiation into the cold vacuum — perfectly efficient, but dependent on panel area.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Pressure, atmosphere composition, and the spacesuit problem',
+      level: 2,
+      paragraphs: [
+        'Inside the International Space Station, an atmosphere nearly identical to Earth\'s surface is maintained: ' +
+        'pressure of approximately 101 kilopascals, composed of roughly ' +
+        '21 percent oxygen and 78 percent nitrogen. ' +
+        'This is not the only possible choice — and it is not accidental.',
+
+        'American missions of the Apollo program in the 1960s used a pure oxygen atmosphere ' +
+        'at a reduced pressure of approximately 34 kilopascals. ' +
+        'This significantly simplified and lightened the spacesuits, because the pressure differential ' +
+        'between suit and cabin was minimal. But a pure oxygen atmosphere is lethally dangerous ' +
+        'from a fire standpoint. The Apollo 1 tragedy in 1967, in which three astronauts died ' +
+        'during a ground test, was caused by ignition in pure oxygen at above-ambient pressure. ' +
+        'After that disaster NASA switched to a two-component atmosphere during ground operations, ' +
+        'though pure oxygen is still used inside spacesuits for extravehicular activity.',
+
+        'Modern spacesuits for extravehicular activity operate at approximately 29 kilopascals ' +
+        'in a pure oxygen atmosphere. Before donning the suit, an astronaut spends several hours ' +
+        'breathing pure oxygen at reduced pressure — this drives dissolved nitrogen out of the blood ' +
+        'and prevents decompression sickness when cabin pressure drops sharply during a spacewalk. ' +
+        'Spacesuit designers for Moon and Mars scenarios approach this differently: ' +
+        'they aim to raise the operating pressure of the suit to a level where the prebreathe ' +
+        'protocol shrinks from hours to minutes.',
+      ],
+    },
+
+    {
+      heading: 'From freeze-dried peas to biological systems: the MELiSSA project',
+      level: 2,
+      paragraphs: [
+        'Mechanical and chemical systems close the oxygen and water loops. ' +
+        'But food remains the Achilles heel: on the International Space Station ' +
+        'the entire diet is delivered from Earth. ' +
+        'For a nine-month flight to Mars — let alone sustained surface presence — ' +
+        'this is not realistic.',
+
+        'That is why the European Space Agency has been developing a concept since the late 1980s ' +
+        'known as the Micro-Ecological Life Support System Alternative — abbreviated as MELiSSA. ' +
+        'The project envisions a five-compartment bioregenerative system: ' +
+        'organic waste is first broken down by anaerobic bacteria, then photoautotrophic ' +
+        'spirulina and chlorella consume carbon dioxide and build biomass, ' +
+        'a plant compartment grows edible crops under artificial light, ' +
+        'and the final compartment is the human crew. ' +
+        'The system is closed: human waste feeds the first compartment, ' +
+        'the first feeds the second, and so on around the loop.',
+
+        'In parallel, NASA has conducted plant growth experiments aboard the station ' +
+        'under its plant cultivation program. The first crop of lettuce grown in space ' +
+        'and eaten directly in orbit took place in 2015. ' +
+        'Plants do not merely produce food: they consume carbon dioxide, generate oxygen, ' +
+        'and through transpiration release water that the recovery system collects. ' +
+        'But even optimistic estimates show that closing the food loop to one hundred percent ' +
+        'through plants alone is impossible — microalgae, bacteria, and likely cultured meat ' +
+        'will all be required.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'life-support-veggie-plants',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: compact plant growth chamber inside a space station. ' +
+          'Leafy green lettuce growing under purple and white LED grow lights mounted above. ' +
+          'Root pillows visible below plants, condensation on transparent growth chamber walls. ' +
+          'Small monitoring sensors attached. Zero-gravity environment, equipment racks visible in background. ' +
+          'Hard sci-fi style, technically accurate. ' +
+          'Add the following text labels on the image: "LED grow lights", "root pillows", "CO2 absorption", "fresh food production".',
+        alt: 'Plant growth chamber on a space station — green lettuce under purple and white LED lights',
+        caption:
+          'The first lettuce grown and eaten in orbit became an important milestone in 2015. ' +
+          'Plant modules not only produce food — they absorb carbon dioxide, produce oxygen, ' +
+          'and release water for the recovery system through transpiration. ' +
+          'Fully closing the food loop is the goal of the MELiSSA project ' +
+          'and a prerequisite for interplanetary missions.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Mars: using its own atmosphere as a resource',
+      level: 2,
+      paragraphs: [
+        'Mars has no breathable atmosphere: it consists of approximately ' +
+        '95 percent carbon dioxide at a pressure less than one percent of Earth\'s surface. ' +
+        'For an on-site oxygen production system, however, this is not a problem — it is a resource.',
+
+        'In 2021, the Perseverance rover carried to Mars an instrument for producing oxygen ' +
+        'by in-situ electrolysis — the Mars Oxygen In-Situ Resource Utilization Experiment. ' +
+        'The instrument draws in Martian atmospheric gas, isolates carbon dioxide, ' +
+        'then uses high-temperature electrolysis at approximately 800 degrees Celsius ' +
+        'to split the carbon dioxide molecule: carbon goes one way, oxygen goes the other. ' +
+        'The oxygen is collected. This was the first successful demonstration of ' +
+        'industrial oxygen production from Martian resources directly on another planet. ' +
+        'Over a few hours of operation the instrument produced enough oxygen ' +
+        'for a person to breathe for about ten minutes. ' +
+        'Unimpressive in scale — but revolutionary in principle.',
+
+        'A scaled-up version of this approach would allow a future Mars mission to produce oxygen ' +
+        'not just for breathing but as an oxidizer for rocket propellant. ' +
+        'This fundamentally changes the mass equation for the return journey: ' +
+        'instead of launching ascent propellant from Earth, manufacture it on Mars.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'life-support-moxie-mars',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: compact oxygen production instrument mounted inside a Mars rover on the Martian surface. ' +
+          'Reddish-brown dust visible through a porthole or open bay, ' +
+          'instrument glowing with internal heat, labeled connection pipes, sensor arrays. ' +
+          'Mars landscape in background — rocky terrain, reddish sky. ' +
+          'Hard sci-fi style, technically accurate. ' +
+          'Add the following text labels on the image: "CO2 intake", "electrolyzer", "O2 output", "Mars atmosphere".',
+        alt: 'Oxygen production instrument inside a Mars rover — draws in Martian carbon dioxide and outputs breathable oxygen',
+        caption:
+          'The oxygen production instrument on the Perseverance rover completed the first ' +
+          'demonstration of in-situ resource utilization technology in 2021. ' +
+          'A scaled-up version of the device could supply breathing oxygen and rocket propellant ' +
+          'for the return leg of a future crewed Mars mission.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Fire and emergency: when the system fails',
+      level: 2,
+      paragraphs: [
+        'A sealed pressurized space with an elevated oxygen fraction is an ideal fire environment. ' +
+        'In orbit, fire behaves differently than on Earth: ' +
+        'without convection, the flame is spherical, heat does not rise, ' +
+        'and combustion products accumulate uniformly around the source. ' +
+        'This makes detection harder and greatly increases the danger.',
+
+        'Fire detection systems on spacecraft rely on ionization and photoelectric smoke sensors ' +
+        'distributed throughout the entire habitable volume. ' +
+        'When smoke is detected, the system automatically shuts down ventilation — ' +
+        'to prevent spreading combustion — and alerts the crew. ' +
+        'On the International Space Station, fire suppression uses carbon dioxide from cylinders: ' +
+        'in a sealed space, carbon dioxide displaces oxygen and extinguishes fire without ' +
+        'leaving liquid residue. Chemical foam agents are unsuitable — ' +
+        'they cannot be cleaned up in microgravity.',
+
+        'The 1997 fire incident on the Mir space station, when ignition of an oxygen candle ' +
+        '(a chemical oxygen generator) nearly spiraled out of control and blocked ' +
+        'the evacuation path for part of the crew, became a textbook case: ' +
+        'even a well-designed system becomes vulnerable when several subsystems ' +
+        'converge in a rare failure mode simultaneously. ' +
+        'The lessons of Mir and Apollo 1 permeate every page of the modern safety specifications ' +
+        'for the International Space Station.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Mass flow on a crewed mission: open loop versus closed loop',
+        svg: `<svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg">
+  <rect width="700" height="280" fill="rgba(10,15,25,0.5)"/>
+
+  <text x="350" y="22" fill="#aabbcc" font-family="monospace" font-size="12" text-anchor="middle">Consumable mass: open loop vs closed loop</text>
+
+  <!-- Open loop column -->
+  <rect x="60" y="38" width="220" height="30" rx="3" fill="rgba(204,68,68,0.15)" stroke="#cc4444" stroke-width="1.5"/>
+  <text x="170" y="58" fill="#cc4444" font-family="monospace" font-size="11" text-anchor="middle">Open loop (Apollo)</text>
+
+  <!-- O2 bar open -->
+  <rect x="70" y="82" width="80" height="28" rx="2" fill="#cc4444" opacity="0.7"/>
+  <text x="110" y="101" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">full O2 reserve</text>
+
+  <!-- H2O bar open -->
+  <rect x="162" y="82" width="110" height="28" rx="2" fill="#cc4444" opacity="0.55"/>
+  <text x="217" y="101" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">full H2O reserve</text>
+
+  <text x="170" y="130" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">~100% mass from Earth</text>
+  <text x="170" y="144" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">Viable for 2 weeks</text>
+
+  <!-- Closed loop column -->
+  <rect x="420" y="38" width="220" height="30" rx="3" fill="rgba(68,255,136,0.12)" stroke="#44ff88" stroke-width="1.5"/>
+  <text x="530" y="58" fill="#44ff88" font-family="monospace" font-size="11" text-anchor="middle">Closed loop (ISS)</text>
+
+  <!-- O2 bar closed (small makeup) -->
+  <rect x="430" y="82" width="18" height="28" rx="2" fill="#cc4444" opacity="0.7"/>
+  <text x="439" y="101" fill="#aabbcc" font-family="monospace" font-size="8" text-anchor="middle">O2</text>
+  <text x="460" y="95" fill="#8899aa" font-family="monospace" font-size="9">~10% makeup only</text>
+
+  <!-- H2O bar closed (small makeup) -->
+  <rect x="430" y="122" width="22" height="28" rx="2" fill="#7bb8ff" opacity="0.6"/>
+  <text x="441" y="141" fill="#aabbcc" font-family="monospace" font-size="8" text-anchor="middle">H2O</text>
+  <text x="460" y="135" fill="#8899aa" font-family="monospace" font-size="9">~2% makeup only</text>
+
+  <text x="530" y="175" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">~2–10% mass from Earth</text>
+  <text x="530" y="189" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">Required for 6+ months</text>
+
+  <!-- Separator -->
+  <line x1="350" y1="38" x2="350" y2="220" stroke="#334455" stroke-width="1" stroke-dasharray="5,5"/>
+
+  <!-- Bottom comparison -->
+  <rect x="60" y="220" width="580" height="46" rx="3" fill="rgba(10,20,40,0.6)" stroke="#334455" stroke-width="1"/>
+  <text x="350" y="238" fill="#7bb8ff" font-family="monospace" font-size="10" text-anchor="middle">Key principle: each percent of closed-loop recovery reduces cargo mass</text>
+  <text x="350" y="254" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">1 year | 6 crew | open loop: ~4.5 tonnes water only | closed loop: ~90 kg makeup</text>
+</svg>`,
+        caption:
+          'The mass difference between open-loop and closed-loop systems on long missions is not a matter of percentages but of orders of magnitude. ' +
+          'That difference determines whether a crewed Mars mission is feasible at all from a payload mass perspective.',
+      },
+    },
+
+    {
+      heading: 'From orbit to interstellar flight',
+      level: 2,
+      paragraphs: [
+        'Current life support systems close the loop at roughly 90 to 95 percent for oxygen and water. ' +
+        'For missions within Earth orbit this is sufficient — the rest is replenished by cargo spacecraft. ' +
+        'But for an interplanetary flight even those few percent of losses add up to a critical level ' +
+        'over one or two years. The target for a Mars mission is closure of not less than 98 to 99 percent ' +
+        'and at least partial food autonomy through bioregenerative systems.',
+
+        'For a hypothetical interstellar voyage even that falls short. ' +
+        'If the journey takes decades or more, even fractions of a percent lost per year accumulate. ' +
+        'Theoretical projects — from a miniature Earth inside a sealed dome ' +
+        'to fully artificial ecosystems built around algae and bacteria — ' +
+        'aim for one hundred percent closure. ' +
+        'Nature has been doing this for billions of years: Earth\'s biosphere is the perfect example ' +
+        'of a closed material cycle driven by a constant input of solar energy. ' +
+        'To replicate something like it inside the metal hull of a spacecraft is, ' +
+        'perhaps, the most ambitious engineering challenge humanity faces after the act of leaving Earth itself.',
+      ],
+    },
+  ],
+
+  glossary: [
+    {
+      term: 'Environmental Control and Life Support System',
+      definition:
+        'The integrated set of spacecraft or station subsystems that maintain conditions suitable for human occupancy: atmospheric composition and pressure, temperature, potable water quality and supply, and waste removal.',
+    },
+    {
+      term: 'Sabatier reaction',
+      definition:
+        'A chemical reaction in which carbon dioxide reacts with hydrogen over a nickel catalyst at approximately 400 degrees Celsius, producing methane and water. Used in space station oxygen regeneration systems to recover oxygen from exhaled carbon dioxide.',
+    },
+    {
+      term: 'Open loop',
+      definition:
+        'A life support architecture in which consumed resources — oxygen, water — are not regenerated but drawn from stored supplies. Acceptable for short missions; impractical for long-duration spaceflight due to mass requirements.',
+    },
+    {
+      term: 'Closed loop',
+      definition:
+        'A life support architecture with active regeneration: exhaled carbon dioxide is converted back to oxygen, used water is purified and returned to the system. The standard approach for long-duration orbital stations and a requirement for interplanetary missions.',
+    },
+    {
+      term: 'Electrolysis',
+      definition:
+        'Decomposition of a molecule by electric current. In life support systems — splitting water into oxygen and hydrogen. The oxygen is supplied to the cabin for breathing; the hydrogen feeds the Sabatier reactor or is vented.',
+    },
+    {
+      term: 'Water recovery',
+      definition:
+        'Collection and purification of all available moisture sources aboard — air condensate, processed urine, and process water. The system on the International Space Station returns more than 98 percent of water to a potable state.',
+    },
+    {
+      term: 'Bioregenerative system',
+      definition:
+        'A life support system that uses living organisms — bacteria, algae, plants — to close material cycles: producing oxygen, absorbing carbon dioxide, and growing food. The guiding principle of the MELiSSA project by the European Space Agency.',
+    },
+    {
+      term: 'Thermal radiation',
+      definition:
+        'The only heat transfer mechanism in vacuum — electromagnetic radiation emitted by any heated object. Spacecraft thermal radiators reject excess heat into space entirely through thermal radiation.',
+    },
+    {
+      term: 'Prebreathe (denitrogenation)',
+      definition:
+        'The procedure of breathing pure oxygen at reduced pressure before a spacewalk, to drive dissolved nitrogen out of the bloodstream. Prevents decompression sickness — the formation of gas bubbles in the blood — when ambient pressure drops sharply during extravehicular activity.',
+    },
+    {
+      term: 'In-situ resource utilization',
+      definition:
+        'The concept of extracting and processing materials directly at the mission destination — the Moon, Mars, or an asteroid — to reduce the mass that must be launched from Earth. Key example: producing oxygen on Mars from atmospheric carbon dioxide.',
+    },
+  ],
+
+  quiz: [
+    {
+      question: 'Why is an open-loop life support system unsuitable for a flight to Mars?',
+      options: [
+        'Because there is insufficient solar energy at that distance to power the systems',
+        'The mass of stored oxygen and water reserves for one to two years exceeds any practical payload limit',
+        'An open loop cannot withstand the radiation environment of interplanetary space',
+        'On Mars there is no way to vent spent gases — they would freeze in the thin atmosphere',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Six astronauts consume tonnes of oxygen and several tonnes of drinking water per year. ' +
+        'Launching all of that from Earth would make the mission effectively impossible by mass. ' +
+        'Only a closed loop — with 98 to 99 percent regeneration — makes a two-year mission realistic.',
+    },
+    {
+      question: 'What role does the Sabatier reactor play in air regeneration?',
+      options: [
+        'It removes carbon dioxide using a zeolite adsorbent bed',
+        'It converts carbon dioxide and hydrogen into water and methane, returning oxygen to the cabin via electrolysis',
+        'It directly produces oxygen by splitting carbon dioxide into its constituent elements',
+        'It heats the cabin using a chemical combustion reaction',
+      ],
+      correctIndex: 1,
+      explanation:
+        'The Sabatier reactor receives carbon dioxide from the removal assembly and hydrogen from the electrolyzer, ' +
+        'and at approximately 400 degrees Celsius with a nickel catalyst converts them into water and methane. ' +
+        'The water is then split by electrolysis into oxygen (returned to the cabin) ' +
+        'and hydrogen (fed back into the reactor). The system effectively closes the loop.',
+    },
+    {
+      question: 'Why did the Apollo 1 tragedy in 1967 fundamentally change how spacecraft atmospheres are designed?',
+      options: [
+        'Overheating of the water recovery system caused the entire module to fail',
+        'A fire in a pure oxygen atmosphere during a ground test revealed the lethal danger of that atmospheric composition',
+        'The crew suffocated due to a failure in the carbon dioxide removal system',
+        'A pressure sensor calibration error caused the cabin to decompress',
+      ],
+      correctIndex: 1,
+      explanation:
+        'The Apollo 1 command module used a pure oxygen atmosphere at above-ambient pressure during ground testing. ' +
+        'Any ignition in such an environment spreads with catastrophic speed. ' +
+        'After the tragedy NASA switched to a two-component atmosphere for ground operations ' +
+        'and dramatically tightened flammability requirements for all materials inside the cabin.',
+    },
+    {
+      question: 'What was the significance of the oxygen production instrument demonstration on the Perseverance rover in 2021?',
+      options: [
+        'For the first time in history a human breathed oxygen outside Earth',
+        'The first successful demonstration of producing oxygen directly from the resources of another planet',
+        'It proved that the Martian atmosphere contains enough oxygen for direct breathing without processing',
+        'A new battery type was developed to power life support systems in Martian conditions',
+      ],
+      correctIndex: 1,
+      explanation:
+        'The instrument on Perseverance produced oxygen directly on Mars by high-temperature electrolysis of atmospheric carbon dioxide. ' +
+        'This is the key proof-of-concept for in-situ resource utilization: ' +
+        'a future crewed mission could manufacture oxygen for breathing ' +
+        'and rocket propellant for the return journey right at the destination.',
+    },
+    {
+      question: 'Why is fire more dangerous in microgravity than on Earth?',
+      options: [
+        'Fire extinguishers do not function in microgravity — the discharge does not travel in the intended direction',
+        'Without convection, heat and smoke do not rise but spread uniformly, making detection and localization harder',
+        'The elevated humidity of a closed life support system makes any combustion explosive',
+        'Smoke detectors are calibrated for Earth gravity and fail to trigger in space',
+      ],
+      correctIndex: 1,
+      explanation:
+        'On Earth, hot gases and smoke rise by convection — this allows fire to be detected by its rising plume ' +
+        'and the source to be located. In microgravity there is no convection: the flame is spherical, ' +
+        'smoke disperses uniformly in all directions, and heat accumulates around the source without natural dissipation. ' +
+        'Smoke sensors are therefore distributed throughout the entire volume, ' +
+        'and when triggered, ventilation is immediately halted to prevent spreading the combustion.',
+    },
+  ],
+
+  sources: [
+    {
+      title: 'NASA — Environmental Control and Life Support System (ECLSS) Overview',
+      url: 'https://www.nasa.gov/humans-in-space/environmental-control-and-life-support-system/',
+      meta: 'NASA, open access, updated 2024',
+    },
+    {
+      title: 'NASA Technical Report — Water Recovery System on ISS',
+      url: 'https://ntrs.nasa.gov/citations/20070014760',
+      meta: 'NASA NTRS, open access',
+    },
+    {
+      title: 'ESA — MELiSSA Project: Micro-Ecological Life Support System Alternative',
+      url: 'https://www.esa.int/Enabling_Support/Space_Engineering_Technology/MELiSSA',
+      meta: 'ESA, open access, updated 2024',
+    },
+    {
+      title: 'NASA — MOXIE: Mars Oxygen In-Situ Resource Utilization Experiment',
+      url: 'https://mars.nasa.gov/mars2020/spacecraft/instruments/moxie/',
+      meta: 'NASA JPL, open access',
+    },
+    {
+      title: 'Perchonok M., Bourland C. — NASA Food Systems: Past, Present, and Future',
+      url: 'https://ntrs.nasa.gov/citations/20020086483',
+      meta: 'NASA NTRS, 2002, open access',
+    },
+    {
+      title: 'NASA — Veggie Plant Growth System on ISS',
+      url: 'https://www.nasa.gov/humans-in-space/veggie-plant-growth-system-on-the-international-space-station/',
+      meta: 'NASA, open access',
+    },
+    {
+      title: 'Wieland P. — Designing for Human Presence in Space: An Introduction to Environmental Control and Life Support',
+      url: 'https://ntrs.nasa.gov/citations/19940022006',
+      meta: 'NASA Marshall Space Flight Center, 1994, open access',
+    },
+    {
+      title: 'Hanford A.J. — Advanced Life Support Baseline Values and Assumptions Document',
+      url: 'https://ntrs.nasa.gov/citations/20040010940',
+      meta: 'NASA JSC, 2004, open access',
+    },
+    {
+      title: 'ESA — Thermal Control of Spacecraft',
+      url: 'https://www.esa.int/Enabling_Support/Space_Engineering_Technology/Thermal_control_of_spacecraft',
+      meta: 'ESA, open access',
+    },
+    {
+      title: 'Rapp D. — Human Missions to Mars: Enabling Technologies for Exploring the Red Planet',
+      url: 'https://link.springer.com/book/10.1007/978-3-319-22249-3',
+      meta: 'Springer, 2016 (2nd ed.)',
+    },
+  ],
+
+  lastVerified: '2026-05-06',
+};
+
+export default lesson;

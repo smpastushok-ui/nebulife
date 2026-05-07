@@ -1,0 +1,476 @@
+import type { Lesson } from '../../types.js';
+
+const lesson: Lesson = {
+  slug: 'mir-station',
+  language: 'en',
+  section: 'crewed-missions',
+  order: 7,
+  difficulty: 'beginner',
+  readingTimeMin: 11,
+  title: 'Mir Space Station',
+  subtitle: 'The first modular orbital station and the foundation of international spaceflight.',
+
+  hero: {
+    cacheKey: 'mir-station-hero',
+    prompt:
+      'Photorealistic illustration of the Mir space station in orbit above Earth for a science encyclopedia. ' +
+      'The station is shown in full assembly configuration with all six modules visible: core module, Kvant-1, Kvant-2, Kristall, Spektr, and Priroda. ' +
+      'Solar panels extended, Earth curvature below with deep black space above. ' +
+      'Hard sci-fi style, technically accurate geometry, dramatic lighting from the Sun on the station body. ' +
+      'Add the following text labels on the image: "Mir core module", "Kvant-1", "Spektr", "solar panels".',
+    alt: 'Mir space station in full assembly configuration in orbit above Earth — six modules and extended solar panels',
+    caption:
+      'Mir in its complete configuration, 1996. Six modules added over ten years transformed the original core block into a full orbital complex with a mass of approximately one hundred and thirty metric tons.',
+    aspectRatio: '16:9',
+  },
+
+  body: [
+    {
+      paragraphs: [
+        'An orbital station is not simply a large satellite. It is a place where humans can live for weeks, months, and even years. To understand how the idea of a permanent human presence in space emerged — and why it proved so demanding in practice — it helps to look at the Mir station: the first structure humanity assembled in orbit piece by piece, threading modules together like beads on a string.',
+
+        'Soviet designers realized during the 1970s that monolithic stations had a fundamental limitation. The early Salyut series were launched as single solid units, which meant their size and mass were capped by whatever one rocket could lift. There was no way to expand them after the fact. The modular concept solved this: build a core, then dock new sections as they become ready. The station grows in orbit the way a city grows on the ground — one district at a time.',
+
+        'The core block of Mir reached orbit in February 1986. Over the following ten years, six additional modules were progressively docked to it, each with a distinct purpose: astrophysics observations, materials science, Earth monitoring, and docking compatibility with American Space Shuttles. Once all elements were in place, the station resembled an asymmetric creature with solar panel wings, with a total mass exceeding one hundred and twenty metric tons.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'mir-station-assembly-sequence',
+        prompt:
+          'Scientific illustration showing the Mir space station modular assembly sequence for a science encyclopedia. ' +
+          'Six panels arranged chronologically: 1986 core module alone, then Kvant-1 added, then Kvant-2, then Kristall, then Spektr, then Priroda completing the station. ' +
+          'Each panel shows the growing station configuration with module names labeled. ' +
+          'Hard sci-fi style, dark space background, orange and cyan accent colors, monospace labels. ' +
+          'Add the following text labels on the image: "1986 core", "Kvant-1 1987", "Kvant-2 1989", "Kristall 1990", "Spektr 1995", "Priroda 1996".',
+        alt: 'Mir space station assembly sequence from 1986 to 1996 — six steps of module additions',
+        caption:
+          'Mir was assembled in orbit over ten years. Each new module was delivered by an unmanned variant of the Proton launch vehicle, after which the crew manually transferred docking assemblies into their operational positions.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'Architecture: why modularity changed everything',
+      level: 2,
+      paragraphs: [
+        'The concept of a modular station seems straightforward, but behind the simple idea lies a demanding engineering reality. Each module must be fully autonomous at launch — equipped with its own attitude control system, its own solar panels, and a propellant reserve for independent rendezvous. After docking, control passes to the central block, but the module retains the ability to operate independently in an emergency.',
+
+        'The core block — called the base block — contained living quarters for three crew members, life support systems, attitude control, and crucially, six docking ports. That number of ports defined the maximum configuration of the station. Two ports served permanent modules, two handled the rotation of crewed Soyuz and uncrewed Progress vehicles, and two more accepted the large science modules.',
+
+        'Modules did not dock directly to their final ports — that would have been too dangerous. Instead, each new block first attached to the axial port at the end of the station, then was relocated to a lateral port on the node compartment using a mechanical arm or its own thrusters. This choreography of maneuver, undock, and redock was rehearsed over months and allowed the complex structure to be assembled without a single spacewalk for bolting or manual installation.',
+      ],
+    },
+
+    {
+      heading: 'Duration of stay: what happens to the human body',
+      level: 2,
+      paragraphs: [
+        'The most important question Mir helped answer was how long a person can spend in microgravity without irreversible harm. The answer turned out to be: a long time — but not without consequences.',
+
+        'In January 1994, physician-cosmonaut Valeri Polyakov arrived at Mir. He stayed until March 1995 — four hundred and thirty-seven consecutive days. That record for a single uninterrupted spaceflight remains unbroken more than thirty years later. Polyakov returned to Earth and stepped out of the capsule without assistance, demonstrating that a well-designed program of physical exercise and nutrition can preserve adequate function even after more than a year in weightlessness.',
+
+        'But the cost was real. Microgravity causes bone loss at a rate of roughly one to two percent per month in load-bearing bones. Muscles atrophy even with two hours of daily exercise. Fluid shifts toward the upper body — faces swell, legs thin out, intracranial pressure rises and can damage vision. The immune system operates under chronic stress. The cardiac muscle, no longer required to pump blood against gravity, changes shape. After returning to Earth, cosmonauts needed months of rehabilitation.',
+
+        "Polyakov's data, combined with that of dozens of other Mir crew members, formed the medical protocol baseline for the International Space Station and remains the most comprehensive dataset on long-duration microgravity effects on the human body.",
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Longest single stays in space (days)',
+        svg: `<svg viewBox="0 0 680 300" xmlns="http://www.w3.org/2000/svg">
+  <rect width="680" height="300" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Title -->
+  <text x="340" y="22" fill="#aabbcc" font-family="monospace" font-size="12" text-anchor="middle">Longest continuous stays in space</text>
+
+  <!-- Axes -->
+  <line x1="200" y1="40" x2="200" y2="255" stroke="#334455" stroke-width="1.5"/>
+  <line x1="200" y1="255" x2="650" y2="255" stroke="#334455" stroke-width="1.5"/>
+
+  <!-- X axis label -->
+  <text x="425" y="280" fill="#8899aa" font-family="monospace" font-size="10" text-anchor="middle">days</text>
+
+  <!-- X axis ticks -->
+  <text x="200" y="270" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">0</text>
+  <text x="309" y="270" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">100</text>
+  <text x="418" y="270" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">200</text>
+  <text x="527" y="270" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">300</text>
+  <text x="636" y="270" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">400</text>
+
+  <!-- Grid lines -->
+  <line x1="309" y1="40" x2="309" y2="255" stroke="#334455" stroke-width="0.5" stroke-dasharray="4,6" opacity="0.5"/>
+  <line x1="418" y1="40" x2="418" y2="255" stroke="#334455" stroke-width="0.5" stroke-dasharray="4,6" opacity="0.5"/>
+  <line x1="527" y1="40" x2="527" y2="255" stroke="#334455" stroke-width="0.5" stroke-dasharray="4,6" opacity="0.5"/>
+  <line x1="636" y1="40" x2="636" y2="255" stroke="#334455" stroke-width="0.5" stroke-dasharray="4,6" opacity="0.5"/>
+
+  <!-- Bar 1: Polyakov 437 days — record -->
+  <rect x="200" y="55" width="477" height="26" fill="#cc4444" opacity="0.85"/>
+  <text x="195" y="73" fill="#aabbcc" font-family="monospace" font-size="10" text-anchor="end">Polyakov (Mir)</text>
+  <text x="682" y="73" fill="#cc4444" font-family="monospace" font-size="10">437 — record</text>
+
+  <!-- Bar 2: Avdeyev 379 days -->
+  <rect x="200" y="95" width="413" height="26" fill="#ff8844" opacity="0.75"/>
+  <text x="195" y="113" fill="#aabbcc" font-family="monospace" font-size="10" text-anchor="end">Avdeyev (Mir)</text>
+  <text x="617" y="113" fill="#ff8844" font-family="monospace" font-size="10">379</text>
+
+  <!-- Bar 3: Manarov 365 days -->
+  <rect x="200" y="135" width="398" height="26" fill="#ff8844" opacity="0.75"/>
+  <text x="195" y="153" fill="#aabbcc" font-family="monospace" font-size="10" text-anchor="end">Manarov (Mir)</text>
+  <text x="602" y="153" fill="#ff8844" font-family="monospace" font-size="10">365</text>
+
+  <!-- Bar 4: Lucid 188 days (Shuttle-Mir) -->
+  <rect x="200" y="175" width="205" height="26" fill="#7bb8ff" opacity="0.80"/>
+  <text x="195" y="193" fill="#aabbcc" font-family="monospace" font-size="10" text-anchor="end">Lucid (Mir / USA)</text>
+  <text x="409" y="193" fill="#7bb8ff" font-family="monospace" font-size="10">188</text>
+
+  <!-- Bar 5: Foale 144 days (Shuttle-Mir) -->
+  <rect x="200" y="215" width="157" height="26" fill="#44ff88" opacity="0.70"/>
+  <text x="195" y="233" fill="#aabbcc" font-family="monospace" font-size="10" text-anchor="end">Foale (Mir / USA)</text>
+  <text x="361" y="233" fill="#44ff88" font-family="monospace" font-size="10">144</text>
+</svg>`,
+        caption:
+          'Mir gave humanity its deepest dataset on microgravity physiology. Four of the five longest single spaceflights before the end of the twentieth century took place on this station. American astronaut Shannon Lucid set the female endurance record during the Shuttle-Mir program.',
+      },
+    },
+
+    {
+      heading: 'The Shuttle-Mir program: how international spaceflight began',
+      level: 2,
+      paragraphs: [
+        'When the American and Russian space agencies began negotiating a joint program after the Cold War ended, a practical question arose: how do two very different organizations learn to work in the same house if they have never done it before? The answer took the form of joint flights to Mir in the mid-1990s — essentially a shared training exercise before construction of a new shared station.',
+
+        'Between 1995 and 1998, American astronauts rotated through Mir, living and working alongside their Russian colleagues for periods of several months. Seven Americans in total spent extended time on the station. Shannon Lucid stayed for one hundred and eighty-eight days — longer than any American before her — and that female endurance record stood for several years. Researcher Michael Foale spent one hundred and forty-four days aboard, including the crisis months following the 1997 accident.',
+
+        'Working together revealed unexpected cultural and technical barriers. American astronauts had to learn to read labels and operate equipment designed by a completely different engineering tradition. Both sides developed a shared language for docking procedures, emergency protocols, and medical standards. That mutual education was precisely what allowed the International Space Station program to launch without an extended shakedown period.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'mir-station-shuttle-docking',
+        prompt:
+          'Photorealistic illustration of a Space Shuttle docked to the Mir space station in orbit for a science encyclopedia. ' +
+          'Shuttle visible from the side with its payload bay doors open, docking adapter visible at the top. ' +
+          'Mir station modules extend in multiple directions. Earth visible below. ' +
+          'Hard sci-fi style, dark space background, technically accurate spacecraft geometry. ' +
+          'Add the following text labels on the image: "Space Shuttle", "docking adapter", "Mir station", "Earth".',
+        alt: 'Space Shuttle docked to Mir in orbit — American and Soviet spacecraft forming a joint crew for the first time',
+        caption:
+          'The docking of Atlantis with Mir in June 1995 opened the Shuttle-Mir program. Over the following three years, nine such dockings took place, each one building mutual trust and technical compatibility between the two agencies.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'The 1997 collision: when the station nearly died',
+      level: 2,
+      paragraphs: [
+        'In June 1997, Mir survived the most dangerous moment of its long service. During a test of a new manual docking mode for the Progress cargo ship — without the usual computer-assisted guidance — the spacecraft lost its approach trajectory and struck the Spektr module. The impact punctured the outer hull.',
+
+        'The module began losing pressure rapidly. The crew had less than a minute to close the hatch and seal Spektr off from the rest of the station. One cable running through the hatch had to be cut manually in the midst of the emergency. Had the crew not succeeded, the entire station would have become an uncontrolled empty shell within minutes. Michael Foale, the American on board, later described those moments as the closest he had come to death.',
+
+        "The weeks that followed were among the most dramatic in the history of crewed spaceflight. The station lost attitude control, and with the solar panels unable to track the sun properly, power dropped to critical levels. Some equipment failed from overheating. Ground teams and the crew searched for ways to regain control without direct access to the damaged module.",
+
+        'Eventually, a series of spacewalks allowed engineers to connect Spektr\'s solar panel power cables back to the main station through a specially designed sealed fitting, without restoring the interior atmosphere of the damaged module. This partially recovered the electrical output from those panels. Spektr itself remained permanently sealed. But the station survived.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'mir-station-progress-collision',
+        prompt:
+          'Scientific illustration showing the Progress cargo spacecraft approaching the Mir space station for manual docking, depicting the moment just before the 1997 collision for a science encyclopedia. ' +
+          'Progress spacecraft visible with its antenna and docking probe extended, Mir modules visible at close range, Earth below. ' +
+          'Tense atmosphere, hard sci-fi style, dark space background. ' +
+          'Silhouette astronaut inside station visible through small window. ' +
+          'Add the following text labels on the image: "Progress cargo ship", "Spektr module", "docking approach", "manual control".',
+        alt: 'Progress cargo ship on manual approach to Mir — the moment before the 1997 collision',
+        caption:
+          'The collision of Progress with the Spektr module in June 1997 was the most serious accident in the short history of modular orbital stations. The crew managed to isolate the damaged compartment in the seconds before catastrophic decompression.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'End of service and legacy',
+      level: 2,
+      paragraphs: [
+        "By the late 1990s, Mir had operated far beyond its designed lifetime. The station was built for five years of service and ran for fifteen. Technical reliability was declining — failures accumulated in ventilation, water recovery, and navigation equipment, and some could no longer be repaired in orbit. Maintaining the station was expensive, and Russia in the years after the Soviet collapse had chronic funding shortfalls.",
+
+        'The decision to conduct a controlled deorbit was made in 2000. In March 2001, Mir performed its final braking burn and entered the atmosphere over the Pacific Ocean east of New Zealand. The bulk of the structure burned up on reentry; large fragments fell into an uninhabited stretch of ocean. The operation proceeded exactly as planned.',
+
+        'Over fifteen years, one hundred and four people from twelve countries had worked aboard Mir. The station completed more than eighty-six thousand orbits of Earth. More than twenty-three thousand scientific experiments were conducted there across materials science, biology, medicine, and physics. Most importantly, the station established the methods for long-duration spaceflight and international cooperation without which the International Space Station could not have existed.',
+      ],
+    },
+
+    {
+      heading: 'Mir and the International Space Station: what changed',
+      level: 2,
+      paragraphs: [
+        'Comparing Mir to the International Space Station is like comparing a prototype to a production model. Both are modular. Both support long-duration human presence. Both were assembled in orbit piece by piece. But the scale and the built-in redundancy are fundamentally different.',
+
+        'The International Space Station is six times heavier than Mir and nearly four times larger in habitable volume. It has redundancy in most critical systems — if one air revitalization system fails, a backup is available. Mir had no such luxury: most equipment existed in a single copy. That was what made every serious failure a potentially fatal crisis rather than a manageable inconvenience.',
+
+        'The other fundamental difference is in governance. Despite the Shuttle-Mir program and visitors from many countries, Mir remained a Soviet and then Russian station in its essential character. The International Space Station was designed from the beginning as a shared structure where no single partner can shut out another and where each participant bears responsibility for a defined segment. That difference in ownership and management has proved at least as important as any technical improvement.',
+
+        'But without Mir, that structure would simply not exist. There would have been no accumulated understanding of what happens to a person after six months in weightlessness. There would have been no shared docking procedures. There would have been none of the trust between agencies that builds over years of working together rather than through agreements on paper.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Mir module configuration (1996)',
+        svg: `<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg">
+  <rect width="700" height="400" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Title -->
+  <text x="350" y="22" fill="#aabbcc" font-family="monospace" font-size="12" text-anchor="middle">Mir Space Station — full configuration (1996)</text>
+
+  <!-- Core module (center) -->
+  <rect x="275" y="175" width="150" height="50" rx="4" fill="#334455" stroke="#7bb8ff" stroke-width="1.5"/>
+  <text x="350" y="196" fill="#7bb8ff" font-family="monospace" font-size="10" text-anchor="middle">CORE BLOCK</text>
+  <text x="350" y="210" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">1986 — station core</text>
+
+  <!-- Kvant-1 (right axial) -->
+  <rect x="435" y="179" width="110" height="42" rx="3" fill="#1a2535" stroke="#ff8844" stroke-width="1.5"/>
+  <text x="490" y="196" fill="#ff8844" font-family="monospace" font-size="10" text-anchor="middle">KVANT-1</text>
+  <text x="490" y="210" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">1987 — astrophysics</text>
+  <line x1="425" y1="200" x2="435" y2="200" stroke="#ff8844" stroke-width="2"/>
+
+  <!-- Kvant-2 (top) -->
+  <rect x="285" y="80" width="130" height="42" rx="3" fill="#1a2535" stroke="#44ff88" stroke-width="1.5"/>
+  <text x="350" y="97" fill="#44ff88" font-family="monospace" font-size="10" text-anchor="middle">KVANT-2</text>
+  <text x="350" y="111" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">1989 — systems</text>
+  <line x1="350" y1="122" x2="350" y2="175" stroke="#44ff88" stroke-width="2"/>
+
+  <!-- Kristall (bottom) -->
+  <rect x="285" y="278" width="130" height="42" rx="3" fill="#1a2535" stroke="#44ff88" stroke-width="1.5"/>
+  <text x="350" y="295" fill="#44ff88" font-family="monospace" font-size="10" text-anchor="middle">KRISTALL</text>
+  <text x="350" y="309" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">1990 — materials</text>
+  <line x1="350" y1="225" x2="350" y2="278" stroke="#44ff88" stroke-width="2"/>
+
+  <!-- Spektr (upper left diagonal) -->
+  <rect x="110" y="100" width="120" height="42" rx="3" fill="#1a2535" stroke="#cc4444" stroke-width="1.5"/>
+  <text x="170" y="117" fill="#cc4444" font-family="monospace" font-size="10" text-anchor="middle">SPEKTR</text>
+  <text x="170" y="131" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">1995 — damaged</text>
+  <line x1="230" y1="142" x2="275" y2="182" stroke="#cc4444" stroke-width="2" stroke-dasharray="5,3"/>
+
+  <!-- Priroda (lower left diagonal) -->
+  <rect x="110" y="258" width="120" height="42" rx="3" fill="#1a2535" stroke="#aabbcc" stroke-width="1.5"/>
+  <text x="170" y="275" fill="#aabbcc" font-family="monospace" font-size="10" text-anchor="middle">PRIRODA</text>
+  <text x="170" y="289" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">1996 — Earth obs.</text>
+  <line x1="230" y1="270" x2="275" y2="220" stroke="#aabbcc" stroke-width="2"/>
+
+  <!-- Left axial port label -->
+  <rect x="155" y="179" width="120" height="42" rx="3" fill="#0a0f19" stroke="#334455" stroke-width="1"/>
+  <text x="215" y="196" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">Soyuz / Progress</text>
+  <text x="215" y="210" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">axial port</text>
+  <line x1="255" y1="200" x2="275" y2="200" stroke="#334455" stroke-width="2"/>
+
+  <!-- Solar panels on core -->
+  <line x1="350" y1="175" x2="350" y2="150" stroke="#667788" stroke-width="1" stroke-dasharray="3,3"/>
+  <rect x="295" y="140" width="50" height="10" rx="1" fill="#334455" stroke="#667788" stroke-width="1"/>
+  <rect x="355" y="140" width="50" height="10" rx="1" fill="#334455" stroke="#667788" stroke-width="1"/>
+
+  <!-- Legend -->
+  <text x="560" y="160" fill="#aabbcc" font-family="monospace" font-size="10" text-anchor="start">Legend:</text>
+  <rect x="558" y="168" width="12" height="8" fill="#1a2535" stroke="#7bb8ff" stroke-width="1.5"/>
+  <text x="574" y="177" fill="#8899aa" font-family="monospace" font-size="9">Core</text>
+  <rect x="558" y="183" width="12" height="8" fill="#1a2535" stroke="#44ff88" stroke-width="1.5"/>
+  <text x="574" y="192" fill="#8899aa" font-family="monospace" font-size="9">Modules</text>
+  <rect x="558" y="198" width="12" height="8" fill="#1a2535" stroke="#cc4444" stroke-width="1.5"/>
+  <text x="574" y="207" fill="#8899aa" font-family="monospace" font-size="9">Damaged</text>
+  <line x1="558" y1="218" x2="570" y2="218" stroke="#cc4444" stroke-width="2" stroke-dasharray="4,2"/>
+  <text x="574" y="222" fill="#8899aa" font-family="monospace" font-size="9">Isolated</text>
+</svg>`,
+        caption:
+          'Full Mir configuration after the final module Priroda docked in 1996. The dashed line to Spektr indicates its status after the 1997 accident — the module was sealed off but remained physically attached to the station structure until deorbit.',
+      },
+    },
+
+    {
+      heading: 'Microgravity research: what was learned',
+      level: 2,
+      paragraphs: [
+        "Mir's scientific program spanned dozens of fields, but it left its most durable mark in three areas. First, materials science: microgravity conditions allow crystals to grow with a more perfect lattice structure than is possible on Earth, and produce alloys whose components separate by density under normal gravity. Some of the processing techniques refined on Mir later found commercial applications in optics and pharmaceuticals.",
+
+        'Second, the physiology of extreme environments. No ground-based facility can replicate the genuine long-term experience of weightlessness. Mir provided data on how the cardiovascular system adapts, how fluid redistributes, how calcium metabolism shifts, and how the vestibular system operates when there is no "up" to orient toward. Those data are still used in medicine today — particularly in research on osteoporosis and heart failure.',
+
+        'Third, psychology and group dynamics in an isolated confined environment. Crews spent months living in a space roughly the size of a small bus, unable to leave and without genuine privacy. Observations of how conflict arose, how problems were solved, and how psychological wellbeing was maintained in such conditions established the foundations for subsequent research and for the selection criteria used in planning interplanetary missions.',
+      ],
+    },
+  ],
+
+  glossary: [
+    {
+      term: 'Modular station',
+      definition:
+        'An orbital station assembled in space from separately launched sections called modules. Each module is launched autonomously and docks with the existing structure. This approach allows stations to be built larger than any single rocket could lift.',
+    },
+    {
+      term: 'Docking port',
+      definition:
+        'A mechanical and pressurized connector between two spacecraft or modules. It provides a rigid structural link between hulls and allows the transfer of electrical power, data, and in some designs, air and fluids.',
+    },
+    {
+      term: 'Microgravity',
+      definition:
+        'The condition inside an orbiting spacecraft in which all objects are in free fall together with the spacecraft itself. Often imprecisely called weightlessness — gravity is still present, but it is exactly balanced by the centripetal acceleration of the orbit.',
+    },
+    {
+      term: 'Progress cargo ship',
+      definition:
+        'A Soviet and later Russian uncrewed resupply spacecraft used to deliver cargo to orbital stations. Derived from the crewed Soyuz but without crew accommodations, replaced by a larger cargo hold. After unloading it is packed with waste and burned up on reentry.',
+    },
+    {
+      term: 'Shuttle-Mir program',
+      definition:
+        'A joint American-Russian program from 1995 to 1998 in which Space Shuttles docked nine times with Mir and American astronauts lived aboard the station for extended periods. It served as preparation for the construction of the International Space Station.',
+    },
+    {
+      term: 'Decompression',
+      definition:
+        'An emergency loss of pressure in a compartment or module caused by a breach in the hull. In orbit, external pressure is essentially zero, so even a small hole can evacuate a module within minutes.',
+    },
+    {
+      term: 'Microgravity-induced bone loss',
+      definition:
+        'The reduction of bone density that occurs in humans during prolonged stays in microgravity. Load-bearing bones without their habitual mechanical stress lose density at a rate of roughly one to two percent per month.',
+    },
+    {
+      term: 'Deorbit',
+      definition:
+        'A controlled or uncontrolled descent of an orbital object from orbit, initiated by a braking burn. In a controlled deorbit, the impact zone for surviving debris is calculated in advance and selected to be a remote uninhabited ocean region.',
+    },
+    {
+      term: 'Node module',
+      definition:
+        'A hub module on an orbital station with multiple docking ports, allowing several other modules or spacecraft to be connected simultaneously. On Mir the Kristall module partially served this function for the axial port configuration.',
+    },
+  ],
+
+  quiz: [
+    {
+      question: 'What is the key structural advantage of a modular station over a monolithic one?',
+      options: [
+        'Lower mass and simpler docking procedures',
+        'The ability to expand the station in orbit by adding new modules independently of any single launch',
+        'Greater radiation shielding for the crew',
+        'Automatic recovery of all systems following any failure',
+      ],
+      correctIndex: 1,
+      explanation:
+        'A modular design frees a station from the payload capacity of any single rocket. Each module launches separately and docks in orbit, so the total mass and size of the finished station can far exceed what any single launch vehicle could lift. Mir was assembled this way over ten years.',
+    },
+    {
+      question:
+        "Why is Valeri Polyakov's record of 437 days significant not only as an achievement but scientifically?",
+      options: [
+        'It confirmed that humans can live in space indefinitely without adverse effects',
+        'It provided the largest continuous dataset on long-duration microgravity effects on a single individual, still used in planning interplanetary missions',
+        'It showed that physical exercise in space is unnecessary',
+        'It proved that male and female physiology respond identically to microgravity',
+      ],
+      correctIndex: 1,
+      explanation:
+        "Polyakov is simultaneously a record holder and a unique medical subject. His 437 days produced a continuous stream of physiological measurements — bone density changes, muscle tone, cardiovascular parameters, vision, and psychological state — at a scale that had never been collected before. Those data inform planning for crewed Mars missions today.",
+    },
+    {
+      question: 'What happened to the Spektr module after the 1997 collision with Progress?',
+      options: [
+        'The module was undocked and burned up in the atmosphere',
+        'It was repaired during an unscheduled spacewalk',
+        'It was sealed off and isolated from the rest of the station but remained physically attached until the end of the station mission',
+        'It was moved to a separate orbit for further study',
+      ],
+      correctIndex: 2,
+      explanation:
+        "Because of the hull breach, Spektr was losing pressure rapidly. The crew sealed the hatch, cutting the module off from the station's atmosphere. Later, through a specially designed sealed fitting, engineers were able to partially restore the electrical connection with Spektr's solar panels, though the module itself remained unpressurized until deorbit.",
+    },
+    {
+      question: 'What role did the Shuttle-Mir program play in the context of the International Space Station?',
+      options: [
+        'It provided the funding to build the new station',
+        'It gave the American side the technology for modular docking',
+        'It rehearsed joint procedures, built mutual trust, and generated long-duration flight data before construction of the shared station began',
+        'It demonstrated that American astronauts could replace Russians in command roles',
+      ],
+      correctIndex: 2,
+      explanation:
+        'Shuttle-Mir was essentially a dress rehearsal. Both agencies learned to dock, hand over control, align emergency procedures, and psychologically support mixed-culture crews — all before the first module of the International Space Station reached orbit. Without that experience the opening year of the new station would have been far more difficult.',
+    },
+    {
+      question:
+        'In what fundamental way does the International Space Station differ from Mir in terms of governance and ownership?',
+      options: [
+        'The International Space Station is wholly owned by the United States',
+        'The International Space Station was designed from the beginning as a shared structure among several agencies, where no single partner controls the other segments',
+        'Mir had more international partners than the International Space Station',
+        'There is no difference — both stations use the same management model',
+      ],
+      correctIndex: 1,
+      explanation:
+        "Mir, despite hosting guests from many countries, remained a Soviet and then Russian state station in its essential character. The International Space Station was built on a model of distributed ownership: the American, Russian, Japanese, Canadian, and European segments are legally and technically separate, and each partner is responsible for its own portion. That is a qualitatively different approach to governance.",
+    },
+  ],
+
+  sources: [
+    {
+      title: 'NASA — Mir Space Station Overview',
+      url: 'https://www.nasa.gov/mir',
+      meta: 'NASA History Division, open access',
+    },
+    {
+      title: 'Linenger J. — Off the Planet: Surviving Five Perilous Months Aboard the Space Station Mir',
+      url: 'https://www.mcgraw-hill.com/authors/jerry-linenger',
+      meta: 'McGraw-Hill, 2000 — astronaut memoir',
+    },
+    {
+      title: 'Burrough B. — Dragonfly: NASA and the Crisis Aboard Mir',
+      url: 'https://www.harpercollins.com/products/dragonfly-bryan-burrough',
+      meta: 'HarperCollins, 1998 — narrative non-fiction',
+    },
+    {
+      title: 'NASA — Shuttle-Mir Program: The U.S.-Russian Phase One Program',
+      url: 'https://history.nasa.gov/SP-4225/mir/mir.htm',
+      meta: 'NASA History Division, SP-4225',
+    },
+    {
+      title: 'Foale C. — Waystation to the Stars: The Story of Mir, Michael and Me',
+      url: 'https://www.headlinepublishing.com',
+      meta: 'Headline, 1999',
+    },
+    {
+      title: 'Polyakov V. et al. — The Effects of 438-Day Spaceflight on Human Bone Metabolism',
+      url: 'https://pubmed.ncbi.nlm.nih.gov/9456378/',
+      meta: 'Journal of Bone and Mineral Research, 1998',
+    },
+    {
+      title: 'ESA — Mir Space Station Legacy',
+      url: 'https://www.esa.int/Science_Exploration/Human_and_Robotic_Exploration/Research/Mir_legacy',
+      meta: 'ESA, open access',
+    },
+    {
+      title: 'Zak A. — RussianSpaceWeb.com: Mir Station Technical History',
+      url: 'https://www.russianspaceweb.com/mir.html',
+      meta: 'RussianSpaceWeb, technical archive',
+    },
+    {
+      title: 'Hitt D., Smith H. — Bold Endeavors: Lessons from Polar and Space Exploration (chapter on Mir)',
+      url: 'https://www.purdue.edu/press',
+      meta: 'Purdue University Press, 2009',
+    },
+    {
+      title: 'NASA History Office — International Space Station: The First Assembly Missions',
+      url: 'https://history.nasa.gov/station.html',
+      meta: 'NASA History Office, open access',
+    },
+  ],
+
+  lastVerified: '2026-05-06',
+};
+
+export default lesson;

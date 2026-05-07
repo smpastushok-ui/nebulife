@@ -1,0 +1,312 @@
+{
+  "slug": "exoplanets-discovery",
+  "language": "en",
+  "section": "astronomy",
+  "order": 5,
+  "difficulty": "intermediate",
+  "readingTimeMin": 12,
+  "title": "How We Discover Exoplanets",
+  "subtitle": "From the first gas giant around an ordinary star to thousands of worlds beyond our Solar System — the methods, logic, and limits of planetary detection.",
+  "hero": {
+    "cacheKey": "exoplanets-discovery-hero",
+    "prompt": "Photorealistic scientific illustration for a science encyclopedia: a vast star field with multiple planetary systems visible at different distances. In the foreground, a large orange-yellow star with a dark planet passing in front of it, creating a visible transit dip. Behind it, a blue star with a faint wobble trajectory indicated by a subtle curved arrow. Deep space background, hard sci-fi style, dramatic lighting, no human figures. Add the following text labels on the image: \"transit\", \"radial velocity wobble\", \"exoplanet\".",
+    "alt": "Star field with exoplanetary systems — a planet transiting its star and a Doppler wobble indicator",
+    "caption": "By early 2026, more than five thousand eight hundred exoplanets have been confirmed. Most were found through indirect methods — by detecting tiny deviations in the light or motion of their host stars.",
+    "aspectRatio": "16:9"
+  },
+  "body": [
+    {
+      "paragraphs": [
+        "For nearly all of astronomical history, planets were assumed to belong exclusively to the Sun. Even through the twentieth century, the question of whether our Solar System was a rarity or a norm remained purely philosophical — there was no observational way to answer it. Stars are too bright, their planets too small and dark, and the distances involved are such that the entire orbit of Earth around the nearest star, Alpha Centauri, subtends an angle comparable to the apparent size of a coin placed several kilometers away.",
+        "Then in 1995, astronomers Michel Mayor and Didier Queloz announced the discovery of a planet orbiting 51 Pegasi — an unremarkable yellow dwarf in the constellation Pegasus, very similar to the Sun. The planet turned out to be a gas giant with half the mass of Jupiter, orbiting so close to its star that a full year there lasts only four Earth days. This discovery overturned theories of planet formation and launched an entirely new science — exoplanetology. Mayor and Queloz received the Nobel Prize in Physics in 2019.",
+        "Since then, the study of planets beyond the Solar System has grown from a fringe topic into one of the most active fields in modern science. By early 2026, more than five thousand eight hundred exoplanets have been confirmed across more than four thousand planetary systems. They are found not with the naked eye or in direct photographs, but through the faint traces that planets leave in the behavior of their host stars."
+      ]
+    },
+    {
+      "heading": "The Transit Method: A Planet as a Shadow",
+      "level": 2,
+      "paragraphs": [
+        "The most productive way to find exoplanets is to catch the moment when a planet passes between its star and the observer. If the orbital plane is tilted just enough that we are viewing it edge-on, the planet briefly blocks a tiny fraction of the stellar disk. The stellar flux decreases — a _transit_ occurs.",
+        "The size of this dip, called the **transit depth**, is proportional to the square of the ratio of the planet's radius to the star's radius. An Earth-sized planet blocks roughly one hundredth of one percent of the light from a Sun-like star — one part in ten thousand. A Jupiter-sized body produces an effect a hundred times larger, yet even that amounts to less than one percent of the total stellar flux. Earth's atmosphere prevents such precise measurements from the ground; transit astronomy therefore only flourished once space telescopes became available.",
+        "In 2009 NASA launched the Kepler space telescope — the first instrument designed specifically to search for transits. Over nine years of continuous operation it monitored the brightness of more than one hundred fifty thousand stars and discovered more than two thousand seven hundred confirmed planets. Kepler demonstrated that planets in our Galaxy are the rule rather than the exception: on average, every star hosts at least one planet."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "exoplanets-discovery-transit-concept",
+        "prompt": "Photorealistic scientific illustration for a science encyclopedia: an exoplanet transit. A large yellow-orange star dominates the left side with a small dark planet disc crossing its face, casting a circular shadow. Below the star, a graph shows the light curve: a flat line dipping into a symmetric U-shaped trough during transit, then rising back to baseline. Labels on the graph axes. Hard sci-fi style, dark space background, monospace font. Add the following text labels on the image: \"transit depth\", \"ingress\", \"egress\", \"stellar flux\", \"time\".",
+        "alt": "Diagram of an exoplanet transit and the corresponding stellar light curve",
+        "caption": "During a transit, the planet occludes a fraction of the stellar disk, and the light curve records a characteristic symmetric dip. The shape, duration, and depth of the dip encode the planet's radius, orbital period, and orbital inclination.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "paragraphs": [
+        "In 2018, the Transiting Exoplanet Survey Satellite (TESS) entered orbit — NASA's successor to Kepler. Unlike Kepler, which stared in a single direction, TESS methodically scans nearly the entire sky, observing brighter and closer stars. This is critical: the nearer the star, the easier it is to follow up on a discovered planet with detailed spectroscopy."
+      ]
+    },
+    {
+      "diagram": {
+        "title": "Exoplanet Transit Light Curve",
+        "svg": "<svg viewBox=\"0 0 680 280\" xmlns=\"http://www.w3.org/2000/svg\">\n  <rect width=\"680\" height=\"280\" fill=\"rgba(10,15,25,0.7)\" rx=\"4\"/>\n\n  <!-- Axes -->\n  <line x1=\"70\" y1=\"30\" x2=\"70\" y2=\"210\" stroke=\"#334455\" stroke-width=\"1.5\"/>\n  <line x1=\"70\" y1=\"210\" x2=\"650\" y2=\"210\" stroke=\"#334455\" stroke-width=\"1.5\"/>\n\n  <!-- Y label -->\n  <text x=\"16\" y=\"120\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"11\" text-anchor=\"middle\" transform=\"rotate(-90,16,120)\">Relative Flux</text>\n\n  <!-- Y ticks -->\n  <text x=\"64\" y=\"52\"  fill=\"#667788\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"end\">1.000</text>\n  <text x=\"64\" y=\"120\" fill=\"#667788\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"end\">0.990</text>\n  <text x=\"64\" y=\"188\" fill=\"#667788\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"end\">0.980</text>\n  <line x1=\"68\" y1=\"50\"  x2=\"72\" y2=\"50\"  stroke=\"#334455\" stroke-width=\"1\"/>\n  <line x1=\"68\" y1=\"118\" x2=\"72\" y2=\"118\" stroke=\"#334455\" stroke-width=\"1\"/>\n  <line x1=\"68\" y1=\"186\" x2=\"72\" y2=\"186\" stroke=\"#334455\" stroke-width=\"1\"/>\n\n  <!-- X label -->\n  <text x=\"360\" y=\"240\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"11\" text-anchor=\"middle\">Time (hours)</text>\n\n  <!-- X ticks -->\n  <text x=\"160\" y=\"224\" fill=\"#667788\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">-3</text>\n  <text x=\"255\" y=\"224\" fill=\"#667788\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">-1.5</text>\n  <text x=\"360\" y=\"224\" fill=\"#667788\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">0</text>\n  <text x=\"465\" y=\"224\" fill=\"#667788\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">+1.5</text>\n  <text x=\"560\" y=\"224\" fill=\"#667788\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">+3</text>\n\n  <!-- Baseline before transit -->\n  <line x1=\"70\" y1=\"50\" x2=\"225\" y2=\"50\" stroke=\"#7bb8ff\" stroke-width=\"2\"/>\n\n  <!-- Ingress slope -->\n  <line x1=\"225\" y1=\"50\" x2=\"290\" y2=\"152\" stroke=\"#7bb8ff\" stroke-width=\"2\"/>\n\n  <!-- Flat bottom (transit) -->\n  <line x1=\"290\" y1=\"152\" x2=\"430\" y2=\"152\" stroke=\"#44ff88\" stroke-width=\"2\"/>\n\n  <!-- Egress slope -->\n  <line x1=\"430\" y1=\"152\" x2=\"495\" y2=\"50\" stroke=\"#7bb8ff\" stroke-width=\"2\"/>\n\n  <!-- Baseline after transit -->\n  <line x1=\"495\" y1=\"50\" x2=\"650\" y2=\"50\" stroke=\"#7bb8ff\" stroke-width=\"2\"/>\n\n  <!-- Annotations -->\n  <!-- Transit depth arrow -->\n  <line x1=\"360\" y1=\"50\" x2=\"360\" y2=\"152\" stroke=\"#ff8844\" stroke-width=\"1\" stroke-dasharray=\"4,3\"/>\n  <text x=\"368\" y=\"90\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"10\">transit</text>\n  <text x=\"368\" y=\"103\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"10\">depth</text>\n  <polygon points=\"360,152 355,140 365,140\" fill=\"#ff8844\"/>\n  <polygon points=\"360,50 355,62 365,62\" fill=\"#ff8844\"/>\n\n  <!-- Ingress label -->\n  <text x=\"222\" y=\"42\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">ingress</text>\n\n  <!-- Egress label -->\n  <text x=\"498\" y=\"42\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">egress</text>\n\n  <!-- Duration arrow -->\n  <line x1=\"225\" y1=\"170\" x2=\"495\" y2=\"170\" stroke=\"#667788\" stroke-width=\"1\" stroke-dasharray=\"3,3\"/>\n  <text x=\"360\" y=\"185\" fill=\"#667788\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">transit duration</text>\n\n  <!-- Planet icon on flat bottom -->\n  <circle cx=\"360\" cy=\"152\" r=\"6\" fill=\"#334455\" stroke=\"#aabbcc\" stroke-width=\"1\"/>\n</svg>",
+        "caption": "A typical exoplanet transit light curve. The flat bottom between ingress and egress indicates that the planet is fully in front of the stellar disk. Transit depth gives the planet's radius; duration encodes the orbital radius and inclination."
+      }
+    },
+    {
+      "heading": "Radial Velocity: The Star That Wobbles",
+      "level": 2,
+      "paragraphs": [
+        "Before Kepler, planets were already being found through a subtler tell — tiny oscillations in the star itself. A planet does not simply orbit a stationary star: more precisely, both bodies orbit their common center of mass. For a massive planet, this center of mass may be displaced noticeably from the star's geometric center. The star traces a small circle, and its radial velocity — the component of motion along the line of sight — periodically approaches and recedes.",
+        "This motion reveals itself through the _Doppler effect_. When the star moves toward us, its spectral lines shift toward shorter wavelengths — a blueshift. When it recedes — a redshift toward longer wavelengths. The effect is tiny: a Jupiter-mass planet causes a Sun-like star to wobble at roughly fifty meters per second — the pace of a middle-distance runner. An Earth-mass planet in the habitable zone produces a signal two orders of magnitude smaller: under one meter per second.",
+        "This is precisely the method Mayor and Queloz used to discover 51 Pegasi b in 1995. The **radial velocity** method (also called _Doppler spectroscopy_) yields not the radius but the minimum mass of the planet — because the orbital inclination to the line of sight remains undetermined. If the planet also transits, the inclination is known and the mass becomes precise. Combining both methods gives both mass and radius — and therefore mean density, the first clue to a planet's bulk composition."
+      ]
+    },
+    {
+      "diagram": {
+        "title": "Radial Velocity Curve (Doppler Wobble of the Host Star)",
+        "svg": "<svg viewBox=\"0 0 680 260\" xmlns=\"http://www.w3.org/2000/svg\">\n  <rect width=\"680\" height=\"260\" fill=\"rgba(10,15,25,0.7)\" rx=\"4\"/>\n\n  <!-- Axes -->\n  <line x1=\"70\" y1=\"20\" x2=\"70\" y2=\"200\" stroke=\"#334455\" stroke-width=\"1.5\"/>\n  <line x1=\"70\" y1=\"130\" x2=\"650\" y2=\"130\" stroke=\"#334455\" stroke-width=\"1\" stroke-dasharray=\"5,4\" opacity=\"0.5\"/>\n  <line x1=\"70\" y1=\"200\" x2=\"650\" y2=\"200\" stroke=\"#334455\" stroke-width=\"1.5\"/>\n\n  <!-- Y label -->\n  <text x=\"14\" y=\"110\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\" transform=\"rotate(-90,14,110)\">Radial Velocity (m/s)</text>\n\n  <!-- Y ticks -->\n  <text x=\"64\" y=\"35\"  fill=\"#667788\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"end\">+50</text>\n  <text x=\"64\" y=\"133\" fill=\"#667788\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"end\">0</text>\n  <text x=\"64\" y=\"198\" fill=\"#667788\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"end\">-50</text>\n  <line x1=\"68\" y1=\"32\"  x2=\"72\" y2=\"32\"  stroke=\"#334455\" stroke-width=\"1\"/>\n  <line x1=\"68\" y1=\"130\" x2=\"72\" y2=\"130\" stroke=\"#334455\" stroke-width=\"1\"/>\n  <line x1=\"68\" y1=\"198\" x2=\"72\" y2=\"198\" stroke=\"#334455\" stroke-width=\"1\"/>\n\n  <!-- X label -->\n  <text x=\"360\" y=\"228\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"11\" text-anchor=\"middle\">Orbital Phase (0 to 1 = one orbital period)</text>\n\n  <!-- Sinusoidal RV curve -->\n  <path d=\"M 70,130 C 115,40 160,40 200,130 C 245,220 290,220 330,130 C 375,40 420,40 460,130 C 505,220 550,220 590,130 C 618,60 645,45 650,40\"\n        fill=\"none\" stroke=\"#ff8844\" stroke-width=\"2.2\"/>\n\n  <!-- Amplitude annotation -->\n  <line x1=\"200\" y1=\"130\" x2=\"200\" y2=\"40\" stroke=\"#aabbcc\" stroke-width=\"1\" stroke-dasharray=\"3,3\"/>\n  <text x=\"210\" y=\"85\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"10\">amplitude K</text>\n  <polygon points=\"200,40 195,52 205,52\" fill=\"#aabbcc\"/>\n  <polygon points=\"200,130 195,118 205,118\" fill=\"#aabbcc\"/>\n\n  <!-- Blue shift label -->\n  <text x=\"100\" y=\"55\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"10\">star approaching</text>\n  <text x=\"100\" y=\"68\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"10\">(blueshift)</text>\n\n  <!-- Red shift label -->\n  <text x=\"280\" y=\"210\" fill=\"#cc4444\" font-family=\"monospace\" font-size=\"10\">star receding</text>\n  <text x=\"280\" y=\"223\" fill=\"#cc4444\" font-family=\"monospace\" font-size=\"10\">(redshift)</text>\n\n  <!-- Period annotation -->\n  <line x1=\"70\" y1=\"215\" x2=\"330\" y2=\"215\" stroke=\"#667788\" stroke-width=\"1\" stroke-dasharray=\"2,3\"/>\n  <text x=\"200\" y=\"240\" fill=\"#667788\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">one orbital period</text>\n  <polygon points=\"70,215 82,210 82,220\" fill=\"#667788\"/>\n  <polygon points=\"330,215 318,210 318,220\" fill=\"#667788\"/>\n</svg>",
+        "caption": "The sinusoidal radial velocity curve of a star, driven by the gravitational pull of an orbiting planet. Amplitude K depends on the planet's mass and orbital inclination. A Jupiter-mass planet on a four-day orbit (as in 51 Pegasi b) produces K of roughly fifty meters per second."
+      }
+    },
+    {
+      "heading": "Direct Imaging: Seeing the Planet",
+      "level": 2,
+      "paragraphs": [
+        "The most intuitive approach is simply to photograph a planet beside its star. In practice this is extraordinarily difficult. The contrast between a star and a planet in visible light can reach one billion to one: trying to see the planet next to the star is like searching for a lit match beside a searchlight viewed from several hundred kilometers away.",
+        "The technological solution is a _coronagraph_: a device that physically or optically blocks the star's direct light, leaving the surrounding space accessible. Modern **coronagraphs** on ground-based telescopes equipped with adaptive optics can already image massive young planets — they glow in the infrared from residual heat retained after their formation.",
+        "Direct imaging has a systematic bias: it favors massive, warm planets on wide orbits — far from the star-blinded coronagraph zone. This is the exact opposite of the transit method, which is most sensitive to large planets on tight orbits. No single method provides a complete picture — each one reveals its own niche of planets. Understanding these selection biases is essential to avoid drawing false conclusions about the true distribution of worlds."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "exoplanets-discovery-direct-imaging",
+        "prompt": "Photorealistic scientific illustration for a science encyclopedia: direct imaging of exoplanets. A telescope coronagraph instrument in the foreground with a blocked central star shown as a dark mask. Around the mask, four bright point-like planets orbit at different distances, glowing faintly in infrared orange-red. Background shows deep black space. Hard sci-fi style, dark tones. Add the following text labels on the image: \"coronagraph mask\", \"planet b\", \"planet c\", \"planet d\", \"planet e\".",
+        "alt": "Direct image of four exoplanets in the HR 8799 system, captured through a coronagraph",
+        "caption": "Systems with multiple directly imaged planets, such as HR 8799, allow direct spectroscopic measurements of atmospheric composition and temperature. So far only a few dozen planets have been found this way — those massive enough, young enough, and far enough from their stars.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "Microlensing: A Gravitational Magnifying Glass",
+      "level": 2,
+      "paragraphs": [
+        "When a foreground star passes in front of a more distant background star, its gravity acts as a natural lens: it bends and amplifies the background star's light — a phenomenon called _gravitational microlensing_. If the lens star hosts a planet, it adds its own brief, additional amplification spike.",
+        "The **microlensing** method is unique: it is sensitive to planets of any mass — down to Earth-mass bodies — and does not depend on the brightness of the host star. But the event happens only once and cannot be repeated. The alignment will never recur in the same geometry. This makes confirmation and follow-up study of the discovered planet very difficult.",
+        "Microlensing is most effective toward the dense stellar fields of the Galactic bulge — where stellar density is high and alignments are frequent. It is the only method capable of probing planets at distances of several thousand light-years from Earth. NASA's future Nancy Grace Roman Space Telescope is designed in part specifically to conduct mass surveys through microlensing."
+      ]
+    },
+    {
+      "heading": "Astrometry: Geometry Instead of Spectra",
+      "level": 2,
+      "paragraphs": [
+        "The **astrometry** method shares the same underlying idea as radial velocity, but measures something different — not the Doppler shift but the actual angular displacement of the star on the sky. It is the same center-of-mass wobble, observed in the plane perpendicular to the line of sight. Conceptually this is the most direct method: it records the real spatial coordinates of the star.",
+        "Practically, astrometry was long unavailable for exoplanet work: even Jupiter shifts the Sun by only a few microarcseconds on the sky as seen from a distance of ten light-years, demanding measurement precision unreachable from the ground. The ESA Gaia mission, launched in 2013, measures the positions of one billion stars with unprecedented accuracy. Analysis of Gaia data is expected to reveal tens of thousands of planets through astrometry — primarily cold, massive planets on wide orbits that transit photometry cannot reach."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "exoplanets-discovery-methods-overview",
+        "prompt": "Scientific infographic illustration for an encyclopedia: four exoplanet detection methods shown as four separate panels. Panel 1 (transit): a star with a planet crossing its face and a light curve below. Panel 2 (radial velocity): a star wobbling with a sine wave below labeled Doppler shift. Panel 3 (direct imaging): a star with a coronagraph mask and a faint planet dot visible. Panel 4 (microlensing): two stars aligned with a magnification arc and brightness spike graph. Dark space background, hard sci-fi style, monospace labels, Game Bible palette colors. Add the following text labels on the image: \"Transit\", \"Radial Velocity\", \"Direct Imaging\", \"Microlensing\".",
+        "alt": "Overview of four main exoplanet detection methods: transit, radial velocity, direct imaging, microlensing",
+        "caption": "Each detection method is sensitive to a different population of planets at different orbital distances. A statistically complete picture of planet demographics requires careful correction for the selection biases inherent in each approach.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "Selection Biases: Why Our Catalog Is Not the True Planet Distribution",
+      "level": 2,
+      "paragraphs": [
+        "The most important methodological lesson in exoplanetology is understanding why different methods \"see\" different kinds of planets. Transits preferentially find large planets on tight orbits, because the geometric probability of a transit is inversely proportional to orbital distance, and small planets produce dips below the detection threshold. Radial velocities give the strongest signal from massive planets on short orbits — the amplitude falls with increasing orbital radius.",
+        "This is precisely why the first dozen exoplanets discovered were almost all \"hot Jupiters\" — gas giants orbiting within a few million kilometers of their stars, with surface temperatures exceeding one thousand kelvin. They are not more common in nature; they are simply far easier to detect. Only after Kepler accumulated nine years of data did it become clear that the most common type of planet in the Galaxy is probably the _super-Earth_ or _mini-Neptune_ — bodies with sizes between Earth and Neptune that our own Solar System completely lacks."
+      ]
+    },
+    {
+      "heading": "JWST and Atmospheric Characterization: From Discovery to Understanding",
+      "level": 2,
+      "paragraphs": [
+        "Finding a planet is half the work. The real goal is understanding what that planet actually is. This is where the James Webb Space Telescope (JWST), launched in 2021, enters the picture.",
+        "During a transit, some starlight filters through the planet's atmosphere. Different molecules absorb characteristic wavelengths, leaving fingerprints in the spectrum. JWST measures these fingerprints in the infrared with precision that had never existed before. In its first years of operation the telescope detected water, carbon dioxide, methane, sulfur dioxide, and other compounds in exoplanet atmospheres — full chemical portraits of distant worlds.",
+        "The TRAPPIST-1 system — seven rocky planets orbiting an ultracool red dwarf forty light-years away — has become JWST's primary laboratory. Three of the seven planets lie within the so-called habitable zone, where liquid water could theoretically exist on a rocky surface. Early JWST measurements showed that some of these planets lack thick carbon dioxide atmospheres — but the question of thinner, nitrogen-rich envelopes remains open.",
+        "Even more widely discussed was the result for K2-18b — a sub-Neptune in the habitable zone, one hundred twenty-three light-years away. JWST detected signatures of dimethyl sulfide in its atmosphere — a molecule produced on Earth almost exclusively by living organisms. The paper's authors were careful: abiotic chemical pathways under such exotic conditions cannot yet be ruled out. That caution is itself an example of how science actually works: claim no more than the data allow."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "exoplanets-discovery-trappist-system",
+        "prompt": "Photorealistic scientific illustration for a science encyclopedia: the TRAPPIST-1 planetary system. A small dim red dwarf star at center-left with seven rocky planets arranged in tight orbital ellipses around it. Three planets highlighted with a subtle green glow indicating the habitable zone. Deep black space background, orbital paths shown as faint lines, hard sci-fi style. Add the following text labels on the image: \"TRAPPIST-1\", \"habitable zone\", \"1b\", \"1c\", \"1d\", \"1e\", \"1f\", \"1g\", \"1h\".",
+        "alt": "The TRAPPIST-1 system of seven rocky planets around a red dwarf, three of them in the habitable zone",
+        "caption": "TRAPPIST-1 is the most thoroughly studied compact rocky-planet system. All seven orbits fit within the orbital radius of Mercury around the Sun. JWST is currently analyzing the atmospheres of planets 1b, 1c, and 1e, searching for signs of volatiles.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "Five Thousand Eight Hundred and Counting",
+      "level": 2,
+      "paragraphs": [
+        "The confirmed exoplanet catalog has surpassed five thousand eight hundred objects — and this is only the beginning. TESS continues operating, adding hundreds of candidates annually. The Nancy Grace Roman Space Telescope will discover thousands of new planets through microlensing. Gaia will produce an astrometric planet catalog skewed toward wide, cold companions invisible to transit surveys. ESA's PLATO mission, planned for the late 2020s, will hunt Earth twins around nearby Sun-like stars with enough precision to measure both size and mass simultaneously.",
+        "Ground-based astronomy is not standing still either. The Extremely Large Telescope under construction in Chile will carry a mirror thirty-nine meters in diameter and adaptive optics powerful enough for direct spectroscopic analysis of rocky planet atmospheres in the habitable zones of nearby stars. For the first time in history we are approaching a real capability to read the chemical composition of a rocky habitable-zone planet and ask whether anything in that chemistry looks like what we, on Earth, call the chemistry of life."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "exoplanets-discovery-jwst-spectrum",
+        "prompt": "Photorealistic scientific illustration for a science encyclopedia: a transmission spectrum of an exoplanet atmosphere. A graph showing wavelength on the x-axis (infrared range, 1 to 12 micrometers) and transit depth on the y-axis. A colored spectrum curve with multiple absorption peaks labeled for water (H2O), carbon dioxide (CO2), methane (CH4). Inset image of the planet transiting its star. Dark background, JWST infrared aesthetic, hard sci-fi style. Add the following text labels on the image: \"H2O\", \"CO2\", \"CH4\", \"wavelength (micrometers)\", \"transit depth\".",
+        "alt": "Transmission spectrum of an exoplanet atmosphere from JWST showing molecular fingerprints of water, carbon dioxide, and methane",
+        "caption": "Transmission spectroscopy turns a transit into a chemical laboratory. JWST is the first telescope capable of measuring such spectra for rocky planets in habitable zones — not only for gas giants.",
+        "aspectRatio": "16:9"
+      }
+    }
+  ],
+  "glossary": [
+    {
+      "term": "Transit",
+      "definition": "The passage of an exoplanet across the disk of its host star as seen by an observer. During a transit, stellar flux decreases slightly; the depth and shape of the dip encode the planet's radius and orbital parameters."
+    },
+    {
+      "term": "Transit depth",
+      "definition": "The fractional decrease in stellar brightness during a planetary transit. It equals the square of the ratio of the planet's radius to the star's radius. For an Earth-sized planet orbiting a Sun-like star it amounts to roughly one hundredth of one percent."
+    },
+    {
+      "term": "Radial velocity",
+      "definition": "The component of a star's velocity along the line of sight, measurable through the Doppler shift of spectral lines. An orbiting planet causes the star to wobble with a semi-amplitude proportional to the planet's mass."
+    },
+    {
+      "term": "Doppler effect",
+      "definition": "The change in observed frequency of a wave — light or sound — due to relative motion between the source and the observer. In spectroscopy it appears as a blueshift of spectral lines when the source approaches and a redshift when it recedes."
+    },
+    {
+      "term": "Coronagraph",
+      "definition": "An optical or mechanical device that blocks a star's direct glare to reveal the faint light of surrounding objects, including planets. Used in the direct imaging method for exoplanet detection."
+    },
+    {
+      "term": "Gravitational microlensing",
+      "definition": "The amplification and distortion of light from a distant background star by the gravitational field of a closer foreground star. If the lens star hosts a planet, the planet adds a brief additional amplification spike to the light curve."
+    },
+    {
+      "term": "Semi-major axis",
+      "definition": "Half of the longest axis of an elliptical orbit. For nearly circular orbits this is approximately the mean distance between the planet and its star. It determines the orbital period through Kepler's third law."
+    },
+    {
+      "term": "Habitable zone",
+      "definition": "The range of orbital distances around a star where surface temperatures on a rocky planet could allow liquid water to exist. It depends on the star's luminosity and the planet's atmospheric composition."
+    },
+    {
+      "term": "Transmission spectroscopy",
+      "definition": "A method of studying an exoplanet atmosphere by analyzing starlight that filters through the atmosphere during transit. Different molecules absorb characteristic wavelengths, leaving identifiable fingerprints in the spectrum."
+    },
+    {
+      "term": "Astrometry",
+      "definition": "A method of detecting exoplanets by measuring tiny angular oscillations in a star's sky position, caused by the gravitational pull of an orbiting planet. Provides the full three-dimensional orbital geometry."
+    }
+  ],
+  "quiz": [
+    {
+      "question": "Which 1995 discovery launched the modern era of exoplanetology?",
+      "options": [
+        "The first direct coronagraphic photograph of an exoplanet",
+        "The detection of a planet around a neutron star via pulsar timing",
+        "The discovery of a gas giant orbiting 51 Pegasi using radial velocity measurements",
+        "The transit of Venus across the solar disk recorded by the Kepler telescope"
+      ],
+      "correctIndex": 2,
+      "explanation": "In 1995 Mayor and Queloz detected 51 Pegasi b through Doppler wobbles in the host star. It was the first confirmed gas giant around a Sun-like star. The discovery earned the Nobel Prize in Physics in 2019."
+    },
+    {
+      "question": "Why does the transit method systematically overrepresent large planets on tight orbits?",
+      "options": [
+        "Large planets deflect more starlight and erode the stellar atmosphere",
+        "The geometric probability of a transit is higher for close orbits, and large planets produce a deeper flux dip",
+        "Small planets cannot migrate inward due to tidal forces",
+        "The Kepler telescope only observed the Galactic center, where hot Jupiters are more common"
+      ],
+      "correctIndex": 1,
+      "explanation": "A transit occurs only if the orbital plane is nearly edge-on. That probability is proportional to the stellar radius divided by the orbital radius — it is higher for close-in orbits. Large planets produce deeper dips, which are easier to detect. Together these factors create a selection bias strongly favoring hot Jupiters."
+    },
+    {
+      "question": "What did JWST detect in the atmosphere of K2-18b that sparked scientific debate?",
+      "options": [
+        "Evidence of a liquid methane ocean in the visible spectrum",
+        "Molecules of dimethyl sulfide, associated on Earth with biological activity",
+        "The complete absence of any atmosphere — a bare rocky surface exposed to space",
+        "Oxygen at concentrations comparable to Earth's atmosphere"
+      ],
+      "correctIndex": 1,
+      "explanation": "JWST detected spectral signatures of dimethyl sulfide in K2-18b's atmosphere. On Earth this molecule is produced almost exclusively by microorganisms. The researchers were careful to note that abiotic synthesis pathways cannot yet be excluded under such exotic conditions."
+    },
+    {
+      "question": "Which exoplanet detection method is best suited to finding planets in the cold, outer regions of planetary systems?",
+      "options": [
+        "Transit photometry with Kepler or TESS",
+        "Doppler spectroscopy (radial velocity)",
+        "Gravitational microlensing",
+        "Measuring transit depth in the X-ray band"
+      ],
+      "correctIndex": 2,
+      "explanation": "Microlensing is sensitive to planets at any orbital distance and of any mass. It does not require the planet to transit or produce a measurable Doppler signal. It is especially effective for finding analogs of the outer Solar System planets and for probing planetary populations toward the Galactic center."
+    },
+    {
+      "question": "What physical quantity does the radial velocity method directly measure, and what can it not determine without additional data?",
+      "options": [
+        "The planet's radius; it cannot determine mass",
+        "The planet's exact mass; it cannot determine the orbital period",
+        "A lower limit on the planet's mass (M sin i); it cannot determine orbital inclination without independent measurement",
+        "The planet's surface temperature; it cannot determine atmospheric composition"
+      ],
+      "correctIndex": 2,
+      "explanation": "Radial velocity measurements capture the projection of orbital motion onto the line of sight. This yields the product of mass and the sine of orbital inclination (M sin i). Without knowing the inclination, only a minimum mass is available. Combining radial velocity with the transit method — which directly constrains inclination — yields the true mass."
+    }
+  ],
+  "sources": [
+    {
+      "title": "NASA Exoplanet Archive — Confirmed Planets Table",
+      "url": "https://exoplanetarchive.ipac.caltech.edu/",
+      "meta": "IPAC / Caltech, updated daily"
+    },
+    {
+      "title": "Mayor M., Queloz D. — A Jupiter-mass companion to a solar-type star (51 Peg b)",
+      "url": "https://www.nature.com/articles/378355a0",
+      "meta": "Nature, 378, 355–359, 1995"
+    },
+    {
+      "title": "Borucki W.J. et al. — Kepler Planet-Detection Mission (Science 2010)",
+      "url": "https://science.sciencemag.org/content/327/5968/977",
+      "meta": "Science, 327, 977–980, 2010"
+    },
+    {
+      "title": "Ricker G.R. et al. — Transiting Exoplanet Survey Satellite (TESS) mission",
+      "url": "https://doi.org/10.1117/1.JATIS.1.1.014003",
+      "meta": "Journal of Astronomical Telescopes, Instruments, and Systems, 2015"
+    },
+    {
+      "title": "Gillon M. et al. — Seven temperate terrestrial planets around TRAPPIST-1",
+      "url": "https://www.nature.com/articles/nature21360",
+      "meta": "Nature, 542, 456–460, 2017"
+    },
+    {
+      "title": "NASA JWST — First Results on TRAPPIST-1 Atmospheres",
+      "url": "https://www.nasa.gov/missions/webb/nasa-webb-rules-out-thick-carbon-dioxide-atmosphere-for-rocky-exoplanet/",
+      "meta": "NASA Webb press release, 2023"
+    },
+    {
+      "title": "Madhusudhan N. et al. — Carbon-bearing molecules in a possible hycean atmosphere (K2-18b)",
+      "url": "https://doi.org/10.3847/2041-8213/acf577",
+      "meta": "ApJL, 956, L18, 2023 — open access"
+    },
+    {
+      "title": "ESA Gaia — Exoplanet science with astrometry",
+      "url": "https://www.esa.int/Science_Exploration/Space_Science/Gaia/Gaia_overview",
+      "meta": "ESA Gaia mission overview, updated 2024"
+    },
+    {
+      "title": "Gaudi B.S. — Microlensing Surveys for Exoplanets (Annual Review)",
+      "url": "https://www.annualreviews.org/doi/10.1146/annurev-astro-081811-125518",
+      "meta": "Annual Review of Astronomy and Astrophysics, 50, 411–453, 2012"
+    },
+    {
+      "title": "ESA PLATO mission — Planetary Transits and Oscillations of Stars",
+      "url": "https://sci.esa.int/web/plato",
+      "meta": "ESA Science, official mission page"
+    }
+  ],
+  "lastVerified": "2026-05-06"
+}

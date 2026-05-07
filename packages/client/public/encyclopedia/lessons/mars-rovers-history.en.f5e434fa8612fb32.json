@@ -1,0 +1,314 @@
+{
+  "slug": "mars-rovers-history",
+  "language": "en",
+  "section": "robotic-missions",
+  "order": 5,
+  "difficulty": "beginner",
+  "readingTimeMin": 13,
+  "title": "History of Mars Rovers",
+  "subtitle": "From a microwave-sized box on wheels to nuclear-powered laboratories on the surface of the Red Planet — thirty years of machine reconnaissance.",
+  "hero": {
+    "cacheKey": "mars-rovers-history-hero",
+    "prompt": "Photorealistic science encyclopedia illustration: a dramatic panorama of the Martian surface at sunset, three generations of Mars rovers shown to accurate relative scale side by side on red rocky terrain — a tiny box-shaped Sojourner (microwave-sized), a golf-cart-sized Spirit/Opportunity, and a car-sized Curiosity/Perseverance with its mast camera raised. Rusty red Mars sky with a pale sun disk. Hard sci-fi style, dark atmospheric tones, technically accurate rover geometry. Add the following text labels on the image: \"Sojourner 1997\", \"Spirit / Opportunity 2004\", \"Curiosity 2012\", \"Perseverance 2021\".",
+    "alt": "Three generations of Mars rovers compared in scale on the Martian surface — Sojourner, Spirit and Opportunity, Curiosity and Perseverance",
+    "caption": "Thirty years of evolution from the eleven-kilogram Sojourner to the nine-hundred-kilogram Perseverance. Each generation carried new scientific instruments, greater autonomy, and higher mobility.",
+    "aspectRatio": "16:9"
+  },
+  "body": [
+    {
+      "paragraphs": [
+        "Mars has always been the most reachable of alien worlds. Close enough for machines to reach. Similar enough to Earth for scientists to ask the right questions. Harsh enough that every mission becomes an engineering achievement. Since the late twentieth century, humanity has dispatched a series of wheeled robots to the Red Planet — each successor more complex, heavier, and more capable than the one before.",
+        "Rovers solve a problem that orbital spacecraft cannot: they touch things. Literally. They drill, sniff, sample, measure radiation, and perform chemical analysis directly on-site. A camera from orbit reveals shapes. A rover reports composition. The difference between those two levels of knowledge is fundamental.",
+        "The journey from the first hesitant roll across a Martian plain to a powered helicopter flight in another planet's atmosphere took fewer than thirty years. Along the way engineers solved problems of dust, radiation, extreme temperature swings, and signal delays of up to twenty minutes one-way. Those solutions form the foundation for any future crewed mission."
+      ]
+    },
+    {
+      "heading": "Sojourner: the first step",
+      "level": 2,
+      "paragraphs": [
+        "In the mid-1990s no Mars rover had ever turned a wheel on another planet. The Pathfinder team faced a task that seemed intractable: deliver a mobile robot to Mars with a budget far smaller than any previous mission, and prove the approach could work at all.",
+        "The result took the form of a small box on six wheels — roughly microwave-oven-sized — eleven kilograms, sixty-three centimeters long. Sojourner landed with the Pathfinder station in 1997 and immediately rewrote the rulebook: instead of retrorockets and parachutes alone, the landing used enormous airbags that bounced and rolled across the surface until the spacecraft came to rest.",
+        "The rover traveled approximately one hundred meters over eighty-five Martian days of active operations — against a planned mission lifetime of ninety days. But distance was not the point. This was the first proof in history that a wheeled robot could navigate the surface of another planet independently, avoid hazards, and return scientific data in near-real-time. The \"faster, better, cheaper\" philosophy — criticized in other contexts — worked brilliantly for Pathfinder."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "mars-rovers-sojourner-pathfinder",
+        "prompt": "Photorealistic science encyclopedia illustration: NASA Sojourner rover on the Martian surface in 1997, tiny six-wheeled box-shaped robot next to a large reddish rock, the Pathfinder lander with its opened petal solar panels visible in the background. Rocky red Martian terrain, pale sky. Hard sci-fi style, historically accurate geometry. Add the following text labels on the image: \"Sojourner rover\", \"Pathfinder lander\", \"Mars 1997\", \"11 kg\".",
+        "alt": "Sojourner rover beside a large rock on the Martian surface — Pathfinder mission 1997",
+        "caption": "Sojourner and the rock nicknamed \"Yogi.\" The eleven-kilogram rover analyzed the chemical composition of Martian rocks using an alpha proton X-ray spectrometer. It was the first mobile scientific laboratory on another planet.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "Twins Spirit and Opportunity: ninety days that became years",
+      "level": 2,
+      "paragraphs": [
+        "After Sojourner's success the next objective sounded more ambitious: send two rovers simultaneously, make them substantially larger, and determine whether Mars ever had water. Spirit and Opportunity — the Mars Exploration Rover mission comprising two vehicles — touched down on opposite sides of the planet in 2004. Each weighed one hundred and eighty kilograms, roughly the size of a small golf cart.",
+        "The planned operational lifetime was ninety Martian days. In practice, Spirit operated for six years before becoming trapped in soft sand in 2010, after which contact was lost. Opportunity set a record that still commands respect: fourteen years on the surface and nearly forty-five kilometers of traverse. No other rover had come close.",
+        "Opportunity concluded its mission in 2018 when a global dust storm darkened the sky and starved its solar panels of power. The final telemetry arrived on Earth carrying readings of a critically low battery charge and deepening darkness around the rover. No subsequent command received a reply. For the entire mission team it was more than a technical failure."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "mars-rovers-opportunity-crater",
+        "prompt": "Photorealistic science encyclopedia illustration: NASA Opportunity rover on the rim of a large Martian impact crater, panoramic view of the crater interior, layered sedimentary rock walls visible, the rover's solar panels and camera mast detailed and accurate, pale reddish Martian sky. Hard sci-fi style, dramatic lighting. Add the following text labels on the image: \"Opportunity rover\", \"impact crater\", \"sedimentary layers\", \"Mars 2004-2018\".",
+        "alt": "Opportunity rover on the rim of a Martian impact crater with exposed sedimentary rock layers",
+        "caption": "Opportunity studied craters where exposed sedimentary strata allowed scientists to read the ancient geological record of the planet. Findings of hematite concretions and chloride traces confirmed that liquid water on early Mars was a reality.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "What the twins found",
+      "level": 3,
+      "paragraphs": [
+        "The scientific value of the Mars Exploration Rover mission is difficult to overstate. Spirit found rocks in Gusev Crater altered by hot water and sulfur-rich gases — evidence of hydrothermal activity billions of years ago. Opportunity at Meridiani Planum discovered spherical hematite concretions — a mineral that forms primarily in the presence of liquid water. More significant still: it found sulfate mineral layers deposited at the bottom of an ancient sea.",
+        "Together these data answered the central question: early Mars had liquid water at its surface. Not transiently. Long enough to deposit sedimentary layers and form minerals that require thousands of years to develop. Whether anything lived there remains open. But the conditions, at minimum, once existed."
+      ]
+    },
+    {
+      "heading": "Curiosity: a car-sized laboratory",
+      "level": 2,
+      "paragraphs": [
+        "By the early 2010s it was clear that answering questions about Mars's habitability required not merely a mobile camera with minimal instruments but a genuine rolling chemical laboratory. The Mars Science Laboratory — the nine-hundred-kilogram Curiosity rover — arrived at Gale Crater.",
+        "The landing itself became legendary. Traditional airbags were out of the question at that mass. Engineers invented what they called the sky crane: the rover was lowered on nylon tethers from a powered descent stage hovering on rocket engines, and once the wheels touched the surface the tethers were cut and the stage flew away and crashed at a safe distance. The entire sequence executed automatically, with no possibility of human intervention due to the signal delay. When mission control received confirmation of success, seventeen minutes had already passed since touchdown.",
+        "Curiosity does not run on solar power. It carries a radioisotope thermoelectric generator: heat from the natural radioactive decay of plutonium-238 is converted to electricity through thermoelectric junctions. This removes any dependence on dust storms and allows round-the-clock operations year-round. Over more than a decade the rover has driven approximately thirty kilometers across the floor of Gale Crater and up the slopes of Aeolis Mons."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "mars-rovers-curiosity-skycrane",
+        "prompt": "Photorealistic science encyclopedia illustration: dramatic cutaway diagram of the Mars Science Laboratory sky crane delivery system — a rocket-powered descent stage hovering above the Martian surface on thruster flames, lowering the Curiosity rover on three nylon tethers toward the red rocky ground. Stars and dark sky above. Hard sci-fi style, technically accurate spacecraft geometry. Add the following text labels on the image: \"descent stage\", \"nylon tethers\", \"Curiosity rover\", \"sky crane maneuver\", \"Mars 2012\".",
+        "alt": "Diagram of the Curiosity rover sky crane landing — a rocket-powered platform lowers the rover on tethers",
+        "caption": "The sky crane was the only viable engineering path to land a rover heavier than eight hundred kilograms intact. The identical system was used again for Perseverance in 2021.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "What Curiosity found",
+      "level": 3,
+      "paragraphs": [
+        "Curiosity confirmed the most important thing: Gale Crater was once a lake. Sedimentary rocks at the Yellowknife Bay area formed in conditions of neutral or mildly alkaline fresh water — an environment chemically suitable for microbial life. That does not mean life was present. It means no chemical obstacle stood in the way.",
+        "In 2018 the rover's instruments detected organic molecules in Martian rock samples. Organics on Mars are not necessarily a sign of biology — they can arise abiotically. But the fact that organic compounds survived for billions of years under intense ultraviolet radiation and an oxidizing atmosphere suggests Mars preserves chemical records of its past far more effectively than previously assumed.",
+        "Curiosity also measured radiation at the surface: data showed that a person there would receive approximately two hundred millisieverts per year — roughly five times the annual limit for crew members aboard the International Space Station. That figure directly shapes the design requirements for any future crewed mission."
+      ]
+    },
+    {
+      "heading": "Perseverance and Ingenuity: a new era",
+      "level": 2,
+      "paragraphs": [
+        "In 2021 Perseverance — the most sophisticated rover in history — landed on Mars. Its mass approaches one thousand kilograms. Touchdown used the same sky crane system as Curiosity, but this time the target was Jezero Crater — an ancient lake bed preserving a river delta with fine-grained layered deposits.",
+        "Perseverance's primary goal is not just analysis but sample caching. The rover seals fragments of rock and regolith in titanium tubes and deposits them on the surface for a future Mars Sample Return mission expected around 2035. If that campaign is executed, Earth laboratories will for the first time receive Martian material for analysis with instruments far too large and sensitive to carry aboard a rover.",
+        "Perseverance also carried a small helicopter called Ingenuity. The first controlled powered flight in the atmosphere of another planet took place in the spring of 2021. The plan called for a handful of test flights. In practice Ingenuity completed more than seventy-two flights before a rotor blade was damaged and operations concluded in early 2024. Every one of those flights directly demonstrated that powered aviation in an atmosphere less than one percent as dense as Earth's is achievable."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "mars-rovers-perseverance-ingenuity",
+        "prompt": "Photorealistic science encyclopedia illustration: NASA Perseverance rover and Ingenuity helicopter on the Martian surface — Perseverance in the foreground, large car-sized rover with mast camera and robotic arm, small Ingenuity helicopter visible in mid-air behind it with rotor blur, Jezero Crater delta sedimentary terrain in background, pale rusty Martian sky. Hard sci-fi style, accurate geometry. Add the following text labels on the image: \"Perseverance rover\", \"Ingenuity helicopter\", \"Jezero Crater\", \"Mars 2021\".",
+        "alt": "Perseverance rover and Ingenuity helicopter at Jezero Crater on Mars in 2021",
+        "caption": "Ingenuity was the first powered aircraft to achieve controlled flight on another planet. Perseverance and Ingenuity worked synergistically: the helicopter scouted routes ahead while the rover collected samples along the optimized path.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "Oxygen production and preparing for humans",
+      "level": 3,
+      "paragraphs": [
+        "Perseverance carried another unique instrument: the Mars Oxygen In-Situ Resource Utilization Experiment. This compact device extracts molecular oxygen directly from the carbon dioxide of the Martian atmosphere. By 2023 it had produced more than one hundred grams of oxygen, demonstrating that rocket propellant oxidizer or human breathing gas can be generated on-site — without being shipped from Earth. This fundamentally changes the mass and cost calculations for any future crewed mission."
+      ]
+    },
+    {
+      "heading": "Tianwen-1 and Zhurong: a new entrant",
+      "level": 2,
+      "paragraphs": [
+        "Also in 2021, China's Tianwen-1 spacecraft arrived at Mars and successfully landed the Zhurong rover on Utopia Planitia. Two hundred and forty kilograms, six wheels, solar panel power.",
+        "Zhurong operated for approximately one year, traveling roughly one thousand eight hundred meters, before dust accumulation on its solar panels caused a critical power shortage in 2022. All subsequent attempts to restore contact failed.",
+        "The scientific results included ground-penetrating radar data revealing subsurface layering that may indicate ancient water-related deposits several meters beneath the surface. The Zhurong mission confirmed that China is capable of independently executing a complete Mars mission from launch through landing to surface operations."
+      ]
+    },
+    {
+      "diagram": {
+        "title": "Mars rover size comparison",
+        "svg": "<svg viewBox=\"0 0 700 320\" xmlns=\"http://www.w3.org/2000/svg\">\n  <rect width=\"700\" height=\"320\" fill=\"rgba(10,15,25,0.5)\"/>\n\n  <!-- Title -->\n  <text x=\"350\" y=\"22\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"12\" text-anchor=\"middle\">Mars rovers: mass and size comparison</text>\n\n  <!-- Ground line -->\n  <line x1=\"30\" y1=\"255\" x2=\"670\" y2=\"255\" stroke=\"#334455\" stroke-width=\"1.5\"/>\n  <text x=\"350\" y=\"272\" fill=\"#667788\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Martian surface</text>\n\n  <!-- Sojourner: 11 kg, ~0.63m long x 0.3m tall -->\n  <rect x=\"55\" y=\"243\" width=\"25\" height=\"12\" fill=\"#7bb8ff\" opacity=\"0.7\" rx=\"2\"/>\n  <circle cx=\"60\" cy=\"256\" r=\"4\" fill=\"#7bb8ff\" opacity=\"0.6\"/>\n  <circle cx=\"75\" cy=\"256\" r=\"4\" fill=\"#7bb8ff\" opacity=\"0.6\"/>\n  <text x=\"67\" y=\"238\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Sojourner</text>\n  <text x=\"67\" y=\"228\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">11 kg</text>\n  <text x=\"67\" y=\"218\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">1997</text>\n\n  <!-- Spirit / Opportunity: 180 kg -->\n  <rect x=\"140\" y=\"195\" width=\"64\" height=\"60\" fill=\"#ff8844\" opacity=\"0.5\" rx=\"3\"/>\n  <circle cx=\"150\" cy=\"256\" r=\"8\" fill=\"#ff8844\" opacity=\"0.6\"/>\n  <circle cx=\"172\" cy=\"256\" r=\"8\" fill=\"#ff8844\" opacity=\"0.6\"/>\n  <circle cx=\"194\" cy=\"256\" r=\"8\" fill=\"#ff8844\" opacity=\"0.6\"/>\n  <rect x=\"168\" y=\"155\" width=\"4\" height=\"40\" fill=\"#ff8844\" opacity=\"0.6\"/>\n  <rect x=\"163\" y=\"148\" width=\"14\" height=\"8\" fill=\"#ff8844\" opacity=\"0.8\"/>\n  <text x=\"172\" y=\"143\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Spirit /</text>\n  <text x=\"172\" y=\"133\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Opportunity</text>\n  <text x=\"172\" y=\"123\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">180 kg</text>\n  <text x=\"172\" y=\"113\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">2004</text>\n\n  <!-- Zhurong: 240 kg -->\n  <rect x=\"265\" y=\"181\" width=\"74\" height=\"74\" fill=\"#44ff88\" opacity=\"0.45\" rx=\"3\"/>\n  <circle cx=\"277\" cy=\"256\" r=\"9\" fill=\"#44ff88\" opacity=\"0.55\"/>\n  <circle cx=\"302\" cy=\"256\" r=\"9\" fill=\"#44ff88\" opacity=\"0.55\"/>\n  <circle cx=\"327\" cy=\"256\" r=\"9\" fill=\"#44ff88\" opacity=\"0.55\"/>\n  <rect x=\"297\" y=\"140\" width=\"4\" height=\"41\" fill=\"#44ff88\" opacity=\"0.55\"/>\n  <rect x=\"291\" y=\"133\" width=\"16\" height=\"8\" fill=\"#44ff88\" opacity=\"0.75\"/>\n  <text x=\"302\" y=\"128\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Zhurong</text>\n  <text x=\"302\" y=\"118\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">240 kg</text>\n  <text x=\"302\" y=\"108\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">2021</text>\n\n  <!-- Curiosity / Perseverance: ~900 kg -->\n  <rect x=\"400\" y=\"171\" width=\"120\" height=\"84\" fill=\"#aabbcc\" opacity=\"0.35\" rx=\"3\"/>\n  <circle cx=\"415\" cy=\"256\" r=\"12\" fill=\"#aabbcc\" opacity=\"0.55\"/>\n  <circle cx=\"460\" cy=\"256\" r=\"12\" fill=\"#aabbcc\" opacity=\"0.55\"/>\n  <circle cx=\"505\" cy=\"256\" r=\"12\" fill=\"#aabbcc\" opacity=\"0.55\"/>\n  <rect x=\"456\" y=\"100\" width=\"5\" height=\"71\" fill=\"#aabbcc\" opacity=\"0.55\"/>\n  <rect x=\"448\" y=\"92\" width=\"21\" height=\"9\" fill=\"#aabbcc\" opacity=\"0.75\"/>\n  <line x1=\"400\" y1=\"215\" x2=\"378\" y2=\"240\" stroke=\"#aabbcc\" stroke-width=\"3\" opacity=\"0.6\"/>\n  <circle cx=\"375\" cy=\"243\" r=\"6\" fill=\"#aabbcc\" opacity=\"0.6\"/>\n  <text x=\"460\" y=\"87\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Curiosity /</text>\n  <text x=\"460\" y=\"77\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Perseverance</text>\n  <text x=\"460\" y=\"67\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">~900 kg</text>\n  <text x=\"460\" y=\"57\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">2012 / 2021</text>\n\n  <!-- Scale bar -->\n  <line x1=\"600\" y1=\"245\" x2=\"640\" y2=\"245\" stroke=\"#667788\" stroke-width=\"1.5\"/>\n  <line x1=\"600\" y1=\"242\" x2=\"600\" y2=\"248\" stroke=\"#667788\" stroke-width=\"1.5\"/>\n  <line x1=\"640\" y1=\"242\" x2=\"640\" y2=\"248\" stroke=\"#667788\" stroke-width=\"1.5\"/>\n  <text x=\"620\" y=\"240\" fill=\"#667788\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">1 m</text>\n</svg>",
+        "caption": "From the eleven-kilogram Sojourner to the nine-hundred-kilogram Curiosity and Perseverance — rover mass grew eighty-fold in fewer than thirty years. Each generation carried more scientific instruments, better autonomous navigation, and greater operational range."
+      }
+    },
+    {
+      "heading": "Landing site map",
+      "level": 2,
+      "paragraphs": [
+        "Each landing site was chosen for a specific scientific reason, not at random."
+      ]
+    },
+    {
+      "diagram": {
+        "title": "Mars rover landing sites",
+        "svg": "<svg viewBox=\"0 0 700 360\" xmlns=\"http://www.w3.org/2000/svg\">\n  <rect width=\"700\" height=\"360\" fill=\"rgba(10,15,25,0.5)\"/>\n\n  <!-- Title -->\n  <text x=\"350\" y=\"22\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"12\" text-anchor=\"middle\">Rover landing sites on Mars</text>\n\n  <!-- Mars ellipse -->\n  <ellipse cx=\"350\" cy=\"190\" rx=\"290\" ry=\"145\" fill=\"none\" stroke=\"#334455\" stroke-width=\"1.5\"/>\n  <line x1=\"60\" y1=\"190\" x2=\"640\" y2=\"190\" stroke=\"#334455\" stroke-width=\"0.8\" stroke-dasharray=\"4,6\" opacity=\"0.6\"/>\n  <text x=\"648\" y=\"194\" fill=\"#667788\" font-family=\"monospace\" font-size=\"8\">0°</text>\n  <ellipse cx=\"350\" cy=\"190\" rx=\"290\" ry=\"145\" fill=\"#cc4444\" opacity=\"0.06\"/>\n\n  <!-- Ares Vallis — Sojourner: ~19.13N -->\n  <circle cx=\"420\" cy=\"168\" r=\"6\" fill=\"#7bb8ff\" opacity=\"0.85\"/>\n  <text x=\"432\" y=\"164\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"9\">Sojourner</text>\n  <text x=\"432\" y=\"175\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"8\">Ares Vallis, 1997</text>\n\n  <!-- Gusev Crater — Spirit -->\n  <circle cx=\"183\" cy=\"208\" r=\"6\" fill=\"#ff8844\" opacity=\"0.85\"/>\n  <text x=\"118\" y=\"204\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"9\">Spirit</text>\n  <text x=\"118\" y=\"215\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"8\">Gusev Crater, 2004</text>\n\n  <!-- Meridiani Planum — Opportunity -->\n  <circle cx=\"325\" cy=\"196\" r=\"6\" fill=\"#ff8844\" opacity=\"0.85\"/>\n  <text x=\"335\" y=\"207\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"9\">Opportunity</text>\n  <text x=\"335\" y=\"218\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"8\">Meridiani Planum, 2004</text>\n\n  <!-- Gale Crater — Curiosity -->\n  <circle cx=\"208\" cy=\"200\" r=\"6\" fill=\"#aabbcc\" opacity=\"0.85\"/>\n  <text x=\"130\" y=\"238\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"9\">Curiosity</text>\n  <text x=\"130\" y=\"249\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"8\">Gale Crater, 2012</text>\n  <line x1=\"208\" y1=\"200\" x2=\"195\" y2=\"240\" stroke=\"#334455\" stroke-width=\"0.8\" opacity=\"0.7\"/>\n\n  <!-- Utopia Planitia — Zhurong -->\n  <circle cx=\"228\" cy=\"166\" r=\"6\" fill=\"#44ff88\" opacity=\"0.85\"/>\n  <text x=\"238\" y=\"163\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"9\">Zhurong</text>\n  <text x=\"238\" y=\"174\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"8\">Utopia Planitia, 2021</text>\n\n  <!-- Jezero Crater — Perseverance -->\n  <circle cx=\"268\" cy=\"171\" r=\"6\" fill=\"#cc4444\" opacity=\"0.9\"/>\n  <text x=\"278\" y=\"168\" fill=\"#cc4444\" font-family=\"monospace\" font-size=\"9\">Perseverance</text>\n  <text x=\"278\" y=\"179\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"8\">Jezero Crater, 2021</text>\n\n  <!-- N/S labels -->\n  <text x=\"350\" y=\"50\" fill=\"#667788\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">North</text>\n  <text x=\"350\" y=\"338\" fill=\"#667788\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">South</text>\n  <text x=\"62\" y=\"194\" fill=\"#667788\" font-family=\"monospace\" font-size=\"8\">180°</text>\n</svg>",
+        "caption": "Most landing sites cluster in the equatorial belt — where sun angle provides sufficient solar power and the atmosphere is slightly denser for safer entry. Gale Crater and Jezero Crater were selected specifically for geological evidence of ancient water."
+      }
+    },
+    {
+      "heading": "Lessons from thirty years",
+      "level": 2,
+      "paragraphs": [
+        "Each mission added not only scientific data but also engineering knowledge. Dust is the primary enemy of solar panels. This was understood as early as Sojourner, but Opportunity and Zhurong paid for it with their operational lives. The radioisotope thermoelectric generator on Curiosity and Perseverance solved that problem, but costs orders of magnitude more and requires enriched plutonium-238 whose global supply is severely limited.",
+        "Autonomy is the second major lesson. A signal delay of four to twenty minutes one-way rules out real-time remote control. Modern rovers autonomously select routes, avoid hazardous terrain, and resolve thousands of small decisions without input from Earth operators. That autonomy is a direct precursor to the technologies crewed missions will require.",
+        "And finally, the science. The picture assembled from five missions paints Mars not as a dead desert but as a world with a rich aqueous and geological history. It does not answer whether life ever existed. But it establishes that conditions suitable for primitive microbial life — at least in certain epochs — once met the requirements. The samples cached by Perseverance in titanium tubes on the surface may provide a definitive answer — if the Mars Sample Return mission is ultimately executed."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "mars-rovers-sample-tube",
+        "prompt": "Photorealistic science encyclopedia illustration: close-up of a titanium Mars sample tube being sealed by the Perseverance rover arm — gleaming metallic cylinder with rock core sample visible inside, red Martian dust and rocks around it, robotic arm mechanism in frame. Hard sci-fi style, macro detail, dark background. Add the following text labels on the image: \"titanium sample tube\", \"Perseverance arm\", \"Mars rock core\", \"cached for future return\".",
+        "alt": "Titanium sample tube with a Martian rock core, sealed by the Perseverance rover manipulator arm",
+        "caption": "Perseverance's sample tubes are the first link in the Mars Sample Return chain. If that campaign is executed around 2035, Earth laboratories will for the first time analyze Martian material directly for biosignatures.",
+        "aspectRatio": "4:3"
+      }
+    }
+  ],
+  "glossary": [
+    {
+      "term": "Radioisotope thermoelectric generator",
+      "definition": "A power source that converts heat from the natural radioactive decay of a fuel (typically plutonium-238) into electricity via thermoelectric junctions. Independent of sunlight and dust. Used on Curiosity and Perseverance."
+    },
+    {
+      "term": "Sky crane",
+      "definition": "A landing system in which the rover is lowered on tethers from a powered descent stage hovering on rocket engines. Used for Curiosity (2012) and Perseverance (2021) — the only viable method of safely landing a rover heavier than eight hundred kilograms."
+    },
+    {
+      "term": "Mars Exploration Rover mission",
+      "definition": "A NASA program comprising two identical rovers, Spirit and Opportunity, which landed on Mars in 2004. Both were solar-powered golf-cart-sized vehicles designed for a ninety-day primary mission."
+    },
+    {
+      "term": "Mars Science Laboratory",
+      "definition": "The NASA mission that delivered the Curiosity rover to the surface of Mars in 2012. The mission introduced radioisotope power, the sky crane landing system, and the most comprehensive suite of analytical instruments yet flown to Mars."
+    },
+    {
+      "term": "Mars Sample Return",
+      "definition": "A planned joint mission of NASA and the European Space Agency to retrieve rock and soil samples collected and cached by Perseverance and return them to Earth. Expected no earlier than approximately 2035."
+    },
+    {
+      "term": "Regolith",
+      "definition": "The loose fragmental material covering the surface of a planet or moon, consisting of crushed rock, dust, and debris produced by meteorite impacts and weathering over geological time."
+    },
+    {
+      "term": "Biosignature",
+      "definition": "A chemical, mineralogical, or morphological indicator that may point to past or present biological activity. The search for biosignatures in cached rock samples is the central scientific objective of the Perseverance mission."
+    },
+    {
+      "term": "Signal delay",
+      "definition": "The time required for a radio signal to travel between Earth and Mars. Depending on planetary positions, it ranges from approximately four to twenty minutes one-way, making real-time remote control impossible."
+    }
+  ],
+  "quiz": [
+    {
+      "question": "What was the principal technical contribution of the Sojourner mission in 1997?",
+      "options": [
+        "The first detection of liquid water on Mars",
+        "The first demonstration that a wheeled robot can independently navigate the surface of another planet",
+        "The first spacecraft to orbit Mars",
+        "The first analysis of the Martian atmosphere"
+      ],
+      "correctIndex": 1,
+      "explanation": "Sojourner was the first Mars rover ever built. Its core achievement was proving that an autonomous wheeled robot can move across another planet, avoid obstacles, and return scientific data. The one hundred meters traveled and the eleven-kilogram mass are secondary details compared to that foundational precedent."
+    },
+    {
+      "question": "Why does Curiosity use a radioisotope thermoelectric generator rather than solar panels?",
+      "options": [
+        "The sun is too far away and solar panels produce no power on Mars",
+        "To avoid dependence on dust storms and maintain constant power day and night",
+        "Because a radioisotope thermoelectric generator is cheaper to manufacture",
+        "Because the Martian magnetic field damages solar cells"
+      ],
+      "correctIndex": 1,
+      "explanation": "Solar panels are vulnerable to Martian dust and ineffective at night. A radioisotope thermoelectric generator provides steady power around the clock and throughout the year, regardless of dust storms. Dust accumulation on their solar panels was precisely the mechanism that ended both Opportunity and Zhurong."
+    },
+    {
+      "question": "Which discovery by the Mars Exploration Rover mission provided the strongest evidence for liquid water in Mars's past?",
+      "options": [
+        "Detection of frozen water at the poles",
+        "Hematite concretions and sulfate mineral layers deposited by liquid water",
+        "Detection of organic molecules in the soil",
+        "Measurement of water vapor in the atmosphere"
+      ],
+      "correctIndex": 1,
+      "explanation": "Opportunity found spherical hematite concretions — nicknamed \"blueberries\" — and layers of sulfate minerals characteristic of sedimentary rock formed in liquid water at Meridiani Planum. These data provided compelling evidence that early Mars hosted aqueous environments potentially hospitable to microbial life."
+    },
+    {
+      "question": "What is the sky crane, and which rovers used it for landing?",
+      "options": [
+        "The airbag inflation system used for Sojourner and Spirit and Opportunity",
+        "A system that lowers the rover on tethers from a hovering rocket-powered platform, used for Curiosity and Perseverance",
+        "A parachute and retrorocket braking method used for Zhurong",
+        "A laser-guided precision targeting system used for all rovers after 2010"
+      ],
+      "correctIndex": 1,
+      "explanation": "The sky crane is the unique landing system where the rover is lowered on nylon tethers from a descent stage hovering on rocket engines, and the tethers are cut once the wheels contact the surface. It was used for Curiosity (2012) and Perseverance (2021) — the only engineering path to safely land a rover weighing more than eight hundred kilograms."
+    },
+    {
+      "question": "What is the significance of the Mars Oxygen In-Situ Resource Utilization Experiment aboard Perseverance for future crewed missions?",
+      "options": [
+        "It measures radiation to determine safe exposure levels for humans",
+        "It demonstrates that oxygen for breathing and rocket propellant can be produced directly from the Martian atmosphere",
+        "It analyzes soil chemistry for organic compounds",
+        "It tests spacesuit materials under Martian environmental conditions"
+      ],
+      "correctIndex": 1,
+      "explanation": "Producing oxygen directly from the carbon dioxide of the Martian atmosphere is a key enabling technology for any crewed mission. It eliminates the need to ship breathing gas or rocket oxidizer from Earth, radically reducing mission mass and cost. The experiment proved the concept works at Mars."
+    }
+  ],
+  "sources": [
+    {
+      "title": "NASA — Mars Pathfinder Mission Overview",
+      "url": "https://mars.nasa.gov/mars-exploration/missions/pathfinder/",
+      "meta": "NASA, open access"
+    },
+    {
+      "title": "NASA — Mars Exploration Rover Mission",
+      "url": "https://mars.nasa.gov/mer/home/",
+      "meta": "NASA, open access"
+    },
+    {
+      "title": "NASA — Mars Science Laboratory / Curiosity",
+      "url": "https://mars.nasa.gov/msl/home/",
+      "meta": "NASA, updated 2026"
+    },
+    {
+      "title": "NASA — Mars 2020 / Perseverance Rover",
+      "url": "https://mars.nasa.gov/mars2020/",
+      "meta": "NASA, updated 2026"
+    },
+    {
+      "title": "NASA — Ingenuity Mars Helicopter",
+      "url": "https://mars.nasa.gov/technology/helicopter/",
+      "meta": "NASA, updated 2024"
+    },
+    {
+      "title": "CNSA / CLEP — Tianwen-1 Mission and Zhurong Rover",
+      "url": "https://www.cnsa.gov.cn/english/n6465652/n6465653/c6812091/content.html",
+      "meta": "CNSA, 2021"
+    },
+    {
+      "title": "Squyres S. et al. — In Situ Evidence for an Ancient Aqueous Environment at Meridiani Planum, Mars",
+      "url": "https://science.sciencemag.org/content/306/5702/1709",
+      "meta": "Science, 2004, vol. 306"
+    },
+    {
+      "title": "Grotzinger J. et al. — A Habitable Fluvio-Lacustrine Environment at Yellowknife Bay, Gale Crater, Mars",
+      "url": "https://www.science.org/doi/10.1126/science.1242777",
+      "meta": "Science, 2014, vol. 343"
+    },
+    {
+      "title": "Eigenbrode J. et al. — Organic matter preserved in 3-billion-year-old mudstones at Gale crater, Mars",
+      "url": "https://www.science.org/doi/10.1126/science.aas9185",
+      "meta": "Science, 2018, vol. 360"
+    },
+    {
+      "title": "Hecht M. et al. — Space Resource Utilization: Producing Oxygen on Mars — MOXIE Results",
+      "url": "https://www.science.org/doi/10.1126/sciadv.abg1616",
+      "meta": "Science Advances, 2021, open access"
+    }
+  ],
+  "lastVerified": "2026-05-06"
+}

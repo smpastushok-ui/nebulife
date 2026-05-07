@@ -1,0 +1,307 @@
+{
+  "slug": "star-formation",
+  "language": "en",
+  "section": "astronomy",
+  "order": 11,
+  "difficulty": "intermediate",
+  "readingTimeMin": 12,
+  "title": "How Stars Are Born",
+  "subtitle": "From molecular cloud to stellar nursery — the physics of gravitational collapse, accretion disks, and the first stellar ignitions.",
+  "hero": {
+    "cacheKey": "star-formation-hero",
+    "prompt": "Photorealistic illustration for a science encyclopedia: a vast interstellar molecular cloud collapsing into multiple young stars. Dense dark dust pillars with glowing amber and orange edges lit from within by embedded protostars. Bipolar jets of ionized gas shoot outward in bright blue-white from the base of each pillar. Background shows a deep space nebula in purple and teal tones. Hard sci-fi style, dark space background. Add the following text labels on the image: \"molecular cloud\", \"protostar\", \"bipolar jet\", \"accretion disk\".",
+    "alt": "A molecular cloud collapsing into several protostars with bipolar jets and accretion disks",
+    "caption": "Stellar nurseries such as the Orion Nebula and the Pillars of Creation in the Eagle Nebula are places where gravity overcomes gas pressure and ignites new suns. JWST revealed their interiors in infrared for the first time in 2022.",
+    "aspectRatio": "16:9"
+  },
+  "body": [
+    {
+      "paragraphs": [
+        "Interstellar space is not empty. Between the stars lie enormous clouds of cold gas and dust — _molecular clouds_ — where temperatures can drop to within ten kelvin of absolute zero. That is where star formation begins. No fire, no brightness — just the slow, inexorable densification of matter under its own gravity.",
+        "The answer to why collapse happens here and not everywhere was provided in the first half of the twentieth century by British physicist James Jeans. He showed that a gas cloud remains stable as long as its internal pressure balances gravity. But if the cloud becomes massive enough or cold enough, that balance breaks — and the cloud begins to collapse under its own weight. This critical threshold is called the **Jeans mass**: clouds below it are stable indefinitely; clouds above it are destined to become stars.",
+        "Left on their own, molecular clouds can hover near the Jeans threshold for billions of years. Something has to push them over. And the universe knows exactly how."
+      ]
+    },
+    {
+      "heading": "Triggers: What Sets Off Collapse",
+      "level": 2,
+      "paragraphs": [
+        "The most powerful trigger of star formation is the **shockwave from a supernova**. When a massive star explodes, it propels hundreds of solar masses of material outward at thousands of kilometers per second. That shockwave reaches a neighboring molecular cloud and compresses it — and where the mass had previously been just short of the Jeans threshold, it is now more than sufficient. Stars are literally born from the death of other stars.",
+        "The second trigger is **density waves** in the spiral arms of galaxies. Spiral arms are not co-rotating bodies of matter but waves of elevated density — analogous to traffic jams on a ring road: gas and dust entering the arm are compressed and slowed. This compression can push a cloud past the Jeans mass on its own, triggering a cascade of star formation along an entire arm.",
+        "Smaller disturbances — two molecular clouds colliding, or the gravitational nudge of a passing stellar system — also work, but more locally and less reliably. The outcome is always the same: a cloud that was drifting in equilibrium begins to contract, irreversibly."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "star-formation-molecular-cloud-collapse",
+        "prompt": "Photorealistic illustration for a science encyclopedia: cross-section diagram of an interstellar molecular cloud being compressed by a supernova shockwave. Left side shows an expanding supernova remnant shell in orange-red. Right side shows dark dust cloud beginning to fragment and collapse into dense clumps. Arrows indicate compression direction. Hard sci-fi style, dark space background. Add the following text labels on the image: \"supernova shockwave\", \"molecular cloud\", \"collapsing clumps\", \"Jeans mass threshold\".",
+        "alt": "Diagram of a molecular cloud compressed by a supernova shockwave, triggering gravitational collapse of individual fragments",
+        "caption": "A supernova shockwave compresses part of a molecular cloud past the critical Jeans mass. The cloud fragments: each fragment undergoes its own gravitational collapse and eventually becomes a protostar.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "Gravitational Collapse and the Jeans Mass",
+      "level": 2,
+      "paragraphs": [
+        "Collapse starts slowly. A cloud of thousands of solar masses spanning tens of light-years may contract over millions of years at first. But as density rises, gravity intensifies, the process accelerates — and at some point it becomes an avalanche.",
+        "The cloud does not collapse uniformly: it breaks into fragments, each of which also exceeds the Jeans mass. Those fragments, in turn, break into smaller ones — a process physicists call _hierarchical fragmentation_. This is precisely why stars almost never form alone: a typical molecular cloud produces entire _star clusters_ — from dozens to thousands of young stars simultaneously.",
+        "In each collapsing fragment, the gas heats up from compression. While the cloud remains transparent to its own thermal radiation, that heat escapes freely and does not slow the contraction. But once density rises enough that the cloud becomes opaque to its own light, heat is trapped inside, pressure builds sharply, and collapse slows. A first stable object forms: a **protostar**."
+      ]
+    },
+    {
+      "diagram": {
+        "title": "Stages of Molecular Cloud Collapse and Star Formation",
+        "svg": "<svg viewBox=\"0 0 720 300\" xmlns=\"http://www.w3.org/2000/svg\">\n  <rect width=\"720\" height=\"300\" fill=\"rgba(10,15,25,0.6)\" rx=\"4\"/>\n\n  <defs>\n    <marker id=\"sfArrEN\" markerWidth=\"7\" markerHeight=\"7\" refX=\"5\" refY=\"3.5\" orient=\"auto\">\n      <polygon points=\"0 0, 7 3.5, 0 7\" fill=\"#667788\"/>\n    </marker>\n  </defs>\n\n  <!-- Stage 1: Molecular Cloud -->\n  <ellipse cx=\"72\" cy=\"150\" rx=\"58\" ry=\"44\" fill=\"rgba(40,30,60,0.7)\" stroke=\"#446688\" stroke-width=\"1.2\" stroke-dasharray=\"4,3\"/>\n  <text x=\"72\" y=\"146\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Molecular</text>\n  <text x=\"72\" y=\"158\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Cloud</text>\n  <text x=\"72\" y=\"205\" fill=\"#667788\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">~10 K, ~10 LY</text>\n\n  <!-- Arrow 1 -->\n  <line x1=\"132\" y1=\"150\" x2=\"164\" y2=\"150\" stroke=\"#667788\" stroke-width=\"1.2\" marker-end=\"url(#sfArrEN)\"/>\n  <text x=\"148\" y=\"143\" fill=\"#667788\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">trigger</text>\n\n  <!-- Stage 2: Fragmentation -->\n  <ellipse cx=\"210\" cy=\"150\" rx=\"38\" ry=\"30\" fill=\"rgba(40,30,60,0.85)\" stroke=\"#446688\" stroke-width=\"1\"/>\n  <circle cx=\"198\" cy=\"143\" r=\"8\" fill=\"rgba(60,50,90,0.9)\" stroke=\"#7bb8ff\" stroke-width=\"0.8\"/>\n  <circle cx=\"218\" cy=\"158\" r=\"6\" fill=\"rgba(60,50,90,0.9)\" stroke=\"#7bb8ff\" stroke-width=\"0.8\"/>\n  <circle cx=\"204\" cy=\"163\" r=\"5\" fill=\"rgba(60,50,90,0.9)\" stroke=\"#7bb8ff\" stroke-width=\"0.8\"/>\n  <text x=\"210\" y=\"196\" fill=\"#667788\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">fragmentation</text>\n\n  <!-- Arrow 2 -->\n  <line x1=\"250\" y1=\"150\" x2=\"282\" y2=\"150\" stroke=\"#667788\" stroke-width=\"1.2\" marker-end=\"url(#sfArrEN)\"/>\n  <text x=\"266\" y=\"143\" fill=\"#667788\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">collapse</text>\n\n  <!-- Stage 3: Protostar + disk -->\n  <ellipse cx=\"340\" cy=\"158\" rx=\"34\" ry=\"10\" fill=\"rgba(80,50,20,0.5)\" stroke=\"#ff8844\" stroke-width=\"1\" opacity=\"0.8\"/>\n  <circle cx=\"340\" cy=\"150\" r=\"14\" fill=\"#cc7722\" stroke=\"#ffaa44\" stroke-width=\"1.5\"/>\n  <text x=\"340\" y=\"146\" fill=\"#020510\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\" font-weight=\"bold\">Proto-</text>\n  <text x=\"340\" y=\"156\" fill=\"#020510\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\" font-weight=\"bold\">star</text>\n  <!-- Jets -->\n  <line x1=\"340\" y1=\"136\" x2=\"340\" y2=\"102\" stroke=\"#7bb8ff\" stroke-width=\"2\" opacity=\"0.8\"/>\n  <line x1=\"340\" y1=\"164\" x2=\"340\" y2=\"198\" stroke=\"#7bb8ff\" stroke-width=\"2\" opacity=\"0.8\"/>\n  <text x=\"356\" y=\"108\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"8\">jet</text>\n  <text x=\"356\" y=\"196\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"8\">jet</text>\n  <text x=\"340\" y=\"218\" fill=\"#667788\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">~1000 K, T Tauri</text>\n\n  <!-- Arrow 3 -->\n  <line x1=\"376\" y1=\"150\" x2=\"408\" y2=\"150\" stroke=\"#667788\" stroke-width=\"1.2\" marker-end=\"url(#sfArrEN)\"/>\n  <text x=\"392\" y=\"143\" fill=\"#667788\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">accretion</text>\n\n  <!-- Stage 4: Young star on main sequence -->\n  <circle cx=\"460\" cy=\"150\" r=\"22\" fill=\"#ffdd66\" stroke=\"#ffd050\" stroke-width=\"1.5\"/>\n  <text x=\"460\" y=\"146\" fill=\"#020510\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\" font-weight=\"bold\">Young</text>\n  <text x=\"460\" y=\"156\" fill=\"#020510\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\" font-weight=\"bold\">Star</text>\n  <text x=\"460\" y=\"186\" fill=\"#667788\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">nuclear</text>\n  <text x=\"460\" y=\"196\" fill=\"#667788\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">fusion</text>\n\n  <!-- Arrow 4 -->\n  <line x1=\"484\" y1=\"150\" x2=\"516\" y2=\"150\" stroke=\"#667788\" stroke-width=\"1.2\" marker-end=\"url(#sfArrEN)\"/>\n  <text x=\"500\" y=\"143\" fill=\"#667788\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">Myr</text>\n\n  <!-- Stage 5: Planetary system -->\n  <circle cx=\"580\" cy=\"150\" r=\"16\" fill=\"#ffee88\" stroke=\"#ffd050\" stroke-width=\"1.5\"/>\n  <ellipse cx=\"580\" cy=\"150\" rx=\"46\" ry=\"12\" fill=\"none\" stroke=\"#4488aa\" stroke-width=\"1\" opacity=\"0.6\"/>\n  <circle cx=\"612\" cy=\"146\" r=\"3\" fill=\"#7bb8ff\" opacity=\"0.9\"/>\n  <circle cx=\"548\" cy=\"154\" r=\"2\" fill=\"#44ff88\" opacity=\"0.9\"/>\n  <text x=\"580\" y=\"178\" fill=\"#667788\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">planetary system</text>\n\n  <!-- Time axis label -->\n  <text x=\"360\" y=\"290\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">— — — — — Time (thousands to millions of years) — — — — —</text>\n</svg>",
+        "caption": "From molecular cloud to planetary system — a sequence of stages spanning thousands to millions of years. The protostar with jets and accretion disk is the critical transition: the disk is either accreted by the star or becomes the raw material for planets."
+      }
+    },
+    {
+      "heading": "The Protostar: First Steps",
+      "level": 2,
+      "paragraphs": [
+        "A protostar is not yet a star in the full sense. It is hot, but thermonuclear fusion has not yet ignited. Its only energy source is **gravitational contraction**: infalling matter converts kinetic energy into heat. This mechanism is known as the _Kelvin-Helmholtz mechanism_ — named after two nineteenth-century physicists who first calculated how much heat the Sun could generate from contraction alone.",
+        "Around the protostar, an **accretion disk** forms — a flat, rotating structure of gas and dust. Material does not fall straight onto the star but first into the disk — because conservation of angular momentum forces the gas to spin faster as it approaches the center, much like a figure skater pulling in their arms. From the disk, matter slowly spirals inward via viscosity and magnetic instabilities.",
+        "The active accretion phase lasts from a few hundred thousand to a few million years. During this time the protostar acquires most of its final mass. Whether the object becomes a full star, a brown dwarf, or even a free-floating giant planet depends on how much material is available in the disk and whether nearby protostars compete for the same reservoir."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "star-formation-accretion-disk",
+        "prompt": "Photorealistic illustration for a science encyclopedia: a young protostar surrounded by a flared protoplanetary accretion disk. The central protostar glows in warm amber-orange. The disk shows concentric dust rings and gaps caused by forming planetesimals. Bipolar jets of ionized plasma extend above and below the disk poles in electric blue-white. The outer disk fades from warm orange dust near the star to cold dark reddish-brown at the edges. Deep black space background. Hard sci-fi style scientific illustration. Add the following text labels on the image: \"protostar\", \"accretion disk\", \"dust ring\", \"bipolar jet\", \"snow line\".",
+        "alt": "A protostar at the center of a protoplanetary accretion disk with concentric dust rings and bipolar jets",
+        "caption": "The accretion disk surrounding a protostar is simultaneously the star's fuel supply and the birthplace of future planets. In 2014, ALMA revealed the ring structure of the HL Tauri disk — far younger and more structured than the theory of that era had predicted.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "The T Tauri Phase and Bipolar Jets",
+      "level": 2,
+      "paragraphs": [
+        "Once the protostar grows hot enough and clears its surrounding envelope, it enters the so-called _T Tauri phase_ — named after a prototype young star in the constellation Taurus. This is the turbulent adolescence of a star: it is nearly fully formed but has not yet ignited stable nuclear burning.",
+        "T Tauri stars have extraordinarily active magnetic fields. The field lines intercept accreting gas and channel part of it not onto the stellar surface but outward along the magnetic poles — as narrow **bipolar jets** of ionized gas. These beams can extend several light-years and carry away enormous angular momentum. The jets act as a pressure-relief valve: the star sheds excess angular momentum without shutting off accretion.",
+        "When such a jet slams into surrounding gas and dust, it lights up bright structures first observed and catalogued in the mid-twentieth century by George Herbig and Mexican astronomer Guillermo Haro. These are called **Herbig-Haro objects**. In the 1990s the Hubble Space Telescope captured HH-30 in fine detail: a precisely edge-on disk and two jets firing at right angles — a confirmation of the theory that had still been disputed at the time."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "star-formation-herbig-haro",
+        "prompt": "Photorealistic illustration for a science encyclopedia: a Herbig-Haro object — a young protostar with narrow bipolar jets hitting surrounding interstellar gas. The jets appear as bright, narrow collimated streams of glowing plasma in blue-white. Where the jets strike the surrounding nebula they create bow-shaped shock regions in yellow-orange. The protostar itself is partially hidden behind an edge-on accretion disk silhouetted against the bright background nebula. Hard sci-fi style, dramatic dark nebula background. Add the following text labels on the image: \"protostar\", \"accretion disk (edge-on)\", \"bipolar jet\", \"Herbig-Haro bow shock\".",
+        "alt": "A Herbig-Haro object — a protostar with two narrow jets striking surrounding gas and creating bow-shaped shock regions",
+        "caption": "Hubble captured HH-30 in the 1990s — the first high-resolution image of an edge-on protostellar disk with symmetric bipolar jets. JWST can now detect such objects even through opaque dust clouds, revealing the earliest stages of jet formation.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "HL Tauri and Disks Nobody Expected",
+      "level": 2,
+      "paragraphs": [
+        "In 2014 the ALMA radio telescope array captured an image of the protoplanetary disk around HL Tauri — a young T Tauri star in the Taurus molecular cloud. The image was a revelation: a disk around a star less than one million years old already showed sharp _concentric rings and gaps_ — the signature of forming planets already sweeping clear their orbital lanes.",
+        "The prevailing understanding at the time held that planet formation takes tens of millions of years and begins only after the disk settles. HL Tauri forced a revision of the entire timeline: the process is far faster and begins almost immediately after the disk forms.",
+        "That image is one of the most consequential astrophysical pictures of the early twenty-first century. It transformed the theory of planetary system formation from a broad conceptual framework into a precise science with measurable timescales and observable structures."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "star-formation-hl-tau-disk",
+        "prompt": "Photorealistic illustration for a science encyclopedia: the HL Tauri protoplanetary disk seen face-on, in ALMA radio telescope style. The disk shows multiple concentric bright rings of dust alternating with dark gaps cleared by forming planets. Central young star glows softly. Visualization style similar to ALMA false-color radio imaging: warm yellow-orange rings against dark background. Hard sci-fi style scientific illustration. Add the following text labels on the image: \"HL Tauri star\", \"dust ring\", \"gap cleared by planet\", \"ALMA 2014\".",
+        "alt": "The HL Tauri protoplanetary disk from the ALMA 2014 image — concentric rings and gaps caused by planets already forming",
+        "caption": "The ALMA 2014 image overturned assumptions about the pace of planet formation. A disk around a star younger than one million years already has well-defined gaps — evidence of planets that have formed quickly enough to clear their orbital paths.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "Stellar Nurseries: Orion, Eagle, Carina",
+      "level": 2,
+      "paragraphs": [
+        "The Orion Nebula is the closest large stellar nursery to Earth — roughly fourteen hundred light-years away. It is visible to the naked eye as the fuzzy \"star\" in Orion's sword. Inside, a young stellar association contains thousands of stars born within the past few million years. JWST revealed hundreds of _protoplanetary disks_ within the open nebula in 2022, many of them actively being photoionized by intense ultraviolet radiation from nearby massive O-type stars.",
+        "The **Pillars of Creation** in the Eagle Nebula are perhaps the most iconic image in twentieth and twenty-first century astronomy. Hubble first photographed them in 1995: three dark columns of gas and dust, pierced by young stars and backlit by external ultraviolet. JWST produced a new image of the same pillars in 2022, this time in the near-infrared: through the opaque dust, dozens of previously hidden protostars became visible for the first time.",
+        "The Carina Nebula is one of the most energetically active star-forming regions in the Milky Way. Larger and more massive than Orion, it is home to some of the most extreme stars known to us. JWST revealed its \"Cosmic Cliffs\" — plumes and towers of ionized gas where young stars at various stages of formation hide along every ridge."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "star-formation-pillars-of-creation",
+        "prompt": "Photorealistic illustration for a science encyclopedia: the Pillars of Creation in JWST infrared style. Three towering dark dust columns against a vivid nebula background. The columns have glowing amber-orange illuminated edges from external ultraviolet radiation. Embedded protostars visible as bright points within the pillars. Background nebula glows in deep teal and purple. Infrared false-color scientific image aesthetic, hard sci-fi style. Add the following text labels on the image: \"Pillar of Creation\", \"embedded protostar\", \"photoevaporation front\", \"Eagle Nebula\".",
+        "alt": "The Pillars of Creation in the Eagle Nebula — dark dust columns with embedded protostars, rendered in JWST infrared style",
+        "caption": "The Pillars of Creation are an iconic image of stellar birth. JWST revealed them in near-infrared in 2022, exposing dozens of protostars hidden from previous optical observations by intervening dust.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "JWST and a New Era of Star Birth",
+      "level": 2,
+      "paragraphs": [
+        "Launched in 2021, the James Webb Space Telescope opened a new era in studying star formation. Its _infrared_ instruments pierce the dust veils of molecular clouds where optical telescopes see only darkness. JWST detects thermal emission from protostars even when they are completely cocooned in dust — well before they ignite nuclear burning.",
+        "Images of the Chamaeleon cloud, the Orion nurseries, and the Cosmic Cliffs in the Carina Nebula contain hundreds of new young stellar object candidates unknown before 2022. JWST also finds that many accretion disks contain molecules of _carbon dioxide, water, and methane_ — organic chemistry forming simultaneously with planets, potentially relevant to understanding the origin of the materials from which life itself is eventually assembled.",
+        "On a broader horizon, JWST allows scientists to study star formation in galaxies of the early universe, when conditions were radically different from today: no heavy elements, far more gas, far denser clouds. The first stars of the universe — Population III stars — must have been tremendously massive and lived for only a few million years. JWST has not yet directly observed any of them, but it already detects their chemical signatures in the spectra of the oldest known galaxies."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "star-formation-jwst-carina-cliffs",
+        "prompt": "Photorealistic illustration for a science encyclopedia: the Cosmic Cliffs of the Carina Nebula in JWST style. Dramatic towering structures of glowing gas and dark dust. The top edge of the nebula glows in golden-orange where ultraviolet radiation carves away the cloud. Dozens of bright young stellar objects embedded in the cliff faces and surrounding nebulosity. Background shows a deep teal-purple ionized gas region. Infrared false-color scientific aesthetic. Add the following text labels on the image: \"Cosmic Cliffs\", \"young stellar objects\", \"photoionized edge\", \"Carina Nebula JWST 2022\".",
+        "alt": "The Cosmic Cliffs of the Carina Nebula in JWST style — gas towers with young stars and photoionized edges",
+        "caption": "The Cosmic Cliffs in the Carina Nebula were among the first JWST images released in 2022. Dozens of young stellar objects previously hidden by dust are now visible, along with the sharp photoionized edge where ultraviolet from massive stars erodes the cloud.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "From Disk to Planetary System",
+      "level": 2,
+      "paragraphs": [
+        "The accretion disk is not only fuel for the star. It is the raw material for everything that will eventually surround it. As the star brightens, its ultraviolet radiation and stellar wind begin to disperse the outer disk. At the same time, within the disk itself, _dust coagulation_ proceeds: grains collide and stick together into larger aggregates, from micrometers to centimeters, from centimeters to meters — and on to the scale of planetesimals.",
+        "Where the disk temperature drops below the freezing point of water — a boundary called the _snow line_ — volatile compounds condense into ice crystals, which dramatically lowers the energy needed for grains to stick. Beyond the snow line, icy and gas giant planets form; inside it, where volatiles are scarce, rocky planets grow. The same geometry is reproduced in our own Solar System.",
+        "Disks survive for a few million to roughly ten million years, until stellar wind and photoionization blow away the remaining gas. What is left afterward: a small number of planets, swarms of asteroids and comets, and a star on the main sequence that has finally settled into stable thermonuclear burning."
+      ]
+    }
+  ],
+  "glossary": [
+    {
+      "term": "Jeans mass",
+      "definition": "The critical mass of a gas cloud fragment above which gravitational self-attraction overcomes thermal pressure and collapse begins. Depends on the cloud's temperature and density. Named after James Jeans, who derived the criterion in the early twentieth century."
+    },
+    {
+      "term": "Protostar",
+      "definition": "An object formed during the gravitational collapse of a molecular cloud fragment, prior to the ignition of sustained hydrogen fusion. Its energy source is gravitational contraction (the Kelvin-Helmholtz mechanism). Surrounded by an accretion disk."
+    },
+    {
+      "term": "Accretion disk",
+      "definition": "A flat, rotating disk of gas and dust surrounding a protostar. Infalling material enters the disk rather than falling directly onto the star, because conservation of angular momentum forces the gas to orbit. Matter spirals inward through the disk via viscosity and magnetic instabilities."
+    },
+    {
+      "term": "T Tauri star",
+      "definition": "A young pre-main-sequence star that has not yet ignited stable nuclear burning but is already visible at optical wavelengths. Characterized by a strong magnetic field, irregular flares, active accretion, and powerful jets. The prototype is the star T Tauri in the constellation Taurus."
+    },
+    {
+      "term": "Bipolar jet (Herbig-Haro)",
+      "definition": "A narrow, collimated stream of ionized gas ejected from the magnetic poles of a protostar along its rotation axis. Where the jet strikes surrounding material it creates Herbig-Haro objects — bright bow-shaped shock fronts."
+    },
+    {
+      "term": "Herbig-Haro object",
+      "definition": "A bright knot of ionized gas produced where a young stellar jet collides with the circumstellar or interstellar medium. First catalogued by George Herbig and Guillermo Haro in the mid-twentieth century. HH-30 is a classic example imaged by Hubble in the 1990s."
+    },
+    {
+      "term": "Hierarchical fragmentation",
+      "definition": "The process by which a collapsing molecular cloud breaks into smaller fragments, each of which also exceeds the Jeans mass and independently collapses. This explains why stars almost always form in clusters rather than isolation."
+    },
+    {
+      "term": "Snow line",
+      "definition": "The boundary in a protoplanetary disk where the temperature falls below the condensation point of water and other volatile compounds. Beyond the snow line, icy bodies and gas giants form; inside it, rocky planets predominate. The same boundary shaped the architecture of our Solar System."
+    },
+    {
+      "term": "Planetesimal",
+      "definition": "An intermediate body in the planet-formation process — a solid object ranging from meters to kilometers in diameter, formed in the accretion disk by the sticking of dust grains. Planetesimals aggregate further by gravity to form protoplanets."
+    }
+  ],
+  "quiz": [
+    {
+      "question": "What is the Jeans mass and why does it matter for star formation?",
+      "options": [
+        "The maximum mass a main-sequence star can reach before leaving the main sequence",
+        "The critical mass above which a gas cloud's gravity overcomes pressure, triggering collapse",
+        "The mass of gas a protostar accretes from its disk per million years",
+        "The minimum mass required to ignite thermonuclear fusion"
+      ],
+      "correctIndex": 1,
+      "explanation": "The Jeans mass is the threshold above which gravitational contraction exceeds thermal pressure in a gas cloud, initiating irreversible collapse. Below the threshold the cloud is stable. The value depends on temperature and density: a colder, denser cloud has a lower Jeans mass and is easier to push into collapse."
+    },
+    {
+      "question": "Why do molecular clouds typically produce entire star clusters rather than a single star?",
+      "options": [
+        "Because the galactic magnetic field splits the cloud into equal-sized pieces",
+        "Because of hierarchical fragmentation: the cloud breaks into smaller pieces, each of which collapses independently",
+        "Because the stellar wind from the first protostar pushes gas into neighboring zones",
+        "Because all stars are born from one protostar and then disperse"
+      ],
+      "correctIndex": 1,
+      "explanation": "A collapsing molecular cloud does not converge into a single object. It fragments into pieces, each of which also exceeds the Jeans mass and collapses on its own. This process of hierarchical fragmentation explains why stars form in clusters."
+    },
+    {
+      "question": "Which 2014 observation changed how astronomers think about the timeline of planet formation?",
+      "options": [
+        "A JWST image of the Chamaeleon cloud revealing hidden protostars",
+        "An ALMA image of the HL Tauri disk showing rings and gaps in a sub-million-year-old system",
+        "Hubble's discovery of the HH-30 Herbig-Haro object",
+        "An infrared image of the Orion Nebula revealing disk structures"
+      ],
+      "correctIndex": 1,
+      "explanation": "In 2014, the ALMA telescope array captured the protoplanetary disk of HL Tauri — a star less than one million years old — already showing well-defined rings and gaps indicating planets in the act of forming. This contradicted the then-dominant view that planet formation requires tens of millions of years, forcing a revision of planetary formation models."
+    },
+    {
+      "question": "What is the primary function of bipolar jets in a young protostellar system?",
+      "options": [
+        "To heat the accretion disk and prevent it from cooling too quickly",
+        "To synthesize heavy elements before nuclear burning begins",
+        "To carry away excess angular momentum, allowing accretion to continue",
+        "To repel neighboring protostars and secure more gas for the central star"
+      ],
+      "correctIndex": 2,
+      "explanation": "Jets remove surplus angular momentum from the accreting material. Without this mechanism, the angular momentum of infalling gas would halt accretion entirely — the star could not gain mass. Jets effectively \"unload\" the system, allowing matter to spiral onto the protostar."
+    },
+    {
+      "question": "How does the snow line in a protoplanetary disk influence the types of planets that form?",
+      "options": [
+        "It sets the surface temperature of the forming star",
+        "Inside the snow line, gas giants form; outside it, rocky planets dominate",
+        "Beyond the snow line, condensed volatiles increase solid material, favoring large cores and gas or ice giants",
+        "It limits the length of bipolar jets by stopping their outward propagation"
+      ],
+      "correctIndex": 2,
+      "explanation": "Beyond the snow line, temperatures drop below the condensation point of water and other volatiles. Their solidification greatly increases the amount of solid material available and lowers the energy barrier for grain sticking. This gives rise to massive icy cores that can gravitationally capture hydrogen and helium envelopes, forming gas or ice giants. Inside the snow line, where volatiles remain gaseous, only denser rocky planets accumulate."
+    }
+  ],
+  "sources": [
+    {
+      "title": "McKee C.F., Ostriker E.C. — Theory of Star Formation",
+      "url": "https://www.annualreviews.org/doi/10.1146/annurev.astro.45.051806.110602",
+      "meta": "Annual Review of Astronomy and Astrophysics, 45, 2007"
+    },
+    {
+      "title": "ALMA Partnership — High Angular Resolution ALMA Observations of HL Tau",
+      "url": "https://iopscience.iop.org/article/10.1088/2041-8205/808/1/L3",
+      "meta": "ApJL, 808, L3, 2015 — open access"
+    },
+    {
+      "title": "NASA JWST — Cosmic Cliffs in the Carina Nebula (2022)",
+      "url": "https://www.nasa.gov/image-feature/goddard/2022/nasa-s-webb-reveals-cosmic-cliffs-in-a-star-forming-region",
+      "meta": "NASA Webb press release, July 2022"
+    },
+    {
+      "title": "NASA JWST — Pillars of Creation, NIRCam image (2022)",
+      "url": "https://www.nasa.gov/image-feature/goddard/2022/nasa-s-webb-takes-star-forming-pillars-of-creation",
+      "meta": "NASA Webb press release, October 2022"
+    },
+    {
+      "title": "Reipurth B., Bally J. — Herbig-Haro Flows: Probes of Early Stellar Evolution",
+      "url": "https://www.annualreviews.org/doi/10.1146/annurev.astro.39.1.403",
+      "meta": "Annual Review of Astronomy and Astrophysics, 39, 2001"
+    },
+    {
+      "title": "Stapelfeldt K. et al. — HH 30: An Edge-on T Tauri Disk and Jet (Hubble)",
+      "url": "https://iopscience.iop.org/article/10.1086/310199",
+      "meta": "ApJ Letters, 1998 — first high-resolution Hubble image of HH 30"
+    },
+    {
+      "title": "Carroll B.W., Ostlie D.A. — An Introduction to Modern Astrophysics (2nd ed.)",
+      "url": "https://www.pearson.com/en-us/subject-catalog/p/introduction-to-modern-astrophysics-an/P200000006757",
+      "meta": "Pearson, 2017 — ch. 12: The Interstellar Medium and Star Formation"
+    },
+    {
+      "title": "Kennicutt R.C., Evans N.J. — Star Formation in the Milky Way and Nearby Galaxies",
+      "url": "https://www.annualreviews.org/doi/10.1146/annurev-astro-081811-125610",
+      "meta": "Annual Review of Astronomy and Astrophysics, 50, 2012"
+    },
+    {
+      "title": "ESA — ALMA reveals rings and gaps in planet-forming disks",
+      "url": "https://www.eso.org/public/news/eso1436/",
+      "meta": "ESO/ALMA press release, November 2014"
+    },
+    {
+      "title": "NASA — Star Formation (Science Overview)",
+      "url": "https://science.nasa.gov/universe/stars/star-formation/",
+      "meta": "NASA Science, updated 2025"
+    }
+  ],
+  "lastVerified": "2026-05-06"
+}

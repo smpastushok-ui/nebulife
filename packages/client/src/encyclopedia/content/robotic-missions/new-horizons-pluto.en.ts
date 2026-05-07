@@ -1,0 +1,636 @@
+import type { Lesson } from '../../types.js';
+
+const lesson: Lesson = {
+  slug: 'new-horizons-pluto',
+  language: 'en',
+  section: 'robotic-missions',
+  order: 7,
+  difficulty: 'beginner',
+  readingTimeMin: 11,
+  title: 'New Horizons — Beyond Pluto',
+  subtitle: 'The fastest spacecraft ever launched from Earth, nine and a half years in the dark — and discoveries that rewrote everything we thought we knew about the edge of the Solar System.',
+
+  hero: {
+    cacheKey: 'new-horizons-pluto-hero',
+    prompt:
+      'Photorealistic science encyclopedia illustration: the New Horizons spacecraft in deep space with Pluto and its moon Charon visible in the background. ' +
+      'Spacecraft shown in detail — gold-foil insulation, dish antenna, RTG power unit on boom. ' +
+      'Pluto rendered as a reddish-brown sphere with a bright heart-shaped nitrogen ice region. ' +
+      'Charon shown smaller with reddish polar cap. Deep black starfield. ' +
+      'Hard sci-fi style, dramatic lighting, dark space background. ' +
+      'Add the following text labels on the image: "New Horizons", "Pluto", "Charon", "Tombaugh Regio".',
+    alt: 'The New Horizons spacecraft against Pluto with its bright heart-shaped Tombaugh Regio and moon Charon',
+    caption:
+      'New Horizons at closest approach to Pluto in July 2015. The spacecraft passed approximately twelve thousand kilometers above the surface — closer than the International Space Station orbits above Earth.',
+    aspectRatio: '16:9',
+  },
+
+  body: [
+    {
+      paragraphs: [
+        'On the first day of 2006 — while most of the world was still sleeping off the New Year — ' +
+        'a rocket lifted off from Cape Canaveral carrying a silver-white spacecraft roughly the size of a grand piano. ' +
+        'New Horizons was heading for Pluto. Nobody knew what it would find there. ' +
+        'That was precisely what made the mission worth doing.',
+
+        'Pluto had been known since the first half of the twentieth century, ' +
+        'yet it remained a point of light even in the most powerful telescopes. ' +
+        'Every image reduced it to a smeared blob. ' +
+        'Eighty-five years after discovery it was still a mystery — ' +
+        'a small cold body somewhere at the edge of the known, in the Kuiper Belt. ' +
+        'Sending a spacecraft there meant finally looking the unknown in the face.',
+
+        'What scientists saw when the data finally arrived overturned every expectation. ' +
+        'Pluto turned out to be geologically alive — complex and surprising. ' +
+        'Not a dead frozen ball, but a world of mountains, plains, atmospheric haze, ' +
+        'and ongoing material transport processes. ' +
+        'A spacecraft costing less than one billion dollars changed planetary science permanently.',
+      ],
+    },
+
+    {
+      heading: 'Clyde Tombaugh and the discovery of 1930',
+      level: 2,
+      paragraphs: [
+        'Pluto was discovered by twenty-four-year-old Clyde Tombaugh in February 1930 — ' +
+        'a young astronomer at Lowell Observatory in Arizona who spent months comparing photographic plates ' +
+        'of the night sky taken on different nights, looking for objects that shifted position against the background stars. ' +
+        'He found a tiny point moving exactly as an unknown planetoid should move.',
+
+        'The discovery was a sensation. For decades Pluto was called the ninth planet, ' +
+        'until a new classification arrived in the first decade of the twenty-first century: dwarf planet. ' +
+        'Tombaugh himself lived until 1997 — just long enough to know a mission was being planned, ' +
+        'but not long enough to see it fly. ' +
+        'Part of his ashes was sealed in a special container aboard New Horizons ' +
+        'and is now traveling into interstellar space. ' +
+        'Humanity sent the discoverer along with his discovery.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'new-horizons-pluto-tombaugh',
+        prompt:
+          'Science encyclopedia illustration: split-screen comparison. Left side — a vintage 1930s photographic blink comparator plate showing two faint star fields with a small moving dot circled in white, labeled "Pluto discovery plate 1930". ' +
+          'Right side — a modern high-resolution photorealistic image of Pluto showing the heart-shaped Tombaugh Regio, icy plains, and mountains. ' +
+          'Dark space background, hard sci-fi style, monospace labels. ' +
+          'Add the following text labels on the image: "1930 discovery plate", "Pluto 2015".',
+        alt: 'Comparison: the Pluto discovery plate from 1930 and the first detailed image from New Horizons in 2015',
+        caption:
+          'From a faint dot on a photographic plate to a detailed continental map — eighty-five years of waiting and nine and a half years of flight.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'The fastest launch and the Jupiter gravity assist',
+      level: 2,
+      paragraphs: [
+        'New Horizons left Earth at a record speed for any human-made object launched from our planet: ' +
+        'approximately fifty-eight thousand kilometers per hour. ' +
+        'For comparison, the spacecraft passed the Moon in only nine hours — ' +
+        'a journey that took the Apollo astronauts three days.',
+
+        'Even that speed was not enough to reach Pluto in a reasonable time without help. ' +
+        'The trajectory was designed to pass close to Jupiter: ' +
+        'the gravitational pull of the largest planet in the Solar System acted as a natural accelerator. ' +
+        'In 2007, New Horizons swung past Jupiter and borrowed a portion of its orbital energy — ' +
+        'this maneuver, known as a gravity assist or gravitational slingshot, ' +
+        'added approximately four kilometers per second to the spacecraft\'s speed ' +
+        'and cut three years from the journey. ' +
+        'Without this flyby the arrival at Pluto would have been delayed until the early 2020s.',
+
+        'During the Jupiter approach and flyby the spacecraft also conducted real science: ' +
+        'it studied lightning in the gas giant\'s atmosphere, ' +
+        'captured an eruption from the volcano Tvashtar on the moon Io, ' +
+        'and observed Jupiter\'s rings and smaller moons. ' +
+        'This was not merely a gravitational stepping stone — it was a complete mini-mission in its own right.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'New Horizons trajectory through the Solar System',
+        svg: `<svg viewBox="0 0 700 420" xmlns="http://www.w3.org/2000/svg">
+  <rect width="700" height="420" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Title -->
+  <text x="350" y="22" fill="#aabbcc" font-family="monospace" font-size="12" text-anchor="middle">New Horizons trajectory (2006–2019+)</text>
+
+  <!-- Sun -->
+  <circle cx="80" cy="210" r="18" fill="#ff8844" opacity="0.9"/>
+  <text x="80" y="238" fill="#ff8844" font-family="monospace" font-size="10" text-anchor="middle">Sun</text>
+
+  <!-- Jupiter orbit arc (dashed) -->
+  <ellipse cx="80" cy="210" rx="130" ry="80" fill="none" stroke="#334455" stroke-width="1" stroke-dasharray="6,5" opacity="0.5"/>
+  <!-- Jupiter position -->
+  <circle cx="170" cy="130" r="10" fill="#ff8844" opacity="0.7"/>
+  <text x="174" y="118" fill="#ff8844" font-family="monospace" font-size="10">Jupiter</text>
+  <text x="174" y="106" fill="#8899aa" font-family="monospace" font-size="9">2007</text>
+
+  <!-- Saturn orbit arc (dashed) -->
+  <ellipse cx="80" cy="210" rx="220" ry="130" fill="none" stroke="#334455" stroke-width="1" stroke-dasharray="6,5" opacity="0.4"/>
+
+  <!-- Uranus orbit arc (dashed) -->
+  <ellipse cx="80" cy="210" rx="330" ry="180" fill="none" stroke="#334455" stroke-width="1" stroke-dasharray="6,5" opacity="0.3"/>
+
+  <!-- Neptune orbit arc (dashed) -->
+  <ellipse cx="80" cy="210" rx="430" ry="220" fill="none" stroke="#334455" stroke-width="1" stroke-dasharray="6,5" opacity="0.25"/>
+
+  <!-- Pluto position -->
+  <circle cx="580" cy="108" r="7" fill="#7bb8ff" opacity="0.85"/>
+  <text x="594" y="106" fill="#7bb8ff" font-family="monospace" font-size="10">Pluto</text>
+  <text x="594" y="118" fill="#8899aa" font-family="monospace" font-size="9">2015</text>
+
+  <!-- Arrokoth position -->
+  <circle cx="660" cy="170" r="5" fill="#44ff88" opacity="0.75"/>
+  <text x="668" y="168" fill="#44ff88" font-family="monospace" font-size="9">Arrokoth</text>
+  <text x="668" y="180" fill="#8899aa" font-family="monospace" font-size="9">2019</text>
+
+  <!-- New Horizons trajectory -->
+  <path d="M 80 210 Q 140 155 170 130 Q 300 80 580 108 Q 620 130 660 170"
+        fill="none" stroke="#cc4444" stroke-width="2.5" opacity="0.9"/>
+
+  <!-- Direction arrows on trajectory -->
+  <polygon points="248,90 238,97 245,83" fill="#cc4444" opacity="0.9"/>
+  <polygon points="430,94 420,98 428,84" fill="#cc4444" opacity="0.9"/>
+
+  <!-- Launch label -->
+  <circle cx="80" cy="210" r="4" fill="#aabbcc" opacity="0.9"/>
+  <text x="62" y="260" fill="#aabbcc" font-family="monospace" font-size="10" text-anchor="middle">Launch</text>
+  <text x="62" y="272" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">2006</text>
+
+  <!-- Gravity assist label -->
+  <line x1="170" y1="130" x2="200" y2="155" stroke="#ff8844" stroke-width="1" stroke-dasharray="3,3" opacity="0.6"/>
+  <text x="200" y="168" fill="#ff8844" font-family="monospace" font-size="9">gravity assist</text>
+  <text x="200" y="180" fill="#ff8844" font-family="monospace" font-size="9">+4 km/s</text>
+
+  <!-- Trajectory label -->
+  <text x="350" y="400" fill="#aabbcc" font-family="monospace" font-size="10" text-anchor="middle">Kuiper Belt</text>
+  <line x1="480" y1="390" x2="600" y2="340" stroke="#334455" stroke-width="1" stroke-dasharray="3,4" opacity="0.4"/>
+
+  <!-- Legend -->
+  <line x1="20" y1="380" x2="50" y2="380" stroke="#cc4444" stroke-width="2.5"/>
+  <text x="56" y="384" fill="#aabbcc" font-family="monospace" font-size="9">New Horizons trajectory</text>
+  <line x1="20" y1="395" x2="50" y2="395" stroke="#334455" stroke-width="1" stroke-dasharray="6,5"/>
+  <text x="56" y="399" fill="#8899aa" font-family="monospace" font-size="9">planetary orbits (schematic)</text>
+</svg>`,
+        caption:
+          'New Horizons trajectory from Earth through the Solar System. The Jupiter gravity assist in 2007 added speed and cut three years from the journey. After the Pluto flyby in 2015, the spacecraft continued into the Kuiper Belt for the Arrokoth encounter in 2019.',
+      },
+    },
+
+    {
+      heading: 'Nine and a half years in hibernation',
+      level: 2,
+      paragraphs: [
+        'Between Jupiter and Pluto stretched years of silence. ' +
+        'The spacecraft was placed in a reduced-power hibernation mode to preserve instrument lifetime. ' +
+        'Most of the time New Horizons simply slept — only the onboard computer periodically checked in, ' +
+        'sending a weekly beacon to confirm all systems were nominal. ' +
+        'The mission team ran annual checkouts and rehearsed the encounter sequence, ' +
+        'preparing for the moment when everything would have to work flawlessly.',
+
+        'New Horizons is powered by a radioisotope thermoelectric generator — ' +
+        'a device that converts heat from the natural decay of plutonium-238 into electricity through thermoelectric elements. ' +
+        'Solar panels would be nearly useless at such distances from the Sun: ' +
+        'sunlight in the Kuiper Belt is thousands of times weaker than at Earth. ' +
+        'Radioisotope power is the only viable solution for missions beyond Saturn\'s orbit.',
+
+        'On the approach to Pluto in 2015, the spacecraft fully woke up. ' +
+        'Months of pre-encounter checkouts confirmed all instruments were healthy. ' +
+        'But the flyby contained one critical moment with no margin for error: ' +
+        'the closest approach happened exactly once, lasted only a few hours, ' +
+        'and there was no possibility of returning for another pass.',
+      ],
+    },
+
+    {
+      heading: 'July 14, 2015 — thirteen and a half hours of silence',
+      level: 2,
+      paragraphs: [
+        'On the day of closest approach — July 14, 2015 — the spacecraft was supposed to execute ' +
+        'its full science observation sequence rather than maintain contact with Earth. ' +
+        'The mission team waited and knew nothing: ' +
+        'a signal from approximately five billion kilometers away takes more than four and a half hours to arrive. ' +
+        'Thirteen and a half hours after the calculated moment of closest approach, ' +
+        'the control room finally received confirmation: the spacecraft was alive, everything was recorded.',
+
+        'The communication delay is a tangible demonstration of the Solar System\'s scale. ' +
+        'A real-time conversation with New Horizons is physically impossible: ' +
+        'by the time you finish your first sentence, the words will reach the spacecraft four and a half hours later. ' +
+        'All commands are planned well in advance and uploaded days or weeks ahead. ' +
+        'The onboard computer autonomously handles thousands of decisions — ' +
+        'the humans on the ground plan, then wait.',
+
+        'During the flyby the spacecraft captured images of Pluto and its five moons, ' +
+        'measured the temperature and composition of the atmosphere, ' +
+        'detected magnetic field interactions, and mapped surface topography in detail. ' +
+        'In total, approximately six and a half gigabytes of scientific data were collected.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'new-horizons-pluto-heart',
+        prompt:
+          'Photorealistic science illustration of Pluto surface close-up for a science encyclopedia: ' +
+          'a vast nitrogen ice plain (Sputnik Planitia) forming the left lobe of a heart shape, ' +
+          'bordered by water-ice mountains rising several kilometers, ' +
+          'atmospheric haze layers visible near the limb as thin blue arcs, ' +
+          'reddish-brown organic compounds (tholins) coloring the darker regions, ' +
+          'cold dark space in background. Hard sci-fi style, accurate planetary science. ' +
+          'Add the following text labels on the image: "Sputnik Planitia (nitrogen ice)", "water-ice mountains", "atmospheric haze", "tholins".',
+        alt: 'Pluto surface — nitrogen ice plain Sputnik Planitia, water-ice mountains, and atmospheric haze layers',
+        caption:
+          'Sputnik Planitia — a nitrogen ice plain roughly the size of Texas — fills the left lobe of Tombaugh Regio. It is bordered by water-ice mountain ranges rising three to four kilometers. The atmospheric haze extends more than two hundred kilometers above the surface.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'What New Horizons found: portrait of a strange world',
+      level: 2,
+      paragraphs: [
+        'The first and most stunning discovery was Tombaugh Regio — ' +
+        'a continent-sized heart-shaped region covered in bright nitrogen ice. ' +
+        'The left lobe — Sputnik Planitia — is a giant impact basin filled with nitrogen, ' +
+        'methane, and carbon monoxide ice. ' +
+        'Computer modeling shows the ice circulates in slow convective cells, ' +
+        'like a pot of extremely viscous porridge with lazy bubbles. ' +
+        'The surface is geologically young — no more than a few million years old — ' +
+        'completely free of impact craters, meaning any older terrain has long since been recycled.',
+
+        'Surrounding the plains are mountains of water ice rising three to four kilometers. ' +
+        'Water ice on Pluto is harder than rock: ' +
+        'at temperatures of minus two hundred and thirty degrees Celsius ' +
+        'it behaves like granite. ' +
+        'These mountains are the most visible proof that the dwarf planet\'s surface is geologically active.',
+
+        'Pluto\'s atmosphere is thin but chemically complex. ' +
+        'It is predominantly nitrogen with traces of methane and carbon monoxide. ' +
+        'New Horizons detected multiple haze layers extending more than two hundred kilometers upward — ' +
+        'far higher than anyone had predicted. ' +
+        'The haze forms when ultraviolet solar radiation breaks apart methane molecules: ' +
+        'the reaction products polymerize into organic particles called tholins ' +
+        'that give Pluto its characteristic reddish tint.',
+
+        'Charon — Pluto\'s largest moon — was equally surprising. ' +
+        'Its northern polar cap is stained with reddish material — almost certainly tholins ' +
+        'that drifted from Pluto\'s atmosphere across the space between the two bodies ' +
+        'and were captured by Charon\'s gravity. ' +
+        'The moon\'s surface also shows a massive canyon system, ' +
+        'evidence of ancient geological activity on a world far smaller than expected.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'new-horizons-pluto-charon-scale',
+        prompt:
+          'Scientific scale comparison illustration for a science encyclopedia: Pluto and Charon shown side by side to scale. ' +
+          'Pluto is a reddish-brown sphere with a bright heart-shaped nitrogen ice region labeled "Tombaugh Regio". ' +
+          'Charon is a grey-brown sphere with a distinctive dark reddish polar cap labeled "Mordor Macula". ' +
+          'Size ratio approximately 2:1 (Pluto to Charon). Earth\'s Moon shown smaller on the far right for reference. ' +
+          'Dark space background. Hard sci-fi style, monospace labels. ' +
+          'Add the following text labels on the image: "Pluto 2376 km", "Charon 1212 km", "Moon 3474 km".',
+        alt: 'Size comparison of Pluto, Charon, and Earth\'s Moon at the same scale',
+        caption:
+          'Pluto and Charon form a true double system: Charon is so large relative to Pluto that their common center of mass lies in the space between them rather than inside Pluto. Pluto\'s diameter is two thousand three hundred and seventy-six kilometers; Charon\'s is one thousand two hundred and twelve kilometers.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      diagram: {
+        title: 'Pluto and Charon: size compared to the Moon',
+        svg: `<svg viewBox="0 0 680 280" xmlns="http://www.w3.org/2000/svg">
+  <rect width="680" height="280" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Title -->
+  <text x="340" y="22" fill="#aabbcc" font-family="monospace" font-size="12" text-anchor="middle">Pluto, Charon and the Moon (to scale)</text>
+
+  <!-- Pluto: diameter 2376 km, scale 1px=15km, r=79px -->
+  <circle cx="170" cy="150" r="79" fill="#7b5533" opacity="0.85"/>
+  <!-- Heart region -->
+  <ellipse cx="155" cy="140" rx="28" ry="24" fill="#ddddcc" opacity="0.75" transform="rotate(-15,155,140)"/>
+  <text x="170" y="250" fill="#7bb8ff" font-family="monospace" font-size="11" text-anchor="middle">Pluto</text>
+  <text x="170" y="263" fill="#8899aa" font-family="monospace" font-size="10" text-anchor="middle">2,376 km</text>
+
+  <!-- Charon: diameter 1212 km, r=40px -->
+  <circle cx="350" cy="150" r="40" fill="#6a6070" opacity="0.85"/>
+  <!-- Red polar cap -->
+  <ellipse cx="350" cy="112" rx="28" ry="10" fill="#883322" opacity="0.7"/>
+  <text x="350" y="205" fill="#7bb8ff" font-family="monospace" font-size="11" text-anchor="middle">Charon</text>
+  <text x="350" y="218" fill="#8899aa" font-family="monospace" font-size="10" text-anchor="middle">1,212 km</text>
+
+  <!-- Moon: diameter 3474 km, r=116px -->
+  <circle cx="540" cy="150" r="116" fill="#445566" opacity="0.7"/>
+  <text x="540" y="278" fill="#aabbcc" font-family="monospace" font-size="11" text-anchor="middle">Moon</text>
+  <text x="540" y="265" fill="#8899aa" font-family="monospace" font-size="10" text-anchor="middle">3,474 km</text>
+
+  <!-- Dimension lines -->
+  <line x1="91" y1="235" x2="249" y2="235" stroke="#334455" stroke-width="1"/>
+  <line x1="91" y1="231" x2="91" y2="239" stroke="#334455" stroke-width="1"/>
+  <line x1="249" y1="231" x2="249" y2="239" stroke="#334455" stroke-width="1"/>
+
+  <line x1="310" y1="200" x2="390" y2="200" stroke="#334455" stroke-width="1"/>
+  <line x1="310" y1="196" x2="310" y2="204" stroke="#334455" stroke-width="1"/>
+  <line x1="390" y1="196" x2="390" y2="204" stroke="#334455" stroke-width="1"/>
+
+  <!-- Note -->
+  <text x="340" y="14" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">scale: 1 pixel = 15 km</text>
+</svg>`,
+        caption:
+          'Pluto is smaller than Earth\'s Moon, but not by much. Charon is unusually large for a moon: relative to its parent body it is bigger than any other known moon in the Solar System. The two bodies are gravitationally locked and always face each other with the same hemisphere.',
+      },
+    },
+
+    {
+      heading: 'Sixteen months at one kilobit per second',
+      level: 2,
+      paragraphs: [
+        'Data from Pluto arrived at a rate of approximately one kilobit per second. ' +
+        'For comparison, a typical home internet connection is a thousand times faster. ' +
+        'Six and a half gigabytes of science data took sixteen months to transmit — ' +
+        'the downlink was not complete until October 2016. ' +
+        'Each image and each spectroscopic dataset arrived in a slow trickle, ' +
+        'and scientists assembled the picture like a mosaic of thousands of tiny pieces.',
+
+        'The feeble signal is a direct consequence of distance. ' +
+        'Radio waves spread outward spherically, and their power falls in proportion to the square of the distance. ' +
+        'From Pluto to Earth is approximately five billion kilometers — ' +
+        'more than thirty-three times the distance from Earth to the Sun. ' +
+        'The two-and-a-half-meter dish antenna on the spacecraft and the giant ground antennas ' +
+        'of up to seventy meters in diameter together barely captured this whisper from the dark.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'new-horizons-pluto-atmosphere',
+        prompt:
+          'Photorealistic science encyclopedia illustration: New Horizons view of Pluto backlit by the Sun, showing the thin atmosphere as multiple blue haze layers against the dark background of space. ' +
+          'The crescent of Pluto visible with dramatic limb lighting revealing atmospheric haze bands at different altitudes. ' +
+          'Hard sci-fi style, dark space background, accurate atmospheric optics. ' +
+          'Add the following text labels on the image: "nitrogen atmosphere", "haze layers 200km+", "backlit limb".',
+        alt: 'Pluto backlit by the Sun showing thin atmospheric haze layers as blue arcs above the surface',
+        caption:
+          'One of the mission\'s most striking images — Pluto backlit by the Sun. Atmospheric haze is visible as a series of thin blue arcs. This viewing angle is only possible after the spacecraft has already passed its target — looking back toward the Sun.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Arrokoth: first close-up of a primordial Kuiper Belt object',
+      level: 2,
+      paragraphs: [
+        'After Pluto the mission did not end. ' +
+        'The team selected a new target in the Kuiper Belt — a small body first catalogued as 2014 MU69, ' +
+        'later named Arrokoth. ' +
+        'There was no gravity assist available — the spacecraft simply flew onward in a straight line, ' +
+        'with only minimal course corrections needed to intercept the target.',
+
+        'On the first day of 2019, New Horizons passed within approximately three thousand five hundred kilometers of Arrokoth. ' +
+        'What the scientists saw was unexpected: ' +
+        'Arrokoth is a contact binary — two separate bodies that merged into one ' +
+        'and together resemble a snowman or a peanut shape. ' +
+        'The two lobes press gently against each other at a slight angle and rotate as a unit.',
+
+        'The scientific value of Arrokoth is enormous precisely because of its location. ' +
+        'In the Kuiper Belt, far from the Sun, conditions have changed very little since the Solar System formed: ' +
+        'no strong heating, minimal meteorite bombardment, little geological activity. ' +
+        'Arrokoth is a primordial object — effectively a time capsule from the era of planet formation. ' +
+        'The shape of the contact binary tells a story: two proto-planetary clumps drifted slowly together ' +
+        'and merged very gently, without any violent collision. ' +
+        'This supports a model called pebble accretion, ' +
+        'in which small solid bodies form by gentle clumping rather than high-speed impacts.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'new-horizons-pluto-arrokoth',
+        prompt:
+          'Photorealistic science illustration: Arrokoth (2014 MU69) contact binary Kuiper Belt Object in deep space. ' +
+          'Two lobes of reddish-brown material gently pressed together, forming a snowman or peanut shape. ' +
+          'Surface shows subtle color variations — one lobe slightly redder than the other. ' +
+          'New Horizons spacecraft visible as small glinting object nearby for scale. ' +
+          'Hard sci-fi style, dark space background, accurate solar illumination from distant Sun. ' +
+          'Add the following text labels on the image: "Arrokoth", "contact binary", "larger lobe (Wenu)", "smaller lobe (Weeyo)".',
+        alt: 'Arrokoth — a contact binary Kuiper Belt object resembling a snowman',
+        caption:
+          'Arrokoth: the first Kuiper Belt object photographed at close range. The two lobes merged very slowly — no signs of violent impact. This is direct evidence of how small solid bodies formed in the early Solar System.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'What comes next: the Kuiper Belt and the path to interstellar space',
+      level: 2,
+      paragraphs: [
+        'New Horizons is still flying. ' +
+        'In the mid-2020s it is more than eight billion kilometers from Earth — ' +
+        'beyond the orbit of Neptune, in the outer Kuiper Belt. ' +
+        'The radioisotope generator still produces enough power to run the core systems, ' +
+        'though output declines slowly with each passing year.',
+
+        'The mission team submitted a proposal for an extended program: ' +
+        'observing distant Kuiper Belt objects, measuring the background neutral hydrogen density, ' +
+        'and studying the heliosphere from a unique vantage point. ' +
+        'A further close flyby is also under discussion — ' +
+        'if a suitable object can be identified along the spacecraft\'s trajectory before the early 2030s.',
+
+        'Eventually New Horizons will leave the heliosphere and become the fifth human-made object ' +
+        'to exit the Solar System — following Pioneer 10, Pioneer 11, Voyager 1, and Voyager 2. ' +
+        'On board: a disk containing the names of nearly five hundred thousand people who registered to participate in the mission, ' +
+        'photographs of the mission team, and a portion of Clyde Tombaugh\'s ashes. ' +
+        'Humanity sent the discoverer\'s remains along with the mission that finally revealed his world.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'new-horizons-pluto-mission-overview',
+        prompt:
+          'Photorealistic science infographic for encyclopedia: New Horizons spacecraft shown in profile with labeled science instruments. ' +
+          'Key instruments labeled: main camera (LORRI), color and infrared spectrometer (Ralph), UV spectrometer (Alice), radio science antenna, RTG power unit. ' +
+          'Spacecraft body shows gold thermal insulation, dish antenna, instrument boom. ' +
+          'Dark space background. Hard sci-fi style, monospace labels. ' +
+          'Add the following text labels on the image: "LORRI camera", "Ralph spectrometer", "Alice UV", "dish antenna 2.1m", "RTG power".',
+        alt: 'New Horizons spacecraft diagram with labeled science instruments and structural components',
+        caption:
+          'New Horizons carries seven science instruments to study the atmosphere, surface, magnetic environment, and dust of Pluto and the Kuiper Belt. The spacecraft weighed approximately four hundred and eighty kilograms at launch.',
+        aspectRatio: '4:3',
+      },
+    },
+  ],
+
+  glossary: [
+    {
+      term: 'Kuiper Belt',
+      definition:
+        'A region of the Solar System beyond the orbit of Neptune, extending roughly from thirty to fifty astronomical units from the Sun. It contains billions of small bodies — ices, rock, and organic compounds — left over from the formation of the planetary system.',
+    },
+    {
+      term: 'Dwarf planet',
+      definition:
+        'A body orbiting the Sun that has sufficient mass for gravity to pull it into a roughly spherical shape, but that has not cleared the neighborhood of its orbit of other objects. Pluto, Eris, Haumea, and Makemake are recognized dwarf planets.',
+    },
+    {
+      term: 'Gravity assist (gravitational slingshot)',
+      definition:
+        'A spacecraft navigation technique in which a flyby of a massive body such as a planet allows the spacecraft to gain or lose orbital energy without expending propellant. The Jupiter gravity assist in 2007 added approximately four kilometers per second to New Horizons.',
+    },
+    {
+      term: 'Radioisotope thermoelectric generator',
+      definition:
+        'A power source for deep-space spacecraft that converts heat from the natural radioactive decay of plutonium-238 into electricity through thermoelectric elements. Requires no sunlight and operates for decades, making it the only practical power source beyond Saturn.',
+    },
+    {
+      term: 'Tholins',
+      definition:
+        'Complex organic compounds formed when ultraviolet and ionizing radiation act on simple molecules such as methane, nitrogen, and carbon monoxide. Tholins give Pluto and Charon their characteristic reddish-brown color.',
+    },
+    {
+      term: 'Contact binary',
+      definition:
+        'Two separate solid bodies that touch or have merged as a result of very slow gravitational approach. Arrokoth is the first contact binary object photographed in detail by a spacecraft.',
+    },
+    {
+      term: 'Tombaugh Regio',
+      definition:
+        'A large bright heart-shaped region on the surface of Pluto, covered in nitrogen ice. Its left lobe — Sputnik Planitia — is geologically young and crater-free. Named after Clyde Tombaugh, the discoverer of Pluto.',
+    },
+    {
+      term: 'Heliosphere',
+      definition:
+        'The vast bubble created by the solar wind around the Solar System. At the outer boundary — the heliopause — the solar wind is balanced by the pressure of the interstellar medium. Voyager 1 crossed the heliopause in 2012.',
+    },
+    {
+      term: 'Sputnik Planitia',
+      definition:
+        'A large impact basin on Pluto filled with nitrogen ice that circulates in slow convective cells. Geologically young surface with no visible impact craters, estimated to be no more than a few million years old.',
+    },
+  ],
+
+  quiz: [
+    {
+      question: 'Why did New Horizons perform a gravity assist at Jupiter?',
+      options: [
+        'To photograph Jupiter — that was the primary science target of the mission',
+        'To gain speed from Jupiter\'s gravity and cut years from the travel time to Pluto',
+        'Because the direct trajectory to Pluto passed straight through the Jupiter system',
+        'To recharge the radioisotope generator using Jupiter\'s radiation belts',
+      ],
+      correctIndex: 1,
+      explanation:
+        'The Jupiter gravity assist in 2007 added approximately four kilometers per second to the spacecraft\'s speed and shortened the journey to Pluto by three years. Without it, arrival would have been delayed until the early 2020s.',
+    },
+    {
+      question: 'Why did transmitting data from Pluto take sixteen months?',
+      options: [
+        'The spacecraft only transmitted data during Earth\'s nighttime hours',
+        'The instruments were still collecting new measurements for most of that period',
+        'The enormous distance made the signal very weak, limiting the rate to approximately one kilobit per second',
+        'The dish antenna was damaged during the flyby and operated at reduced capacity',
+      ],
+      correctIndex: 2,
+      explanation:
+        'At approximately five billion kilometers away, the radio signal is extremely faint. The data rate was approximately one kilobit per second — roughly a thousand times slower than a home internet connection. Six and a half gigabytes of data took sixteen months to download.',
+    },
+    {
+      question: 'What is Arrokoth and why is it scientifically significant?',
+      options: [
+        'A moon of Pluto discovered during the New Horizons flyby',
+        'A contact binary Kuiper Belt object — a primordial body preserving conditions from the early Solar System',
+        'An asteroid between Jupiter and Saturn photographed on the way to Pluto',
+        'A crater on Pluto\'s surface named after an indigenous community',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Arrokoth is a contact binary Kuiper Belt object visited in January 2019. Its scientific value lies in being a primordial body: conditions in the Kuiper Belt have changed very little since the Solar System formed, making Arrokoth effectively a time capsule of planet formation. Its gentle merger shape supports pebble accretion models of planetesimal formation.',
+    },
+    {
+      question: 'How does New Horizons generate electricity so far from the Sun?',
+      options: [
+        'Large solar panels deployed after leaving Jupiter\'s shadow',
+        'Hydrogen fuel cells carried from launch',
+        'A radioisotope thermoelectric generator powered by plutonium-238 decay heat',
+        'A water-cooled nuclear fission reactor',
+      ],
+      correctIndex: 2,
+      explanation:
+        'Sunlight in the Kuiper Belt is thousands of times weaker than at Earth — solar panels are useless there. New Horizons is powered by a radioisotope thermoelectric generator: heat from the decay of plutonium-238 is converted into electricity by thermoelectric elements. This is the only practical power source for missions beyond Saturn\'s orbit.',
+    },
+    {
+      question: 'What did New Horizons discover about Pluto\'s atmosphere?',
+      options: [
+        'No atmosphere exists — the surface is bare ice exposed directly to space',
+        'A dense atmosphere containing oxygen and water vapor',
+        'A thin nitrogen atmosphere with haze layers extending more than two hundred kilometers altitude',
+        'An atmosphere mostly of carbon dioxide, similar in composition to Mars',
+      ],
+      correctIndex: 2,
+      explanation:
+        'New Horizons detected a thin nitrogen atmosphere with traces of methane and carbon monoxide, and multiple haze layers reaching more than two hundred kilometers altitude — far higher than predicted. The haze consists of tholins — organic particles formed when solar ultraviolet radiation breaks apart methane molecules.',
+    },
+  ],
+
+  sources: [
+    {
+      title: 'NASA — New Horizons Mission Overview',
+      url: 'https://www.nasa.gov/mission_pages/newhorizons/main/',
+      meta: 'NASA, open access, updated 2024',
+    },
+    {
+      title: 'Stern S.A. et al. — The Pluto system: Initial results from its exploration by New Horizons',
+      url: 'https://www.science.org/doi/10.1126/science.aad1815',
+      meta: 'Science, 2015, vol. 350, open access',
+    },
+    {
+      title: 'NASA — New Horizons: Pluto Flyby Results',
+      url: 'https://www.nasa.gov/feature/new-horizons-spacecraft-displays-pluto-s-big-heart',
+      meta: 'NASA, 2015, open access',
+    },
+    {
+      title: 'Stern S.A. et al. — Initial results from the New Horizons exploration of 2014 MU69',
+      url: 'https://www.science.org/doi/10.1126/science.aaw9771',
+      meta: 'Science, 2019, vol. 364, open access',
+    },
+    {
+      title: 'McKinnon W.B. et al. — Convection in a volatile nitrogen-ice-rich layer drives Pluto\'s geological vigour',
+      url: 'https://www.nature.com/articles/nature18289',
+      meta: 'Nature, 2016, open access',
+    },
+    {
+      title: 'Gladstone G.R. et al. — The atmosphere of Pluto as observed by New Horizons',
+      url: 'https://www.science.org/doi/10.1126/science.aad8866',
+      meta: 'Science, 2016, vol. 351, open access',
+    },
+    {
+      title: 'Johns Hopkins APL — New Horizons Mission Page',
+      url: 'https://www.jhuapl.edu/NewHorizons/',
+      meta: 'Johns Hopkins Applied Physics Laboratory, open access',
+    },
+    {
+      title: 'NASA — New Horizons: Arrokoth Flyby and Naming',
+      url: 'https://www.nasa.gov/feature/new-horizons-team-makes-it-official-ultima-thule-is-named-arrokoth',
+      meta: 'NASA, 2019, open access',
+    },
+    {
+      title: 'Tombaugh C.W. — The Discovery of Pluto (1946)',
+      url: 'https://articles.adsabs.harvard.edu/full/1946ASPL....5..73T',
+      meta: 'Astronomical Society of the Pacific Leaflets, 1946, open access',
+    },
+    {
+      title: 'ESA — The Kuiper Belt: An Overview',
+      url: 'https://www.esa.int/Science_Exploration/Space_Science/Rosetta/The_Kuiper_Belt',
+      meta: 'European Space Agency, open access',
+    },
+  ],
+
+  lastVerified: '2026-05-06',
+};
+
+export default lesson;

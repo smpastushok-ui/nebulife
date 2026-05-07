@@ -1,0 +1,642 @@
+import type { Lesson } from '../../types.js';
+
+const lesson: Lesson = {
+  slug: 'solar-sails',
+  language: 'en',
+  section: 'space-tech',
+  order: 10,
+  difficulty: 'intermediate',
+  readingTimeMin: 11,
+  title: 'Solar Sails',
+  subtitle: 'How photon momentum can propel a spacecraft without a single gram of fuel — and why this is not fiction but engineered reality.',
+
+  hero: {
+    cacheKey: 'solar-sails-hero',
+    prompt:
+      'Photorealistic illustration of a solar sail spacecraft in deep space for a science encyclopedia: ' +
+      'an enormous square ultra-thin aluminized reflective sail spanning the entire frame, ' +
+      'golden sunlight streaming from the lower left and reflecting off the sail surface, ' +
+      'a tiny spacecraft bus attached at the center with thin deployment booms visible, ' +
+      'deep black starfield background, dramatic contrast between bright sail and dark space. ' +
+      'Hard sci-fi style, technically plausible geometry, cinematic lighting. ' +
+      'Add the following text labels on the image: "reflective sail film", "deployment boom", "spacecraft bus", "photon pressure".',
+    alt: 'Solar sail spacecraft in deep space — a vast reflective film deployed on thin booms, sunlight reflecting off the aluminized surface',
+    caption:
+      'A solar sail the size of several tennis courts weighs only a few kilograms. Photon pressure at Earth orbit is barely perceptible, but in the frictionless vacuum it accumulates over months and years, accelerating the craft to velocities unreachable by any chemical engine with an equivalent resource budget.',
+    aspectRatio: '16:9',
+  },
+
+  body: [
+    {
+      paragraphs: [
+        'The idea of sailing on sunlight sounds like poetic metaphor — until you work through the physics. ' +
+        'Photons carry no rest mass, but they carry momentum. When a stream of light strikes a reflective ' +
+        'surface and bounces back, the spacecraft receives a double impulse: one from absorption, one from reflection. ' +
+        'This is not magic or metaphor. It is a straightforward application of conservation of momentum, ' +
+        'written into Maxwell\'s equations in the middle of the nineteenth century.',
+
+        'The radiation pressure of sunlight at a distance of one astronomical unit from the Sun — ' +
+        'that is, at the Earth\'s orbital distance — is approximately nine micronewtons per square meter. ' +
+        'That is roughly the force with which a single dust particle might press against a sheet of paper. ' +
+        'It sounds negligible. But in vacuum there is no friction. No drag. This microscopic push accumulates ' +
+        'day after day, week after week, and after a year the spacecraft may be moving significantly faster ' +
+        'than any chemical engine could have achieved with the same starting mass.',
+
+        'The fundamental advantage of a solar sail is the inexhaustible nature of the energy source. ' +
+        'A chemical engine burns its propellant and falls silent. An ion thruster consumes xenon. ' +
+        'A sail receives thrust as long as sunlight falls on it. ' +
+        'In the inner Solar System that means continuous motion without expenditure — theoretically, indefinitely.',
+      ],
+    },
+
+    {
+      heading: 'The physics: momentum without mass',
+      level: 2,
+      paragraphs: [
+        'To understand why a photon pushes, one must return to special relativity. ' +
+        'Albert Einstein showed that energy and momentum are related even for particles without rest mass. ' +
+        'For a photon, the momentum _p_ equals the energy _E_ divided by the speed of light _c_: ' +
+        'p = E / c. The speed of light — approximately three hundred million meters per second — ' +
+        'makes this momentum vanishingly small for a single photon. ' +
+        'But the Sun delivers roughly three and a half followed by twenty-seven zeros photons ' +
+        'per second onto every square centimeter at Earth\'s orbit.',
+
+        'If the surface reflects perfectly rather than absorbing, the pressure doubles: ' +
+        'a reflected photon transfers twice as much momentum to the sail as one that is simply absorbed. ' +
+        'This is why sail material must be as reflective as possible. ' +
+        'Aluminized Mylar or Kapton — thin polymer films with a vacuum-deposited aluminum layer — ' +
+        'reflect more than ninety percent of visible light at a thickness of around five micrometers. ' +
+        'That is five times thinner than a human hair.',
+
+        'The acceleration the craft receives depends on two things: ' +
+        'the area of the sail (larger area means greater force) ' +
+        'and the total mass of the spacecraft (lower mass means higher acceleration). ' +
+        'Designers of solar sails therefore wage a relentless campaign against every gram: ' +
+        'the film must be as thin as possible, the deployment booms as light as possible, ' +
+        'and the onboard electronics as minimal as possible. ' +
+        'A few grams can be the difference between a successful mission and an expensive piece of orbital debris.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'solar-sails-photon-pressure-diagram',
+        prompt:
+          'Scientific diagram illustrating radiation pressure on a solar sail for a science encyclopedia: ' +
+          'incoming sunlight rays shown as parallel yellow arrows striking a flat reflective surface, ' +
+          'reflected rays bouncing back at equal angles shown as orange arrows, ' +
+          'net thrust arrow pointing away from the sun labeled "thrust vector", ' +
+          'small spacecraft bus labeled at the sail center, ' +
+          'force equation p=E/c shown in monospace text in the corner. ' +
+          'Hard sci-fi style, dark space background, monospace labels, cyan and orange accent colors. ' +
+          'Add the following text labels on the image: "incoming photons", "reflected photons", "net thrust", "p = E/c".',
+        alt: 'Diagram of radiation pressure on a solar sail: incoming photons reflect off the surface, producing a net thrust vector',
+        caption:
+          'With ideal reflection, each photon delivers twice as much momentum to the sail as it would through simple absorption. The sail material is therefore not just a lightweight film — it is the most optically efficient coating engineers can produce.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Materials: thinner, lighter, tougher',
+      level: 2,
+      paragraphs: [
+        'The first generation of practical solar sails uses aluminized Mylar or Kapton — ' +
+        'films originally developed for flexible electronics and satellite thermal protection. ' +
+        'Their thickness ranges from roughly two to eight micrometers. ' +
+        'For comparison, a typical plastic grocery bag is a hundred times thicker.',
+
+        'The central engineering challenge is deployment. ' +
+        'A sail folded into a transport volume the size of a suitcase must unfurl in vacuum ' +
+        'into a structure several hundred square meters in area, remaining flat, taut, and crease-free. ' +
+        'Creases are critical: they alter the local angle of reflection and make thrust unpredictable. ' +
+        'To control this, deployment booms are made from fiberglass or carbon fiber ' +
+        'in the form of thin tubes coiled like a tape measure and extended by the elastic springback of the material.',
+
+        'The next generation of sail research investigates carbon nanotubes, graphene, ' +
+        'and ultra-thin evaporated metal films. ' +
+        'The theoretical limit is sails thinner than one micrometer with an areal density ' +
+        'of only a few grams per square meter. ' +
+        'Such sails would yield accelerations several times greater than current designs ' +
+        'and open the possibility of genuine interplanetary transit in years rather than decades.',
+      ],
+    },
+
+    {
+      heading: 'Missions: from concept to confirmed principle',
+      level: 2,
+      paragraphs: [
+        'The idea of a solar sail was discussed through the middle of the twentieth century — ' +
+        'even Konstantin Tsiolkovsky, a pioneer of rocket theory, mentioned light pressure as a potential driving force. ' +
+        'But the transition from concept to orbit took several decades until the technology matured.',
+
+        'The first genuine success came in 2010, when the Japan Aerospace Exploration Agency launched Ikaros — ' +
+        'the Interplanetary Kite-craft Accelerated by Radiation Of the Sun — ' +
+        'the first interplanetary solar sail demonstrator. ' +
+        'The spacecraft deployed a fourteen-meter square sail made of aluminized polyimide film ' +
+        'eight micrometers thick and confirmed that photon pressure measurably altered its trajectory. ' +
+        'It was the first time in history that a solar sail had successfully operated in interplanetary space, ' +
+        'with the craft completing its Venus flyby on schedule.',
+
+        'That same year, the National Aeronautics and Space Administration launched NanoSail-D2 — ' +
+        'a nanosatellite that deployed a ten-square-meter sail in low Earth orbit. ' +
+        'The mission lasted three hundred and eighty days and validated the reliability ' +
+        'of the deployment mechanism at the small-satellite scale.',
+
+        'In 2019, The Planetary Society launched LightSail 2 — ' +
+        'a citizen-funded cubesat that became the first spacecraft in history to raise its Earth orbit ' +
+        'exclusively through solar radiation pressure, with no chemical thruster. ' +
+        'The spacecraft raised its perigee by approximately three kilometers over a single month, ' +
+        'then gradually lost altitude to atmospheric drag and reentered in 2022. ' +
+        'The demonstration of controlled orbital altitude increase by sail alone ' +
+        'was a landmark result for civilian space exploration.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'solar-sails-ikaros-deployment',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia of a solar sail spacecraft deploying its sail in deep space: ' +
+          'a square sail with four triangular panels fully extended on thin carbon fiber booms, ' +
+          'shiny aluminized surface catching sunlight against a deep black starfield, ' +
+          'Venus visible as a bright crescent in the background, ' +
+          'small central spacecraft bus with antennas and solar panels visible. ' +
+          'Hard sci-fi style, technically accurate, dramatic lighting. ' +
+          'Add the following text labels on the image: "14m sail", "aluminized film", "deployment boom", "spacecraft bus".',
+        alt: 'Spacecraft with a deployed fourteen-meter square sail in interplanetary space — Venus visible in the background',
+        caption:
+          'The Ikaros spacecraft (Japan Aerospace Exploration Agency, 2010) — the first solar sail to successfully complete an interplanetary trajectory. The mission confirmed a measurable photon-pressure effect on an orbital path in open space.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Recent missions: from cubesats to heavy demonstrators',
+      level: 2,
+      paragraphs: [
+        'In the early years of the 2020s the technology graduated from isolated demonstrations ' +
+        'to systematic development. ' +
+        'The National Aeronautics and Space Administration launched Near-Earth Asteroid Scout ' +
+        'as a secondary payload on the first flight of the Space Launch System in 2022. ' +
+        'The goal was a solar-sail flyby of a small near-Earth asteroid. ' +
+        'Unfortunately, contact with the spacecraft was never established after deployment.',
+
+        'In 2024, the National Aeronautics and Space Administration flew the Advanced Composite Solar Sail System — ' +
+        'a next-generation demonstrator. ' +
+        'The mission tested carbon fiber composite deployment booms ' +
+        'that are lighter and stiffer than previous metallic structures. ' +
+        'The spacecraft successfully deployed a sail of approximately ninety square meters in low Earth orbit ' +
+        'and confirmed that the new materials halved the structural mass ' +
+        'without sacrificing deployment reliability.',
+
+        'In parallel, the agency is developing Solar Cruiser — ' +
+        'a large demonstrator spanning approximately eleven hundred square meters, ' +
+        'intended to station itself at the Sun-Earth Lagrange point L1 ' +
+        'for continuous solar flare observation. ' +
+        'If Solar Cruiser flies in the second half of the 2020s, ' +
+        'it will be the largest solar sail ever deployed in space.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Timeline of solar sail demonstrator missions',
+        svg: `<svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg">
+  <rect width="700" height="260" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Title -->
+  <text x="350" y="22" fill="#aabbcc" font-family="monospace" font-size="12" text-anchor="middle">Solar Sail Missions — Timeline</text>
+
+  <!-- Timeline axis -->
+  <line x1="40" y1="120" x2="660" y2="120" stroke="#334455" stroke-width="2"/>
+
+  <!-- Year ticks -->
+  <line x1="40" y1="115" x2="40" y2="125" stroke="#667788" stroke-width="1"/>
+  <text x="40" y="138" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">2010</text>
+
+  <line x1="165" y1="115" x2="165" y2="125" stroke="#667788" stroke-width="1"/>
+  <text x="165" y="138" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">2013</text>
+
+  <line x1="290" y1="115" x2="290" y2="125" stroke="#667788" stroke-width="1"/>
+  <text x="290" y="138" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">2016</text>
+
+  <line x1="413" y1="115" x2="413" y2="125" stroke="#667788" stroke-width="1"/>
+  <text x="413" y="138" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">2019</text>
+
+  <line x1="538" y1="115" x2="538" y2="125" stroke="#667788" stroke-width="1"/>
+  <text x="538" y="138" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">2022</text>
+
+  <line x1="660" y1="115" x2="660" y2="125" stroke="#667788" stroke-width="1"/>
+  <text x="660" y="138" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">2025</text>
+
+  <!-- IKAROS 2010 -->
+  <circle cx="40" cy="120" r="6" fill="#44ff88" opacity="0.9"/>
+  <line x1="40" y1="114" x2="40" y2="70" stroke="#44ff88" stroke-width="1" stroke-dasharray="3,3" opacity="0.6"/>
+  <text x="42" y="65" fill="#44ff88" font-family="monospace" font-size="9">IKAROS</text>
+  <text x="42" y="76" fill="#8899aa" font-family="monospace" font-size="8">1st interplanetary</text>
+
+  <!-- NanoSail-D2 2010 -->
+  <circle cx="58" cy="120" r="5" fill="#7bb8ff" opacity="0.9"/>
+  <line x1="58" y1="126" x2="58" y2="178" stroke="#7bb8ff" stroke-width="1" stroke-dasharray="3,3" opacity="0.6"/>
+  <text x="30" y="190" fill="#7bb8ff" font-family="monospace" font-size="9">NanoSail-D2</text>
+  <text x="30" y="201" fill="#8899aa" font-family="monospace" font-size="8">LEO demo</text>
+
+  <!-- LightSail 2 2019 -->
+  <circle cx="413" cy="120" r="6" fill="#ff8844" opacity="0.9"/>
+  <line x1="413" y1="114" x2="413" y2="65" stroke="#ff8844" stroke-width="1" stroke-dasharray="3,3" opacity="0.6"/>
+  <text x="415" y="60" fill="#ff8844" font-family="monospace" font-size="9">LightSail 2</text>
+  <text x="415" y="71" fill="#8899aa" font-family="monospace" font-size="8">1st orbit raise</text>
+
+  <!-- NEA Scout 2022 -->
+  <circle cx="538" cy="120" r="5" fill="#cc4444" opacity="0.8"/>
+  <line x1="538" y1="126" x2="538" y2="175" stroke="#cc4444" stroke-width="1" stroke-dasharray="3,3" opacity="0.6"/>
+  <text x="508" y="187" fill="#cc4444" font-family="monospace" font-size="9">NEA Scout</text>
+  <text x="508" y="198" fill="#8899aa" font-family="monospace" font-size="8">contact lost</text>
+
+  <!-- ACS3 2024 -->
+  <circle cx="614" cy="120" r="6" fill="#44ff88" opacity="0.9"/>
+  <line x1="614" y1="114" x2="614" y2="65" stroke="#44ff88" stroke-width="1" stroke-dasharray="3,3" opacity="0.6"/>
+  <text x="590" y="60" fill="#44ff88" font-family="monospace" font-size="9">ACS3 (2024)</text>
+  <text x="590" y="71" fill="#8899aa" font-family="monospace" font-size="8">composite booms</text>
+
+  <!-- Solar Cruiser ~2026+ -->
+  <circle cx="660" cy="120" r="5" fill="#7bb8ff" opacity="0.7"/>
+  <line x1="660" y1="126" x2="660" y2="178" stroke="#7bb8ff" stroke-width="1" stroke-dasharray="3,3" opacity="0.6"/>
+  <text x="616" y="190" fill="#7bb8ff" font-family="monospace" font-size="9">Solar Cruiser</text>
+  <text x="616" y="201" fill="#8899aa" font-family="monospace" font-size="8">1100 m² — planned</text>
+
+  <!-- Legend -->
+  <circle cx="50" cy="235" r="4" fill="#44ff88" opacity="0.9"/>
+  <text x="58" y="239" fill="#8899aa" font-family="monospace" font-size="9">successful mission</text>
+  <circle cx="185" cy="235" r="4" fill="#cc4444" opacity="0.8"/>
+  <text x="193" y="239" fill="#8899aa" font-family="monospace" font-size="9">partial / failure</text>
+  <circle cx="315" cy="235" r="4" fill="#7bb8ff" opacity="0.7"/>
+  <text x="323" y="239" fill="#8899aa" font-family="monospace" font-size="9">planned</text>
+</svg>`,
+        caption:
+          'From first principle confirmation in 2010 to large demonstrators in the 2020s — ' +
+          'solar sail technology is following an accelerating path from concept to operational instrument.',
+      },
+    },
+
+    {
+      heading: 'Navigation: steering without an engine',
+      level: 2,
+      paragraphs: [
+        'The elegance of a solar sail is also its challenge: there is no engine to throttle in a chosen direction. ' +
+        'Instead, the spacecraft tilts the sail relative to the Sun.',
+
+        'When the sail is perpendicular to the sunlight, thrust is maximum ' +
+        'but directed straight away from the Sun. ' +
+        'Tilting the sail at an angle reduces total thrust but introduces a lateral component. ' +
+        'By combining tilts at different phases of the orbit, ' +
+        'the spacecraft can reshape its trajectory — raising or lowering the perigee and apogee. ' +
+        'LightSail 2 demonstrated this in 2019: the small cubesat methodically tilted its sail ' +
+        'every few minutes and incrementally raised its orbit.',
+
+        'In the more distant future, solar sail navigation may become far more sophisticated. ' +
+        'Theoretical calculations show that a sail can even fly closer to the Sun — ' +
+        'effectively against the solar wind, by choosing the tilt correctly — ' +
+        'enabling orbits fundamentally impossible for chemical spacecraft: ' +
+        'stationary solar observation posts outside the ecliptic plane, ' +
+        'monitoring platforms above the poles of the Sun.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'solar-sails-navigation-tilt',
+        prompt:
+          'Scientific diagram illustrating solar sail navigation by tilting for a science encyclopedia: ' +
+          'three positions of a sail relative to the Sun shown in sequence, ' +
+          'first sail perpendicular to sunlight with maximum thrust arrow, ' +
+          'second sail tilted 45 degrees showing reduced thrust and lateral component, ' +
+          'third sail tilted to show orbit-raising maneuver, ' +
+          'Earth orbit shown as ellipse with before and after positions labeled, ' +
+          'Sun shown as bright disk lower left. ' +
+          'Hard sci-fi style, dark background, monospace labels, orange and cyan accent colors. ' +
+          'Add the following text labels on the image: "max thrust", "tilt maneuver", "orbit raises", "sun direction".',
+        alt: 'Diagram of solar sail navigation by tilt angle: the angle of the sail relative to the Sun determines the thrust vector and orbit shape',
+        caption:
+          'Tilting the sail by a few degrees redirects the thrust vector. By tilting at the right moment in the orbit, the spacecraft can raise or lower its altitude without any chemical propellant — a principle validated by LightSail 2 in 2019.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Breakthrough Starshot: sails between the stars',
+      level: 2,
+      paragraphs: [
+        'The fact that sunlight provides only a faint push is a limitation that can be circumvented ' +
+        'by replacing the Sun with a powerful laser. ' +
+        'That is the premise of Breakthrough Starshot, announced in the mid-2010s ' +
+        'with support from physicist Stephen Hawking and technology patron Yuri Milner.',
+
+        'The concept: launch microcraft — chips the size of a postage stamp — ' +
+        'on ultra-lightweight sails a few square meters in area. ' +
+        'A ground-based laser array with a combined power of several gigawatts ' +
+        'would accelerate each craft to twenty percent of the speed of light in a matter of minutes. ' +
+        'At that velocity, the nearest stellar system — Alpha Centauri, ' +
+        'at a distance of four point three light-years — would be reached in approximately twenty years.',
+
+        'The engineering challenges are immense. ' +
+        'Synchronizing thousands of laser apertures into a single coherent beam through the atmosphere ' +
+        'is an adaptive optics problem of unprecedented scale. ' +
+        'The sail, during the minutes of acceleration, would experience thermal and radiation loads ' +
+        'thousands of times greater than any terrestrial condition. ' +
+        'And a craft traveling at twenty percent of light speed would flash past Alpha Centauri ' +
+        'in a few hours — with no means of braking, only time for a handful of images. ' +
+        'The project currently sits in the physics research and component prototyping phase. ' +
+        'But the simple fact that serious physicists are treating this as a tractable engineering problem ' +
+        'already represents a shift in what the horizon of the possible looks like.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'solar-sails-starshot-laser',
+        prompt:
+          'Photorealistic science fiction illustration for a science encyclopedia of Breakthrough Starshot concept: ' +
+          'an enormous ground-based laser array facility in a high-altitude desert at night, ' +
+          'thousands of laser beams converging upward into the night sky forming a single intense beam, ' +
+          'a tiny reflective gram-scale spacecraft sail visible high above catching the laser beam, ' +
+          'stars and Milky Way visible in background. ' +
+          'Hard sci-fi style, dramatic atmosphere, technically plausible scale. ' +
+          'Add the following text labels on the image: "laser array", "gram-scale sail", "20% light speed", "4.3 light years".',
+        alt: 'Breakthrough Starshot concept: a ground-based laser array accelerates a microgram-scale sail to twenty percent of the speed of light',
+        caption:
+          'Breakthrough Starshot proposes replacing the Sun with a gigawatt-class laser array. Instead of solar photons — an engineered beam. Instead of years of gradual acceleration — minutes. The target: Alpha Centauri in twenty years of travel time.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Why solar sails are not yet mainstream',
+      level: 2,
+      paragraphs: [
+        'A solar sail has three fundamental limitations that constrain widespread adoption.',
+
+        'First: the slow start. ' +
+        'Acceleration from photon pressure is on the order of micrometers per second squared. ' +
+        'For comparison, a rocket at liftoff accelerates ten billion times faster. ' +
+        'Escaping the gravitational well of Earth or Jupiter is categorically beyond a sail\'s reach. ' +
+        'It works only where there is no strong gravitational gradient and where time is available — months and years.',
+
+        'Second: fragility. ' +
+        'A film only a few micrometers thick tears from micrometeorites, ' +
+        'degrades under ultraviolet radiation, and demands a perfectly controlled deployment. ' +
+        'None of the real missions have yet encountered damage from natural microparticles in flight, ' +
+        'but for extended deep-space voyages the question remains open.',
+
+        'Third: falloff with distance. ' +
+        'Radiation pressure drops with the square of distance from the Sun. ' +
+        'At Mars\'s orbit it is roughly half as strong as at Earth. ' +
+        'Beyond Jupiter\'s orbit it is twenty-five times weaker. ' +
+        'In the outer Solar System a sail provides almost no useful thrust.',
+
+        'For missions where these constraints are not a barrier — ' +
+        'a long drift through the inner Solar System, ' +
+        'a stationary observation post near the Sun, ' +
+        'small spacecraft on low-cost missions — ' +
+        'a solar sail is an elegantly economical solution. ' +
+        'The fuel supply is infinite. No engine is required. There is nothing to fail.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Force geometry: sail angle and thrust vector',
+        svg: `<svg viewBox="0 0 680 300" xmlns="http://www.w3.org/2000/svg">
+  <rect width="680" height="300" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Title -->
+  <text x="340" y="22" fill="#aabbcc" font-family="monospace" font-size="12" text-anchor="middle">Solar Sail Thrust Geometry</text>
+
+  <!-- Sun -->
+  <circle cx="70" cy="150" r="28" fill="#ff8844" opacity="0.85"/>
+  <text x="70" y="155" fill="#020510" font-family="monospace" font-size="9" text-anchor="middle">Sun</text>
+
+  <!-- Solar rays -->
+  <line x1="98" y1="140" x2="200" y2="130" stroke="#ff8844" stroke-width="1.5" opacity="0.7"/>
+  <line x1="98" y1="150" x2="200" y2="150" stroke="#ff8844" stroke-width="1.5" opacity="0.7"/>
+  <line x1="98" y1="160" x2="200" y2="170" stroke="#ff8844" stroke-width="1.5" opacity="0.7"/>
+
+  <!-- Sail perpendicular (case A) -->
+  <line x1="200" y1="100" x2="200" y2="200" stroke="#7bb8ff" stroke-width="3" stroke-linecap="round"/>
+  <text x="204" y="95" fill="#7bb8ff" font-family="monospace" font-size="9">A: perpendicular</text>
+
+  <!-- Reflected rays case A -->
+  <line x1="200" y1="130" x2="300" y2="130" stroke="#44ff88" stroke-width="1.5" opacity="0.7"/>
+  <line x1="200" y1="150" x2="300" y2="150" stroke="#44ff88" stroke-width="1.5" opacity="0.7"/>
+  <line x1="200" y1="170" x2="300" y2="170" stroke="#44ff88" stroke-width="1.5" opacity="0.7"/>
+
+  <!-- Thrust arrow case A -->
+  <line x1="200" y1="150" x2="340" y2="150" stroke="#44ff88" stroke-width="2.5"/>
+  <polygon points="340,145 352,150 340,155" fill="#44ff88"/>
+  <text x="355" y="154" fill="#44ff88" font-family="monospace" font-size="10">max thrust</text>
+
+  <!-- Divider -->
+  <line x1="420" y1="50" x2="420" y2="260" stroke="#334455" stroke-width="1" stroke-dasharray="4,4" opacity="0.5"/>
+
+  <!-- Case B: tilted sail -->
+  <!-- Sun rays for case B -->
+  <line x1="98" y1="140" x2="470" y2="118" stroke="#ff8844" stroke-width="1.5" opacity="0.5"/>
+  <line x1="98" y1="150" x2="470" y2="148" stroke="#ff8844" stroke-width="1.5" opacity="0.5"/>
+  <line x1="98" y1="160" x2="470" y2="178" stroke="#ff8844" stroke-width="1.5" opacity="0.5"/>
+
+  <!-- Tilted sail (45 degrees approx) -->
+  <line x1="450" y1="90" x2="500" y2="200" stroke="#7bb8ff" stroke-width="3" stroke-linecap="round"/>
+  <text x="505" y="85" fill="#7bb8ff" font-family="monospace" font-size="9">B: tilted</text>
+
+  <!-- Thrust vector case B (split into components) -->
+  <line x1="475" y1="148" x2="575" y2="118" stroke="#44ff88" stroke-width="2.5"/>
+  <polygon points="575,113 582,124 570,122" fill="#44ff88"/>
+
+  <!-- Radial component -->
+  <line x1="475" y1="148" x2="575" y2="148" stroke="#ff8844" stroke-width="1.5" stroke-dasharray="3,3"/>
+  <text x="580" y="152" fill="#ff8844" font-family="monospace" font-size="9">radial</text>
+
+  <!-- Tangential component -->
+  <line x1="575" y1="148" x2="575" y2="118" stroke="#7bb8ff" stroke-width="1.5" stroke-dasharray="3,3"/>
+  <text x="580" y="120" fill="#7bb8ff" font-family="monospace" font-size="9">tangential</text>
+
+  <text x="480" y="108" fill="#44ff88" font-family="monospace" font-size="9">resultant</text>
+  <text x="480" y="119" fill="#44ff88" font-family="monospace" font-size="9">thrust</text>
+
+  <!-- Labels -->
+  <text x="200" y="245" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">thrust away from Sun</text>
+  <text x="475" y="245" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">steerable thrust</text>
+</svg>`,
+        caption:
+          'In the perpendicular position (A), thrust is maximum but directed purely away from the Sun. ' +
+          'When tilted (B), a tangential component appears along the orbital direction. ' +
+          'It is this tangential thrust that changes orbital velocity and reshapes the orbit, ' +
+          'turning the sail into an orbital maneuvering system.',
+      },
+    },
+  ],
+
+  glossary: [
+    {
+      term: 'Radiation pressure',
+      definition:
+        'The pressure exerted by electromagnetic radiation on any surface it strikes. At one astronomical unit from the Sun, it is approximately nine micronewtons per square meter for a perfectly reflective surface.',
+    },
+    {
+      term: 'Photon momentum',
+      definition:
+        'Although a photon has no rest mass, it carries momentum p = E / c, where E is the photon energy and c is the speed of light. The transfer of this momentum upon reflection from the sail surface is the physical origin of solar sail thrust.',
+    },
+    {
+      term: 'Sail tilt',
+      definition:
+        'The navigation technique of changing the angle between the sail plane and the direction toward the Sun. Tilting redirects the thrust vector, enabling orbital maneuvers without chemical propellant.',
+    },
+    {
+      term: 'Areal density (area-to-mass ratio)',
+      definition:
+        'The key performance parameter of a solar sail — the ratio of sail area to total spacecraft mass, measured in square meters per kilogram. Higher areal density means greater acceleration from a given photon flux.',
+    },
+    {
+      term: 'Aluminized Kapton',
+      definition:
+        'A polyimide film with a vacuum-deposited aluminum layer that is the typical material for first-generation solar sails. Thickness from two to eight micrometers. Reflects more than ninety percent of visible light.',
+    },
+    {
+      term: 'Beamed propulsion',
+      definition:
+        'A propulsion concept in which a high-power laser or microwave beam replaces sunlight to push a lightweight sail. Enables theoretically much higher accelerations than passive solar sailing. The basis of Breakthrough Starshot.',
+    },
+    {
+      term: 'Tangential thrust component',
+      definition:
+        'The component of the thrust vector directed along the spacecraft\'s orbit rather than away from the Sun. Tangential thrust changes orbital speed and therefore reshapes the orbit — raising or lowering it.',
+    },
+    {
+      term: 'Solar wind',
+      definition:
+        'A stream of charged particles (mostly protons and electrons) continuously emitted by the Sun. Not to be confused with radiation pressure: solar wind exerts roughly an order of magnitude less force on a sail and does not reflect as efficiently as photons.',
+    },
+  ],
+
+  quiz: [
+    {
+      question: 'What is the physical cause of thrust in a solar sail?',
+      options: [
+        'The sail is pushed by charged particles in the solar wind',
+        'Photons in sunlight transfer momentum to the sail when they reflect off it',
+        'The Sun\'s electromagnetic field attracts the metallic coating of the sail',
+        'Evaporation of sail material under solar heating creates a reactive jet',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Photons carry momentum p = E / c even without rest mass. When a photon reflects from the sail surface, it transfers twice as much momentum as it would through simple absorption. The accumulated momentum of billions of photons per second is the thrust. Solar wind from charged particles also pushes on the sail, but far more weakly.',
+    },
+    {
+      question: 'Which mission first demonstrated a controlled raise of a Earth orbit using solar radiation pressure alone?',
+      options: [
+        'Ikaros by the Japan Aerospace Exploration Agency in 2010',
+        'NanoSail-D2 by the National Aeronautics and Space Administration in 2010',
+        'LightSail 2 by The Planetary Society in 2019',
+        'The Advanced Composite Solar Sail System in 2024',
+      ],
+      correctIndex: 2,
+      explanation:
+        'LightSail 2 in 2019 was the first spacecraft to raise its Earth orbit exclusively through a tilted solar sail with no chemical thruster. Ikaros in 2010 confirmed the principle in interplanetary space but did not demonstrate a controlled orbit raise around Earth.',
+    },
+    {
+      question: 'Why is radiation pressure a fundamental limitation for missions to the outer Solar System?',
+      options: [
+        'Solar wind increases with distance and slows the sail',
+        'Sail material degrades from cosmic cold at large distances',
+        'Photon pressure drops with the square of distance from the Sun, becoming negligible beyond Jupiter',
+        'Jupiter\'s gravitational field prevents the sail from reaching sufficient velocity',
+      ],
+      correctIndex: 2,
+      explanation:
+        'Solar irradiance — and therefore photon pressure — falls off with the inverse square of distance. At Mars orbit it is roughly half the value at Earth. Beyond Jupiter it is twenty-five times weaker. For missions to the outer Solar System, a solar sail without additional laser boost provides almost no useful thrust.',
+    },
+    {
+      question: 'What is the goal of Breakthrough Starshot for its microcraft with sails?',
+      options: [
+        'Reach Mars orbit in three months',
+        'Accelerate to twenty percent of the speed of light and reach Alpha Centauri in twenty years',
+        'Exit the heliopause within ten years',
+        'Place a permanent solar observatory above the pole of the Sun',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Breakthrough Starshot proposes using a gigawatt-class ground-based laser array to accelerate gram-scale microcraft on lightweight sails to twenty percent of the speed of light. At that velocity, the transit to Alpha Centauri — the nearest stellar system at four point three light-years — would take approximately twenty years.',
+    },
+    {
+      question: 'How does a solar sail maneuver in orbit without a chemical engine?',
+      options: [
+        'The sail is furled and unfurled rhythmically to create a pulsed thrust',
+        'The spacecraft uses an electrodynamic tether to change orbit',
+        'Tilting the sail relative to the Sun redirects the thrust vector, reshaping the orbit',
+        'An electric charge on the film interacts with Earth\'s magnetic field',
+      ],
+      correctIndex: 2,
+      explanation:
+        'Tilting the sail relative to sunlight produces a thrust vector with a tangential component along the orbit. This component accelerates or decelerates the spacecraft, raising or lowering its altitude. This is exactly the technique LightSail 2 used in 2019 to perform the first controlled orbit raise by a solar sail.',
+    },
+  ],
+
+  sources: [
+    {
+      title: 'McInnes C. — Solar Sailing: Technology, Dynamics and Mission Applications',
+      url: 'https://link.springer.com/book/10.1007/978-1-4471-3992-8',
+      meta: 'Springer, 1999 — foundational textbook on sail dynamics',
+    },
+    {
+      title: 'JAXA — IKAROS: Interplanetary Kite-craft Accelerated by Radiation Of the Sun',
+      url: 'https://www.isas.jaxa.jp/en/missions/spacecraft/current/ikaros.html',
+      meta: 'JAXA, official mission page, 2010–2015',
+    },
+    {
+      title: 'The Planetary Society — LightSail 2 Mission Archive',
+      url: 'https://www.planetary.org/projects/lightsail',
+      meta: 'The Planetary Society, 2019–2022, open access',
+    },
+    {
+      title: 'NASA — Advanced Composite Solar Sail System (ACS3)',
+      url: 'https://www.nasa.gov/general/advanced-composite-solar-sail-system/',
+      meta: 'NASA, 2024, open access',
+    },
+    {
+      title: 'Breakthrough Starshot — Science and Technology',
+      url: 'https://breakthroughinitiatives.org/initiative/3',
+      meta: 'Breakthrough Initiatives, open access',
+    },
+    {
+      title: 'Vulpetti G. et al. — Solar Sails: A Novel Approach to Interplanetary Travel',
+      url: 'https://link.springer.com/book/10.1007/978-0-387-68500-7',
+      meta: 'Springer, 2015, 2nd ed.',
+    },
+    {
+      title: 'NASA — Solar Cruiser Mission Overview',
+      url: 'https://www.nasa.gov/solar-cruiser/',
+      meta: 'NASA, 2024, open access',
+    },
+    {
+      title: 'Tsuda Y. et al. — Flight status of IKAROS deep space solar sail demonstrator (Acta Astronautica, 2011)',
+      url: 'https://www.sciencedirect.com/science/article/pii/S0094576511001950',
+      meta: 'Acta Astronautica 69, 2011, peer-reviewed',
+    },
+    {
+      title: 'Spencer D. et al. — LightSail 2: Controlled Solar Sailing Propulsion (Journal of Spacecraft and Rockets, 2021)',
+      url: 'https://arc.aiaa.org/doi/10.2514/1.A34755',
+      meta: 'AIAA Journal of Spacecraft and Rockets, 2021',
+    },
+    {
+      title: 'Daukantas P. — Riding Light: The Physics of Solar Sails (Optics and Photonics News, 2015)',
+      url: 'https://www.optica-opn.org/home/articles/volume_26/october_2015/features/riding_light_the_physics_of_solar_sails/',
+      meta: 'Optica Publishing Group, 2015, open access',
+    },
+  ],
+
+  lastVerified: '2026-05-06',
+};
+
+export default lesson;

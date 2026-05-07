@@ -1,0 +1,720 @@
+import type { Lesson } from '../../types.js';
+
+const lesson: Lesson = {
+  slug: 'artemis',
+  language: 'en',
+  section: 'crewed-missions',
+  order: 5,
+  difficulty: 'current2026',
+  readingTimeMin: 13,
+  title: 'Artemis Program — Return to the Moon',
+  subtitle: 'How humanity is returning to the Moon half a century after Apollo — with new rockets, new partners, and new goals.',
+
+  hero: {
+    cacheKey: 'artemis-hero',
+    prompt:
+      'Photorealistic illustration for a science encyclopedia: NASA Space Launch System rocket on launch pad at night, ' +
+      'massive orange external tank and twin solid rocket boosters illuminated by floodlights, ' +
+      'crescent Moon visible high in dark sky above the rocket, ' +
+      'steam from liquid oxygen venting around the launch structure, ' +
+      'long-exposure light trails from service vehicles on the pad. ' +
+      'Hard sci-fi style, dark space background, dramatic lighting. ' +
+      'Add the following text labels on the image: "Space Launch System", "Orion capsule", "launch pad 39B".',
+    alt: 'Space Launch System rocket on the launch pad at night with the Moon visible above',
+    caption:
+      'The first launch of the Space Launch System took place in November 2022. The rocket sent the uncrewed Orion spacecraft on a lunar flyby — the first step in returning humans to the Moon since 1972.',
+    aspectRatio: '16:9',
+  },
+
+  body: [
+    {
+      paragraphs: [
+        'When Gene Cernan climbed back into the ascent stage in December 1972 and left the Moon behind, ' +
+        'nobody believed it would take more than half a century before human boots ' +
+        'touched lunar regolith again. Mars was supposed to come next. ' +
+        'Instead, more than five decades passed. ' +
+        'The Artemis program is the answer to the question of why it took so long — ' +
+        'and what has changed.',
+
+        'Artemis is not nostalgia, and it is not a repetition of Apollo. ' +
+        'Its architecture is fundamentally different: sustained presence in lunar orbit, ' +
+        'international partnership with Europe, Japan, Canada, and dozens of other nations, ' +
+        'commercial cargo deliveries to the surface, and ultimately the development ' +
+        'of technologies for the even more ambitious goal of a crewed mission to Mars. ' +
+        'The Moon here is not the final destination — it is the proving ground.',
+
+        'Comparing the scale of Artemis to Apollo works only loosely. ' +
+        'The program was born in an era when commercial spaceflight became a genuine partner to government ' +
+        'rather than a contractor for secondary tasks. ' +
+        'SpaceX, Blue Origin, Astrobotic — names that did not exist during Apollo — ' +
+        'are now central suppliers. ' +
+        'That changes not just the cost but the logic of the entire program.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'artemis-architecture-overview',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: diagram of Artemis mission architecture showing ' +
+          'Earth with launch vehicle trajectory, trans-lunar injection path curving toward the Moon, ' +
+          'Gateway station in a halo orbit around the Moon, and descent trajectory to the lunar south pole surface. ' +
+          'Space is dark with faint star field, trajectory lines in cyan and orange. ' +
+          'Hard sci-fi style, technically accurate orbital mechanics visualization. ' +
+          'Add the following text labels on the image: "Earth launch", "trans-lunar injection", "Gateway orbit", "lunar south pole landing".',
+        alt: 'Artemis mission architecture diagram from Earth launch to lunar south pole landing',
+        caption:
+          'The overall Artemis architecture: the Space Launch System sends Orion on a trans-lunar trajectory, the crew transfers to the Human Landing System in lunar orbit and descends to the surface, while Gateway serves as an orbital outpost for future missions.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'Space Launch System: descendant of the Shuttle, rival of the Saturn',
+      level: 2,
+      paragraphs: [
+        'At the center of Artemis stands the **Space Launch System** — ' +
+        'the most powerful rocket the United States has ever built. ' +
+        'It grows directly from the Space Shuttle heritage: ' +
+        'four RS-25 engines on the core stage — the same engines that powered the orbiters. ' +
+        'Two solid rocket boosters — enlarged descendants of the Shuttle boosters. ' +
+        'In the Block 1 configuration the liftoff thrust exceeds that of the Saturn V, the Apollo rocket. ' +
+        'A direct comparison is imprecise since both vehicles were optimized for different missions, ' +
+        'but by raw thrust the Space Launch System is in the same league as its legendary predecessor.',
+
+        'The rocket sends the Orion capsule beyond low Earth orbit and onto a trajectory toward the Moon. ' +
+        'Its payload to low Earth orbit in the base configuration is approximately twenty-seven metric tons, ' +
+        'which is notably less than the Saturn V. ' +
+        'But the figure that matters for a lunar mission is different: ' +
+        'the mass delivered on a trans-lunar injection trajectory. ' +
+        'There the Space Launch System is competitive — and more than adequate for the task.',
+
+        'Criticism of the rocket centers mostly on cost. ' +
+        'A single launch runs upward of two billion dollars, ' +
+        'and the rocket is expendable — the RS-25 engines fall into the ocean after every flight. ' +
+        'Unlike the Falcon Heavy or Starship, the Space Launch System recovers nothing. ' +
+        'The debate over whether ordering several Starship missions might be cheaper ' +
+        'is carried on openly even within NASA. ' +
+        'For now the government rocket remains, but the question does not go away.',
+      ],
+    },
+
+    {
+      heading: 'Orion: the deep-space crew vehicle',
+      level: 2,
+      paragraphs: [
+        '**Orion** is the crewed spacecraft designed for missions beyond low Earth orbit. ' +
+        'Its design deliberately differs from Dragon or Starliner: ' +
+        'those are optimized for trips to the International Space Station, ' +
+        'while Orion is built for days and weeks in deep space ' +
+        'with radiation shielding appropriate for conditions outside Earth\'s magnetosphere.',
+
+        'Orion\'s heat shield is the largest of its type since Apollo. ' +
+        'It withstands re-entry at speeds of approximately eleven kilometers per second — ' +
+        'nearly twice the typical re-entry speed from low Earth orbit. ' +
+        'The first uncrewed flight in November 2022 confirmed that the heat shield ' +
+        'handles this regime. A minor anomaly — deeper-than-modeled ablation on one sector — ' +
+        'became the subject of detailed investigation before the first crewed flight.',
+
+        'Orion\'s service module is supplied by the European Space Agency. ' +
+        'This is one of the most substantial international contributions to the program: ' +
+        'Europe provides the main engines, solar arrays, thermal control systems, and crew provisions. ' +
+        'The decision to delegate this component to a partner is both economic and symbolic: ' +
+        'Artemis is positioned as the first genuinely international mission to the Moon.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'artemis-orion-capsule',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: Orion crew capsule in deep space near the Moon, ' +
+          'European Service Module with four deployed solar panel wings visible, ' +
+          'sunlight illuminating one side of the spacecraft while the other is in shadow, ' +
+          'grey lunar surface visible below, dark space background. ' +
+          'Hard sci-fi style, technically accurate spacecraft proportions. ' +
+          'Add the following text labels on the image: "Orion crew module", "European Service Module", "solar panels".',
+        alt: 'Orion spacecraft with the European Service Module in deep space near the Moon',
+        caption:
+          'Orion during Artemis I in November 2022. The service module, developed by the European Space Agency, provides propulsion, electrical power, and life support systems between Earth and the Moon.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Artemis I: first step confirmed',
+      level: 2,
+      paragraphs: [
+        'In November 2022, the Space Launch System flew for the first time. ' +
+        'The uncrewed Orion capsule entered a distant retrograde orbit around the Moon, ' +
+        'flew within eighty kilometers of the surface, and returned to Earth twenty-five days later, ' +
+        'splashing down in the Pacific Ocean. ' +
+        'The mission succeeded on virtually every metric.',
+
+        'The most important technical result was confirmation of heat shield behavior ' +
+        'during re-entry at speeds characteristic of lunar missions. ' +
+        'Data from more than a thousand sensors mounted on Orion ' +
+        'formed the basis of analysis before assigning a crew. ' +
+        'The spacecraft also carried mannequins fitted with radiation dose sensors — ' +
+        'research that will help determine what protective measures living astronauts require ' +
+        'during extended stays in deep space.',
+      ],
+    },
+
+    {
+      heading: 'Artemis II: four humans around the Moon',
+      level: 2,
+      paragraphs: [
+        'The first crewed flight of the program — **Artemis II** — is scheduled for mid-2026. ' +
+        'Four crew members will fly around the Moon but will not land on it. ' +
+        'This is a full checkout of all spacecraft systems with people aboard: ' +
+        'life support, communications, maneuvering, and critically, emergency return procedures.',
+
+        'The Artemis II crew consists of four people. ' +
+        'Reid Wiseman serves as commander, a veteran of the International Space Station. ' +
+        'Victor Glover is the pilot, the first Black astronaut assigned to a lunar crew. ' +
+        'Christina Koch is the first woman selected for a lunar mission. ' +
+        'Jeremy Hansen is a Canadian Space Agency astronaut, ' +
+        'the first non-American in a lunar mission since Apollo. ' +
+        'This crew is not just a collection of qualified specialists — ' +
+        'it is also a statement about what Artemis is: ' +
+        'broader, more diverse, and more international than what came before.',
+
+        'The Artemis II trajectory is a free-return circumlunar flyby without entering lunar orbit. ' +
+        'The Moon is used as a gravitational slingshot to turn the spacecraft around and return it to Earth ' +
+        'without burning additional propellant. ' +
+        'A similar trajectory was used in the Apollo program during Apollo 13 as an emergency procedure. ' +
+        'Here it is planned from the start, as a way to validate all systems under flight conditions.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'artemis-crew-portrait',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: four astronauts in orange launch-entry suits ' +
+          'standing in front of a large window with the Moon visible in the background, ' +
+          'no faces visible — silhouettes only or view from behind, ' +
+          'spaceship interior with instrumentation panels visible on the sides. ' +
+          'Hard sci-fi style, dramatic lighting from the lunar surface reflected light. ' +
+          'Add the following text labels on the image: "Artemis II crew", "2026".',
+        alt: 'Four astronauts in launch and entry suits against a window showing the Moon',
+        caption:
+          'Artemis II crew: Reid Wiseman, Victor Glover, Christina Koch, and Jeremy Hansen — the first Canadian on a lunar flight and the first woman assigned to a lunar crew.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Artemis III: humans on the surface',
+      level: 2,
+      paragraphs: [
+        'The mission **Artemis III**, planned for approximately 2027, ' +
+        'will be the first crewed lunar landing since 1972. ' +
+        'The target area is the lunar south pole — not the equatorial zone ' +
+        'where all Apollo missions landed. ' +
+        'The choice is driven by science: the poles are interesting because they harbor ' +
+        'permanently shadowed craters — regions where sunlight never reaches.',
+
+        'The descent to the surface will be performed not by Orion ' +
+        'but by the **Human Landing System** — a separate vehicle delivered to lunar orbit in advance. ' +
+        'After more than a decade of evaluating various concepts, NASA selected SpaceX ' +
+        'and their Starship Human Landing System — an adapted version of Starship for lunar landing. ' +
+        'This is one of the more unexpected pairings in spaceflight history: ' +
+        'the most commercially ambitious rocket on the planet ' +
+        'and a traditional government program turned out to be partners for the decade\'s most prestigious mission.',
+
+        'The landing architecture differs from Apollo: ' +
+        'the astronauts transfer from Orion to the Human Landing System in lunar orbit, ' +
+        'descend to the surface, spend several days there, ' +
+        'then ascend back to orbit and transfer back to Orion for the journey home. ' +
+        'That is more complex logistics, but it allows each vehicle to be optimized ' +
+        'for its own phase of the mission.',
+      ],
+    },
+
+    {
+      heading: 'Water at the south pole: why this changes everything',
+      level: 2,
+      paragraphs: [
+        'Permanently shadowed craters near the lunar poles are among the coldest places ' +
+        'in the Solar System. Temperatures there can drop to minus two hundred and thirty degrees Celsius. ' +
+        'Under such conditions volatile compounds — water above all — ' +
+        'do not sublimate and remain as ice for billions of years.',
+
+        'Orbital probes — India\'s Chandrayaan-1, NASA\'s Lunar Reconnaissance Orbiter, ' +
+        'and the Lunar Crater Observation and Sensing Satellite mission — ' +
+        'provided compelling evidence of water ice in quantities sufficient for practical use. ' +
+        'This discovery fundamentally changes the economics of lunar missions. ' +
+        'Water is not only drinking water and hygiene for astronauts. ' +
+        'Through electrolysis it can be split into hydrogen and oxygen — ' +
+        'the components of rocket propellant. ' +
+        'A Moon with ice deposits becomes a potential spaceport ' +
+        'rather than a barren rock.',
+
+        'The technology for producing useful materials from local raw materials — ' +
+        'known as **In-Situ Resource Utilization** — ' +
+        'is one of the scientific priorities of the Artemis program. ' +
+        'Demonstration units for extracting oxygen from lunar regolith ' +
+        'are planned for delivery ahead of crewed missions. ' +
+        'If the technology is confirmed in flight, ' +
+        'it means future missions could refuel on the Moon ' +
+        'rather than carrying propellant for the entire round trip from Earth.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Artemis mission architecture: from Earth to the lunar surface',
+        svg: `<svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg">
+  <rect width="720" height="380" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Title -->
+  <text x="360" y="22" fill="#aabbcc" font-family="monospace" font-size="12" text-anchor="middle">Artemis: from launch to the Moon</text>
+
+  <!-- Earth -->
+  <circle cx="80" cy="200" r="50" fill="none" stroke="#7bb8ff" stroke-width="1.5" opacity="0.6"/>
+  <circle cx="80" cy="200" r="35" fill="#1a2a4a" stroke="#4488aa" stroke-width="1"/>
+  <text x="80" y="204" fill="#7bb8ff" font-family="monospace" font-size="10" text-anchor="middle">Earth</text>
+
+  <!-- Moon -->
+  <circle cx="620" cy="200" r="55" fill="none" stroke="#8899aa" stroke-width="1.5" opacity="0.5"/>
+  <circle cx="620" cy="200" r="40" fill="#2a2a2a" stroke="#667788" stroke-width="1"/>
+  <text x="620" y="204" fill="#aabbcc" font-family="monospace" font-size="10" text-anchor="middle">Moon</text>
+
+  <!-- Gateway orbit (Near-Rectilinear Halo Orbit) -->
+  <ellipse cx="620" cy="200" rx="90" ry="60" fill="none" stroke="#44ff88" stroke-width="1" stroke-dasharray="5,4" opacity="0.7"/>
+  <text x="710" y="155" fill="#44ff88" font-family="monospace" font-size="9" text-anchor="middle">Gateway</text>
+  <text x="710" y="167" fill="#44ff88" font-family="monospace" font-size="9" text-anchor="middle">orbit</text>
+
+  <!-- Gateway station dot -->
+  <circle cx="635" cy="142" r="5" fill="#44ff88" opacity="0.9"/>
+  <text x="648" y="138" fill="#44ff88" font-family="monospace" font-size="8">Gateway</text>
+
+  <!-- Trans-lunar trajectory -->
+  <path d="M 128 185 Q 360 80 540 165" fill="none" stroke="#ff8844" stroke-width="2" stroke-dasharray="8,4"/>
+  <text x="340" y="72" fill="#ff8844" font-family="monospace" font-size="9" text-anchor="middle">trans-lunar injection</text>
+
+  <!-- Return trajectory -->
+  <path d="M 540 235 Q 360 320 128 215" fill="none" stroke="#7bb8ff" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.7"/>
+  <text x="340" y="338" fill="#7bb8ff" font-family="monospace" font-size="9" text-anchor="middle">return to Earth</text>
+
+  <!-- SLS launch arrow -->
+  <line x1="80" y1="155" x2="80" y2="100" stroke="#ff8844" stroke-width="2"/>
+  <polygon points="80,90 75,105 85,105" fill="#ff8844"/>
+  <text x="80" y="82" fill="#ff8844" font-family="monospace" font-size="8" text-anchor="middle">SLS</text>
+  <text x="80" y="92" fill="#ff8844" font-family="monospace" font-size="8" text-anchor="middle">launch</text>
+
+  <!-- South Pole landing -->
+  <line x1="595" y1="237" x2="565" y2="275" stroke="#44ff88" stroke-width="1.5"/>
+  <circle cx="560" cy="280" r="4" fill="#44ff88" opacity="0.9"/>
+  <text x="545" y="296" fill="#44ff88" font-family="monospace" font-size="8" text-anchor="middle">Landing</text>
+  <text x="545" y="307" fill="#44ff88" font-family="monospace" font-size="8" text-anchor="middle">south pole</text>
+
+  <!-- HLS descent arrow -->
+  <line x1="575" y1="230" x2="563" y2="260" stroke="#44ff88" stroke-width="1" stroke-dasharray="3,3"/>
+  <text x="598" y="250" fill="#44ff88" font-family="monospace" font-size="8">Human</text>
+  <text x="598" y="260" fill="#44ff88" font-family="monospace" font-size="8">Landing</text>
+  <text x="598" y="270" fill="#44ff88" font-family="monospace" font-size="8">System</text>
+
+  <!-- Orion label on trajectory -->
+  <circle cx="300" cy="98" r="4" fill="#ff8844" opacity="0.9"/>
+  <text x="300" y="90" fill="#ff8844" font-family="monospace" font-size="8" text-anchor="middle">Orion</text>
+
+  <!-- Step labels -->
+  <text x="360" y="358" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">1: Launch  →  2: Trans-lunar  →  3: Gateway/orbit  →  4: Landing  →  5: Return</text>
+</svg>`,
+        caption:
+          'Simplified diagram of an Artemis lunar mission. The Space Launch System sends Orion on a trans-lunar trajectory. ' +
+          'In lunar orbit the crew transfers to the Human Landing System for descent to the surface. ' +
+          'Gateway serves as an orbital outpost for future missions.',
+      },
+    },
+
+    {
+      heading: 'Gateway: a space station orbiting the Moon',
+      level: 2,
+      paragraphs: [
+        'Running in parallel with surface missions, **Gateway** is being built — ' +
+        'a small orbital station on what is called the Near-Rectilinear Halo Orbit around the Moon. ' +
+        'This orbit is unusual: Gateway will not circle the Moon on a standard circular or elliptical path, ' +
+        'but will instead "hover" in a gravitational equilibrium point between the Moon and Earth, ' +
+        'tracing slow elongated loops. ' +
+        'Its altitude above the lunar surface will range from a few thousand to tens of thousands of kilometers. ' +
+        'The advantage is a stable orbit requiring minimal propellant to maintain. ' +
+        'The tradeoff is a more complex descent path to the surface compared to a low lunar orbit.',
+
+        'Gateway is being built as a consortium effort. ' +
+        'The first two modules — the **Power and Propulsion Element** from Maxar Technologies ' +
+        'and the **Habitation and Logistics Outpost** from Northrop Grumman — ' +
+        'are planned for delivery to lunar orbit in the late 2020s. ' +
+        'The Japan Aerospace Exploration Agency provides the environmental control and life support subsystem. ' +
+        'The Canadian Space Agency supplies a robotic arm for maintenance operations. ' +
+        'The European Space Agency is developing the International Habitation Module.',
+
+        'Gateway is not a copy of the International Space Station. ' +
+        'It is considerably smaller and designed for continuous crew occupancy only during missions, ' +
+        'operating autonomously in between. ' +
+        'Its primary function is a logistics hub for lunar surface missions ' +
+        'and a science outpost for research in cislunar space. ' +
+        'In the longer term, Gateway could become the staging point for missions to Mars.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'artemis-gateway-station',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: Gateway lunar orbital station in halo orbit around the Moon, ' +
+          'showing Power and Propulsion Element with large solar panel arrays, ' +
+          'Habitation and Logistics Outpost module attached, ' +
+          'Moon surface visible in background, Earth visible as a small blue marble in the far distance, ' +
+          'dark space background. ' +
+          'Hard sci-fi style, technically accurate spacecraft design. ' +
+          'Add the following text labels on the image: "Power and Propulsion Element", "Habitation module", "lunar orbit", "Gateway".',
+        alt: 'Gateway lunar orbital station in its Near-Rectilinear Halo Orbit with solar panels and habitat module',
+        caption:
+          'Gateway will be the first orbital station to circle the Moon rather than the Earth. ' +
+          'It will serve as a transfer hub for astronauts descending to the lunar surface ' +
+          'and potentially as a waypoint for missions heading toward Mars.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Commercial lunar deliveries: the CLPS approach',
+      level: 2,
+      paragraphs: [
+        'Not every lunar vehicle in the Artemis ecosystem is government-built. ' +
+        'The **Commercial Lunar Payload Services** program allows private companies ' +
+        'to develop their own landers and deliver scientific instruments ' +
+        'and technology demonstrations to the surface. ' +
+        'NASA pays for delivery of specific payloads ' +
+        'without designing or owning the lander itself.',
+
+        'The first missions under this program flew in 2024. ' +
+        'Astrobotic launched the Peregrine lander — it traveled toward the Moon ' +
+        'but could not land due to a propellant leak. ' +
+        'Intuitive Machines launched the Nova-C lander — ' +
+        'and it did land on the Moon in February 2024, ' +
+        'becoming the first American spacecraft on the lunar surface in over fifty years. ' +
+        'The landing was non-nominal — the lander tipped on its side — ' +
+        'but some science instruments returned data.',
+
+        'This model is fundamentally different from how NASA built lunar probes in the 1960s and 1970s. ' +
+        'Then the agency designed, built, and launched everything itself. ' +
+        'Now NASA\'s role is that of a customer and scientist, ' +
+        'while market competition among several supplier companies ' +
+        'is meant to drive down costs and increase the pace of missions.',
+      ],
+    },
+
+    {
+      heading: 'Artemis Accords: an international framework for lunar activity',
+      level: 2,
+      paragraphs: [
+        'Running alongside the technical missions, the United States initiated the **Artemis Accords** — ' +
+        'a set of principles for safe and transparent space exploration. ' +
+        'As of early 2026, more than fifty countries have signed the accords. ' +
+        'The document is not a legally binding international treaty, ' +
+        'but it sets norms: data sharing, operational transparency, ' +
+        'protection of scientific research zones from unauthorized interference, ' +
+        'and commitments on orbital debris mitigation.',
+
+        'Critics note that the Artemis Accords sidestep the existing framework of international space law — ' +
+        'in particular the Outer Space Treaty of 1967 — ' +
+        'and effectively legitimize commercial use of lunar resources without an international consensus. ' +
+        'China and Russia have not signed and are developing their own independent lunar program ' +
+        'with an orbital station and crewed landing missions outside the Artemis framework.',
+
+        'Apollo and Artemis differ not only in technology but in context. ' +
+        'Apollo was a Cold War demonstration of supremacy — ' +
+        'a two-week sprint where winning mattered in itself. ' +
+        'Artemis declares sustained presence: ' +
+        'not "go and come back" but laying the groundwork for long-term habitation ' +
+        'and eventually using lunar resources as a stepping stone toward the outer Solar System.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Ice deposits in permanently shadowed craters at the lunar south pole',
+        svg: `<svg viewBox="0 0 680 340" xmlns="http://www.w3.org/2000/svg">
+  <rect width="680" height="340" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Title -->
+  <text x="340" y="22" fill="#aabbcc" font-family="monospace" font-size="12" text-anchor="middle">Lunar south pole: ice-bearing craters</text>
+
+  <!-- Moon surface cross-section -->
+  <ellipse cx="340" cy="200" rx="280" ry="120" fill="#2a2a2a" stroke="#667788" stroke-width="1.5"/>
+
+  <!-- Surface label -->
+  <text x="340" y="96" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">lunar surface</text>
+
+  <!-- Permanently shadowed craters (darker) -->
+  <!-- Crater 1 -->
+  <ellipse cx="240" cy="185" rx="55" ry="22" fill="#1a1a2a" stroke="#4488aa" stroke-width="1" opacity="0.9"/>
+  <text x="240" y="183" fill="#7bb8ff" font-family="monospace" font-size="8" text-anchor="middle">permanent shadow</text>
+  <text x="240" y="193" fill="#44ff88" font-family="monospace" font-size="8" text-anchor="middle">H2O ice</text>
+
+  <!-- Crater 2 -->
+  <ellipse cx="390" cy="190" rx="45" ry="18" fill="#1a1a2a" stroke="#4488aa" stroke-width="1" opacity="0.9"/>
+  <text x="390" y="188" fill="#7bb8ff" font-family="monospace" font-size="8" text-anchor="middle">permanent shadow</text>
+  <text x="390" y="198" fill="#44ff88" font-family="monospace" font-size="8" text-anchor="middle">H2O ice</text>
+
+  <!-- Crater 3 (partially shadowed) -->
+  <ellipse cx="300" cy="215" rx="35" ry="14" fill="#222230" stroke="#4488aa" stroke-width="0.8" opacity="0.7"/>
+  <text x="300" y="218" fill="#44ff88" font-family="monospace" font-size="7" text-anchor="middle">ice (probe confirmed)</text>
+
+  <!-- Sunlight indicator -->
+  <line x1="50" y1="60" x2="200" y2="150" stroke="#ff8844" stroke-width="1.5" stroke-dasharray="6,3" opacity="0.8"/>
+  <polygon points="200,150 185,140 188,155" fill="#ff8844" opacity="0.8"/>
+  <text x="60" y="52" fill="#ff8844" font-family="monospace" font-size="9">Sun (low angle</text>
+  <text x="60" y="63" fill="#ff8844" font-family="monospace" font-size="9">at the pole)</text>
+
+  <!-- Pole indicator -->
+  <line x1="340" y1="82" x2="340" y2="50" stroke="#aabbcc" stroke-width="1" stroke-dasharray="3,3" opacity="0.6"/>
+  <text x="340" y="44" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">South Pole</text>
+
+  <!-- Temperature annotation -->
+  <text x="530" y="185" fill="#7bb8ff" font-family="monospace" font-size="9">T: down to -230 C</text>
+  <text x="530" y="197" fill="#8899aa" font-family="monospace" font-size="9">Water does not</text>
+  <text x="530" y="208" fill="#8899aa" font-family="monospace" font-size="9">sublimate</text>
+  <line x1="525" y1="190" x2="440" y2="190" stroke="#667788" stroke-width="0.8" stroke-dasharray="3,3" opacity="0.6"/>
+
+  <!-- ISRU annotation -->
+  <text x="100" y="280" fill="#44ff88" font-family="monospace" font-size="9">In-Situ Resource Utilization:</text>
+  <text x="100" y="292" fill="#44ff88" font-family="monospace" font-size="9">ice → H2 + O2 (rocket fuel)</text>
+  <text x="100" y="303" fill="#8899aa" font-family="monospace" font-size="9">electrolysis on-site</text>
+  <line x1="200" y1="285" x2="240" y2="210" stroke="#44ff88" stroke-width="0.8" stroke-dasharray="3,3" opacity="0.6"/>
+
+  <!-- Artemis landing zone label -->
+  <text x="340" y="270" fill="#ff8844" font-family="monospace" font-size="9" text-anchor="middle">Artemis III target landing zone</text>
+  <line x1="340" y1="262" x2="340" y2="230" stroke="#ff8844" stroke-width="0.8" stroke-dasharray="3,3" opacity="0.7"/>
+  <circle cx="340" cy="228" r="3" fill="#ff8844" opacity="0.9"/>
+</svg>`,
+        caption:
+          'Permanently shadowed craters near the lunar south pole preserve water ice at temperatures down to minus two hundred and thirty degrees Celsius. ' +
+          'In-Situ Resource Utilization technology would split that water into hydrogen and oxygen — ' +
+          'rocket propellant — making the Moon a self-sufficient staging base.',
+      },
+    },
+
+    {
+      heading: 'Apollo versus Artemis: what actually differs',
+      level: 2,
+      paragraphs: [
+        'Apollo put humans on the Moon nine years after the program was announced — ' +
+        'a record pace achieved through unprecedented financial and human resources. ' +
+        'At its peak, Apollo consumed more than four percent of the U.S. federal budget. ' +
+        'That meant roughly four hundred thousand people employed directly or through contractors. ' +
+        'That degree of concentrated effort has never been repeated.',
+
+        'Artemis is being built differently. The budget is a far smaller fraction of federal spending, ' +
+        'the pace is slower but the reach is broader — geographically and by sector. ' +
+        'The fundamentally new feature is that commercial companies are not subcontractors ' +
+        'for individual components but strategic partners with their own market incentives. ' +
+        'SpaceX holds the Human Landing System contract and builds the vehicle ' +
+        'within a broader strategy that includes its own ambitions toward Mars. ' +
+        'This is a new way of organizing deep-space exploration.',
+
+        'What Apollo and Artemis share is human curiosity, ' +
+        'which did not diminish after Cernan climbed into the ascent stage in 1972. ' +
+        'Something keeps pulling us toward places that are difficult and where no one has been. ' +
+        'The Moon is nothing in terms of distance — less than one light-second away. ' +
+        'But in terms of what we need to master — technologically, organizationally, medically — ' +
+        'it is the first genuine step in a direction from which there is no return for months at a time.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'artemis-south-pole-surface',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: lunar south pole surface landscape, ' +
+          'permanently shadowed crater wall in the foreground with frost and ice deposits visible on dark regolith, ' +
+          'a crescent Earth visible above the horizon in the black lunar sky, ' +
+          'distant sunlit mountain peaks at the crater rim catching sunlight, ' +
+          'an astronaut silhouette visible in the middle distance near a small science instrument, ' +
+          'no face visible. ' +
+          'Hard sci-fi style, dramatic lighting contrast between shadow and sunlit areas. ' +
+          'Add the following text labels on the image: "permanently shadowed crater", "ice deposits", "lunar south pole".',
+        alt: 'Lunar south pole landscape — a shadowed crater with ice and an astronaut silhouette on the horizon',
+        caption:
+          'A permanently shadowed crater near the lunar south pole. ' +
+          'This is the target region for Artemis III. ' +
+          'Ice deposits on the walls and floors of such craters could become the resource base ' +
+          'for a future lunar outpost.',
+        aspectRatio: '4:3',
+      },
+    },
+  ],
+
+  glossary: [
+    {
+      term: 'Space Launch System',
+      definition:
+        'The super-heavy launch vehicle developed by NASA for the Artemis program. It uses four RS-25 engines and two solid rocket boosters. Expendable. First launch in November 2022. Its liftoff thrust exceeds that of the Saturn V.',
+    },
+    {
+      term: 'Orion',
+      definition:
+        'The crewed spacecraft designed for missions beyond low Earth orbit. Carries up to four astronauts. The service module is supplied by the European Space Agency. Its heat shield withstands re-entry at lunar return velocities.',
+    },
+    {
+      term: 'Gateway',
+      definition:
+        'An international orbital station on the Near-Rectilinear Halo Orbit around the Moon. Built by a consortium including NASA, the European Space Agency, the Japan Aerospace Exploration Agency, and the Canadian Space Agency. Serves as a staging hub for lunar and future Mars missions.',
+    },
+    {
+      term: 'Human Landing System',
+      definition:
+        'The vehicle for landing astronauts from lunar orbit onto the lunar surface. For Artemis III the role is filled by Starship Human Landing System from SpaceX — an adapted version of Starship for operations in the lunar environment.',
+    },
+    {
+      term: 'Near-Rectilinear Halo Orbit',
+      definition:
+        'An unconventional orbit used for the Gateway station, positioned in the gravitational equilibrium zone between the Earth and the Moon. Requires minimal propellant to maintain over time. Altitude above the lunar surface varies from a few thousand to tens of thousands of kilometers.',
+    },
+    {
+      term: 'In-Situ Resource Utilization',
+      definition:
+        'The technology of producing useful materials from local resources. On the Moon this means primarily extracting water ice from permanently shadowed craters and splitting it by electrolysis into hydrogen and oxygen for rocket propellant and life support.',
+    },
+    {
+      term: 'Commercial Lunar Payload Services',
+      definition:
+        'A NASA program under which private companies develop their own lunar landers and deliver science instruments to the surface. NASA pays for delivery of specific payloads rather than owning or building the lander. The first successful mission was Intuitive Machines in February 2024.',
+    },
+    {
+      term: 'Artemis Accords',
+      definition:
+        'A set of principles for safe and transparent space activity, signed by more than fifty countries as of 2026. They establish norms for operational transparency, scientific data sharing, and orbital debris mitigation — without forming a legally binding international treaty.',
+    },
+    {
+      term: 'Permanently shadowed regions',
+      definition:
+        'Areas near the lunar poles — primarily the floors of deep craters — that never receive direct sunlight. Temperatures reach minus two hundred and thirty degrees Celsius. Water ice and other volatiles deposited there can survive for billions of years without sublimating.',
+    },
+  ],
+
+  quiz: [
+    {
+      question: 'Which rocket is the primary launch vehicle for sending Artemis astronauts toward the Moon?',
+      options: [
+        'Falcon Heavy by SpaceX',
+        'Space Launch System by NASA',
+        'Starship by SpaceX',
+        'New Glenn by Blue Origin',
+      ],
+      correctIndex: 1,
+      explanation:
+        'The Space Launch System is the government super-heavy rocket developed specifically for the Artemis program. It uses RS-25 engines inherited from the Space Shuttle and two solid rocket boosters. Its first launch took place in November 2022.',
+    },
+    {
+      question: 'Why are Artemis missions targeted at the lunar south pole rather than the equatorial zone where Apollo landed?',
+      options: [
+        'The temperature is warmer and safer for astronauts',
+        'Permanently shadowed craters near the pole contain water ice deposits',
+        'Ground communications with Mission Control are better there',
+        'The equatorial zone is occupied by spacecraft from other nations',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Permanently shadowed craters near the south pole preserve water ice at extreme cold — down to minus two hundred and thirty degrees Celsius. That water is a potential source of oxygen and rocket propellant through In-Situ Resource Utilization, which could make the Moon a self-sufficient outpost for further exploration.',
+    },
+    {
+      question: 'What role does the European Space Agency play in the Artemis program?',
+      options: [
+        'It builds the launch vehicle for lunar missions',
+        'It supplies the service module for the Orion spacecraft',
+        'It is responsible for training the entire crew',
+        'It funds fifty percent of the program budget',
+      ],
+      correctIndex: 1,
+      explanation:
+        'The Orion service module — providing the main engines, solar arrays, thermal control, and crew provisions — is designed and supplied by the European Space Agency. This is one of the key international contributions to the program. The Japan Aerospace Exploration Agency and the Canadian Space Agency supply components for the Gateway station.',
+    },
+    {
+      question: 'What is the Human Landing System and where does it come from before the lunar landing?',
+      options: [
+        'The lower stage of the Space Launch System that separates after launch',
+        'The Orion capsule reconfigured for landing in vacuum',
+        'A separate vehicle waiting in lunar orbit that the crew transfers to from Orion',
+        'A jetpack-style suit for individual surface movement',
+      ],
+      correctIndex: 2,
+      explanation:
+        'The Human Landing System is a separate vehicle pre-positioned in lunar orbit. Astronauts transfer to it from Orion, descend to the surface, conduct science activities, then ascend back to orbit and transfer back to Orion for the return journey. For Artemis III this role is played by Starship Human Landing System from SpaceX.',
+    },
+    {
+      question: 'How does Artemis conceptually differ from Apollo?',
+      options: [
+        'Artemis uses no rockets — only ion propulsion',
+        'Apollo landed on the Moon; Artemis only flies past it',
+        'Artemis is oriented toward sustained presence, local resource use, and international partnership — not just proving a capability',
+        'There is no difference — both programs use the same rocket design',
+      ],
+      correctIndex: 2,
+      explanation:
+        'Apollo aimed to demonstrate supremacy and concluded after six landings. Artemis is designed as sustained presence: the Gateway orbital station, In-Situ Resource Utilization, commercial deliveries, dozens of international partners, and in the longer term the development of technologies for the journey to Mars.',
+    },
+  ],
+
+  sources: [
+    {
+      title: 'NASA — Artemis Program Overview',
+      url: 'https://www.nasa.gov/humans-in-space/artemis/',
+      meta: 'NASA official site, updated 2026',
+    },
+    {
+      title: 'NASA — Artemis I Mission Results',
+      url: 'https://www.nasa.gov/missions/artemis/artemis-1/',
+      meta: 'NASA, November 2022, open access',
+    },
+    {
+      title: 'NASA — Space Launch System Overview',
+      url: 'https://www.nasa.gov/exploration/systems/sls/index.html',
+      meta: 'NASA, updated 2024',
+    },
+    {
+      title: 'NASA — Orion Spacecraft',
+      url: 'https://www.nasa.gov/humans-in-space/orion-spacecraft/',
+      meta: 'NASA, updated 2024',
+    },
+    {
+      title: 'NASA — Gateway Lunar Station',
+      url: 'https://www.nasa.gov/international-space-station/gateway/',
+      meta: 'NASA, updated 2025',
+    },
+    {
+      title: 'NASA — Human Landing System (SpaceX Starship HLS)',
+      url: 'https://www.nasa.gov/humans-in-space/human-landing-system/',
+      meta: 'NASA, updated 2024',
+    },
+    {
+      title: 'NASA — Commercial Lunar Payload Services (CLPS)',
+      url: 'https://www.nasa.gov/commercial-lunar-payload-services/',
+      meta: 'NASA, updated 2025',
+    },
+    {
+      title: 'NASA — Artemis Accords',
+      url: 'https://www.nasa.gov/artemis-accords/',
+      meta: 'NASA, 50+ signatories as of 2026',
+    },
+    {
+      title: 'ESA — European Service Module for Orion',
+      url: 'https://www.esa.int/Science_Exploration/Human_and_Robotic_Exploration/Orion/European_Service_Module',
+      meta: 'ESA, updated 2024',
+    },
+    {
+      title: 'Colaprete A. et al. — Detection of Water in the LCROSS Ejecta Plume (Science, 2010)',
+      url: 'https://www.science.org/doi/10.1126/science.1186986',
+      meta: 'Science Magazine, 2010, confirmation of lunar water ice',
+    },
+  ],
+
+  lastVerified: '2026-05-06',
+};
+
+export default lesson;

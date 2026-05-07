@@ -1,0 +1,503 @@
+import type { Lesson } from '../../types.js';
+
+const lesson: Lesson = {
+  slug: 'communication-satellites',
+  language: 'en',
+  section: 'applied-space',
+  order: 4,
+  difficulty: 'beginner',
+  readingTimeMin: 12,
+  title: 'Communication Satellites and Mega-Constellations',
+  subtitle: 'From a single geostationary relay to seven thousand satellites in low orbit — how the architecture of global communications has been rewritten.',
+
+  hero: {
+    cacheKey: 'comm-satellites-hero',
+    prompt:
+      'Photorealistic science encyclopedia illustration: Earth from orbit at night, city lights visible below. ' +
+      'In the foreground, a large geostationary communications satellite with wide gold solar panels and a dish antenna, ' +
+      'in the background a dense orbital shell of hundreds of small flat LEO constellation satellites forming a luminous mesh around the planet. ' +
+      'Hard sci-fi style, dark space background, dramatic lighting from Earth below. ' +
+      'Add the following text labels on the image: "geostationary orbit 35786 km", "LEO constellation shell 550 km", "Earth night lights".',
+    alt: 'Geostationary satellite against Earth at night and a dense shell of low-orbit constellation satellites encircling the planet',
+    caption:
+      'Two generations of satellite communication in a single frame: a massive geostationary relay at thirty-five thousand kilometers and a swarm of small constellation spacecraft at five hundred kilometers. Both approaches have a role — and both have a cost.',
+    aspectRatio: '16:9',
+  },
+
+  body: [
+    {
+      paragraphs: [
+        'When you make a satellite phone call from a vessel in the middle of the Pacific Ocean, or watch a live broadcast from another continent, your signal travels a path invisible from the ground. It climbs from an antenna, rises tens of thousands of kilometers into the sky, bounces off a metal body in orbit, and returns — all within a quarter of a second. Or the signal travels far lower, hopping between hundreds of small satellites like stepping stones across a river.',
+        'These two images capture two fundamentally different approaches to satellite communication that existed in parallel from the late twentieth into the early twenty-first century and now compete not only technically but commercially and geopolitically. The geostationary satellite is a tall tower with a wide floodlight. A low-orbit mega-constellation is a fishing net cast over the entire planet.',
+        'The difference is not only altitude. It is in signal latency, in the cost of user terminals, in how many satellites must be launched and what happens to aging hardware after it has served its purpose. And it is in what thousands of bright moving points of light mean for those who look not at a phone screen but at the night sky.',
+      ],
+    },
+
+    {
+      heading: 'Geostationary orbit: a fixed point in the sky',
+      level: 2,
+      paragraphs: [
+        'At an altitude of thirty-five thousand seven hundred and eighty-six kilometers above the equator there is a singular location: a satellite placed there moves with the Earth and remains stationary relative to any point on the surface. An antenna on a rooftop, pointed once at a single spot in the sky, will always find that satellite — in an hour, in a month, in ten years. That one property made geostationary orbit the backbone of international communications for several decades.',
+        'The altitude was computed mathematically by the mid-twentieth century British writer and engineer Arthur Clarke — long before any rocket could reach it. Today the belt is sometimes called the Clarke orbit in his honor. The first commercial geostationary communications satellite — Intelsat 1, nicknamed "Early Bird" — reached orbit in 1965 and provided a link between North America and Europe. Its body was the size of a large drum, its power output little more than forty watts, but it could carry two hundred and forty simultaneous telephone calls or one television channel.',
+        'Over the following decades geostationary orbit became a busy utility corridor. Intelsat grew into a global consortium. It was joined by Inmarsat — satellite communications for maritime and aviation — SES, a Luxembourg-based broadcaster and data operator, and dozens of national providers. A modern geostationary satellite is roughly the size of a school bus, packed with transponders, and serves for ten to fifteen years before the fuel used for orbital station-keeping runs out.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'comm-satellites-geo-satellite',
+        prompt:
+          'Photorealistic science encyclopedia illustration of a large modern geostationary communications satellite in orbit: ' +
+          'wide gold solar panel arrays extended on both sides, large dish antenna pointed toward Earth, cylindrical main bus body, ' +
+          'Earth visible in the far background with cloud patterns. Hard sci-fi style, dark space background. ' +
+          'Add the following text labels on the image: "solar panels", "dish antenna", "main bus", "35786 km altitude".',
+        alt: 'Large modern geostationary communications satellite in orbit — solar panels, dish antenna, spacecraft bus',
+        caption:
+          'A typical geostationary satellite weighs three to six metric tons, has a solar panel span of up to thirty meters, and serves an entire continent simultaneously. Its principal drawback is distance: a signal up and back covers more than seventy thousand kilometers.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'The price of distance: latency and its consequences',
+      level: 2,
+      paragraphs: [
+        'The speed of light — approximately three hundred thousand kilometers per second — feels unlimited on human scales, but at orbital distances it announces itself. A signal to a geostationary satellite and back covers roughly seventy-two thousand kilometers. The minimum physical latency is approximately two hundred and forty milliseconds one way, or about five hundred milliseconds round trip. Processing delay in the hardware adds to this.',
+        'Five hundred milliseconds is half a second. For video streaming or file downloads this is almost imperceptible. But for live voice communication the pause is audible: speakers interrupt each other, producing the characteristic echo effect of a satellite phone call, familiar to anyone who remembers conference calls of the 1990s. For online gaming or real-time video calls, geostationary latency is a genuine obstacle. That is where the idea of low-orbit satellite internet was born.',
+        'At an altitude of five to six hundred kilometers, latency drops to twenty to forty milliseconds. That matches the performance of terrestrial fiber-optic networks and is fully adequate for interactive applications. The catch: a satellite at that altitude crosses the visible sky in a minute or two and disappears over the horizon. To maintain an uninterrupted connection, hundreds or thousands of such craft must together cover every point on Earth at every moment.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Geostationary orbit versus low Earth orbit: latency and coverage',
+        svg: `<svg viewBox="0 0 700 360" xmlns="http://www.w3.org/2000/svg">
+  <rect width="700" height="360" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Title -->
+  <text x="350" y="22" fill="#aabbcc" font-family="monospace" font-size="12" text-anchor="middle">Geostationary orbit vs. low Earth orbit</text>
+
+  <!-- Earth circle -->
+  <circle cx="350" cy="220" r="60" fill="#1a2a3a" stroke="#334455" stroke-width="1.5"/>
+  <text x="350" y="225" fill="#7bb8ff" font-family="monospace" font-size="10" text-anchor="middle">Earth</text>
+
+  <!-- LEO shell -->
+  <circle cx="350" cy="220" r="100" fill="none" stroke="#44ff88" stroke-width="1" stroke-dasharray="4,4" opacity="0.6"/>
+  <text x="456" y="148" fill="#44ff88" font-family="monospace" font-size="9">Low Earth orbit</text>
+  <text x="456" y="160" fill="#44ff88" font-family="monospace" font-size="9">550 - 1200 km</text>
+
+  <!-- LEO satellite dot -->
+  <circle cx="420" cy="135" r="5" fill="#44ff88" opacity="0.9"/>
+
+  <!-- LEO signal path (short arc) -->
+  <path d="M 350 220 Q 385 170 420 135" fill="none" stroke="#44ff88" stroke-width="1.5" stroke-dasharray="3,3"/>
+  <path d="M 420 135 Q 385 170 350 220" fill="none" stroke="#44ff88" stroke-width="1.5" stroke-dasharray="3,3" opacity="0.5"/>
+
+  <!-- LEO latency label -->
+  <text x="375" y="167" fill="#44ff88" font-family="monospace" font-size="9">~30-40 ms</text>
+
+  <!-- GEO orbit ring (far) -->
+  <ellipse cx="350" cy="250" rx="320" ry="60" fill="none" stroke="#ff8844" stroke-width="1" stroke-dasharray="6,5" opacity="0.4"/>
+
+  <!-- GEO satellite dot -->
+  <circle cx="350" cy="192" r="6" fill="#ff8844" opacity="0.9"/>
+  <text x="358" y="190" fill="#ff8844" font-family="monospace" font-size="9">Geostationary orbit 35,786 km</text>
+
+  <!-- GEO signal path (long vertical arrow up) -->
+  <line x1="350" y1="160" x2="350" y2="50" stroke="#ff8844" stroke-width="1.5" stroke-dasharray="5,4"/>
+  <polygon points="350,42 344,56 356,56" fill="#ff8844" opacity="0.9"/>
+  <text x="356" y="55" fill="#ff8844" font-family="monospace" font-size="9">~250 ms</text>
+  <text x="356" y="67" fill="#ff8844" font-family="monospace" font-size="9">(one way)</text>
+
+  <!-- GEO coverage arc annotation -->
+  <path d="M 40 220 Q 350 100 660 220" fill="none" stroke="#ff8844" stroke-width="1" stroke-dasharray="2,4" opacity="0.35"/>
+  <text x="60" y="210" fill="#ff8844" font-family="monospace" font-size="9" opacity="0.7">One GEO covers ~1/3 of Earth</text>
+
+  <!-- LEO coverage annotation -->
+  <text x="10" y="305" fill="#44ff88" font-family="monospace" font-size="9">Thousands of LEO satellites = global coverage</text>
+  <text x="10" y="320" fill="#8899aa" font-family="monospace" font-size="9">LEO = low Earth orbit (see glossary)</text>
+
+  <!-- Legend -->
+  <rect x="530" y="270" width="12" height="2" fill="#ff8844" opacity="0.8"/>
+  <text x="548" y="277" fill="#ff8844" font-family="monospace" font-size="9">Geostationary orbit</text>
+  <rect x="530" y="288" width="12" height="2" fill="#44ff88" opacity="0.8"/>
+  <text x="548" y="295" fill="#44ff88" font-family="monospace" font-size="9">Low Earth orbit</text>
+</svg>`,
+        caption:
+          'A geostationary satellite is stationary relative to Earth and covers one third of the planet simultaneously, but signal latency of approximately two hundred and fifty milliseconds one way is physically unavoidable. Low-orbit satellites deliver ten times lower latency but require thousands of craft for continuous coverage.',
+      },
+    },
+
+    {
+      heading: 'Mega-constellations: how SpaceX rewrote the rules',
+      level: 2,
+      paragraphs: [
+        'The idea of low-orbit satellite constellations for broadband communications dates to the 1990s. The Teledesic project, backed by Bill Gates and Craig McCaw, planned to launch eight hundred and forty satellites. It never materialized: the technology of that era would have made such a system astronomically expensive, and each satellite weighed several hundred kilograms.',
+        'What changed in the 2010s was cost and mass. The mass production of electronics, miniaturization of components, and — decisively — a reusable rocket with low marginal launch cost made possible what had previously been unthinkable: launching sixty small satellites in a single mission. Starlink from SpaceX began its operational launch cadence in 2019. By the mid-2020s the active constellation exceeded seven thousand satellites — more than the total number of satellites launched by humanity from 1957 through 2019.',
+        'The Starlink architecture is conceptually simple. Each satellite weighs a few hundred kilograms, flies at approximately five hundred and fifty kilometers altitude, and has an expected service life of five to seven years. After that it deorbits and burns up in the atmosphere — a replacement is included in the next launch. Second-generation satellites (Starlink V2) carry laser inter-satellite links, allowing data to be routed between spacecraft directly in space without descending to ground relay stations. This substantially shortens the path for transoceanic connections where no ground infrastructure exists.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'comm-satellites-starlink-train',
+        prompt:
+          'Photorealistic science encyclopedia illustration: a long trail of dozens of small flat LEO satellites in formation crossing a dark starry sky, ' +
+          'viewed from a high altitude aircraft perspective, Earth\'s horizon glowing below, ' +
+          'the satellites forming a bright linear train like a string of pearls against the Milky Way. ' +
+          'Hard sci-fi style, dark space background. ' +
+          'Add the following text labels on the image: "LEO satellite train", "~550 km altitude", "laser inter-satellite links".',
+        alt: 'A chain of low-orbit constellation satellites crossing the starry sky — the typical appearance of freshly launched craft before they disperse to their operational orbits',
+        caption:
+          'Freshly launched satellites not yet dispersed to their operational orbits are visible as a bright string of lights moving in formation. These so-called satellite trains became one of the central points of contention between constellation operators and the astronomy community.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'Competitors and alternatives',
+      level: 2,
+      paragraphs: [
+        'Starlink is the largest player but not the only one. British OneWeb, which passed through bankruptcy and was acquired by a consortium led by the Indian conglomerate Bharti Group and the UK government, operates its constellation at a higher orbit — approximately one thousand two hundred kilometers. By 2025 it had more than six hundred satellites and serves primarily corporate and government customers rather than the mass consumer market.',
+        'Amazon through Project Kuiper began actual launches in 2024. The plan calls for three thousand two hundred and thirty-six operational spacecraft. Amazon mirrors the SpaceX strategy: proprietary infrastructure, vertical integration, focus on the mass market. The company has committed to placing half its constellation in orbit by the end of 2026 to meet the licensing conditions set by the United States Federal Communications Commission.',
+        'Telesat Lightspeed is a Canadian operator developing a smaller but technologically advanced constellation in an inclined orbit, with priority coverage of Canada, where terrestrial communications infrastructure has historically been thin across the northern regions. China is simultaneously pursuing its own mega-constellations — Guowang and StarNet — totaling plans for more than thirteen thousand satellites, though details and current status are considerably less transparent.',
+      ],
+    },
+
+    {
+      heading: 'The radio spectrum: the invisible scarce resource',
+      level: 2,
+      paragraphs: [
+        'Satellite communication requires radio frequencies the way transportation requires roads. The principal bands used in satellite communications are conventionally called Ku band, Ka band, and V band. Ku band covers frequencies from twelve to eighteen gigahertz and is traditional for satellite television: antenna sizes are manageable, but heavy rain or snow can degrade signal quality. Ka band runs from twenty to thirty gigahertz and offers higher throughput but is more susceptible to atmospheric effects. V band, spanning roughly forty to seventy-five gigahertz, is promising for very high speed inter-satellite links but remains limited in operational deployment due to engineering challenges.',
+        'Each nation registers its frequencies and geostationary orbital slots with the International Telecommunication Union. The inventory of desirable geostationary positions has long been oversubscribed for the most popular coverage areas above the Atlantic and the Pacific. For mega-constellations the coordination problem takes a different form: thousands of spacecraft on varying orbital planes must not interfere with each other and must not produce unacceptable interference for terrestrial services. Coordination becomes both a technical and a diplomatic challenge on an unprecedented scale.',
+      ],
+    },
+
+    {
+      heading: 'Phased array terminals: the user equipment of a new generation',
+      level: 2,
+      paragraphs: [
+        'A traditional parabolic dish antenna for satellite communication requires mechanical pointing: it must be aimed at a fixed spot in the sky and held there. For a geostationary satellite this is perfectly adequate. But for a low-orbit constellation, where the satellite is flying and changing position every few minutes, a mechanically steered dish cannot keep up continuously without becoming fragile and expensive.',
+        'The solution is a phased array antenna. This is a flat panel of many small antenna elements that steers the radio beam electronically, with no moving parts whatsoever. By adjusting the phase of the signal on each element individually, the system can point the beam at any position in the sky in milliseconds — and switch seamlessly from one passing satellite to the next without interrupting the session. The Starlink user terminal (nicknamed "the dish" by subscribers) is exactly this kind of phased array, concealed beneath a flat plastic enclosure.',
+        'Bringing phased array panels into mass production was one of the key technological inflection points for mega-constellations. In the 2010s such an antenna cost tens of thousands of dollars. By the mid-2020s the cost had fallen to a few hundred — though operators still subsidize the hardware to keep the market entry threshold commercially attractive.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'comm-satellites-phased-array',
+        prompt:
+          'Photorealistic science encyclopedia illustration of a flat phased array satellite terminal on a rooftop: ' +
+          'sleek white flat rectangular panel mounted on a simple pole, pointed skyward, with a faint beam illustrated extending upward toward a small LEO satellite dot. ' +
+          'Urban rooftop background, dusk sky. Hard sci-fi style. ' +
+          'Add the following text labels on the image: "phased array terminal", "electronic beam steering", "no moving parts".',
+        alt: 'Flat phased array user terminal on a rooftop directing its beam toward a low-orbit satellite',
+        caption:
+          'A phased array antenna steers its radio beam electronically, without mechanical rotation. This allows it to continuously track a fast-moving low-orbit satellite across the sky and instantly hand off between spacecraft as a session progresses.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Direct-to-cell: connectivity without a dedicated terminal',
+      level: 2,
+      paragraphs: [
+        'Until 2024 low-orbit satellite broadband required a dedicated terminal — less bulky than in earlier eras, but still a separate device. Then a new capability appeared: text messaging directly to standard smartphones without any additional hardware. SpaceX and US carrier T-Mobile launched the service in 2024 — initially for short text messages in areas with no cellular coverage, then gradually expanding its scope.',
+        'Technically this became possible because second-generation Starlink satellites carry antenna arrays with sufficient aperture to receive the weak signals from ordinary smartphones. The standard relies on spectrum already present in the handset — no modification of the device is required. The practical value is primarily as a safety feature: cellular network coverage leaves enormous blank areas in mountains, deserts, and above oceans. Those blank areas now have at least an emergency messaging fallback.',
+        'This does not yet replace high-speed broadband — latency and throughput for voice calls remain limited at this tier. But the precedent is established: space infrastructure is beginning to interact directly with mass consumer devices.',
+      ],
+    },
+
+    {
+      heading: 'The other side of progress: astronomy and orbital crowding',
+      level: 2,
+      paragraphs: [
+        'Thousands of new bright objects in orbit are not only a triumph of engineering progress. For ground-based astronomers they have become a genuine problem. Low-orbit satellites during twilight observation sessions — when the sky is already dark but the satellites are still illuminated by the Sun — leave bright streaks across long-exposure telescope images. Photographs requiring an hour of exposure time can be ruined by several such trails.',
+        'This is felt most acutely by the Vera C. Rubin Observatory in Chile — a new large survey telescope that plans to image the entire visible sky repeatedly, once every few nights. No other scientific facility will accumulate so many wide-field exposures. Calculations show that depending on the final scale of the mega-constellations, in some Rubin images every eighth or even every fifth image column may contain a satellite trail. SpaceX has experimented with darkening coatings on its satellites, but the physics of distance makes a complete solution elusive: even a darkened satellite is visible to a large telescope.',
+        'A separate concern is radio frequency interference. Radio telescopes listening to the universe in microwave bands are already experiencing a rising background from incidental emissions from satellite electronics. The Square Kilometre Array — the largest radio telescope in the world, under construction in South Africa and Australia — faces potential significant interference from thousands of satellites in orbit. Coordination agreements exist, but technical standards are still being negotiated between operators and the scientific community.',
+        'Then there is orbital congestion. Each of thousands of spacecraft inevitably becomes debris after its operational life. Operators design them to deorbit autonomously and burn up in the atmosphere within a few years. But even if all satellites behave nominally, a single catastrophic event — a collision or a technical failure — can generate a debris cloud hazardous to the entire near-Earth orbital environment. The so-called Kessler cascade is not a hypothetical scenario but a concrete risk at current orbital traffic densities.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'comm-satellites-light-pollution',
+        prompt:
+          'Photorealistic science encyclopedia illustration: a wide field astrophotography image of a galaxy or Milky Way section, ' +
+          'with three or four bright diagonal streaks crossing the image left by LEO satellites during a long exposure. ' +
+          'Dark mountain observatory silhouette in the foreground. Hard sci-fi style, dramatic night sky. ' +
+          'Add the following text labels on the image: "satellite trail", "long exposure contamination", "Vera Rubin Observatory challenge".',
+        alt: 'Astrophotograph of a galaxy region with bright satellite trails from a long exposure — a real scientific data loss for observatories',
+        caption:
+          'Satellite trails in astrophotographs are not a superficial aesthetic annoyance but a genuine destruction of scientific data. Software can partially mask the trails, but the underlying science cannot be recovered. The Rubin Observatory is developing mitigation algorithms, but complete neutralization of the effect remains out of reach.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'The cost of connectivity: falling by orders of magnitude',
+      level: 2,
+      paragraphs: [
+        'In the 2000s transmitting one gigabyte of data over a geostationary satellite channel cost hundreds of dollars. That price restricted satellite broadband to shipping companies and oil platforms, not the mass market. Mega-constellations overturned that model: by the mid-2020s the cost of transmitting one gigabyte over a low-orbit channel had fallen by tens or even hundreds of times compared with the peak.',
+        'This is not merely a commercial fact — it is a humanitarian opportunity. Roughly two and a half billion people lacked stable broadband internet access at the start of the 2020s. Most live in regions where laying fiber-optic cable or building a cellular tower is too expensive for any commercial operator to justify. Low-orbit satellite communication is one of the few paths to closing that divide without capital-intensive ground infrastructure.',
+        'There is a nuance here as well. A user terminal costs a few hundred dollars, a monthly subscription costs several tens of dollars. For North America or Western Europe this is acceptable. For much of Africa or South Asia it is not. The economics of access require either subsidization, or further cost reductions in hardware, or new partnerships with governments and international development organizations.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Satellite communication architectures: key parameters compared',
+        svg: `<svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg">
+  <rect width="700" height="300" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Title -->
+  <text x="350" y="22" fill="#aabbcc" font-family="monospace" font-size="12" text-anchor="middle">Satellite communication architectures: key parameters</text>
+
+  <!-- Column headers -->
+  <text x="130" y="48" fill="#7bb8ff" font-family="monospace" font-size="10" text-anchor="middle">Parameter</text>
+  <text x="310" y="48" fill="#ff8844" font-family="monospace" font-size="10" text-anchor="middle">Geostationary orbit</text>
+  <text x="490" y="48" fill="#44ff88" font-family="monospace" font-size="10" text-anchor="middle">Low Earth orbit</text>
+  <text x="640" y="48" fill="#aabbcc" font-family="monospace" font-size="10" text-anchor="middle">Examples</text>
+
+  <!-- Separator -->
+  <line x1="20" y1="55" x2="680" y2="55" stroke="#334455" stroke-width="1"/>
+
+  <!-- Row 1: Altitude -->
+  <text x="20" y="76" fill="#8899aa" font-family="monospace" font-size="9">Orbital altitude</text>
+  <text x="310" y="76" fill="#ff8844" font-family="monospace" font-size="9" text-anchor="middle">35,786 km</text>
+  <text x="490" y="76" fill="#44ff88" font-family="monospace" font-size="9" text-anchor="middle">550 — 1,200 km</text>
+  <text x="640" y="76" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">—</text>
+  <line x1="20" y1="83" x2="680" y2="83" stroke="#334455" stroke-width="0.5" opacity="0.5"/>
+
+  <!-- Row 2: Latency -->
+  <text x="20" y="100" fill="#8899aa" font-family="monospace" font-size="9">Signal latency</text>
+  <text x="310" y="100" fill="#ff8844" font-family="monospace" font-size="9" text-anchor="middle">~240 ms (one way)</text>
+  <text x="490" y="100" fill="#44ff88" font-family="monospace" font-size="9" text-anchor="middle">~20 — 40 ms</text>
+  <text x="640" y="100" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">—</text>
+  <line x1="20" y1="107" x2="680" y2="107" stroke="#334455" stroke-width="0.5" opacity="0.5"/>
+
+  <!-- Row 3: Count needed -->
+  <text x="20" y="124" fill="#8899aa" font-family="monospace" font-size="9">Satellites needed</text>
+  <text x="310" y="124" fill="#ff8844" font-family="monospace" font-size="9" text-anchor="middle">3 for global coverage</text>
+  <text x="490" y="124" fill="#44ff88" font-family="monospace" font-size="9" text-anchor="middle">hundreds to thousands</text>
+  <text x="640" y="124" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">—</text>
+  <line x1="20" y1="131" x2="680" y2="131" stroke="#334455" stroke-width="0.5" opacity="0.5"/>
+
+  <!-- Row 4: Terminal -->
+  <text x="20" y="148" fill="#8899aa" font-family="monospace" font-size="9">User terminal</text>
+  <text x="310" y="148" fill="#ff8844" font-family="monospace" font-size="9" text-anchor="middle">parabolic dish</text>
+  <text x="490" y="148" fill="#44ff88" font-family="monospace" font-size="9" text-anchor="middle">phased array panel</text>
+  <text x="640" y="148" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">—</text>
+  <line x1="20" y1="155" x2="680" y2="155" stroke="#334455" stroke-width="0.5" opacity="0.5"/>
+
+  <!-- Row 5: Use case -->
+  <text x="20" y="172" fill="#8899aa" font-family="monospace" font-size="9">Typical use case</text>
+  <text x="310" y="172" fill="#ff8844" font-family="monospace" font-size="9" text-anchor="middle">TV broadcast, corp WAN</text>
+  <text x="490" y="172" fill="#44ff88" font-family="monospace" font-size="9" text-anchor="middle">mass-market internet</text>
+  <text x="640" y="172" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">—</text>
+  <line x1="20" y1="179" x2="680" y2="179" stroke="#334455" stroke-width="0.5" opacity="0.5"/>
+
+  <!-- Row 6: Operators -->
+  <text x="20" y="196" fill="#8899aa" font-family="monospace" font-size="9">Operators</text>
+  <text x="310" y="196" fill="#ff8844" font-family="monospace" font-size="9" text-anchor="middle">Intelsat, Inmarsat, SES</text>
+  <text x="490" y="196" fill="#44ff88" font-family="monospace" font-size="9" text-anchor="middle">Starlink, OneWeb, Kuiper</text>
+  <text x="640" y="196" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">—</text>
+  <line x1="20" y1="203" x2="680" y2="203" stroke="#334455" stroke-width="0.5" opacity="0.5"/>
+
+  <!-- Row 7: Lifespan -->
+  <text x="20" y="220" fill="#8899aa" font-family="monospace" font-size="9">Service life</text>
+  <text x="310" y="220" fill="#ff8844" font-family="monospace" font-size="9" text-anchor="middle">10 — 15 years</text>
+  <text x="490" y="220" fill="#44ff88" font-family="monospace" font-size="9" text-anchor="middle">5 — 7 years</text>
+  <text x="640" y="220" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">—</text>
+  <line x1="20" y1="227" x2="680" y2="227" stroke="#334455" stroke-width="0.5" opacity="0.5"/>
+
+  <!-- Row 8: Orbital debris -->
+  <text x="20" y="244" fill="#8899aa" font-family="monospace" font-size="9">Post-service debris</text>
+  <text x="310" y="244" fill="#ff8844" font-family="monospace" font-size="9" text-anchor="middle">graveyard orbit (persists)</text>
+  <text x="490" y="244" fill="#44ff88" font-family="monospace" font-size="9" text-anchor="middle">deorbit burn-up (years)</text>
+  <text x="640" y="244" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">—</text>
+</svg>`,
+        caption:
+          'Geostationary and low-orbit architectures complement each other. The former delivers wide coverage with a minimal number of satellites; the latter enables low latency and a mass market. Both architectures carry an orbital debris burden, though in different forms.',
+      },
+    },
+
+    {
+      heading: 'What comes next',
+      level: 2,
+      paragraphs: [
+        'Geostationary satellite communication is not going away: broadcast television, maritime navigation, aviation systems — these are audiences where latency is not critical and wide coverage is decisive. Intelsat, Inmarsat, and SES are upgrading their fleets, moving to higher frequencies and higher efficiency. They will hold their niche for decades yet.',
+        'Low-orbit mega-constellations will almost certainly continue to grow. The licensed ceiling for Starlink reaches twelve thousand satellites with a possible expansion to forty-two thousand. Kuiper plans three thousand two hundred, OneWeb has plans for a second-generation iteration. Competition among them is already driving prices down and coverage up. The open question is whether the industry can find a stable equilibrium between delivering connectivity and preserving the orbital and observational environment for the generations that come after.',
+        'Every time you download a file from a ship, make a video call over the Atlantic, or send an emergency message from a mountain range where no cellular tower exists — a metal craft the size of a refrigerator is passing somewhere overhead in orbit, relaying your data packets forward. This is no longer science fiction. It is infrastructure.',
+      ],
+    },
+  ],
+
+  glossary: [
+    {
+      term: 'Geostationary orbit',
+      definition:
+        'A circular orbit at an altitude of thirty-five thousand seven hundred and eighty-six kilometers above the equator where a satellite completes one orbit in exactly twenty-four hours and remains stationary relative to the surface. Three satellites on this orbit are sufficient to cover almost all of the populated world.',
+    },
+    {
+      term: 'Low Earth orbit',
+      definition:
+        'An orbit at altitudes between roughly two hundred and two thousand kilometers. Most crewed missions and broadband mega-constellations (Starlink, OneWeb, Kuiper) operate here. Advantage: very low signal latency. Drawback: each individual satellite passes over the horizon within minutes.',
+    },
+    {
+      term: 'Mega-constellation',
+      definition:
+        'A constellation of low-orbit satellites numbering from several hundred to several thousand spacecraft that together provide continuous global broadband coverage. Examples include Starlink by SpaceX, OneWeb, and Project Kuiper by Amazon.',
+    },
+    {
+      term: 'Phased array antenna',
+      definition:
+        'A flat panel of many small antenna elements that steers a radio beam electronically, without mechanical rotation. Enables continuous tracking of a fast-moving low-orbit satellite and instant handover between spacecraft as a connection session progresses.',
+    },
+    {
+      term: 'Inter-satellite laser link',
+      definition:
+        'A laser beam used to transfer data directly between satellites in space, without routing the signal down to ground relay stations. Provides a significantly shorter path for transoceanic data connections. Implemented in second-generation Starlink satellites.',
+    },
+    {
+      term: 'Ku band and Ka band',
+      definition:
+        'Microwave frequency ranges used in satellite communications. Ku band spans twelve to eighteen gigahertz and is traditional for satellite television. Ka band covers twenty to thirty gigahertz and offers higher throughput but is more sensitive to rain and snow attenuation.',
+    },
+    {
+      term: 'Clarke orbit',
+      definition:
+        'Another name for geostationary orbit, honoring British writer and engineer Arthur Clarke who mathematically described its properties and communications potential in the mid-twentieth century, long before practical spaceflight.',
+    },
+    {
+      term: 'Kessler cascade',
+      definition:
+        'A scenario described by NASA scientist Donald Kessler: when orbital object density becomes high enough, a single collision generates a debris cloud that triggers further collisions in a self-sustaining chain reaction, potentially rendering low orbits unusable for spaceflight.',
+    },
+    {
+      term: 'Square Kilometre Array',
+      definition:
+        'The largest radio telescope in the world, under construction in South Africa and Australia. Its total antenna collecting area will approach one square kilometer. Intended for studies of early stars, neutral hydrogen, and potential signals of extraterrestrial origin. Faces potential interference from thousands of satellites in orbit.',
+    },
+  ],
+
+  quiz: [
+    {
+      question: 'Why does a geostationary satellite appear to hover motionless over one location on Earth?',
+      options: [
+        'It is kept stationary by continuously firing thrusters',
+        'At that altitude the orbital period equals one Earth day, so it moves at the same angular rate as the surface',
+        'Gravity at that altitude equals zero, so the satellite stays in place',
+        'It is tethered to the surface by a cable',
+      ],
+      correctIndex: 1,
+      explanation:
+        'At an altitude of thirty-five thousand seven hundred and eighty-six kilometers above the equator, the orbital period exactly matches Earth\'s rotation period of twenty-four hours. From an observer on the surface the satellite appears motionless, so a dish antenna can be fixed in one direction without any tracking mechanism.',
+    },
+    {
+      question: 'What is the principal physical advantage of low-orbit satellites over geostationary ones for interactive communications?',
+      options: [
+        'Their transmitters are more powerful',
+        'Latency is dramatically lower — roughly twenty to forty milliseconds versus two hundred and fifty milliseconds',
+        'Each spacecraft covers a larger area of the surface',
+        'Each satellite is cheaper to launch individually',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Signal latency is proportional to distance. A geostationary satellite is thirty-five times farther away than a low-orbit spacecraft, so round-trip latency is tens of times larger. For voice calls, video conferences, and online gaming that difference is significant.',
+    },
+    {
+      question: 'What role does a phased array antenna play in mega-constellation user terminals?',
+      options: [
+        'It amplifies the signal to a level sufficient for operation without external power',
+        'It rotates mechanically at high speed to track the satellite',
+        'It steers the radio beam electronically with no moving parts, allowing continuous tracking of a fast-moving satellite',
+        'It encrypts the signal before transmission',
+      ],
+      correctIndex: 2,
+      explanation:
+        'A phased array changes the phase of the signal on each element in the panel, directing and deflecting the beam electronically without any mechanical movement. This is the key technology for maintaining a connection with low-orbit satellites that continuously traverse the visible sky.',
+    },
+    {
+      question: 'What threat do mega-constellations pose to ground-based astronomical observatories?',
+      options: [
+        'They block sunlight, making daytime observations more difficult',
+        'They leave bright streaks across long-exposure photographs and generate radio interference for radio telescopes',
+        'They warm the atmosphere, reducing sky transparency',
+        'They physically collide with telescopes in low Earth orbit',
+      ],
+      correctIndex: 1,
+      explanation:
+        'During twilight observing sessions, satellites illuminated by the Sun leave bright linear trails across long-exposure images, destroying portions of scientific data. Radio telescopes such as the future Square Kilometre Array face radio frequency interference from electronic emissions by thousands of orbiting spacecraft.',
+    },
+    {
+      question: 'What does "direct-to-cell" satellite service, introduced in 2024, actually mean?',
+      options: [
+        'A smartphone automatically connects to Starlink instead of a cellular network at all times',
+        'Only specially modified next-generation satellite smartphones support the capability',
+        'Standard smartphones can send and receive messages through the satellite network without additional hardware in areas with no cellular coverage',
+        'The feature is available only to emergency services, not private users',
+      ],
+      correctIndex: 2,
+      explanation:
+        'Second-generation Starlink satellites carry antenna arrays large enough to receive the weak signals from ordinary smartphones. The service, launched jointly with T-Mobile in 2024, allows standard handsets to send text messages with no hardware modifications — primarily to provide emergency connectivity in areas beyond terrestrial cellular coverage.',
+    },
+  ],
+
+  sources: [
+    {
+      title: 'ITU — Radio Regulations and Satellite Coordination Procedures',
+      url: 'https://www.itu.int/en/ITU-R/space/Pages/default.aspx',
+      meta: 'International Telecommunication Union, open access',
+    },
+    {
+      title: 'SpaceX — Starlink Technical Overview',
+      url: 'https://www.starlink.com/technology',
+      meta: 'SpaceX official site, 2024',
+    },
+    {
+      title: 'FCC — Starlink license modification (42,000 satellites)',
+      url: 'https://www.fcc.gov/document/fcc-grants-spacex-starlink-license-modification',
+      meta: 'Federal Communications Commission, 2021',
+    },
+    {
+      title: 'Amazon — Project Kuiper constellation overview',
+      url: 'https://www.aboutamazon.com/news/innovation-at-amazon/amazon-project-kuiper',
+      meta: 'Amazon, 2024',
+    },
+    {
+      title: 'Tyson N., Astropy Collaboration — Impact of satellite constellations on astronomy (Nature Astronomy)',
+      url: 'https://www.nature.com/articles/s41550-020-01047-4',
+      meta: 'Nature Astronomy, 2020, open access',
+    },
+    {
+      title: 'Vera C. Rubin Observatory — Satellite Constellation Impact Assessment',
+      url: 'https://www.lsst.org/content/lsst-observations-impacted-satellites',
+      meta: 'Rubin Observatory, 2023',
+    },
+    {
+      title: 'ESA — Space Debris by the Numbers (2024)',
+      url: 'https://www.esa.int/Space_Safety/Space_Debris/Space_debris_by_the_numbers',
+      meta: 'ESA Space Safety, updated 2024',
+    },
+    {
+      title: 'Kessler D.J., Cour-Palais B.G. — Collision Frequency of Artificial Satellites (J. Geophys. Res., 1978)',
+      url: 'https://doi.org/10.1029/JA083iA06p02637',
+      meta: 'Journal of Geophysical Research, 1978 — original Kessler cascade paper',
+    },
+    {
+      title: 'OneWeb — Constellation Overview and Services',
+      url: 'https://oneweb.net/network',
+      meta: 'OneWeb official site, 2024',
+    },
+    {
+      title: 'Inmarsat — History and GEO fleet overview',
+      url: 'https://www.inmarsat.com/en/about/company/history.html',
+      meta: 'Inmarsat, open access',
+    },
+  ],
+
+  lastVerified: '2026-05-06',
+};
+
+export default lesson;

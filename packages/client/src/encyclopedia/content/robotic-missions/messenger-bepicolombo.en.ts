@@ -1,0 +1,518 @@
+import type { Lesson } from '../../types.js';
+
+const lesson: Lesson = {
+  slug: 'messenger-bepicolombo',
+  language: 'en',
+  section: 'robotic-missions',
+  order: 11,
+  difficulty: 'intermediate',
+  readingTimeMin: 12,
+  title: 'MESSENGER and BepiColombo — Mercury Missions',
+  subtitle: 'The hardest orbit in the Solar System, ice in craters on a scorched planet, and two probes together rewriting what we know about the Sun\'s nearest neighbor.',
+
+  hero: {
+    cacheKey: 'mercury-missions-hero',
+    prompt:
+      'Photorealistic illustration for a science encyclopedia: Mercury seen from close orbit, its sunward side blazing orange-white at extreme temperatures, the shadowed terminator sharp and stark. A spacecraft silhouette orbits above the heavily cratered surface. Hard sci-fi style, dark space background. Add the following text labels on the image: "Mercury", "cratered surface", "orbital spacecraft".',
+    alt: 'Mercury from orbit — scorched dayside, cratered surface, and a probe in orbit above',
+    caption:
+      'Mercury is the smallest and innermost planet. The temperature swing between noon and the polar craters exceeds six hundred degrees Celsius. Getting there — and staying in orbit — is far harder than it looks.',
+    aspectRatio: '16:9',
+  },
+
+  body: [
+    {
+      paragraphs: [
+        'Mercury is the closest planet to the Sun, and also one of the least understood. That seems paradoxical: it is always nearby, a stone\'s throw away in Solar System terms. But that very proximity to the Sun turns every mission to it into an engineering puzzle with no obvious solution. To enter orbit around Mercury you need not to accelerate but to slow down — and slow down hard, fighting the gravitational well of the nearest star.',
+
+        'In the second half of the twentieth century only one spacecraft visited Mercury — the American probe Mariner 10. In the mid-1970s it made three close passes and photographed less than half the surface. For four decades Mercury remained a half-familiar world: not distant enough to be exotic, not close enough to be understood. Then two probes arrived and changed everything.',
+
+        'The American probe of the National Aeronautics and Space Administration, known as MESSENGER, and the joint mission of the European Space Agency and the Japan Aerospace Exploration Agency — BepiColombo — together have produced what scientists are already calling the Mercury moment. Their combined results are turning Mercury from a forgotten planet into one of the keys to understanding how the inner Solar System formed.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'mercury-mariner10-first-look',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: a 1970s-era NASA spacecraft resembling Mariner 10 flying past Mercury in the mid-twentieth century, the planet showing a heavily cratered grey surface similar to the Moon but with visible scarps. Hard sci-fi style, dark space background. Add the following text labels on the image: "Mariner 10", "Mercury flyby", "1974".',
+        alt: 'Mariner 10 probe during its flyby of Mercury in the mid-1970s',
+        caption:
+          'In the mid-1970s Mariner 10 became the first and only spacecraft to photograph Mercury at close range. But its images covered less than half the surface — the rest remained terra incognita until 2011.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Why Mercury is so difficult',
+      level: 2,
+      paragraphs: [
+        'The problem with Mercury is not reaching it. The problem is slowing down enough to stay. When a rocket flies to the outer planets — Jupiter, Saturn — it is constantly decelerated by the Sun\'s gravity. For inner planets the situation is reversed: the spacecraft accelerates as it falls closer to the Sun, arriving at Mercury with excess velocity. To enter orbit, that velocity must be shed.',
+
+        'An ordinary engine with enough propellant for that braking maneuver would turn the probe into a fuel tank with minimal scientific payload. So both missions — MESSENGER and BepiColombo — chose a brilliantly complex route: gravity assists. Rather than burning propellant to brake, they borrowed and returned kinetic energy from planets along the way, using their gravity as a natural braking device.',
+
+        'Beyond the mechanics of flight there is a second problem: temperature. On the sunward side Mercury\'s surface heats to over four hundred and twenty degrees Celsius. The probe\'s electronics, solar panels, and structure must all be shielded from a thermal flux tens of times more intense than in Earth orbit. For BepiColombo engineers designed a dedicated thermal shield and a radiator system that carries heat away without active cooling.',
+      ],
+    },
+
+    {
+      heading: 'MESSENGER: the first to stay',
+      level: 2,
+      paragraphs: [
+        'The MESSENGER probe — short for Mercury Surface, Space Environment, Geochemistry, and Ranging — launched in August 2004. To leave Earth orbit and reach Mercury at the right velocity required six and a half years and six gravity assists: one flyby of Earth, two of Venus, and three of Mercury itself.',
+
+        'Each of the three Mercury flybys both slowed the spacecraft and provided a scientific opportunity: imaging regions that Mariner 10 had never covered. By the time MESSENGER entered orbit in 2011, it had already filled in most of the blank patches on Mercury\'s map. Achieving orbit around Mercury in March 2011, it became the first orbital spacecraft in the observation history of that planet.',
+
+        'The primary mission lasted one Earth year, but the probe remained active for three more. During that time it acquired more than two hundred and fifty thousand images and measured the magnetic field, gravitational relief, and surface chemistry. In April 2015, its propellant exhausted and with no means to hold orbit, MESSENGER deliberately impacted the surface of Mercury — leaving a crater approximately sixteen meters in diameter.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'mercury-messenger-orbital-map',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: MESSENGER spacecraft in orbit around Mercury, showing the full mapped surface below — grey cratered terrain with false-color mineral composition overlays in subtle oranges and blues. Hard sci-fi style, dark space background. Add the following text labels on the image: "MESSENGER spacecraft", "Mercury orbit", "surface mapping".',
+        alt: 'MESSENGER spacecraft in orbit around Mercury with the mapped surface below',
+        caption:
+          'In orbit from 2011 to 2015, MESSENGER produced a complete map of Mercury\'s surface and measured soil composition with its spectrometer. The data proved unexpected: the chemical profile matched no standard formation model.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Discoveries that overturned assumptions',
+      level: 2,
+      paragraphs: [
+        'The most unexpected finding from MESSENGER was ice. The probe\'s radar returned bright reflections from the permanent shadows inside polar craters — regions where sunlight never reaches because of the planet\'s low axial tilt relative to its orbital plane. Analysis confirmed: water ice. A planet whose surface exceeds four hundred degrees on the dayside harbors permanently frozen water deposits at its poles.',
+
+        'Where did that water come from? The most plausible answer is meteorites and comets that bombarded Mercury over billions of years. A fraction of their moisture survived in craters where temperature never rises above minus one hundred and seventy degrees Celsius. Alongside the ice the probe detected organic compounds — a dark material capping the ice and insulating it from solar radiation.',
+
+        'The second major discovery was compressional geology. MESSENGER found across the entire surface a network of long, steep cliffs called _lobate scarps_. They formed when Mercury\'s iron core cooled and shrank, forcing the solid crust to buckle and thrust upward. The probe\'s data indicate that over billions of years Mercury compressed its own radius by approximately seven kilometers — far more than previous estimates. The planet literally wrinkled.',
+
+        'Third: surface chemistry. Before the mission scientists assumed that Mercury, forming so close to the Sun, would be depleted of volatile elements — potassium, sulfur, sodium — which should have evaporated in the hot protoplanetary disk. But MESSENGER measured them in abundance. Standard planetary formation models failed to explain the chemical profile. Either Mercury formed differently than we thought, or the disk itself had a very different structure.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'BepiColombo cruise trajectory with gravity assists',
+        svg: `<svg viewBox="0 0 700 420" xmlns="http://www.w3.org/2000/svg">
+  <rect width="700" height="420" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Title -->
+  <text x="350" y="22" fill="#aabbcc" font-family="monospace" font-size="12" text-anchor="middle">BepiColombo — route 2018–2026</text>
+
+  <!-- Sun -->
+  <circle cx="350" cy="210" r="18" fill="#ff8844" opacity="0.9"/>
+  <text x="350" y="244" fill="#ff8844" font-family="monospace" font-size="10" text-anchor="middle">Sun</text>
+
+  <!-- Mercury orbit (innermost) -->
+  <ellipse cx="350" cy="210" rx="68" ry="60" fill="none" stroke="#667788" stroke-width="0.8" stroke-dasharray="3,5"/>
+  <text x="352" y="148" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">Mercury orbit</text>
+
+  <!-- Venus orbit -->
+  <ellipse cx="350" cy="210" rx="130" ry="116" fill="none" stroke="#667788" stroke-width="0.8" stroke-dasharray="3,5"/>
+  <text x="222" y="213" fill="#667788" font-family="monospace" font-size="9" text-anchor="end">Venus orbit</text>
+
+  <!-- Earth orbit -->
+  <ellipse cx="350" cy="210" rx="190" ry="170" fill="none" stroke="#667788" stroke-width="0.8" stroke-dasharray="3,5"/>
+
+  <!-- Earth flyby point -->
+  <circle cx="350" cy="42" r="6" fill="#44ff88" opacity="0.9"/>
+  <text x="362" y="38" fill="#44ff88" font-family="monospace" font-size="9">Earth 2020</text>
+
+  <!-- Venus flyby 1 -->
+  <circle cx="484" cy="270" r="5" fill="#ff8844" opacity="0.85"/>
+  <text x="492" y="268" fill="#ff8844" font-family="monospace" font-size="9">Venus 2020</text>
+
+  <!-- Venus flyby 2 -->
+  <circle cx="226" cy="330" r="5" fill="#ff8844" opacity="0.85"/>
+  <text x="100" y="336" fill="#ff8844" font-family="monospace" font-size="9">Venus 2021</text>
+
+  <!-- Mercury flyby 1 -->
+  <circle cx="414" cy="165" r="4" fill="#7bb8ff" opacity="0.9"/>
+  <text x="420" y="158" fill="#7bb8ff" font-family="monospace" font-size="9">Merc. 2021</text>
+
+  <!-- Mercury flyby 2 -->
+  <circle cx="310" cy="154" r="4" fill="#7bb8ff" opacity="0.9"/>
+  <text x="240" y="148" fill="#7bb8ff" font-family="monospace" font-size="9">Merc. 2022</text>
+
+  <!-- Mercury flyby 3 -->
+  <circle cx="396" cy="174" r="4" fill="#7bb8ff" opacity="0.9"/>
+
+  <!-- Mercury flyby 4 -->
+  <circle cx="326" cy="160" r="4" fill="#7bb8ff" opacity="0.9"/>
+
+  <!-- Mercury flyby 5 -->
+  <circle cx="382" cy="168" r="4" fill="#7bb8ff" opacity="0.9"/>
+
+  <!-- Mercury flyby 6 -->
+  <circle cx="343" cy="155" r="4" fill="#7bb8ff" opacity="0.9"/>
+  <text x="280" y="162" fill="#7bb8ff" font-family="monospace" font-size="9">Merc.×6  2021–2025</text>
+
+  <!-- Mercury arrival -->
+  <circle cx="350" cy="150" r="7" fill="#cc4444" opacity="0.9"/>
+  <text x="350" y="138" fill="#cc4444" font-family="monospace" font-size="10" text-anchor="middle">Orbit insertion Dec 2026</text>
+
+  <!-- Cruise path arrows (simplified spiral) -->
+  <path d="M350,42 Q490,90 484,270 Q420,380 226,330 Q110,280 130,130 Q180,42 310,154 Q340,162 350,150"
+    fill="none" stroke="#aabbcc" stroke-width="1.5" stroke-dasharray="5,4" opacity="0.6"/>
+
+  <!-- Launch marker -->
+  <circle cx="350" cy="42" r="3" fill="#44ff88"/>
+  <text x="350" y="30" fill="#44ff88" font-family="monospace" font-size="9" text-anchor="middle">Launch 2018</text>
+
+  <!-- Legend -->
+  <rect x="20" y="370" width="10" height="2" fill="#aabbcc" opacity="0.6"/>
+  <text x="36" y="376" fill="#8899aa" font-family="monospace" font-size="9">trajectory</text>
+  <circle cx="115" cy="374" r="4" fill="#44ff88" opacity="0.85"/>
+  <text x="125" y="378" fill="#8899aa" font-family="monospace" font-size="9">Earth</text>
+  <circle cx="175" cy="374" r="4" fill="#ff8844" opacity="0.85"/>
+  <text x="185" y="378" fill="#8899aa" font-family="monospace" font-size="9">Venus</text>
+  <circle cx="240" cy="374" r="4" fill="#7bb8ff" opacity="0.9"/>
+  <text x="250" y="378" fill="#8899aa" font-family="monospace" font-size="9">Mercury (flyby)</text>
+  <circle cx="365" cy="374" r="5" fill="#cc4444" opacity="0.9"/>
+  <text x="377" y="378" fill="#8899aa" font-family="monospace" font-size="9">orbit insertion</text>
+</svg>`,
+        caption:
+          'Simplified diagram of BepiColombo\'s route from Earth to Mercury. One Earth flyby, two Venus flybys, and six Mercury flybys shed the excess speed without a prohibitive propellant budget. Total travel time: eight years.',
+      },
+    },
+
+    {
+      heading: 'BepiColombo: two probes in one stack',
+      level: 2,
+      paragraphs: [
+        'While MESSENGER was completing its mission, the European Space Agency and the Japan Aerospace Exploration Agency were preparing not just a successor but a fundamentally new approach. BepiColombo is two full orbital spacecraft flying to Mercury together, mechanically joined, separating only after reaching orbit.',
+
+        'The first is the Mercury Planetary Orbiter, built by the European Space Agency. It will continue and deepen MESSENGER\'s work: detailed surface mapping at higher resolution, geology, chemistry, and interior structure. The second is the Mercury Magnetospheric Orbiter, built by the Japan Aerospace Exploration Agency, specializing in Mercury\'s magnetic field and the plasma environment surrounding the planet.',
+
+        'Together the two spacecraft cover what neither could achieve alone: simultaneous measurements from two orbits will yield a three-dimensional picture of the magnetosphere and separate phenomena occurring near the surface from those in the distant magnetospheric envelope. No previous Mercury probe has achieved this level of spatial detail.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'mercury-bepicolombo-stack',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: BepiColombo composite spacecraft stack in cruise configuration — two stacked spacecraft modules with large solar panels extended, a thermal shield visible on the sunward side, drifting in interplanetary space with the Sun glowing distantly. Hard sci-fi style, dark space background. Add the following text labels on the image: "Mercury Planetary Orbiter", "Mercury Magnetospheric Orbiter", "solar panels", "thermal shield".',
+        alt: 'BepiColombo in cruise configuration: two joined orbiters with extended solar panels',
+        caption:
+          'In cruise configuration both BepiColombo orbiters are connected in a single stack with a transfer module and ion thrusters. After Mercury orbit insertion around 2026 they will separate into independent orbits.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Seven years in transit',
+      level: 2,
+      paragraphs: [
+        'BepiColombo launched in October 2018. The route proved even more complex than MESSENGER\'s: one Earth flyby, two Venus flybys, and six flybys of Mercury itself. Each of those gravity assists is not merely a technical maneuver — it is also a scientific opportunity. During each close approach both spacecraft captured surface imagery, measured the magnetic field, and sampled the plasma environment.',
+
+        'During the first Mercury flyby at the end of 2021, the probes transmitted images of unexpected quality — details already visible that MESSENGER, on its more elongated orbit, could not resolve. Subsequent flybys in 2022, 2023, 2024, and 2025 added data and progressively slowed the pair.',
+
+        'Permanent orbit insertion is planned for December 2026 — literally months away at the time of writing. When it happens, Mercury will have two simultaneous orbital residents for the first time in its observed history. The primary science mission is designed for approximately one year, but may be extended if spacecraft health permits.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'mercury-polar-ice-radar',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: a radar map of Mercury\'s north polar region viewed from above, showing permanently shadowed craters with bright radar-reflective deposits of water ice highlighted in false-color blue-white against the grey cratered terrain. Hard sci-fi style, dark space background, scientific instrument aesthetic. Add the following text labels on the image: "permanent shadow", "water ice deposits", "polar crater", "radar bright".',
+        alt: 'Radar map of Mercury\'s polar craters showing water ice deposits in permanent shadow',
+        caption:
+          'MESSENGER\'s radar detected bright reflections in the permanent shadow of polar craters — the signature of water ice. On a planet where the sunlit surface exceeds four hundred degrees Celsius, permanently frozen water deposits are preserved in the cold dark of crater floors.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'What the orbital phase is expected to reveal',
+      level: 2,
+      paragraphs: [
+        'BepiColombo\'s science program is far more comprehensive than anything MESSENGER could attempt. The two spacecraft orbits are designed so they collectively cover the planet at different points simultaneously. This will yield new data on how Mercury\'s magnetic field is generated and varies — one of the greatest mysteries MESSENGER left behind.',
+
+        'Mercury is the only terrestrial planet besides Earth to possess a global magnetic field. But it is extraordinarily weak — roughly one percent of Earth\'s. Where does it come from? Standard dynamo theory requires a liquid conducting outer core in convective motion. MESSENGER confirmed: the core is large and liquid. But then why is the field so weak? One possibility is that the dynamo is near extinction. Another is that the magnetic dipole is offset from the planet\'s center — already visible in the data. BepiColombo will have two spacecraft to study that asymmetry simultaneously from different distances.',
+
+        'A separate research track is the exosphere. Mercury has no atmosphere in the conventional sense: the surface pressure is trillions of times lower than Earth\'s. But it has an _exosphere_ — an extraordinarily tenuous envelope of sodium, oxygen, hydrogen, and calcium atoms, continuously stripped by the solar wind and replenished by micrometeorite bombardment. The Japanese orbiter is equipped specifically to study this environment in detail, and comparing its readings against the earlier probe\'s will reveal how the exosphere evolves over time.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Mercury: key parameters and comparison with Earth',
+        svg: `<svg viewBox="0 0 700 340" xmlns="http://www.w3.org/2000/svg">
+  <rect width="700" height="340" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Title -->
+  <text x="350" y="22" fill="#aabbcc" font-family="monospace" font-size="12" text-anchor="middle">Mercury — key characteristics</text>
+
+  <!-- Mercury planet visualization -->
+  <circle cx="130" cy="160" r="55" fill="#8899aa" opacity="0.3"/>
+  <circle cx="130" cy="160" r="55" fill="none" stroke="#667788" stroke-width="1.5"/>
+  <!-- Craters suggestion -->
+  <circle cx="110" cy="140" r="8" fill="none" stroke="#556677" stroke-width="1"/>
+  <circle cx="148" cy="170" r="12" fill="none" stroke="#556677" stroke-width="1"/>
+  <circle cx="118" cy="185" r="6" fill="none" stroke="#556677" stroke-width="1"/>
+  <circle cx="145" cy="145" r="5" fill="none" stroke="#556677" stroke-width="1"/>
+  <text x="130" y="232" fill="#aabbcc" font-family="monospace" font-size="10" text-anchor="middle">Mercury</text>
+  <text x="130" y="244" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">radius 2439 km</text>
+
+  <!-- Earth for comparison -->
+  <circle cx="600" cy="160" r="75" fill="#4488aa" opacity="0.2"/>
+  <circle cx="600" cy="160" r="75" fill="none" stroke="#4488aa" stroke-width="1.5" stroke-dasharray="4,4"/>
+  <text x="600" y="252" fill="#4488aa" font-family="monospace" font-size="10" text-anchor="middle">Earth</text>
+  <text x="600" y="264" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">radius 6371 km</text>
+
+  <!-- Data table -->
+  <line x1="220" y1="50" x2="540" y2="50" stroke="#334455" stroke-width="0.8"/>
+  <text x="230" y="45" fill="#667788" font-family="monospace" font-size="9">Parameter</text>
+  <text x="430" y="45" fill="#667788" font-family="monospace" font-size="9">Mercury</text>
+
+  <line x1="220" y1="65" x2="540" y2="65" stroke="#334455" stroke-width="0.5" stroke-dasharray="2,4"/>
+  <text x="230" y="78" fill="#aabbcc" font-family="monospace" font-size="10">Distance from Sun</text>
+  <text x="430" y="78" fill="#ff8844" font-family="monospace" font-size="10">0.39 AU</text>
+
+  <line x1="220" y1="88" x2="540" y2="88" stroke="#334455" stroke-width="0.5" stroke-dasharray="2,4"/>
+  <text x="230" y="101" fill="#aabbcc" font-family="monospace" font-size="10">Max surface temp.</text>
+  <text x="430" y="101" fill="#ff8844" font-family="monospace" font-size="10">+430 C</text>
+
+  <line x1="220" y1="110" x2="540" y2="110" stroke="#334455" stroke-width="0.5" stroke-dasharray="2,4"/>
+  <text x="230" y="123" fill="#aabbcc" font-family="monospace" font-size="10">Min surface temp.</text>
+  <text x="430" y="123" fill="#7bb8ff" font-family="monospace" font-size="10">-180 C</text>
+
+  <line x1="220" y1="132" x2="540" y2="132" stroke="#334455" stroke-width="0.5" stroke-dasharray="2,4"/>
+  <text x="230" y="145" fill="#aabbcc" font-family="monospace" font-size="10">Mercury year</text>
+  <text x="430" y="145" fill="#aabbcc" font-family="monospace" font-size="10">88 Earth days</text>
+
+  <line x1="220" y1="154" x2="540" y2="154" stroke="#334455" stroke-width="0.5" stroke-dasharray="2,4"/>
+  <text x="230" y="167" fill="#aabbcc" font-family="monospace" font-size="10">Magnetic field</text>
+  <text x="430" y="167" fill="#44ff88" font-family="monospace" font-size="10">~1% of Earth's</text>
+
+  <line x1="220" y1="176" x2="540" y2="176" stroke="#334455" stroke-width="0.5" stroke-dasharray="2,4"/>
+  <text x="230" y="189" fill="#aabbcc" font-family="monospace" font-size="10">Crustal contraction</text>
+  <text x="430" y="189" fill="#cc4444" font-family="monospace" font-size="10">~7 km radius</text>
+
+  <line x1="220" y1="198" x2="540" y2="198" stroke="#334455" stroke-width="0.5" stroke-dasharray="2,4"/>
+  <text x="230" y="211" fill="#aabbcc" font-family="monospace" font-size="10">Polar ice</text>
+  <text x="430" y="211" fill="#7bb8ff" font-family="monospace" font-size="10">yes (H2O)</text>
+
+  <line x1="220" y1="220" x2="540" y2="220" stroke="#334455" stroke-width="0.5" stroke-dasharray="2,4"/>
+  <text x="230" y="233" fill="#aabbcc" font-family="monospace" font-size="10">Core size</text>
+  <text x="430" y="233" fill="#ff8844" font-family="monospace" font-size="10">~85% of radius</text>
+
+  <line x1="220" y1="242" x2="540" y2="242" stroke="#334455" stroke-width="0.8"/>
+
+  <!-- Footnote -->
+  <text x="350" y="295" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">MESSENGER 2011–2015 · BepiColombo orbit insertion December 2026</text>
+</svg>`,
+        caption:
+          'Key parameters of Mercury from MESSENGER mission data. The most striking contrasts: a temperature swing of more than six hundred degrees between noon and the polar crater floors, and an iron core occupying over eighty-five percent of the planetary radius — the largest relative core in the Solar System.',
+      },
+    },
+
+    {
+      heading: 'Why Mercury is a key to understanding terrestrial planets',
+      level: 2,
+      paragraphs: [
+        'Mercury resembles no other terrestrial planet. It has the largest relative iron core in the Solar System — occupying more than eighty-five percent of the planetary radius, compared with roughly fifty percent for Earth. The crust is thin. The mantle is almost absent. Why?',
+
+        'One hypothesis suggests that in the early Solar System Mercury was a larger planet with a thick silicate mantle, but a giant impact blew most of it into space. Another proposes that proximity to the Sun in the protoplanetary disk caused volatile silicate material to evaporate rather than condense. A third school of thought holds that Mercury did not form where it currently orbits — it may have migrated inward from an outer region of the inner Solar System.',
+
+        'BepiColombo is designed precisely to answer these questions. Precise gravimetry from two spacecraft, heat flux measurements, and seismic data — if Mercurian quakes can be detected — should provide enough constraints to select among competing models, or to build an entirely new one.',
+
+        'In the broader context: the terrestrial planets — Mercury, Venus, Earth, and Mars — formed from similar material in similar conditions, yet turned out radically different. Understanding why Mercury is the way it is means understanding what factors determine the fate of rocky planets in general. Where it is decided whether a planet becomes alive, dead, or simply too strange for easy explanation.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'mercury-surface-scarps',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: Mercury surface close-up showing a prominent lobate scarp — a long cliff several kilometers high cutting across ancient cratered terrain, lit by oblique low-angle sunlight casting dramatic shadows. Hard sci-fi style, dark space background. Add the following text labels on the image: "lobate scarp", "crustal compression", "ancient craters".',
+        alt: 'Mercury surface with a visible lobate scarp — a long crustal compression cliff',
+        caption:
+          'Lobate scarps — long steep cliffs that cut across ancient craters — are evidence that Mercury shrank as its core cooled. MESSENGER identified hundreds of such structures across the entire planet.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'The Mercury moment',
+      level: 2,
+      paragraphs: [
+        'For most of the space age Mercury was the planet scientists studied last. It had none of Saturn\'s enchanting rings, none of Mars\'s mystery about past life, none of Jupiter\'s spectacular atmospheric storms. It looked like a sad twin of the Moon — somewhat larger and no less cratered.',
+
+        'MESSENGER shattered that image. Ice where it should not exist. Chemistry that fits no standard model. A magnetic field that is present but not quite what it should be. A crust that has wrinkled by a full seven kilometers. Each of those findings turned out to be not just an anomaly but a key to new questions.',
+
+        'When BepiColombo enters permanent orbit in December 2026 — practically immediately after this lesson is published — it will open a new phase of investigation. Two spacecraft simultaneously, twice as many instruments, far more detailed orbits than MESSENGER ever achieved. Every discovery made by its predecessor it will either confirm and finally explain, or challenge and replace with a new model.',
+
+        'Mercury is no longer the forgotten planet. It is a laboratory where we are beginning to understand what the inner Solar System actually looked like at the dawn of its existence.',
+      ],
+    },
+  ],
+
+  glossary: [
+    {
+      term: 'Gravity assist',
+      definition:
+        'A deliberate flyby of a spacecraft past a planet to change its speed or direction using that planet\'s gravitational field, without expending propellant. Also called a gravitational slingshot.',
+    },
+    {
+      term: 'Lobate scarp',
+      definition:
+        'A long steep cliff on Mercury\'s surface formed by compression and buckling of the crust as the iron core cooled and contracted. Evidence that Mercury\'s radius has decreased by several kilometers over billions of years.',
+    },
+    {
+      term: 'Exosphere',
+      definition:
+        'An extremely tenuous planetary envelope where gas pressure is so low that atoms rarely collide. Mercury\'s exosphere consists mainly of sodium, oxygen, and hydrogen atoms, constantly lost to solar wind and replenished by micrometeorite impacts.',
+    },
+    {
+      term: 'Magnetic dynamo',
+      definition:
+        'The process by which a planet generates a global magnetic field through convective motion of an electrically conducting liquid (molten iron) in the outer core. Earth\'s magnetic field is sustained by this mechanism.',
+    },
+    {
+      term: 'Mercury Planetary Orbiter',
+      definition:
+        'One of the two orbital spacecraft in the BepiColombo mission, built by the European Space Agency to map Mercury\'s surface, study geochemistry, and investigate the planet\'s interior structure.',
+    },
+    {
+      term: 'Mercury Magnetospheric Orbiter',
+      definition:
+        'The second orbital spacecraft in the BepiColombo mission, built by the Japan Aerospace Exploration Agency to study Mercury\'s magnetic field and the plasma environment surrounding the planet.',
+    },
+    {
+      term: 'Protoplanetary disk',
+      definition:
+        'A rotating cloud of gas and dust around a young star from which planets form. Temperature across the disk determines which materials condense: heavy metals close to the star, silicates at intermediate distances, ices in the outer regions.',
+    },
+    {
+      term: 'Ion thruster',
+      definition:
+        'An electric propulsion device that ionizes a propellant gas and accelerates the ions with an electric field. BepiColombo uses ion thrusters for trajectory control during its seven-year cruise to Mercury.',
+    },
+  ],
+
+  quiz: [
+    {
+      question: 'Why is reaching Mercury\'s orbit harder than, for example, reaching Mars?',
+      options: [
+        'Because Mercury\'s strong magnetic field deflects approaching spacecraft',
+        'Because the spacecraft must shed excess velocity accumulated while falling closer to the Sun',
+        'Because a dense atmosphere brakes the spacecraft on approach',
+        'Because Mercury is much farther from Earth than Mars',
+      ],
+      correctIndex: 1,
+      explanation:
+        'When flying to inner planets a spacecraft accelerates as it falls toward the Sun. To enter Mercury orbit that excess velocity must be shed — and without an enormous propellant reserve the only practical approach is a series of gravity assists, which takes years.',
+    },
+    {
+      question: 'What did MESSENGER find in the permanently shadowed polar craters of Mercury?',
+      options: [
+        'Evidence of volcanic activity and lava fields',
+        'Deposits of water ice and organic compounds',
+        'Methane lakes similar to those on Titan',
+        'Remnants of an ancient atmosphere preserved in the crater floors',
+      ],
+      correctIndex: 1,
+      explanation:
+        'MESSENGER\'s radar returned bright reflections from the permanent shadow inside polar craters — the signature of water ice. A dark organic material was found capping the ice and insulating it from solar radiation. Both findings are unexpected for a planet with surface temperatures exceeding four hundred degrees Celsius on the sunlit side.',
+    },
+    {
+      question: 'What is the key scientific advantage of having two simultaneous orbiters in BepiColombo?',
+      options: [
+        'Doubling the number of surface images acquired per unit of time',
+        'Simultaneous magnetic field and plasma measurements from two different orbits',
+        'Redundancy in case one spacecraft fails',
+        'Reduced mission cost through shared systems',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Simultaneous magnetic field and plasma measurements from two different orbits yield a three-dimensional picture of the magnetosphere and allow scientists to separate phenomena near the surface from those in the distant magnetospheric envelope. No single orbiter can achieve this.',
+    },
+    {
+      question: 'What do the lobate scarps — steep cliffs on Mercury\'s surface — reveal about its geological history?',
+      options: [
+        'That Mercury once had liquid water that carved shorelines',
+        'That the crust expanded due to volcanic activity',
+        'That the planet contracted as the core cooled, buckling the crust',
+        'That Mercury suffered a collision with another planet that deformed its surface',
+      ],
+      correctIndex: 2,
+      explanation:
+        'Lobate scarps formed when Mercury\'s iron core cooled and shrank in volume, forcing the solid crust to compress and thrust upward as cliffs. MESSENGER identified enough of these structures to estimate a total radius reduction of approximately seven kilometers.',
+    },
+    {
+      question: 'When is BepiColombo\'s permanent Mercury orbit insertion planned?',
+      options: [
+        'It already entered orbit in 2023',
+        'December 2026',
+        'Orbit insertion is scheduled for 2030',
+        'The mission includes only flybys, with no orbital phase',
+      ],
+      correctIndex: 1,
+      explanation:
+        'After launching in October 2018 and a seven-year cruise including six Mercury flybys, BepiColombo is planned to insert into permanent orbit around Mercury in December 2026.',
+    },
+  ],
+
+  sources: [
+    {
+      title: 'NASA — MESSENGER Mission Overview',
+      url: 'https://messenger.jhuapl.edu/About/mission-overview.html',
+      meta: 'Johns Hopkins APL, open access',
+    },
+    {
+      title: 'ESA — BepiColombo Mission',
+      url: 'https://www.esa.int/Science_Exploration/Space_Science/BepiColombo',
+      meta: 'European Space Agency, updated 2025',
+    },
+    {
+      title: 'JAXA — BepiColombo / Mercury Magnetospheric Orbiter',
+      url: 'https://www.isas.jaxa.jp/en/missions/spacecraft/current/bepicolombo.html',
+      meta: 'JAXA, open access',
+    },
+    {
+      title: 'Lawrence D.J. et al. — Evidence for Water Ice Near Mercury\'s North Pole from MESSENGER Neutron Spectrometry',
+      url: 'https://www.science.org/doi/10.1126/science.1229953',
+      meta: 'Science, 2013, vol. 339',
+    },
+    {
+      title: 'Byrne P.K. et al. — Mercury\'s global contraction much greater than earlier estimates',
+      url: 'https://www.nature.com/articles/ngeo2097',
+      meta: 'Nature Geoscience, 2014',
+    },
+    {
+      title: 'Nittler L.R. et al. — The Major-Element Composition of Mercury\'s Surface from MESSENGER X-ray Spectrometry',
+      url: 'https://www.science.org/doi/10.1126/science.1211567',
+      meta: 'Science, 2011, vol. 333',
+    },
+    {
+      title: 'Benkhoff J. et al. — BepiColombo — Comprehensive exploration of Mercury: Mission overview and science goals',
+      url: 'https://www.sciencedirect.com/science/article/pii/S0032063309001482',
+      meta: 'Planetary and Space Science, 2010, vol. 58',
+    },
+    {
+      title: 'Solomon S.C. et al. — MESSENGER: Three years in orbit around Mercury',
+      url: 'https://science.nasa.gov/science-research/planetary-science/mercury/',
+      meta: 'NASA Science, open access',
+    },
+    {
+      title: 'ESA — BepiColombo first Mercury flyby results',
+      url: 'https://www.esa.int/Science_Exploration/Space_Science/BepiColombo/BepiColombo_reveals_Mercury_in_a_new_light',
+      meta: 'ESA, 2021, open access',
+    },
+    {
+      title: 'Hauck S.A. et al. — The curious case of Mercury\'s internal structure',
+      url: 'https://agupubs.onlinelibrary.wiley.com/doi/10.1002/jgre.20091',
+      meta: 'Journal of Geophysical Research: Planets, 2013',
+    },
+  ],
+
+  lastVerified: '2026-05-06',
+};
+
+export default lesson;

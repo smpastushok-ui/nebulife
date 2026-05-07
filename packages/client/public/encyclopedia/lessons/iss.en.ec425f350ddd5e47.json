@@ -1,0 +1,297 @@
+{
+  "slug": "iss",
+  "language": "en",
+  "section": "crewed-missions",
+  "order": 4,
+  "difficulty": "beginner",
+  "readingTimeMin": 12,
+  "title": "International Space Station",
+  "subtitle": "The largest structure ever built in space: how sixteen modules from five nations became a shared home for more than two hundred people.",
+  "hero": {
+    "cacheKey": "iss-hero",
+    "prompt": "Photorealistic illustration of the International Space Station in low Earth orbit for a science encyclopedia. Full station shown from slightly above and to the side, all sixteen modules clearly visible, eight large solar array wings extended, Earth curvature and deep blue atmosphere visible below, sunlight illuminating the gold and silver thermal panels. Hard sci-fi style, dark space background, technically accurate geometry. Add the following text labels on the image: \"solar arrays\", \"Zarya module\", \"Harmony node\", \"Zvezda module\".",
+    "alt": "The International Space Station in low Earth orbit — sixteen modules and eight solar array wings against the blue atmosphere",
+    "caption": "The International Space Station at approximately four hundred kilometers above Earth. Its solar array wingspan of one hundred and nine meters exceeds the wingspan of a Boeing 747. The station weighs approximately four hundred and twenty metric tons and travels at over twenty-seven thousand six hundred kilometers per hour.",
+    "aspectRatio": "16:9"
+  },
+  "body": [
+    {
+      "paragraphs": [
+        "Imagine a house with six bedrooms, two bathrooms, a laboratory, a gym, and panoramic windows offering the best view in the universe — all of it hurtling around Earth fast enough to complete a full orbit in ninety minutes. That is the International Space Station: the largest structure humanity has ever built beyond Earth, and the only place where human presence in space has continued without interruption for more than a quarter of a century.",
+        "This is not just an engineering achievement. The station is the product of an agreement between nations that in other contexts might have been rivals: the United States, Russia, the European Space Agency, the Japan Aerospace Exploration Agency, and the Canadian Space Agency pooled funding, technology, and people to build something none of them could have built alone. In that sense, the International Space Station is also diplomacy conducted in a vacuum.",
+        "From orbit the station looks like an enormous web of metal and glass. A central truss one hundred and nine meters long carries eight pairs of solar array wings, each spanning hundreds of square meters. Attached perpendicular to the truss are sixteen pressurized modules with a combined habitable volume of roughly nine hundred and thirty cubic meters — larger than a six-bedroom house. The entire structure weighs approximately four hundred and twenty metric tons and is visible to the naked eye: at dusk or dawn it appears as a very bright, steadily moving star crossing the sky in a few minutes."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "iss-size-comparison",
+        "prompt": "Scientific scale comparison illustration for an encyclopedia: the International Space Station silhouette shown at the same scale as a Boeing 747 aircraft and an American football field. All three objects arranged side by side with dimension lines and labels. Hard sci-fi style, dark background, monospace labels, cyan and orange accent colors. Add the following text labels on the image: \"ISS 109m wingspan\", \"Boeing 747 64m wingspan\", \"football field 91m\".",
+        "alt": "Scale comparison of the International Space Station with a Boeing 747 and an American football field",
+        "caption": "The station's solar array wingspan of one hundred and nine meters is nearly twice the wingspan of a Boeing 747. The length of the main truss is comparable to a standard football field.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "Assembling a structure in weightlessness",
+      "level": 2,
+      "paragraphs": [
+        "The station could not be built on the ground and then launched — it is far too large for any rocket. Instead it was assembled on orbit, block by block, over more than ten years, during more than forty spacewalks dedicated to construction.",
+        "The first element to reach orbit in 1998 was the Zarya module — a functional cargo block built by Russia with American funding. Its name means \"dawn\", and it truly was the station's first light: its own propellant tanks, attitude-control thrusters, and solar panels allowed it to exist autonomously in the first months before the rest of the structure arrived. A few weeks later the American connecting node Unity docked to Zarya, and the skeleton of the future international outpost was established.",
+        "The first long-duration crew arrived in November 2000. From that moment the station has never been empty: this is the longest uninterrupted human presence in space in all of history. Laboratory modules were added in sequence — the American Destiny, the Japanese Kibo with its unique external platform for science experiments exposed to vacuum, the European Columbus — along with connecting nodes, airlock chambers, living quarters, and the domed Cupola observation module with seven windows offering the finest view of Earth available from any human-made structure."
+      ]
+    },
+    {
+      "diagram": {
+        "title": "International Space Station module layout",
+        "svg": "<svg viewBox=\"0 0 760 400\" xmlns=\"http://www.w3.org/2000/svg\">\n  <rect width=\"760\" height=\"400\" fill=\"rgba(10,15,25,0.5)\"/>\n\n  <!-- Title -->\n  <text x=\"380\" y=\"22\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"12\" text-anchor=\"middle\">International Space Station — module layout (simplified)</text>\n\n  <!-- Main Truss horizontal line -->\n  <line x1=\"40\" y1=\"200\" x2=\"720\" y2=\"200\" stroke=\"#334455\" stroke-width=\"3\"/>\n  <text x=\"380\" y=\"192\" fill=\"#667788\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Integrated Truss Structure</text>\n\n  <!-- Solar arrays — left side -->\n  <rect x=\"42\" y=\"155\" width=\"50\" height=\"12\" fill=\"#44ff88\" opacity=\"0.7\" rx=\"2\"/>\n  <rect x=\"42\" y=\"171\" width=\"50\" height=\"12\" fill=\"#44ff88\" opacity=\"0.7\" rx=\"2\"/>\n  <rect x=\"42\" y=\"217\" width=\"50\" height=\"12\" fill=\"#44ff88\" opacity=\"0.7\" rx=\"2\"/>\n  <rect x=\"42\" y=\"233\" width=\"50\" height=\"12\" fill=\"#44ff88\" opacity=\"0.7\" rx=\"2\"/>\n  <text x=\"67\" y=\"251\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">solar</text>\n  <text x=\"67\" y=\"260\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">arrays</text>\n\n  <!-- Solar arrays — right side -->\n  <rect x=\"668\" y=\"155\" width=\"50\" height=\"12\" fill=\"#44ff88\" opacity=\"0.7\" rx=\"2\"/>\n  <rect x=\"668\" y=\"171\" width=\"50\" height=\"12\" fill=\"#44ff88\" opacity=\"0.7\" rx=\"2\"/>\n  <rect x=\"668\" y=\"217\" width=\"50\" height=\"12\" fill=\"#44ff88\" opacity=\"0.7\" rx=\"2\"/>\n  <rect x=\"668\" y=\"233\" width=\"50\" height=\"12\" fill=\"#44ff88\" opacity=\"0.7\" rx=\"2\"/>\n  <text x=\"693\" y=\"251\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">solar</text>\n  <text x=\"693\" y=\"260\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">arrays</text>\n\n  <!-- Zarya (FGB) -->\n  <rect x=\"530\" y=\"182\" width=\"60\" height=\"36\" fill=\"#7bb8ff\" opacity=\"0.75\" rx=\"3\"/>\n  <text x=\"560\" y=\"204\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Zarya</text>\n\n  <!-- Unity Node 1 -->\n  <rect x=\"460\" y=\"182\" width=\"55\" height=\"36\" fill=\"#7bb8ff\" opacity=\"0.6\" rx=\"3\"/>\n  <text x=\"488\" y=\"199\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Unity</text>\n  <text x=\"488\" y=\"210\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">node 1</text>\n\n  <!-- Zvezda Service Module -->\n  <rect x=\"600\" y=\"182\" width=\"65\" height=\"36\" fill=\"#ff8844\" opacity=\"0.65\" rx=\"3\"/>\n  <text x=\"633\" y=\"204\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Zvezda</text>\n\n  <!-- Destiny Lab -->\n  <rect x=\"385\" y=\"182\" width=\"60\" height=\"36\" fill=\"#7bb8ff\" opacity=\"0.75\" rx=\"3\"/>\n  <text x=\"415\" y=\"199\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Destiny</text>\n  <text x=\"415\" y=\"210\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">US lab</text>\n\n  <!-- Harmony Node 2 -->\n  <rect x=\"315\" y=\"182\" width=\"55\" height=\"36\" fill=\"#7bb8ff\" opacity=\"0.6\" rx=\"3\"/>\n  <text x=\"343\" y=\"199\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Harmony</text>\n  <text x=\"343\" y=\"210\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">node 2</text>\n\n  <!-- Columbus (ESA) — upper -->\n  <line x1=\"343\" y1=\"182\" x2=\"343\" y2=\"148\" stroke=\"#334455\" stroke-width=\"2\"/>\n  <rect x=\"298\" y=\"120\" width=\"90\" height=\"32\" fill=\"#cc4444\" opacity=\"0.65\" rx=\"3\"/>\n  <text x=\"343\" y=\"137\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Columbus (ESA)</text>\n\n  <!-- Kibo (JAXA) — lower -->\n  <line x1=\"343\" y1=\"218\" x2=\"343\" y2=\"258\" stroke=\"#334455\" stroke-width=\"2\"/>\n  <rect x=\"298\" y=\"258\" width=\"90\" height=\"32\" fill=\"#cc4444\" opacity=\"0.65\" rx=\"3\"/>\n  <text x=\"343\" y=\"275\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Kibo (JAXA)</text>\n\n  <!-- Tranquility Node 3 -->\n  <rect x=\"240\" y=\"182\" width=\"60\" height=\"36\" fill=\"#7bb8ff\" opacity=\"0.6\" rx=\"3\"/>\n  <text x=\"270\" y=\"199\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Tranquility</text>\n  <text x=\"270\" y=\"210\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">node 3</text>\n\n  <!-- Cupola — lower off Tranquility -->\n  <line x1=\"270\" y1=\"218\" x2=\"270\" y2=\"258\" stroke=\"#334455\" stroke-width=\"2\"/>\n  <rect x=\"235\" y=\"258\" width=\"70\" height=\"28\" fill=\"#7bb8ff\" opacity=\"0.5\" rx=\"3\"/>\n  <text x=\"270\" y=\"271\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Cupola</text>\n  <text x=\"270\" y=\"280\" fill=\"#667788\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">7 windows</text>\n\n  <!-- Legend -->\n  <rect x=\"42\" y=\"340\" width=\"12\" height=\"10\" fill=\"#7bb8ff\" opacity=\"0.75\"/>\n  <text x=\"60\" y=\"350\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">USA / Russia (partnership)</text>\n  <rect x=\"230\" y=\"340\" width=\"12\" height=\"10\" fill=\"#cc4444\" opacity=\"0.65\"/>\n  <text x=\"248\" y=\"350\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">ESA / JAXA</text>\n  <rect x=\"360\" y=\"340\" width=\"12\" height=\"10\" fill=\"#ff8844\" opacity=\"0.65\"/>\n  <text x=\"378\" y=\"350\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">Roscosmos</text>\n  <rect x=\"490\" y=\"340\" width=\"12\" height=\"10\" fill=\"#44ff88\" opacity=\"0.7\"/>\n  <text x=\"508\" y=\"350\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">Solar arrays</text>\n\n  <text x=\"380\" y=\"385\" fill=\"#667788\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">Simplified layout. Key modules shown; some connecting nodes and airlocks omitted.</text>\n</svg>",
+        "caption": "Simplified diagram of the station's main modules. The central truss carries the solar arrays; pressurized modules are attached perpendicular to it. Colors indicate the contributing space agency for each element."
+      }
+    },
+    {
+      "heading": "A partnership that held at four hundred kilometers",
+      "level": 2,
+      "paragraphs": [
+        "Five space agencies contributed fundamentally different things. The National Aeronautics and Space Administration built the American segment — the Destiny laboratory module, connecting nodes, and later funded the majority of cargo missions. Roscosmos is responsible for the Russian segment, including Zarya, the Zvezda service module with its propulsion and attitude-control systems that still handle part of the station's orbital maintenance.",
+        "The European Space Agency delivered the Columbus laboratory module — the core of European science on orbit — and also built a series of Automated Transfer Vehicle cargo ships that supplied the station for several years. The Japan Aerospace Exploration Agency assembled the station's largest laboratory, Kibo (\"Hope\"), which uniquely includes an external exposed platform where experiments can be placed directly in vacuum. The Canadian Space Agency is responsible for Canadarm2 — a fifteen-meter robotic arm without which the assembly of most modules and the capture of visiting cargo ships would have been impossible.",
+        "This cooperation was never without friction: geopolitical tensions periodically complicated access, and after the Space Shuttle fleet was retired in 2011, the United States depended entirely on Russian Soyuz vehicles to transport its astronauts for several years. That dependency ended in 2020 when SpaceX Crew Dragon carried American astronauts to the station from American soil for the first time in nine years."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "iss-crew-dragon-docking",
+        "prompt": "Photorealistic illustration for a science encyclopedia: SpaceX Crew Dragon spacecraft approaching the International Space Station for docking. Crew Dragon shown in the foreground from a slight angle, docking port and approach thrusters visible, ISS station structure visible in the background with Earth below, dramatic lighting from the Sun, deep space background. Hard sci-fi style, technically accurate geometry. No human faces visible. Add the following text labels on the image: \"Crew Dragon\", \"docking port\", \"ISS\", \"Earth\".",
+        "alt": "SpaceX Crew Dragon spacecraft approaching the docking port of the International Space Station",
+        "caption": "In 2020 Crew Dragon restored independent American access to orbit — for the first time since the Space Shuttle program ended. The arrival of commercial crewed vehicles fundamentally changed the station's transportation logistics.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "The orbit: physics of a home that never falls",
+      "level": 2,
+      "paragraphs": [
+        "The station flies at approximately four hundred kilometers altitude — in the region physicists call _low Earth orbit_. This is not a perfect vacuum: trace amounts of atmosphere remain, enough to gradually drag the station lower. Without correction it would slowly descend, so several times a year the engines of a docked spacecraft or the Zvezda module's own thrusters perform an orbital reboost.",
+        "The station's speed is over twenty-seven thousand six hundred kilometers per hour. That speed is precisely what keeps it aloft: the station is constantly \"falling\" toward Earth, but its horizontal motion is so fast that the planet's surface curves away as quickly as it approaches. That is what an orbit is — a state of free fall in which gravity is perfectly balanced by inertia. That is also why the station experiences weightlessness — or more precisely, microgravity: gravity is present, it simply cannot be felt because both the station and everyone in it fall together at the same rate.",
+        "The station completes roughly fifteen and a half orbits per day. The crew witnesses a sunrise approximately every ninety minutes — sixteen times each day. The station's structure is partially shielded from radiation by Earth's magnetic field at these altitudes, but an astronaut's body accumulates roughly one hundred times more radiation during a six-month mission than during the same period on the ground — one of the central medical challenges of long-duration spaceflight."
+      ]
+    },
+    {
+      "diagram": {
+        "title": "Station orbit: altitude, speed and orbits per day",
+        "svg": "<svg viewBox=\"0 0 700 360\" xmlns=\"http://www.w3.org/2000/svg\">\n  <rect width=\"700\" height=\"360\" fill=\"rgba(10,15,25,0.5)\"/>\n\n  <!-- Title -->\n  <text x=\"350\" y=\"22\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"12\" text-anchor=\"middle\">Low Earth Orbit — ISS parameters</text>\n\n  <!-- Earth circle -->\n  <circle cx=\"350\" cy=\"200\" r=\"110\" fill=\"#020510\" stroke=\"#334455\" stroke-width=\"2\"/>\n  <circle cx=\"350\" cy=\"200\" r=\"110\" fill=\"none\" stroke=\"#4488aa\" stroke-width=\"1\" opacity=\"0.4\"/>\n  <text x=\"350\" y=\"196\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"11\" text-anchor=\"middle\">Earth</text>\n  <text x=\"350\" y=\"210\" fill=\"#667788\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">r = 6,371 km</text>\n\n  <!-- Atmosphere thin ring -->\n  <circle cx=\"350\" cy=\"200\" r=\"118\" fill=\"none\" stroke=\"#7bb8ff\" stroke-width=\"3\" opacity=\"0.25\" stroke-dasharray=\"3,5\"/>\n\n  <!-- ISS orbit circle -->\n  <circle cx=\"350\" cy=\"200\" r=\"152\" fill=\"none\" stroke=\"#44ff88\" stroke-width=\"1.5\" stroke-dasharray=\"6,4\"/>\n\n  <!-- ISS icon on orbit -->\n  <circle cx=\"350\" cy=\"48\" r=\"5\" fill=\"#44ff88\" opacity=\"0.9\"/>\n  <line x1=\"335\" y1=\"48\" x2=\"365\" y2=\"48\" stroke=\"#44ff88\" stroke-width=\"2\" opacity=\"0.8\"/>\n  <line x1=\"350\" y1=\"40\" x2=\"350\" y2=\"56\" stroke=\"#44ff88\" stroke-width=\"1.5\" opacity=\"0.6\"/>\n  <text x=\"380\" y=\"44\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"10\">ISS</text>\n  <text x=\"380\" y=\"56\" fill=\"#667788\" font-family=\"monospace\" font-size=\"9\">~400 km</text>\n\n  <!-- Altitude annotation line -->\n  <line x1=\"350\" y1=\"160\" x2=\"350\" y2=\"53\" stroke=\"#8899aa\" stroke-width=\"1\" stroke-dasharray=\"3,4\" opacity=\"0.6\"/>\n  <text x=\"358\" y=\"112\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">~400 km</text>\n\n  <!-- Speed annotation -->\n  <text x=\"42\" y=\"310\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"10\">Speed:</text>\n  <text x=\"42\" y=\"325\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"11\">27,600 km/h</text>\n\n  <!-- Orbit period -->\n  <text x=\"260\" y=\"310\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"10\">Orbital period:</text>\n  <text x=\"260\" y=\"325\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"11\">~92 minutes</text>\n\n  <!-- Orbits per day -->\n  <text x=\"480\" y=\"310\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"10\">Orbits per day:</text>\n  <text x=\"480\" y=\"325\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"11\">15.5</text>\n\n  <!-- Arrow showing direction of travel -->\n  <path d=\"M350,48 Q502,48 502,200\" fill=\"none\" stroke=\"#44ff88\" stroke-width=\"1\" stroke-dasharray=\"4,4\" opacity=\"0.4\"/>\n  <polygon points=\"502,200 496,190 508,192\" fill=\"#44ff88\" opacity=\"0.6\"/>\n</svg>",
+        "caption": "At four hundred kilometers altitude, trace atmosphere still exerts enough drag to gradually lower the orbit, requiring regular reboosts. A complete orbit takes roughly ninety-two minutes — the crew sees sixteen sunrises and sixteen sunsets every day."
+      }
+    },
+    {
+      "heading": "Three thousand experiments: why any of this matters",
+      "level": 2,
+      "paragraphs": [
+        "The station is not merely a hotel in orbit. It is the largest microgravity laboratory in human history, and what happens inside its modules has direct implications for medicine, materials science, and our understanding of human biology.",
+        "In microgravity, protein crystals grow far larger and more perfectly ordered than is possible on Earth. The structure of those crystals allows scientists to map the active sites of protein molecules with precision unavailable in ground-based labs. Experiments on the station have resolved the structures of proteins associated with Parkinson's disease, various cancers, and viral infections. Some of those results directly contributed to the development of new drugs.",
+        "One of the more unexpected research directions involves manufacturing. In microgravity, alloys and glasses can be formed with uniform component distribution impossible to achieve on Earth, where convection and sedimentation disrupt the mixture. Optical fiber grown on orbit could theoretically exhibit ten times fewer signal losses than its ground-produced equivalent. That would be a potentially transformative technology for telecommunications.",
+        "The most pressing challenge, however, is understanding what happens to the human body during extended weightlessness. Bones lose mineral density at roughly one percent per month — far faster than the most severe osteoporosis on Earth. Muscles atrophy. Fluid shifts toward the head, causing facial swelling and leg thinning. The heart shrinks because it no longer has to pump blood against gravity. Station research gave medicine insight into bone-loss mechanisms that helped develop treatments for elderly patients with osteoporosis on Earth — a benefit reaching millions of people who will never leave the planet."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "iss-science-lab",
+        "prompt": "Photorealistic illustration for a science encyclopedia: interior of the International Space Station laboratory module. Racks of scientific equipment cover all walls, ceiling and floor — no gravity orientation implied. Protein crystal growth chambers visible, laptop computers fixed to panels, cables and equipment bags floating, warm interior lighting. Hard sci-fi style, technically realistic. No human faces visible, only a hand at the edge operating a control panel. Add the following text labels on the image: \"science rack\", \"crystal growth unit\", \"experiment samples\".",
+        "alt": "Interior of the International Space Station laboratory module — equipment racks covering all walls, ceiling and floor",
+        "caption": "In microgravity the concepts of \"floor\" and \"ceiling\" become arbitrary: equipment is mounted on every surface. Over the station's operational life more than three thousand scientific studies have been conducted by researchers from more than one hundred countries.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "The spacecraft that sustain it",
+      "level": 2,
+      "paragraphs": [
+        "The station does not produce enough food, water, or air on its own. Regular resupply missions are not a luxury — they are a condition of the station's existence.",
+        "Over the decades, cargo logistics have been shared among several systems. The Russian Progress vehicle — an uncrewed variant of the Soyuz — delivers propellant, water, food, and equipment several times a year. The American Cygnus built by Northrop Grumman and the Dragon cargo ship from SpaceX service the American segment. The Japanese HTV-X (successor to the Kounotori) continues Japan's tradition of delivering large, heavy equipment.",
+        "Crewed transport long rested on two pillars: the Russian Soyuz was the only crewed vehicle available for several years after the Space Shuttle retired in 2011, until Crew Dragon arrived in 2020. Boeing's Starliner later joined the commercial market — though its first crewed flight encountered serious technical problems that forced the crew to remain aboard the station far longer than planned. Diversity in transport systems improves resilience: if one vehicle is grounded or delayed, the station is not cut off from Earth."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "iss-soyuz-docked",
+        "prompt": "Photorealistic illustration for a science encyclopedia: Russian Soyuz spacecraft docked to the International Space Station. Soyuz shown in profile with its distinctive three modules — orbital module, descent module, service module — connected to ISS docking port, solar panels extended. ISS structure partially visible behind. Earth curvature below, stars in background. Hard sci-fi style, technically accurate. Add the following text labels on the image: \"Soyuz\", \"docking port\", \"orbital module\", \"descent capsule\".",
+        "alt": "Russian Soyuz spacecraft docked to the International Space Station",
+        "caption": "The Soyuz is the reliable workhorse of crewed spaceflight. It remains docked throughout the entire mission and serves as a lifeboat for emergency crew evacuation.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "What comes after 2030",
+      "level": 2,
+      "paragraphs": [
+        "The station is not permanent. Metal fatigues, micrometeoroids leave microscopic craters, radiation degrades materials. The planned deorbit is scheduled for late 2030 to early 2031. This will not be a free fall: a controlled deorbit will direct the structure into the dense atmosphere, where most of it will burn up. The surviving fragments are targeted for _Point Nemo_ — a location in the South Pacific that is the point on Earth most distant from any land, and which already serves as a graveyard for retired spacecraft.",
+        "But a gap in human orbital presence is not planned. Axiom Space is building a commercial segment that will first attach to the station and then operate independently after the station deorbits. Orbital Reef, a project developed by a consortium including Blue Origin and Sierra Space, positions itself as a \"mixed-use business park in orbit.\" Starlab from Nanoracks aims to serve as a next-generation science laboratory. China already has its own Tiangong station, now fully operational.",
+        "The shift from a single international station to several commercial and national platforms will change the very nature of orbital presence. Rather than a unique symbol of diplomatic cooperation, the International Space Station will leave a different kind of legacy: more than twenty-five years of hard-won data about how people live, work, and survive in space. Without that body of knowledge, no serious plan for a crewed Moon base or a voyage to Mars has a solid scientific foundation."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "iss-commercial-successor",
+        "prompt": "Photorealistic concept illustration for a science encyclopedia: a near-future commercial space station in low Earth orbit. Modular design with rotating habitat rings and solar arrays, clean and modern aesthetic, Earth visible below with city lights on the night side. Hard sci-fi style, dark space background. Add the following text labels on the image: \"commercial station\", \"habitat module\", \"solar arrays\", \"low Earth orbit\".",
+        "alt": "Concept illustration of a next-generation commercial space station in low Earth orbit",
+        "caption": "Commercial successors to the International Space Station — Axiom Station, Orbital Reef, Starlab — plan to inherit and expand the infrastructure of orbital science and industry after the station is deorbited in the early 2030s.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "The legacy: what the station changed",
+      "level": 2,
+      "paragraphs": [
+        "The station's significance is hardest to measure precisely because much of it is preventive: failures avoided, diseases understood before they could incapacitate the first Mars crews, engineering solutions tested on orbit before they were needed in deep space.",
+        "On a purely human level the station demonstrated that a shared goal can bridge divisions — at least inside a pressurized module four hundred kilometers above every conflict on Earth. Astronauts and cosmonauts living in roughly half a square meter of personal space each depend on one another in a literal, physiological sense. That mutual dependence produced a culture of problem-solving and mutual support that has become a template for the lunar and, eventually, Martian crews to follow.",
+        "The station showed that people can function in space not for weeks, but for years. It gave medicine an understanding of how the human body ages in accelerated fashion under microgravity, and allowed researchers to develop countermeasures: exercise protocols, nutritional supplements, pharmaceutical regimens. Without that accumulated knowledge, the first crew to land on Mars would arrive so physically compromised they might not be able to step outside."
+      ]
+    }
+  ],
+  "glossary": [
+    {
+      "term": "Microgravity",
+      "definition": "The condition in which objects and people are in free fall together with the station. Gravity at four hundred kilometers altitude is barely weaker than at Earth's surface, but because the station and everything in it fall at the same rate, the force cannot be felt — it is as though gravity has been switched off."
+    },
+    {
+      "term": "Low Earth orbit",
+      "definition": "An orbit at altitudes between roughly two hundred and two thousand kilometers above Earth's surface. The International Space Station flies at approximately four hundred kilometers. At these altitudes, trace atmosphere still exerts measurable drag, causing the orbit to decay gradually."
+    },
+    {
+      "term": "Module",
+      "definition": "A pressurized cylindrical or spherical section of a space station built for a specific purpose: laboratory, habitat, connecting node, or service functions. The station consists of sixteen primary modules assembled on orbit over more than ten years."
+    },
+    {
+      "term": "Expedition",
+      "definition": "A standard long-duration mission aboard the International Space Station, typically lasting four to six months. Expeditions are numbered sequentially from the first in November 2000. A typical crew consists of seven people."
+    },
+    {
+      "term": "Micrometeorite",
+      "definition": "A tiny particle of cosmic dust or rock fragment smaller than one millimeter that moves through space at very high velocity. Micrometeorites continuously bombard the station's exterior surfaces, leaving microscopic pits and scratches that contribute to the slow degradation of the structure."
+    },
+    {
+      "term": "Point Nemo",
+      "definition": "A location in the South Pacific Ocean that is the point on Earth farthest from any land — approximately two thousand six hundred and eighty-eight kilometers from the nearest coastline. It serves as the standard targeted impact zone for controlled deorbiting of spent spacecraft, and is the planned destination for the International Space Station's surviving fragments."
+    },
+    {
+      "term": "Protein crystallography",
+      "definition": "A method for determining the three-dimensional structure of protein molecules by growing crystals and analyzing their X-ray diffraction patterns. In microgravity, crystals grow more uniformly and to larger sizes, enabling more precise structural data that are critical for drug development."
+    },
+    {
+      "term": "Canadarm2",
+      "definition": "A fifteen-meter robotic manipulator arm built by the Canadian Space Agency and mounted on the station's exterior. Used for assembling modules, capturing visiting cargo ships, and repositioning spacewalking crew. Without it, assembly of most of the station's major elements would not have been possible."
+    },
+    {
+      "term": "Orbital reboost",
+      "definition": "A maneuver that raises the station's orbital altitude using the engines of a docked spacecraft or the Zvezda module's own thrusters. Required several times per year because trace atmosphere at four hundred kilometers gradually decelerates the station and lowers its orbit."
+    }
+  ],
+  "quiz": [
+    {
+      "question": "Which country launched the first module of the International Space Station, and what was it called?",
+      "options": [
+        "The United States, the Unity connecting node",
+        "Russia, the Zarya functional cargo block",
+        "Russia, the Zvezda service module",
+        "The United States, the Destiny laboratory"
+      ],
+      "correctIndex": 1,
+      "explanation": "Zarya was the first element of the station, launched in 1998. Technically it belongs to Russia, but it was built with American funding. Its name means \"dawn\" — a symbol of the station's beginning."
+    },
+    {
+      "question": "Why do astronauts experience weightlessness on the International Space Station, which is only four hundred kilometers from Earth?",
+      "options": [
+        "Gravity is so weak at that altitude that it barely acts on objects",
+        "The station flies so fast that centrifugal force counteracts gravity",
+        "The station and everything aboard are in free fall — falling toward Earth together at the same rate",
+        "Special engines inside the modules neutralize gravitational force"
+      ],
+      "correctIndex": 2,
+      "explanation": "Gravity at four hundred kilometers altitude is about ninety percent of what it is at the surface. Weightlessness occurs because the station and everything inside it fall toward Earth with the same acceleration. The horizontal speed is so high that the planet's surface curves away as fast as they fall — that is what an orbit is."
+    },
+    {
+      "question": "How many sunrises does the crew of the International Space Station observe per day?",
+      "options": [
+        "Once, the same as on Earth",
+        "Four times — once every six hours",
+        "Approximately sixteen times",
+        "Twenty-four times — once every hour"
+      ],
+      "correctIndex": 2,
+      "explanation": "The station completes roughly fifteen and a half orbits around Earth per day. Each orbit takes approximately ninety minutes. The crew therefore witnesses approximately sixteen sunrises and sixteen sunsets every day."
+    },
+    {
+      "question": "Why do researchers grow protein crystals aboard the International Space Station rather than on Earth?",
+      "options": [
+        "There is no dust in orbit to contaminate the crystals",
+        "In microgravity crystals grow larger and more perfectly ordered, enabling more precise structural mapping",
+        "X-ray instruments work more accurately in vacuum",
+        "Temperature in orbit is more stable than in ground-based laboratories"
+      ],
+      "correctIndex": 1,
+      "explanation": "On Earth, convection and gravity disrupt crystal growth: heavier molecules settle, and fluid currents deform the crystal lattice. In microgravity these effects are absent — crystals grow more slowly and more uniformly, allowing detailed mapping of their atomic structure by X-ray diffraction, which is essential for designing drugs that fit specific protein targets."
+    },
+    {
+      "question": "When is the International Space Station planned for deorbit, and where will the surviving fragments land?",
+      "options": [
+        "In 2040, in Antarctica",
+        "In 2028, in the Atlantic Ocean near the Azores",
+        "In the early 2030s, in the Pacific Ocean at Point Nemo",
+        "The station will be left in orbit as a monument to the space age"
+      ],
+      "correctIndex": 2,
+      "explanation": "The planned deorbit is scheduled for late 2030 to early 2031. A controlled reentry will direct the structure into the atmosphere, where most of it will burn up. The surviving fragments are targeted for Point Nemo — the South Pacific location farthest from any coastline, which has been the standard graveyard for retired spacecraft."
+    }
+  ],
+  "sources": [
+    {
+      "title": "NASA — International Space Station: Overview",
+      "url": "https://www.nasa.gov/international-space-station/",
+      "meta": "NASA official site, updated 2025"
+    },
+    {
+      "title": "NASA — ISS Research and Technology",
+      "url": "https://www.nasa.gov/iss-science/",
+      "meta": "NASA Science, open access"
+    },
+    {
+      "title": "ESA — International Space Station Overview",
+      "url": "https://www.esa.int/Science_Exploration/Human_and_Robotic_Exploration/International_Space_Station",
+      "meta": "European Space Agency, open access"
+    },
+    {
+      "title": "JAXA — Kibo Japanese Experiment Module",
+      "url": "https://iss.jaxa.jp/en/kibo/",
+      "meta": "Japan Aerospace Exploration Agency, open access"
+    },
+    {
+      "title": "CSA — Canadarm2: The station's robotic arm",
+      "url": "https://www.asc-csa.gc.ca/eng/iss/canadarm2/",
+      "meta": "Canadian Space Agency, open access"
+    },
+    {
+      "title": "NASA — Commercial Crew Program: Crew Dragon",
+      "url": "https://www.nasa.gov/commercial-crew-program/",
+      "meta": "NASA, updated 2024"
+    },
+    {
+      "title": "NASA — Space Station Deorbit Plan (2024 report)",
+      "url": "https://www.nasa.gov/missions/station/iss-transition/",
+      "meta": "NASA HQ, 2024"
+    },
+    {
+      "title": "Scott Kelly — Endurance: A Year in Space, a Lifetime of Discovery",
+      "url": "https://www.penguinrandomhouse.com/books/533818/endurance-by-scott-kelly/",
+      "meta": "Alfred A. Knopf, 2017 — astronaut memoir of a one-year mission"
+    },
+    {
+      "title": "NASA — Protein Crystal Growth Experiments on the ISS",
+      "url": "https://www.nasa.gov/centers-and-facilities/marshall/iss-research-overview/protein-crystal-growth/",
+      "meta": "NASA Marshall, open access"
+    },
+    {
+      "title": "Axiom Space — Commercial Space Station",
+      "url": "https://www.axiomspace.com/station",
+      "meta": "Axiom Space, 2025"
+    }
+  ],
+  "lastVerified": "2026-05-06"
+}

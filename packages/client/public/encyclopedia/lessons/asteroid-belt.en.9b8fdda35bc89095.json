@@ -1,0 +1,306 @@
+{
+  "slug": "asteroid-belt",
+  "language": "en",
+  "section": "planetology",
+  "order": 9,
+  "difficulty": "beginner",
+  "readingTimeMin": 11,
+  "title": "The Asteroid Belt",
+  "subtitle": "Between Mars and Jupiter — remnants of a planet that never was, and silent archives of the early solar system.",
+  "hero": {
+    "cacheKey": "asteroid-belt-hero",
+    "prompt": "Photorealistic illustration for a science encyclopedia: the asteroid belt between Mars and Jupiter, wide-angle view from space showing the Sun in the distance at left, Mars orbit ring glowing red, the asteroid belt as a sparse scattered field of rocky bodies of various sizes — boulders, rubble piles, a large round dwarf planet (Ceres) prominently visible, Jupiter partially visible at right edge, dark star-filled background, accurate proportions, hard sci-fi style. Add the following text labels on the image: \"Mars orbit\", \"Asteroid Belt\", \"Ceres\", \"Jupiter orbit\".",
+    "alt": "The asteroid belt between the orbits of Mars and Jupiter — a scattered field of rocky bodies with dwarf planet Ceres prominent",
+    "caption": "The asteroid belt occupies the space between 2.2 and 3.2 astronomical units from the Sun. Despite containing millions of objects, it is far emptier than science fiction typically portrays.",
+    "aspectRatio": "16:9"
+  },
+  "body": [
+    {
+      "paragraphs": [
+        "In science fiction the asteroid belt is a gauntlet: a dense swarm of rock that a spacecraft navigates at mortal risk. The reality turned out to be far quieter — and, in its own way, far more interesting. The total mass scattered across the belt is so slight that if you gathered all of it into one object, it would still be only four percent of the Moon's mass — roughly one twenty-fifth of the Moon. If you were drifting inside the belt right now, the nearest neighboring asteroid would most likely be invisible to the naked eye.",
+        "But thinness in mass does not mean thinness in meaning. The asteroid belt is a preserved archive: fragments of material that never coalesced into a full planet because gravitational interference from Jupiter would not allow it. Some of those fragments have not changed since the solar system formed — older than Earth, older than the Moon, encoding the chemical recipe from which planets were built."
+      ]
+    },
+    {
+      "heading": "Why There Is No Planet Here",
+      "level": 2,
+      "paragraphs": [
+        "In the eighteenth century, astronomers noticed a pattern in the spacing of planetary orbits — a suspicious gap yawned between Mars and Jupiter. A simplified mathematical rule suggested another planet ought to sit there. When the first large asteroids were discovered at the opening of the nineteenth century, it seemed the mystery was solved.",
+        "But there is no planet there, and there never was — not because one broke apart. The material simply never had the chance to gather. Jupiter formed early enough and grew massive enough that its gravity kept accelerating objects in the belt to relative speeds too high for them to stick together on collision. Instead of gradually building up through accretion, collisions shattered bodies. The result is not a failed planet but a frozen construction site.",
+        "Jupiter also swept most of the original material out of the belt: through orbital resonances and gravitational scattering, a large fraction of what once existed there was thrown inward toward the Sun or flung outward entirely. What remains today is only a small fraction of what the belt might once have held."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "asteroid-belt-structure",
+        "prompt": "Photorealistic illustration for a science encyclopedia: cross-section diagram view of the asteroid belt showing inner S-type stony asteroids (brownish-grey rocky shapes) near Mars orbit, outer C-type carbonaceous asteroids (very dark, coal-black) near Jupiter orbit, M-type metallic asteroids in middle zone (shiny metallic gleam), clearly separated zones, dark space background, scientific infographic style. Add the following text labels on the image: \"S-type (stony, inner belt)\", \"M-type (metallic)\", \"C-type (carbonaceous, outer belt)\", \"Mars orbit\", \"Jupiter orbit\".",
+        "alt": "Distribution of asteroid types in the belt: stony S-types closer to the Sun, carbonaceous C-types in the outer belt",
+        "caption": "The composition of belt asteroids shifts with distance from the Sun. Stony S-types dominate the inner belt; dark carbonaceous C-types concentrate in the outer region. Metallic M-types are rarer and scattered through the middle zone.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "Ceres: A Dwarf Planet Among the Rubble",
+      "level": 2,
+      "paragraphs": [
+        "Among the millions of objects in the belt, one stands apart from the rest. **_Ceres_** is the only body in the asteroid belt massive enough for gravity to have pulled it into a roughly spherical shape. Its diameter is approximately 950 kilometers — far smaller than the Moon, but substantial for the belt. Ceres alone accounts for about one-third of the entire mass of the asteroid belt combined.",
+        "Since 2006, Ceres has been officially classified as a dwarf planet — alongside Pluto and several other bodies in the outer solar system. This is not a demotion but a more precise category: Ceres fits neither the definition of a full planet nor that of a typical asteroid.",
+        "The NASA Dawn mission, which entered orbit around Ceres in 2015, revealed a surprisingly complex world. On the floor of the Occator crater, scientists found brilliant bright patches — deposits resembling sodium carbonate and chloride salts. The most plausible explanation is that a liquid brine existed (and may still persist) beneath the surface, occasionally forcing its way up through fractures, evaporating, and leaving the salts behind. Analysis of Dawn data also detected ammoniated compounds and organic molecules on the surface, lending Ceres unexpected relevance in astrobiology discussions."
+      ]
+    },
+    {
+      "heading": "Vesta: A Chip Off a Mini-Planet",
+      "level": 2,
+      "paragraphs": [
+        "The second-most massive object in the belt is **_Vesta_** — a body roughly 525 kilometers across that differs from most asteroids in a fundamental way: it is geologically differentiated. Vesta has an iron-nickel core, a mantle, and a crust — exactly like a full-sized planet, only much smaller. Early in the solar system's history, Vesta grew hot enough to melt and separate into layers, just as Earth and Mars did.",
+        "Vesta's crust is basaltic — volcanic rock solidified from cooling magma. This makes Vesta the source of a distinctive family of meteorites known as **_howardite-eucrite-diogenite meteorites_**. They reach Earth after collisions chip material off Vesta's crust. Thanks to these meteorites, Vesta was studied in considerable detail from the ground long before any spacecraft flew to it.",
+        "The Dawn mission orbited Vesta from 2011 to 2012 and revealed a dramatic planetary landscape: the enormous Rheasilvia impact basin at the south pole, with a central peak taller than Mount Everest on Earth, and a system of troughs encircling the entire asteroid — scars from a collision that nearly split Vesta in two."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "vesta-ceres-comparison",
+        "prompt": "Photorealistic illustration for a science encyclopedia: side-by-side comparison of asteroid Vesta and dwarf planet Ceres, Vesta showing a heavily cratered irregular rocky surface with a massive south polar impact basin (Rheasilvia) and a central peak, surface has basaltic dark and bright patches, Ceres showing a round smooth-ish cratered body with bright white spots in the Occator crater, both against dark space background, relative sizes accurate, scientific accuracy. Add the following text labels on the image: \"Vesta (525 km, basaltic crust)\", \"Ceres (950 km, dwarf planet)\", \"Rheasilvia basin\", \"Occator bright spots\".",
+        "alt": "Comparison of Vesta and Ceres — the two largest bodies in the asteroid belt",
+        "caption": "Vesta (left) and Ceres (right) — the two largest objects in the asteroid belt, both visited by the Dawn mission between 2011 and 2018. The bright spots on Ceres are salt deposits from a subsurface brine.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "Three Spectral Families",
+      "level": 2,
+      "paragraphs": [
+        "Asteroids in the belt are classified by the spectrum of sunlight they reflect — a window into their chemical composition. Three major types dominate, and their distribution across the belt is not random.",
+        "**_C-type (carbonaceous)_** asteroids are the most common, accounting for about 75 percent of all known belt objects. They are dark, almost coal-black, and reflect little light. Their composition is close to that of primitive chondrites — stony meteorites containing minerals essentially unchanged since the solar system formed. C-types concentrate in the outer belt, where lower solar heating preserved volatile compounds: water locked in hydrated minerals and a rich inventory of organics.",
+        "**_S-type (stony)_** asteroids make up roughly 17 percent and dominate the inner belt, closer to Mars. Brighter than C-types, they contain silicates and metals. Their structure is more transformed: heat and time have altered the original chondritic material, producing a rock suite that resembles the ordinary chondrites — the most common type of meteorite on Earth.",
+        "**_M-type (metallic)_** asteroids are rare but extraordinarily interesting from a resource standpoint. They consist largely of iron and nickel — almost certainly the exposed cores of ancient bodies that were shattered in the violent early solar system. One of the largest, **_Psyche_**, is the primary target of the NASA Psyche mission launched in 2023."
+      ]
+    },
+    {
+      "heading": "The Kirkwood Gaps: Voids Swept Clean by Jupiter",
+      "level": 2,
+      "paragraphs": [
+        "Plot the distribution of asteroid orbits by distance from the Sun and several sharp dips appear — zones nearly empty of asteroids. The nineteenth-century American astronomer Daniel Kirkwood identified these features and traced them to their cause: each void corresponds to an orbital resonance with Jupiter.",
+        "A resonance means that a body in the gap completes an exact whole number of orbits around the Sun in the same time Jupiter completes a whole number of its own. In the most prominent gap — the three-to-one resonance — an asteroid would orbit the Sun three times for every single orbit Jupiter makes. That repeated gravitational nudge from Jupiter gradually distorts the asteroid's orbit, eventually flinging it either toward the Sun or out of the belt entirely.",
+        "**_Kirkwood gaps_** are not merely an interesting structural detail. They are the highway by which a portion of belt material escapes into the inner solar system, eventually becoming meteorites on Earth — or, in some cases, potentially hazardous asteroids. The asteroid belt is not a closed system: Jupiter continuously bleeds material from it."
+      ]
+    },
+    {
+      "diagram": {
+        "title": "Kirkwood Gaps — Asteroid Distribution by Distance from the Sun",
+        "svg": "<svg viewBox=\"0 0 600 320\" xmlns=\"http://www.w3.org/2000/svg\" width=\"100%\">\n  <rect width=\"600\" height=\"320\" fill=\"rgba(10,15,25,0.5)\" rx=\"4\"/>\n\n  <!-- Axis -->\n  <line x1=\"50\" y1=\"260\" x2=\"570\" y2=\"260\" stroke=\"#667788\" stroke-width=\"1\"/>\n  <line x1=\"50\" y1=\"40\" x2=\"50\" y2=\"260\" stroke=\"#667788\" stroke-width=\"1\"/>\n\n  <!-- X axis label -->\n  <text x=\"310\" y=\"300\" text-anchor=\"middle\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"10\">Distance from Sun (astronomical units)</text>\n  <!-- Y axis label -->\n  <text x=\"14\" y=\"160\" text-anchor=\"middle\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"10\" transform=\"rotate(-90,14,160)\">Number of asteroids</text>\n\n  <!-- X axis ticks and labels -->\n  <line x1=\"104\" y1=\"258\" x2=\"104\" y2=\"264\" stroke=\"#667788\" stroke-width=\"1\"/>\n  <text x=\"104\" y=\"275\" text-anchor=\"middle\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">2.0</text>\n  <line x1=\"158\" y1=\"258\" x2=\"158\" y2=\"264\" stroke=\"#667788\" stroke-width=\"1\"/>\n  <text x=\"158\" y=\"275\" text-anchor=\"middle\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">2.2</text>\n  <line x1=\"239\" y1=\"258\" x2=\"239\" y2=\"264\" stroke=\"#667788\" stroke-width=\"1\"/>\n  <text x=\"239\" y=\"275\" text-anchor=\"middle\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">2.5</text>\n  <line x1=\"320\" y1=\"258\" x2=\"320\" y2=\"264\" stroke=\"#667788\" stroke-width=\"1\"/>\n  <text x=\"320\" y=\"275\" text-anchor=\"middle\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">2.8</text>\n  <line x1=\"374\" y1=\"258\" x2=\"374\" y2=\"264\" stroke=\"#667788\" stroke-width=\"1\"/>\n  <text x=\"374\" y=\"275\" text-anchor=\"middle\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">3.0</text>\n  <line x1=\"428\" y1=\"258\" x2=\"428\" y2=\"264\" stroke=\"#667788\" stroke-width=\"1\"/>\n  <text x=\"428\" y=\"275\" text-anchor=\"middle\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">3.2</text>\n  <line x1=\"509\" y1=\"258\" x2=\"509\" y2=\"264\" stroke=\"#667788\" stroke-width=\"1\"/>\n  <text x=\"509\" y=\"275\" text-anchor=\"middle\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">3.5</text>\n\n  <!-- Asteroid distribution bars (schematic) -->\n  <rect x=\"77\" y=\"220\" width=\"25\" height=\"40\" fill=\"#7bb8ff\" opacity=\"0.5\"/>\n  <rect x=\"158\" y=\"120\" width=\"27\" height=\"140\" fill=\"#7bb8ff\" opacity=\"0.7\"/>\n  <rect x=\"186\" y=\"110\" width=\"15\" height=\"150\" fill=\"#7bb8ff\" opacity=\"0.7\"/>\n  <rect x=\"228\" y=\"195\" width=\"8\" height=\"65\" fill=\"#7bb8ff\" opacity=\"0.3\"/>\n  <rect x=\"251\" y=\"105\" width=\"18\" height=\"155\" fill=\"#7bb8ff\" opacity=\"0.7\"/>\n  <rect x=\"270\" y=\"115\" width=\"15\" height=\"145\" fill=\"#7bb8ff\" opacity=\"0.65\"/>\n  <rect x=\"307\" y=\"220\" width=\"10\" height=\"40\" fill=\"#7bb8ff\" opacity=\"0.25\"/>\n  <rect x=\"328\" y=\"125\" width=\"15\" height=\"135\" fill=\"#7bb8ff\" opacity=\"0.65\"/>\n  <rect x=\"344\" y=\"130\" width=\"10\" height=\"130\" fill=\"#7bb8ff\" opacity=\"0.6\"/>\n  <rect x=\"362\" y=\"230\" width=\"8\" height=\"30\" fill=\"#7bb8ff\" opacity=\"0.2\"/>\n  <rect x=\"382\" y=\"140\" width=\"18\" height=\"120\" fill=\"#7bb8ff\" opacity=\"0.55\"/>\n  <rect x=\"401\" y=\"155\" width=\"15\" height=\"105\" fill=\"#7bb8ff\" opacity=\"0.5\"/>\n  <rect x=\"437\" y=\"240\" width=\"8\" height=\"20\" fill=\"#7bb8ff\" opacity=\"0.2\"/>\n  <rect x=\"490\" y=\"210\" width=\"18\" height=\"50\" fill=\"#ff8844\" opacity=\"0.55\"/>\n\n  <!-- Kirkwood gap markers -->\n  <line x1=\"239\" y1=\"45\" x2=\"239\" y2=\"260\" stroke=\"#cc4444\" stroke-width=\"1\" stroke-dasharray=\"4,3\" opacity=\"0.8\"/>\n  <text x=\"239\" y=\"38\" text-anchor=\"middle\" fill=\"#cc4444\" font-family=\"monospace\" font-size=\"9\">3:1</text>\n\n  <line x1=\"313\" y1=\"55\" x2=\"313\" y2=\"260\" stroke=\"#cc4444\" stroke-width=\"1\" stroke-dasharray=\"4,3\" opacity=\"0.8\"/>\n  <text x=\"313\" y=\"48\" text-anchor=\"middle\" fill=\"#cc4444\" font-family=\"monospace\" font-size=\"9\">5:2</text>\n\n  <line x1=\"366\" y1=\"65\" x2=\"366\" y2=\"260\" stroke=\"#cc4444\" stroke-width=\"1\" stroke-dasharray=\"4,3\" opacity=\"0.8\"/>\n  <text x=\"366\" y=\"58\" text-anchor=\"middle\" fill=\"#cc4444\" font-family=\"monospace\" font-size=\"9\">7:3</text>\n\n  <line x1=\"441\" y1=\"45\" x2=\"441\" y2=\"260\" stroke=\"#cc4444\" stroke-width=\"1\" stroke-dasharray=\"4,3\" opacity=\"0.8\"/>\n  <text x=\"441\" y=\"38\" text-anchor=\"middle\" fill=\"#cc4444\" font-family=\"monospace\" font-size=\"9\">2:1</text>\n\n  <!-- Legend -->\n  <rect x=\"52\" y=\"52\" width=\"10\" height=\"10\" fill=\"#7bb8ff\" opacity=\"0.7\"/>\n  <text x=\"66\" y=\"62\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"9\">Main belt</text>\n  <rect x=\"52\" y=\"67\" width=\"10\" height=\"10\" fill=\"#ff8844\" opacity=\"0.7\"/>\n  <text x=\"66\" y=\"77\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"9\">Hildas (3:2)</text>\n  <line x1=\"52\" y1=\"87\" x2=\"62\" y2=\"87\" stroke=\"#cc4444\" stroke-width=\"1\" stroke-dasharray=\"4,3\"/>\n  <text x=\"66\" y=\"91\" fill=\"#cc4444\" font-family=\"monospace\" font-size=\"9\">Kirkwood gap</text>\n\n  <text x=\"300\" y=\"313\" text-anchor=\"middle\" fill=\"#667788\" font-family=\"monospace\" font-size=\"9\">Schematic only. Resonances shown as Jupiter:Asteroid ratio.</text>\n</svg>",
+        "caption": "Schematic distribution of asteroids by distance from the Sun. Red dashed lines mark the Kirkwood gaps — zones swept nearly empty by orbital resonances with Jupiter. The orange cluster at right represents the Hilda group at the 3:2 resonance."
+      }
+    },
+    {
+      "heading": "Trojans and Hildas: The Less-Known Families",
+      "level": 2,
+      "paragraphs": [
+        "Beyond the main belt between Mars and Jupiter, two less-famous populations of small bodies occupy stable resonant niches in the outer solar system.",
+        "**_Hildas_** are a group of asteroids locked in a three-to-two resonance with Jupiter: for every two orbits Jupiter makes around the Sun, they complete three. This synchronization holds them in a stable zone between the outer main belt and Jupiter's orbit.",
+        "**_Jupiter Trojans_** are a much larger and better-known group. They travel at the Lagrange points L4 and L5 of Jupiter's orbit — that is, exactly sixty degrees ahead of and behind Jupiter itself. At these points the gravitational balance between Jupiter and the Sun allows objects to remain stable for billions of years. More than ten thousand Trojans are known, and the true population may number in the millions. In composition they resemble the carbonaceous asteroids of the outer belt, and may be related to comet nuclei. The NASA Lucy mission, launched in 2021, is conducting a tour of six different Jupiter Trojans and will return unprecedented close-up data on this enigmatic class of bodies through the late 2030s."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "belt-trojans-diagram",
+        "prompt": "Photorealistic illustration for a science encyclopedia: top-down view of the solar system showing Sun at center, Jupiter orbit ring, the main asteroid belt between Mars and Jupiter as a faint grey band, two bright orange clusters of Trojan asteroids at Jupiter L4 and L5 Lagrange points 60 degrees ahead and behind Jupiter, Hilda group between belt and Jupiter shown as small sparse cluster, dark space background, clean scientific infographic style. Add the following text labels on the image: \"Main Belt\", \"Jupiter\", \"Trojans L4\", \"Trojans L5\", \"Hildas\", \"Sun\".",
+        "alt": "Top-down view of the solar system with the main asteroid belt, Jupiter Trojans at the Lagrange points, and the Hilda group",
+        "caption": "The three main small-body populations between Mars and Jupiter. The L4 and L5 Trojan swarms remain stable for billions of years, held in place by the gravitational balance between the Sun and Jupiter.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "Missions: From Orbit to a Metal World",
+      "level": 2,
+      "paragraphs": [
+        "The asteroid belt was crossed incidentally by the Pioneer and Voyager probes on their way to the outer planets — those traversals showed that the belt was indeed far emptier than feared. Dedicated scientific investigation came much later.",
+        "The Dawn mission (NASA) was the first spacecraft in history to enter orbit around two different extraterrestrial bodies in succession. In 2011, Dawn arrived at Vesta, spent over a year mapping its crust and gravity field in detail, then departed and entered orbit around Ceres in 2015. The spacecraft continued operating until 2018, when it exhausted the propellant needed for attitude control. Dawn remains in orbit around Ceres as a passive artifact.",
+        "The Lucy mission (NASA), launched in 2021, is bound for the Jupiter Trojans. Along the way it has already performed close flybys of several main-belt asteroids — using them to calibrate scientific instruments before the main encounters. The primary program: six different Trojans between 2027 and 2033.",
+        "The Psyche mission (NASA), launched in 2023, is traveling to the metallic asteroid of the same name in the outer belt. Psyche is believed to be the bare iron-nickel core of an ancient differentiated planetesimal — a chance to observe from orbit what is normally hidden deep inside a planet. Arrival is planned for 2029."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "dawn-spacecraft-asteroid",
+        "prompt": "Photorealistic illustration for a science encyclopedia: NASA Dawn spacecraft in orbit above Ceres dwarf planet, spacecraft with large blue solar panels extended, Ceres surface below showing grey-brown cratered terrain with bright white spots in Occator crater glowing against dark surroundings, stars in background, detailed scientific render. Add the following text labels on the image: \"Dawn spacecraft (NASA)\", \"Ceres\", \"Occator crater bright spots\".",
+        "alt": "NASA Dawn spacecraft in orbit above Ceres with bright salt deposits visible in the Occator crater",
+        "caption": "Dawn at Ceres. Between 2015 and 2018 the mission uncovered unexpected geological activity: the bright patches in the Occator crater are salt deposits from a subsurface brine, suggesting Ceres was geologically active far more recently than anticipated.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "Meteorites — Messengers from the Belt",
+      "level": 2,
+      "paragraphs": [
+        "Most meteorites that fall on Earth originated in the asteroid belt. Collisions between asteroids knock off fragments, some of which drift into Kirkwood gap resonance zones, get ejected toward the Sun, and eventually cross Earth's orbit.",
+        "**_Chondrites_** are the most common class of meteorites. They are primitive stony material, largely unchanged since the solar system formed. Inside chondrites are tiny rounded grains called **_chondrules_** — droplets of molten silicate that solidified in the vacuum of the early solar nebula four and a half billion years ago. A special subclass, carbonaceous chondrites, contains organic molecules and even amino acids.",
+        "**_Achondrites_** are meteorites without chondrules, formed from bodies that melted and differentiated. This category includes howardite-eucrite-diogenite meteorites from Vesta, as well as meteorites from Mars and the Moon (though those originate outside the belt). Iron meteorites — composed almost entirely of metal — are the exposed cores of such bodies.",
+        "Carbonaceous chondrites deliver prebiotic chemistry to Earth: amino acids, nucleobase components, and simple sugars. The intense bombardment of the early Earth by such bodies likely enriched our planet with the molecular building blocks that became the raw material for the first replicating molecules."
+      ]
+    },
+    {
+      "diagram": {
+        "title": "Asteroid Classes and Their Corresponding Meteorite Types",
+        "svg": "<svg viewBox=\"0 0 580 280\" xmlns=\"http://www.w3.org/2000/svg\" width=\"100%\">\n  <rect width=\"580\" height=\"280\" fill=\"rgba(10,15,25,0.5)\" rx=\"4\"/>\n\n  <!-- Header -->\n  <text x=\"290\" y=\"28\" text-anchor=\"middle\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"12\">Asteroid Types and Corresponding Meteorites</text>\n\n  <!-- Column headers -->\n  <text x=\"100\" y=\"55\" text-anchor=\"middle\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"10\">Asteroid type</text>\n  <text x=\"290\" y=\"55\" text-anchor=\"middle\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"10\">Composition</text>\n  <text x=\"470\" y=\"55\" text-anchor=\"middle\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"10\">Meteorite class</text>\n\n  <!-- Separator -->\n  <line x1=\"30\" y1=\"62\" x2=\"550\" y2=\"62\" stroke=\"#334455\" stroke-width=\"0.8\"/>\n  <line x1=\"190\" y1=\"40\" x2=\"190\" y2=\"255\" stroke=\"#334455\" stroke-width=\"0.8\"/>\n  <line x1=\"380\" y1=\"40\" x2=\"380\" y2=\"255\" stroke=\"#334455\" stroke-width=\"0.8\"/>\n\n  <!-- C-type row -->\n  <text x=\"100\" y=\"90\" text-anchor=\"middle\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"11\">C-type</text>\n  <text x=\"100\" y=\"104\" text-anchor=\"middle\" fill=\"#667788\" font-family=\"monospace\" font-size=\"9\">(carbonaceous, ~75%)</text>\n  <text x=\"290\" y=\"90\" text-anchor=\"middle\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"10\">dark, hydrated,</text>\n  <text x=\"290\" y=\"104\" text-anchor=\"middle\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"10\">organics, water</text>\n  <text x=\"470\" y=\"90\" text-anchor=\"middle\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"10\">Carbonaceous chondrites</text>\n  <text x=\"470\" y=\"104\" text-anchor=\"middle\" fill=\"#667788\" font-family=\"monospace\" font-size=\"9\">(CI, CM, CV classes)</text>\n\n  <!-- Separator -->\n  <line x1=\"30\" y1=\"118\" x2=\"550\" y2=\"118\" stroke=\"#334455\" stroke-width=\"0.6\"/>\n\n  <!-- S-type row -->\n  <text x=\"100\" y=\"142\" text-anchor=\"middle\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"11\">S-type</text>\n  <text x=\"100\" y=\"156\" text-anchor=\"middle\" fill=\"#667788\" font-family=\"monospace\" font-size=\"9\">(stony, ~17%)</text>\n  <text x=\"290\" y=\"142\" text-anchor=\"middle\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"10\">silicates, olivine,</text>\n  <text x=\"290\" y=\"156\" text-anchor=\"middle\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"10\">pyroxene, Fe-Ni</text>\n  <text x=\"470\" y=\"142\" text-anchor=\"middle\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"10\">Ordinary chondrites,</text>\n  <text x=\"470\" y=\"156\" text-anchor=\"middle\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"10\">achondrites (Vesta)</text>\n\n  <!-- Separator -->\n  <line x1=\"30\" y1=\"170\" x2=\"550\" y2=\"170\" stroke=\"#334455\" stroke-width=\"0.6\"/>\n\n  <!-- M-type row -->\n  <text x=\"100\" y=\"194\" text-anchor=\"middle\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"11\">M-type</text>\n  <text x=\"100\" y=\"208\" text-anchor=\"middle\" fill=\"#667788\" font-family=\"monospace\" font-size=\"9\">(metallic, rare)</text>\n  <text x=\"290\" y=\"194\" text-anchor=\"middle\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"10\">iron, nickel,</text>\n  <text x=\"290\" y=\"208\" text-anchor=\"middle\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"10\">likely planetesimal core</text>\n  <text x=\"470\" y=\"194\" text-anchor=\"middle\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"10\">Iron meteorites</text>\n  <text x=\"470\" y=\"208\" text-anchor=\"middle\" fill=\"#667788\" font-family=\"monospace\" font-size=\"9\">(IAB, IIIAB groups)</text>\n\n  <text x=\"290\" y=\"268\" text-anchor=\"middle\" fill=\"#667788\" font-family=\"monospace\" font-size=\"9\">Simplified. More than ten spectral subclasses exist in current taxonomy.</text>\n</svg>",
+        "caption": "The three main spectral types of belt asteroids and the meteorite classes they produce. Most meteorites that fall on Earth are ordinary chondrites — fragments of S-type bodies from the inner belt deflected inward through Kirkwood gap resonances."
+      }
+    },
+    {
+      "heading": "Hazard and Resource: Two Sides of the Belt",
+      "level": 3,
+      "paragraphs": [
+        "The asteroid belt is a long-term source of some objects that cross Earth's orbit and pose a potential impact hazard. After resonance-driven orbit changes triggered by Jupiter, certain bodies migrate onto transitional paths that may, over millions of years, lead to planetary encounters — or eventual ejection from the solar system. Planetary defense programs worldwide track candidate objects continuously.",
+        "On the other side of the ledger, the mineral resources of the belt are staggering in scale. A single large metallic asteroid of the Psyche class may contain more iron, nickel, and cobalt than all terrestrial industrial reserves combined. Space resource extraction remains more expensive than conventional mining today, but several private companies are advancing the necessary technology. The economics of this question could shift dramatically as fully reusable heavy-lift launch systems drive down the cost of reaching orbit."
+      ]
+    }
+  ],
+  "glossary": [
+    {
+      "term": "Chondrite",
+      "definition": "The most common class of stony meteorites, containing small rounded silicate grains called chondrules. Chondrites have remained largely unchanged since the solar system formed and are the oldest solid material available for laboratory study."
+    },
+    {
+      "term": "Achondrite",
+      "definition": "A class of stony meteorites lacking chondrules, formed from bodies that melted and geologically differentiated. Examples include meteorites from Vesta, Mars, and the Moon. They record planetary-scale processes from the early solar system."
+    },
+    {
+      "term": "Howardite-eucrite-diogenite meteorites",
+      "definition": "A family of achondrites originating from the crust and upper mantle of asteroid Vesta. The three subtypes represent different depths of the basaltic crust: eucrites are surface lava flows, howardites are impact-mixed breccias, and diogenites come from deeper mantle material."
+    },
+    {
+      "term": "Kirkwood gap",
+      "definition": "A region in the asteroid belt nearly devoid of asteroids due to an orbital resonance with Jupiter. Bodies at resonant distances receive repeated gravitational nudges from Jupiter that gradually distort their orbits and eject them from the belt."
+    },
+    {
+      "term": "Trojan asteroids",
+      "definition": "Asteroids that travel at the stable Lagrange points L4 and L5 on a planet's orbit — sixty degrees ahead and behind the planet. The gravitational balance between the Sun and Jupiter holds Jupiter's Trojans in place for billions of years. More than ten thousand are known."
+    },
+    {
+      "term": "Planetesimal",
+      "definition": "A kilometer-scale solid body that formed from dust and ice in the early protoplanetary disk. Planetesimals are the building blocks of planets; most merged into larger objects, but some survived as asteroids in the main belt."
+    },
+    {
+      "term": "Differentiation (planetary)",
+      "definition": "The process by which a body separates into a core, mantle, and crust under gravity during partial or full melting. Vesta differentiated early and therefore has an iron core. Most chondritic bodies never reached the temperature required for differentiation."
+    },
+    {
+      "term": "Carbonaceous chondrite",
+      "definition": "A subclass of chondrites with elevated carbon content, organic compounds, and volatile elements. Contains amino acids, nucleobase components, and water in hydrated minerals. Considered the closest surviving match to the original composition of the protoplanetary disk."
+    },
+    {
+      "term": "Lagrange point",
+      "definition": "One of five special locations in a two-body gravitational system (for example, Sun and Jupiter) where a smaller body can remain in a stable or semi-stable position relative to both. Points L4 and L5 are stable and accumulate Trojan asteroid swarms."
+    }
+  ],
+  "quiz": [
+    {
+      "question": "Why is there no planet between Mars and Jupiter despite the presence of millions of asteroids there?",
+      "options": [
+        "A planet formed there but was later shattered by a catastrophic collision",
+        "Jupiter formed early and massive enough that its gravity prevented belt material from accumulating into a planet",
+        "The gap between Mars and Jupiter is simply too narrow for a planet to form",
+        "Solar wind dispersed all available material before a planet could grow"
+      ],
+      "correctIndex": 1,
+      "explanation": "Jupiter's gravitational influence accelerated belt bodies to mutual speeds too high for them to stick together on collision. Instead of growing through accretion, bodies were shattered. The total remaining mass is only about four percent of the Moon's mass — far less than any planet."
+    },
+    {
+      "question": "What are the Kirkwood gaps and what causes them?",
+      "options": [
+        "Voids between spiral arms of the galaxy where asteroids are drawn toward the galactic center",
+        "Zones in the asteroid belt nearly empty of asteroids due to orbital resonances with Jupiter",
+        "Gaps in Saturn's rings created by the gravity of its moons",
+        "Regions of especially high asteroid concentration where collisions are frequent"
+      ],
+      "correctIndex": 1,
+      "explanation": "Kirkwood gaps are near-empty zones in the belt's orbital distribution, each corresponding to a resonance with Jupiter (3:1, 5:2, 7:3, 2:1 and so on). Bodies in those zones receive repeated gravitational perturbations that eventually eject them from the belt, sending some toward the inner solar system."
+    },
+    {
+      "question": "What makes Ceres distinctive compared to other objects in the asteroid belt?",
+      "options": [
+        "Ceres is the only asteroid with its own magnetic field",
+        "Ceres is round enough to be classified as a dwarf planet and contains about one-third of the belt's total mass",
+        "Ceres is the most metallic object in the belt and the source of iron meteorites",
+        "Ceres sits at a Lagrange point of Jupiter and is a stable Trojan"
+      ],
+      "correctIndex": 1,
+      "explanation": "Ceres is the only object in the asteroid belt massive enough for gravity to have shaped it into a sphere. Classified as a dwarf planet since 2006, it holds roughly one-third of the entire belt's mass. The Dawn mission revealed surprising geological activity, including salt deposits suggesting a subsurface brine."
+    },
+    {
+      "question": "Which mission is traveling to the metallic asteroid Psyche?",
+      "options": [
+        "Dawn, launched in 2007",
+        "Lucy, launched in 2021",
+        "Psyche, launched in 2023",
+        "OSIRIS-REx, launched in 2016"
+      ],
+      "correctIndex": 2,
+      "explanation": "The NASA Psyche mission launched in 2023 and is bound for the metallic asteroid of the same name, believed to be the exposed iron-nickel core of an ancient planetesimal. Arrival is scheduled for 2029. Lucy studies the Jupiter Trojans; Dawn visited Vesta and Ceres; OSIRIS-REx returned samples from asteroid Bennu."
+    },
+    {
+      "question": "What compounds are found in carbonaceous chondrites and why does this matter for the origin of life on Earth?",
+      "options": [
+        "Iron-nickel crystals that point to the presence of a metallic core in the early Earth",
+        "Organic molecules and amino acids that may have seeded the early Earth with prebiotic chemistry",
+        "Radioactive isotopes that provided geothermal heat for the first organisms",
+        "Pure liquid water that became the source of the primordial ocean"
+      ],
+      "correctIndex": 1,
+      "explanation": "Carbonaceous chondrites contain amino acids, nucleobase components, and organic compounds. The heavy bombardment of the early Earth by such objects likely delivered prebiotic chemistry that became raw material for the first molecules capable of self-replication."
+    }
+  ],
+  "sources": [
+    {
+      "title": "Dawn Mission Overview — NASA Science",
+      "url": "https://science.nasa.gov/mission/dawn/",
+      "meta": "Official NASA Dawn mission page"
+    },
+    {
+      "title": "Lucy Mission — NASA Science",
+      "url": "https://science.nasa.gov/mission/lucy/",
+      "meta": "Official NASA Lucy mission page, launched 2021"
+    },
+    {
+      "title": "Psyche Mission — NASA Science",
+      "url": "https://science.nasa.gov/mission/psyche/",
+      "meta": "Official NASA Psyche mission page, launched 2023"
+    },
+    {
+      "title": "Ceres — Bright Spots Explained: NASA Dawn Findings",
+      "url": "https://www.jpl.nasa.gov/news/nasa-missions-find-a-possible-once-habitable-sustained-lake-on-ceres",
+      "meta": "JPL / NASA, Dawn mission results"
+    },
+    {
+      "title": "Asteroid Belt Overview — NASA Solar System Exploration",
+      "url": "https://solarsystem.nasa.gov/asteroids-comets-and-meteors/asteroids/in-depth/",
+      "meta": "NASA Solar System Exploration"
+    },
+    {
+      "title": "Kirkwood Gaps — Minor Planet Center",
+      "url": "https://www.minorplanetcenter.net/mpc/Kirkwood",
+      "meta": "Minor Planet Center, IAU"
+    },
+    {
+      "title": "Vesta — NASA Solar System Exploration",
+      "url": "https://solarsystem.nasa.gov/asteroids-comets-and-meteors/asteroids/4-vesta/overview/",
+      "meta": "NASA Solar System Exploration"
+    },
+    {
+      "title": "Jupiter Trojans — Planetary Science Journal 2022",
+      "url": "https://iopscience.iop.org/journal/2632-3338",
+      "meta": "IOP Publishing, Planetary Science Journal"
+    },
+    {
+      "title": "Carbonaceous Chondrites and the Origin of Life — Meteoritics and Planetary Science",
+      "url": "https://onlinelibrary.wiley.com/journal/19455100",
+      "meta": "Meteoritics and Planetary Science, Wiley"
+    },
+    {
+      "title": "Psyche: A Metal World — NASA JPL Feature",
+      "url": "https://www.jpl.nasa.gov/missions/psyche",
+      "meta": "JPL / NASA"
+    }
+  ],
+  "lastVerified": "2026-05-06"
+}

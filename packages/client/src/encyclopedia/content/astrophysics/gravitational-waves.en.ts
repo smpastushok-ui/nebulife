@@ -1,0 +1,638 @@
+import type { Lesson } from '../../types.js';
+
+const lesson: Lesson = {
+  slug: 'gravitational-waves',
+  language: 'en',
+  section: 'astrophysics',
+  order: 8,
+  difficulty: 'advanced',
+  readingTimeMin: 13,
+  title: 'Gravitational Waves',
+  subtitle: 'Ripples in the fabric of spacetime: how Einstein predicted them in 1916 and how we finally heard the universe in 2015.',
+
+  hero: {
+    cacheKey: 'gravitational-waves-hero',
+    prompt:
+      'Photorealistic scientific illustration of gravitational waves in spacetime: ' +
+      'two massive black holes in a close binary orbit, surrounded by visible spacetime grid warping into deep rippling waves radiating outward in all directions, ' +
+      'the grid rendered as glowing cyan lines on a dark void background, the black holes shown as dark spheres with bright accretion halos. ' +
+      'Hard sci-fi style, dark space background, dramatic lighting. ' +
+      'Add the following text labels on the image: "gravitational waves", "binary black hole merger", "spacetime curvature".',
+    alt: 'Two merging black holes producing concentric gravitational waves across a warped spacetime grid',
+    caption:
+      'Gravitational waves propagate from merging compact objects at the speed of light. The most powerful signal we have recorded deformed spacetime by less than one ten-thousandth the diameter of a proton.',
+    aspectRatio: '16:9',
+  },
+
+  body: [
+    {
+      paragraphs: [
+        'Imagine that space is not an empty void but an elastic fabric. Any object with mass bends this fabric around itself. ' +
+        'When that mass accelerates sharply — as in the collision of two neutron stars or black holes — ' +
+        'the distortion propagates outward like ripples on the surface of a pond. ' +
+        'Those ripples are **gravitational waves**: alternating compressions and stretches of spacetime itself, ' +
+        'travelling at the speed of light in all directions.',
+
+        'Albert Einstein predicted them theoretically in 1916 — immediately after completing general relativity. ' +
+        'He doubted, however, that they could ever be measured: the effect is extraordinarily small. ' +
+        'One number captures this. The first registered signal, which arrived in 2015, ' +
+        'compressed and stretched a four-kilometer detector by roughly one thousandth the diameter of a proton. ' +
+        'No more than that. That humanity managed to measure it is arguably the greatest technical achievement ' +
+        'in the history of precision measurement.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'gravitational-waves-spacetime-ripple',
+        prompt:
+          'Scientific illustration of gravitational wave propagation: a 3D spacetime grid stretching outward from a central binary system, ' +
+          'showing alternating compressions and expansions of the grid as transverse waves, ' +
+          'two inspiraling compact objects at center emitting a bright burst of light at merger, ' +
+          'waves propagating in both plus and cross polarization patterns shown on either side. ' +
+          'Hard sci-fi style, dark space background, cyan and orange accents, monospace labels. ' +
+          'Add the following text labels on the image: "h+ polarization", "hx polarization", "speed of light", "strain h".',
+        alt: 'Gravitational wave propagation from a compact binary merger: compressions and expansions of the spacetime grid',
+        caption:
+          'Gravitational waves come in two polarization states — plus polarization and cross polarization — depending on orientation relative to the observer. ' +
+          'The characteristic measure of the distortion they produce is called the _strain_ h.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'What Strain Is and Why It Is So Hard to Measure',
+      level: 2,
+      paragraphs: [
+        'A gravitational wave deforms space transversely — perpendicular to its direction of travel. ' +
+        'If a wave is coming straight at you, it alternately squeezes space horizontally and stretches it vertically, then reverses. ' +
+        'Think of a rubber room being squeezed from the sides. ' +
+        'The distortion is quantified by the dimensionless number _h_ (strain): the ratio of the change in length to the original length.',
+
+        'For the most powerful signals we have detected, the strain was approximately ten to the power of minus twenty-one. ' +
+        'To feel the scale: if a ruler stretched from Earth to the Sun — ' +
+        'roughly 150 million kilometers — a gravitational wave would shift its far end by about one micrometer. ' +
+        'Less than the diameter of a human cell. ' +
+        'Yet the detector is not 150 million kilometers long — it is 4 kilometers. ' +
+        'The mirror displacement is therefore one ten-thousandth the diameter of a proton.',
+
+        'That same extraordinary demand for precision is what led Einstein to doubt that detection would ever be possible. ' +
+        'He did not foresee that in the second half of the twentieth century _laser interferometry_ would exist.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Diagram: Michelson Laser Interferometer (detector principle)',
+        svg: `<svg viewBox="0 0 680 340" xmlns="http://www.w3.org/2000/svg">
+  <rect width="680" height="340" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Beam splitter at center -->
+  <rect x="316" y="156" width="16" height="16" fill="#7bb8ff" opacity="0.8"/>
+  <text x="340" y="170" fill="#7bb8ff" font-family="monospace" font-size="10">beam splitter</text>
+
+  <!-- Laser source -->
+  <rect x="60" y="157" width="50" height="14" fill="#44ff88" opacity="0.7" rx="2"/>
+  <text x="85" y="169" fill="#44ff88" font-family="monospace" font-size="9" text-anchor="middle">laser</text>
+
+  <!-- Horizontal arm -->
+  <line x1="116" y1="164" x2="316" y2="164" stroke="#44ff88" stroke-width="1.5"/>
+  <!-- Mirror X -->
+  <rect x="560" y="150" width="10" height="28" fill="#aabbcc" opacity="0.8"/>
+  <text x="580" y="167" fill="#aabbcc" font-family="monospace" font-size="10">mirror X</text>
+  <line x1="332" y1="164" x2="558" y2="164" stroke="#44ff88" stroke-width="1.5"/>
+
+  <!-- Vertical arm -->
+  <line x1="324" y1="156" x2="324" y2="60" stroke="#ff8844" stroke-width="1.5"/>
+  <!-- Mirror Y -->
+  <rect x="310" y="44" width="28" height="10" fill="#aabbcc" opacity="0.8"/>
+  <text x="344" y="54" fill="#aabbcc" font-family="monospace" font-size="10">mirror Y</text>
+  <line x1="324" y1="172" x2="324" y2="280" stroke="#ff8844" stroke-width="1.5"/>
+  <rect x="310" y="280" width="28" height="10" fill="#aabbcc" opacity="0.8"/>
+  <text x="344" y="293" fill="#aabbcc" font-family="monospace" font-size="10">mirror Y'</text>
+
+  <!-- Photodetector -->
+  <rect x="316" y="300" width="16" height="16" fill="#cc4444" opacity="0.8" rx="2"/>
+  <text x="340" y="312" fill="#cc4444" font-family="monospace" font-size="10">photodetector</text>
+
+  <!-- Arm labels -->
+  <text x="200" y="150" fill="#44ff88" font-family="monospace" font-size="11" text-anchor="middle">arm X (4 km)</text>
+  <text x="240" y="178" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">laser beam</text>
+  <text x="390" y="115" fill="#ff8844" font-family="monospace" font-size="11" text-anchor="middle">arm Y (4 km)</text>
+
+  <!-- GW indicator arrows -->
+  <text x="20" y="40" fill="#aabbcc" font-family="monospace" font-size="10">gravitational wave</text>
+  <line x1="40" y1="50" x2="40" y2="90" stroke="#aabbcc" stroke-width="1" marker-end="url(#arr-gw-en)"/>
+  <line x1="20" y1="70" x2="60" y2="70" stroke="#aabbcc" stroke-width="1" marker-end="url(#arr-gw-en)"/>
+
+  <!-- Interference note -->
+  <text x="20" y="330" fill="#8899aa" font-family="monospace" font-size="10">path difference → interference → signal</text>
+
+  <defs>
+    <marker id="arr-gw-en" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+      <polygon points="0 0, 6 3, 0 6" fill="#aabbcc"/>
+    </marker>
+  </defs>
+</svg>`,
+        caption:
+          'The detector measures the difference in optical path length between its two perpendicular arms. ' +
+          'A gravitational wave shortens one arm and lengthens the other — producing a path length difference ' +
+          'that appears as a shift in the interference pattern at the photodetector. ' +
+          'In real detectors the beam bounces between the mirrors hundreds of times, ' +
+          'increasing the effective arm length to hundreds of kilometers.',
+      },
+    },
+
+    {
+      heading: 'The Laser Interferometer Gravitational-wave Observatory',
+      level: 2,
+      paragraphs: [
+        'The detector principle is a modernized Michelson interferometer. A laser beam is split into two beams ' +
+        'that travel down perpendicular vacuum tubes, reflect off mirrors and return. ' +
+        'In the absence of a wave they cancel each other at the recombination point through destructive interference — ' +
+        'the photodetector is silent. When a gravitational wave passes, it changes the two arm lengths differently, ' +
+        'the cancellation becomes imperfect, and the detector registers a tiny flash of light.',
+
+        'The Laser Interferometer Gravitational-wave Observatory — commonly known by its acronym LIGO — ' +
+        'consists of two detectors in the United States: one in Livingston, Louisiana, and one in Hanford, Washington. ' +
+        'Each has arms exactly 4 kilometers long. ' +
+        'The effective length is far greater: the beam bounces between the mirrors approximately 300 times, ' +
+        'covering more than a thousand kilometers of total optical path inside the vacuum tube.',
+
+        'The mirrors are suspended on multi-stage pendulums to damp seismic vibrations. ' +
+        'The suspensions are cooled close to absolute zero to suppress thermal motion. ' +
+        'Laser power inside the resonant cavity exceeds 750 kilowatts. ' +
+        'The Laser Interferometer Gravitational-wave Observatory is part of a global network: ' +
+        'it is joined by Virgo in Italy and the Kamioka Gravitational-wave Detector — known as KAGRA — in Japan. ' +
+        'The network allows triangulating the sky location of the source.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'gravitational-waves-ligo-detector',
+        prompt:
+          'Photorealistic aerial view of a gravitational wave detector facility: two perpendicular vacuum tube arms each several kilometers long extending into flat landscape, ' +
+          'forming an L-shape from above, central building at the vertex with laser and optics labs, ' +
+          'tubes shown in cross-section revealing suspended mirror test masses inside. ' +
+          'Hard sci-fi style scientific illustration, dark sky, high altitude view. ' +
+          'Add the following text labels on the image: "4 km arm", "beam splitter", "suspended mirror", "vacuum tube".',
+        alt: 'Aerial view of a gravitational-wave detector showing its L-shaped layout with two four-kilometer vacuum arms',
+        caption:
+          'The two observatories in Louisiana and Washington operate as a single system. ' +
+          'Their separation of 3,000 kilometers allows local seismic and anthropogenic noise to be rejected: ' +
+          'a genuine astrophysical signal will arrive at both detectors with a delay of no more than 10 milliseconds.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'GW150914 — The First Signal in 2015',
+      level: 2,
+      paragraphs: [
+        'On the fourteenth of September 2015, the Hanford detector registered a signal. ' +
+        'Seven milliseconds later — the same signal arrived at Livingston. ' +
+        'That delay is exactly what light takes to cross the distance between the two detectors. ' +
+        'The event was designated GW150914 (from the date: 2015, 09, 14).',
+
+        'The signal lasted approximately a quarter of a second. During that time it rose in frequency and grew in amplitude — ' +
+        'the characteristic chirp of two compact objects spiraling inward, ' +
+        'losing energy specifically to gravitational waves. After the peak, an abrupt silence: the merger was complete.',
+
+        'Analysis of the signal shape delivered a complete picture of the event. ' +
+        'At a distance of approximately 1.3 billion light-years, ' +
+        'two black holes of roughly 36 and 29 solar masses merged into a black hole of roughly 62 solar masses. ' +
+        'The missing approximately 3 solar masses were converted into gravitational waves in a fraction of a second. ' +
+        'The radiated power at that instant exceeded the combined luminosity of all stars in the observable universe. ' +
+        'The official announcement of the detection was made in February 2016.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Diagram: GW150914 Waveform — the merger chirp signal',
+        svg: `<svg viewBox="0 0 680 240" xmlns="http://www.w3.org/2000/svg">
+  <rect width="680" height="240" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Axes -->
+  <line x1="60" y1="200" x2="640" y2="200" stroke="#334455" stroke-width="1.2"/>
+  <line x1="60" y1="200" x2="60" y2="20" stroke="#334455" stroke-width="1.2"/>
+
+  <!-- Axis labels -->
+  <text x="350" y="225" fill="#8899aa" font-family="monospace" font-size="11" text-anchor="middle">time (seconds)</text>
+  <text x="14" y="115" fill="#8899aa" font-family="monospace" font-size="11" text-anchor="middle" transform="rotate(-90 14 115)">strain h</text>
+
+  <!-- Zero line -->
+  <line x1="60" y1="115" x2="640" y2="115" stroke="#334455" stroke-width="0.6" stroke-dasharray="4,6" opacity="0.5"/>
+
+  <!-- Chirp waveform — inspiral phase -->
+  <path d="
+    M 65 115
+    C 70 115, 75 108, 80 115
+    C 85 122, 90 115, 95 108
+    C 100 101, 108 129, 112 115
+    C 116 101, 124 129, 128 115
+    C 132 101, 140 134, 144 115
+    C 148 96, 158 139, 162 115
+    C 166 91, 176 144, 180 115
+    C 184 86, 196 149, 200 115
+    C 204 81, 218 155, 222 115
+    C 226 75, 244 162, 248 115
+    C 252 68, 270 168, 274 115
+    C 278 62, 300 174, 304 115
+    C 308 56, 330 180, 334 115
+  " stroke="#44ff88" stroke-width="2" fill="none" opacity="0.9"/>
+
+  <!-- Merger peak -->
+  <path d="
+    M 334 115
+    C 340 40, 358 45, 365 115
+    C 372 185, 388 50, 395 115
+    C 400 145, 408 85, 415 115
+  " stroke="#ff8844" stroke-width="2.5" fill="none"/>
+
+  <!-- Ringdown -->
+  <path d="
+    M 415 115
+    C 422 133, 432 97, 440 115
+    C 448 130, 458 100, 465 115
+    C 472 126, 480 104, 487 115
+    C 494 123, 502 107, 509 115
+    C 516 121, 522 109, 529 115
+    C 536 119, 548 111, 565 115
+  " stroke="#7bb8ff" stroke-width="1.8" fill="none" opacity="0.85"/>
+
+  <!-- Phase labels -->
+  <text x="190" y="38" fill="#44ff88" font-family="monospace" font-size="10" text-anchor="middle">inspiral</text>
+  <line x1="190" y1="44" x2="200" y2="115" stroke="#44ff88" stroke-width="0.8" stroke-dasharray="3,4" opacity="0.6"/>
+
+  <text x="375" y="28" fill="#ff8844" font-family="monospace" font-size="10" text-anchor="middle">merger</text>
+  <line x1="375" y1="34" x2="375" y2="60" stroke="#ff8844" stroke-width="0.8" stroke-dasharray="3,4" opacity="0.6"/>
+
+  <text x="490" y="38" fill="#7bb8ff" font-family="monospace" font-size="10" text-anchor="middle">ringdown</text>
+  <line x1="490" y1="44" x2="490" y2="115" stroke="#7bb8ff" stroke-width="0.8" stroke-dasharray="3,4" opacity="0.6"/>
+
+  <!-- Time axis ticks -->
+  <line x1="200" y1="198" x2="200" y2="204" stroke="#667788" stroke-width="1"/>
+  <text x="200" y="214" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">-0.3</text>
+  <line x1="334" y1="198" x2="334" y2="204" stroke="#667788" stroke-width="1"/>
+  <text x="334" y="214" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">0</text>
+  <line x1="465" y1="198" x2="465" y2="204" stroke="#667788" stroke-width="1"/>
+  <text x="465" y="214" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">+0.2</text>
+
+  <!-- Frequency annotation -->
+  <text x="625" y="145" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="end">35 Hz</text>
+  <text x="625" y="100" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="end">150 Hz</text>
+
+  <!-- Title -->
+  <text x="350" y="16" fill="#aabbcc" font-family="monospace" font-size="11" text-anchor="middle">GW150914 waveform — three merger phases</text>
+</svg>`,
+        caption:
+          'The chirp signal has three phases: _inspiral_ (the slow inward spiral with rising frequency), ' +
+          '_merger_ (peak amplitude), and _ringdown_ (the newly formed black hole oscillates back to a spherical shape). ' +
+          'Matching the waveform to general relativity templates yields the masses, distance, and spins of both black holes.',
+      },
+    },
+
+    {
+      heading: 'GW170817 — The Multi-Messenger Stellar Collision of 2017',
+      level: 2,
+      paragraphs: [
+        'When two black holes merge, the event is dark in every electromagnetic sense: no light is produced. ' +
+        'The merger of two neutron stars is a different matter entirely. ' +
+        'In August 2017, the detectors registered a long chirp signal from far lighter objects — ' +
+        'two neutron stars of roughly 1.1 and 1.6 solar masses each. ' +
+        'The signal lasted nearly 100 seconds, because lighter objects spiral inward more slowly.',
+
+        'Just 1.7 seconds after the gravitational-wave peak, gamma-ray telescopes recorded a short gamma-ray burst — ' +
+        'confirming that neutron-star mergers are the source of this class of explosion, ' +
+        'which had previously lacked an explanation. ' +
+        'Hours later, optical telescopes around the world located a new bright source in the galaxy NGC 4993 — ' +
+        'a _kilonova_: a luminous explosion generated by the merger, ' +
+        'fading over days through blue and then red colors.',
+
+        'The kilonova has a direct connection to us. Neutron-star mergers are the principal site of the r-process: ' +
+        'the rapid neutron capture that builds heavy elements from iron up to uranium — ' +
+        'gold, platinum, mercury, iodine. These elements cannot be forged in a supernova or a stellar core; ' +
+        'only the hot, neutron-saturated fireball of a neutron-star merger can produce them in large quantities. ' +
+        'The gold in a ring on your finger literally arrived from such collisions — ' +
+        'billions of years ago, hundreds of millions of light-years away.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'gravitational-waves-kilonova-gw170817',
+        prompt:
+          'Photorealistic scientific illustration of a kilonova: two neutron stars spiraling toward each other in final merger, ' +
+          'ejecting a torus of luminous neutron-rich matter glowing blue-white at inner edge and red-orange at outer edges, ' +
+          'faint relativistic jet visible along vertical axis, ' +
+          'background galaxy NGC 4993 visible as faint elliptical glow, deep space background. ' +
+          'Hard sci-fi style scientific illustration, dark space background. ' +
+          'Add the following text labels on the image: "neutron star merger", "kilonova ejecta", "r-process: gold, platinum", "gamma-ray jet".',
+        alt: 'Neutron star merger with kilonova: blue-red neutron-rich ejecta and a collimated gamma-ray jet',
+        caption:
+          'The kilonova of GW170817 was observed simultaneously by more than 70 telescopes across all wavelengths. ' +
+          'It was the first multi-messenger astronomical event: gravitational waves, gamma rays, optical, X-ray, and radio together gave a complete picture of the collision.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Pulsar Timing Arrays and the Nanohertz Background',
+      level: 2,
+      paragraphs: [
+        'Detectors like the Laser Interferometer Gravitational-wave Observatory are sensitive to waves ' +
+        'with frequencies from tens to hundreds of hertz — set by the length of the arms and the light travel time. ' +
+        'But the universe hosts sources of gravitational waves in a far lower frequency band. ' +
+        'Supermassive pairs of black holes orbiting each other with separations of parsecs ' +
+        'produce waves in the nanohertz range — one wave period spanning years or decades.',
+
+        'Such waves can be measured with a _pulsar timing array_. ' +
+        'Pulsars — neutron stars spinning hundreds of times per second with exquisite rotational stability — ' +
+        'beam a narrow radio pulse like a lighthouse. They are natural cosmic clocks. ' +
+        'If a gravitational wave passes between Earth and a pulsar, ' +
+        'the observed arrival times of the pulses shift slightly. ' +
+        'Monitoring these shifts simultaneously in dozens of pulsars across the sky, ' +
+        'a common correlated pattern emerges — the imprint of a gravitational-wave background.',
+
+        'In 2023, several independent pulsar timing arrays — including the North American Nanohertz Observatory for Gravitational Waves, ' +
+        'the European Pulsar Timing Array, and their partners across Asia — ' +
+        'announced the first compelling evidence for such a background. ' +
+        'The most likely source is a population of supermassive black hole binaries at late merger stages ' +
+        'in the cores of galaxies throughout the universe. ' +
+        'This opens a window into galactic-merger dynamics and the growth of the largest black holes in existence.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'gravitational-waves-pulsar-timing-array',
+        prompt:
+          'Scientific illustration of a pulsar timing array: a map of the Milky Way galaxy with multiple millisecond pulsars distributed across the sky as bright pulsing beacons, ' +
+          'all connected by faint lines to Earth at center, gravitational wave background shown as a faint ripple distorting the timing, ' +
+          'two supermassive black holes in a binary orbit depicted in inset at upper right emitting nanohertz waves. ' +
+          'Hard sci-fi style, dark space background, monospace labels, cyan and orange accents. ' +
+          'Add the following text labels on the image: "millisecond pulsar", "Earth", "nanohertz gravitational waves", "supermassive binary".',
+        alt: 'Pulsar timing array: dozens of millisecond pulsars across the galaxy acting as a cosmic detector for nanohertz gravitational waves',
+        caption:
+          'A pulsar timing array is sensitive to waves with wavelengths comparable to interstellar distances. ' +
+          'The signature of a genuine gravitational-wave background is the _Hellings-Downs correlation_: ' +
+          'a characteristic angular dependence of the timing correlations between pairs of pulsars.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'LISA — A Space-Based Detector in the Millihertz Band',
+      level: 2,
+      paragraphs: [
+        'Between the nanohertz band probed by pulsar arrays and the hertz band covered by ground-based interferometers ' +
+        'lies a gap that spans the millihertz range. ' +
+        'That gap is precisely where the signals from intermediate-mass black hole mergers, ' +
+        'white-dwarf binaries, and compact objects spiraling into supermassive black holes are expected. ' +
+        'This frequency band is inaccessible on Earth: seismic noise overwhelms any detector below roughly 10 hertz.',
+
+        'The solution is to put the detector in space. The Laser Interferometer Space Antenna ' +
+        'consists of three spacecraft positioned at the vertices of an equilateral triangle ' +
+        'with a side length of 2.5 million kilometers, placed in a heliocentric orbit. ' +
+        'Laser beams exchange between all three spacecraft; changes in the distances between them reveal gravitational waves. ' +
+        'Launch is planned for 2035. ' +
+        'The technology demonstrator — the LISA Pathfinder mission — successfully verified the required level of precision back in 2016.',
+
+        'The Laser Interferometer Space Antenna will dramatically expand our reach: ' +
+        'thousands of detections per year instead of tens are expected, ' +
+        'including signals from mergers that occurred when the universe was less than a billion years old. ' +
+        'Combined with next-generation ground-based detectors — such as Cosmic Explorer and Einstein Telescope — ' +
+        'this forms a true network of gravitational-wave astronomy with complete frequency coverage.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'gravitational-waves-lisa-space',
+        prompt:
+          'Scientific illustration of the LISA space observatory: three spacecraft forming an equilateral triangle formation in heliocentric orbit, ' +
+          'laser beams shown as thin golden lines connecting all three vertices forming a triangle, ' +
+          'Sun visible in background at far left, Earth-Moon system tiny in distance, ' +
+          'star field background. ' +
+          'Hard sci-fi style, dark space background, monospace labels. ' +
+          'Add the following text labels on the image: "LISA arm 2.5 million km", "laser link", "heliocentric orbit", "launch 2035".',
+        alt: 'Three LISA spacecraft at the vertices of an equilateral triangle, linked by laser beams in heliocentric orbit',
+        caption:
+          'The Laser Interferometer Space Antenna will be sensitive to gravitational waves in the range from 0.1 to 100 millihertz. ' +
+          'By comparison, the GW150914 signal spanned frequencies from 35 to 150 hertz — four orders of magnitude higher.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'What Gravitational Waves Reveal',
+      level: 2,
+      paragraphs: [
+        'Before 2015, all our astronomy was photon astronomy: we observed the universe through electromagnetic waves — ' +
+        'from radio to gamma rays. Gravitational waves are a fundamentally different kind of information. ' +
+        'They are not absorbed by matter, not stopped by interstellar dust, ' +
+        'not scattered as they pass through galaxies. ' +
+        'They carry direct information about the dynamics of objects that are by definition opaque in any electromagnetic band: ' +
+        'the cores of black holes and neutron stars.',
+
+        'Every merger is a test of general relativity in the strong-field regime. ' +
+        'The detailed shape of the chirp signal matches theoretical predictions — ' +
+        'and every recorded event adds one more verification. ' +
+        'The comparison of the arrival time of the GW170817 gravitational-wave signal with the associated gamma-ray burst ' +
+        'showed that gravitational waves and photons travel at the same speed ' +
+        'to a precision of one quadrillionth. ' +
+        'That alone is one of the most stringent tests of the theory ever performed.',
+
+        'Gravitational-wave astronomy has only begun. ' +
+        'By early 2026 the global network had confirmed more than 90 events. ' +
+        'Among them: neutron-star pairs, mixed black-hole and neutron-star mergers, ' +
+        'and binary black holes spanning a wide range of masses. ' +
+        'Each new observing run brings surprises: ' +
+        'black holes with masses that do not fit standard stellar-evolution models, ' +
+        'new constraints on the neutron-star equation of state, ' +
+        'and independent measurements of the Hubble constant.',
+      ],
+    },
+  ],
+
+  glossary: [
+    {
+      term: 'Gravitational wave',
+      definition:
+        'A ripple in the fabric of spacetime propagating at the speed of light. Produced by accelerating masses, most powerfully by merging compact objects such as black holes and neutron stars.',
+    },
+    {
+      term: 'Strain h',
+      definition:
+        'The dimensionless quantity characterizing the relative length change caused by a gravitational wave. The ratio of the displacement to the original length. Typical values: ten to the power of minus twenty-one.',
+    },
+    {
+      term: 'Chirp signal',
+      definition:
+        'The characteristic gravitational-wave waveform from a binary merger: an inspiral phase with rising frequency and amplitude, a merger peak, and a ringdown as the remnant settles.',
+    },
+    {
+      term: 'Kilonova',
+      definition:
+        'A luminous optical transient produced by the merger of two neutron stars. The neutron-rich ejected matter undergoes r-process nucleosynthesis, producing heavy elements including gold and platinum.',
+    },
+    {
+      term: 'R-process',
+      definition:
+        'Rapid neutron capture nucleosynthesis occurring in neutron-rich environments. The dominant mechanism for producing elements heavier than iron up to uranium; the primary site is neutron-star mergers.',
+    },
+    {
+      term: 'Pulsar timing array',
+      definition:
+        'A network of millisecond pulsars used as synchronized cosmic clocks to detect nanohertz gravitational waves through correlated deviations in pulse arrival times.',
+    },
+    {
+      term: 'Laser Interferometer Space Antenna (LISA)',
+      definition:
+        'A planned 2035 European Space Agency mission: three spacecraft in heliocentric orbit linked by laser beams spanning 2.5 million kilometers, sensitive to gravitational waves in the millihertz band.',
+    },
+    {
+      term: 'Multi-messenger astronomy',
+      definition:
+        'Simultaneous observation of a single astrophysical event across multiple information carriers: gravitational waves, electromagnetic radiation at different wavelengths, and neutrinos.',
+    },
+    {
+      term: 'Hellings-Downs correlation',
+      definition:
+        'The theoretically predicted dependence of pulsar timing correlations on the angular separation between pairs of pulsars across the sky — the unique angular signature of an isotropic gravitational-wave background.',
+    },
+  ],
+
+  quiz: [
+    {
+      question: 'What happens to space as a gravitational wave passes through it?',
+      options: [
+        'Space heats up and expands uniformly in all directions',
+        'Space is squeezed in one transverse direction and stretched in the perpendicular transverse direction',
+        'The distance between all objects increases proportionally',
+        'The speed of light temporarily changes',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Gravitational waves are transverse: they deform space perpendicular to their direction of travel, ' +
+        'alternately squeezing in one direction and stretching in the other. ' +
+        'This differential change in the lengths of the two detector arms is exactly what an interferometer measures.',
+    },
+    {
+      question: 'What was the key scientific significance of GW170817 in 2017?',
+      options: [
+        'The first detection of a binary black hole merger',
+        'The first direct measurement of neutrinos from a neutron star',
+        'The first multi-messenger event: a neutron star merger detected simultaneously in gravitational waves and electromagnetic radiation',
+        'The discovery of the nanohertz gravitational-wave background',
+      ],
+      correctIndex: 2,
+      explanation:
+        'GW170817 was the first event recorded by both gravitational-wave detectors and gamma-ray and optical telescopes at the same time. ' +
+        'It confirmed that neutron-star mergers produce short gamma-ray bursts, ' +
+        'and proved that gravitational waves travel at the speed of light to one part in a quadrillion.',
+    },
+    {
+      question: 'Where does most of the gold and platinum in the universe come from?',
+      options: [
+        'From supernova explosions of massive stars',
+        'From fusion reactions in the cores of main-sequence stars',
+        'From neutron-star mergers and their associated kilonovae',
+        'From primordial nucleosynthesis shortly after the Big Bang',
+      ],
+      correctIndex: 2,
+      explanation:
+        'Heavy elements from gold to uranium are produced primarily through the r-process — ' +
+        'rapid neutron capture — in the neutron-rich environment of neutron-star mergers. ' +
+        'The kilonova of GW170817 directly confirmed the r-process: strontium and other heavy elements were identified in its spectrum.',
+    },
+    {
+      question: 'What did NANOGrav and other pulsar timing arrays announce in 2023?',
+      options: [
+        'The first neutron-star merger signal in the nanohertz band',
+        'Compelling evidence for a stochastic gravitational-wave background, most likely from supermassive black hole binaries',
+        'Gravitational waves originating from the Big Bang',
+        'The first mixed black-hole and neutron-star merger event',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Several independent pulsar timing arrays simultaneously reported a statistically significant signal ' +
+        'with the spectral and angular characteristics of a stochastic gravitational-wave background. ' +
+        'The most probable source is a cosmological population of supermassive black hole pairs in the cores of merging galaxies throughout the universe.',
+    },
+    {
+      question: 'Why does the Laser Interferometer Space Antenna need to be placed in space if ground-based detectors already exist?',
+      options: [
+        'To avoid cosmic rays that do not penetrate to the ground',
+        'To escape seismic and anthropogenic noise, and to achieve arm lengths needed for the millihertz frequency band',
+        'Because lasers operate more efficiently in vacuum',
+        'To observe only extragalactic events',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Ground-based detectors are deaf below approximately 10 hertz due to irreducible seismic and thermal noise. ' +
+        'The millihertz band (0.1 to 100 millihertz) is inaccessible on Earth. ' +
+        'The Laser Interferometer Space Antenna with 2.5-million-kilometer arms relies on orbital stability rather than vibration isolation — ' +
+        'in open space there are no seismic disturbances.',
+    },
+  ],
+
+  sources: [
+    {
+      title: 'Abbott B.P. et al. (LIGO Scientific Collaboration and Virgo Collaboration) — Observation of Gravitational Waves from a Binary Black Hole Merger',
+      url: 'https://arxiv.org/abs/1602.03840',
+      meta: 'PRL, 116, 061102, 2016 (open access)',
+    },
+    {
+      title: 'Abbott B.P. et al. — Multi-messenger Observations of a Binary Neutron Star Merger',
+      url: 'https://arxiv.org/abs/1710.05833',
+      meta: 'ApJL, 848, L12, 2017 (open access)',
+    },
+    {
+      title: 'Agazie G. et al. (NANOGrav) — The NANOGrav 15-year Data Set: Evidence for a Gravitational-wave Background',
+      url: 'https://arxiv.org/abs/2306.16213',
+      meta: 'ApJL, 951, L8, 2023 (open access)',
+    },
+    {
+      title: 'LIGO Scientific Collaboration — GWTC-3: Compact Binary Coalescences Observed by LIGO and Virgo',
+      url: 'https://arxiv.org/abs/2111.03606',
+      meta: 'PRX, 13, 041039, 2023 (open access)',
+    },
+    {
+      title: 'Einstein A. — Approximative Integration of the Field Equations of Gravitation (1916)',
+      url: 'https://ui.adsabs.harvard.edu/abs/1916SPAW.......688E',
+      meta: 'Sitzungsberichte der Preussischen Akademie der Wissenschaften, 1916 — original prediction',
+    },
+    {
+      title: 'Amaro-Seoane P. et al. — Laser Interferometer Space Antenna',
+      url: 'https://arxiv.org/abs/1702.00786',
+      meta: 'arXiv:1702.00786, ESA mission proposal (open access)',
+    },
+    {
+      title: 'Hulse R.A., Taylor J.H. — Discovery of a pulsar in a binary system',
+      url: 'https://doi.org/10.1086/181747',
+      meta: 'ApJ, 195, L51–L53, 1975 — Nobel Prize work, indirect confirmation of gravitational waves',
+    },
+    {
+      title: 'Coulter D.A. et al. — Swope Supernova Survey 2017a: The Optical Counterpart of GW170817',
+      url: 'https://arxiv.org/abs/1710.05452',
+      meta: 'Science, 358, 1556–1558, 2017 (open access)',
+    },
+    {
+      title: 'LIGO — official website, all publications and open data',
+      url: 'https://www.ligo.caltech.edu/',
+      meta: 'open access',
+    },
+    {
+      title: 'ESA — LISA mission overview',
+      url: 'https://www.esa.int/Science_Exploration/Space_Science/LISA',
+      meta: 'ESA Science, updated 2025',
+    },
+  ],
+
+  lastVerified: '2026-05-06',
+};
+
+export default lesson;

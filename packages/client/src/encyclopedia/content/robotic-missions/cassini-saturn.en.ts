@@ -1,0 +1,688 @@
+import type { Lesson } from '../../types.js';
+
+const lesson: Lesson = {
+  slug: 'cassini-saturn',
+  language: 'en',
+  section: 'robotic-missions',
+  order: 6,
+  difficulty: 'intermediate',
+  readingTimeMin: 12,
+  title: 'Cassini — The Saturn Epic',
+  subtitle: 'Thirteen years in orbit, an ocean beneath Enceladus ice, and the only landing ever made in the outer Solar System.',
+
+  hero: {
+    cacheKey: 'cassini-saturn-hero',
+    prompt:
+      'Photorealistic science encyclopedia illustration: the Cassini spacecraft in orbit above Saturn, ' +
+      'with the planet\'s iconic ring system filling the background. ' +
+      'Cassini shown as a detailed spacecraft bus with large dish antenna, magnetometer boom, and Huygens probe attached. ' +
+      'Saturn\'s rings cast a dramatic shadow across the planet\'s northern hemisphere. ' +
+      'Saturn\'s hexagonal north polar vortex faintly visible. Hard sci-fi style, dark space background, technically accurate. ' +
+      'Add the following text labels on the image: "Cassini orbiter", "Saturn", "ring system", "Huygens probe".',
+    alt: 'The Cassini spacecraft in orbit above Saturn — the planet and its rings fill the background, the Huygens probe visible on its attachment point',
+    caption:
+      'Cassini spent thirteen years in the Saturnian system — longer than any other artificial object in the outer Solar System. Each pass through the ring system, each flyby of a moon, added layers of knowledge that no single paper can fully contain.',
+    aspectRatio: '16:9',
+  },
+
+  body: [
+    {
+      paragraphs: [
+        'Some missions answer questions. Others raise questions that nobody had thought to ask. ' +
+        'Cassini-Huygens was the second kind. When the spacecraft entered Saturn orbit in 2004, ' +
+        'scientists expected to find a classical gas giant with beautiful rings and a handful of icy moons. ' +
+        'What they found instead changed the way humanity thinks about the habitability of other worlds.',
+
+        'This was a joint mission of three space agencies: the American National Aeronautics and Space Administration, ' +
+        'the European Space Agency, and the Italian Space Agency. ' +
+        'That alliance was not diplomatic formality. Without the European-built platform, ' +
+        'the Huygens probe would never have reached Titan. Without Italian antenna hardware, ' +
+        'sustained communication over a distance of more than a billion kilometers would have been impossible. ' +
+        'Cassini stands as evidence that the most ambitious scientific questions demand the broadest coalitions.',
+
+        'The spacecraft launched in October 1997 — and that is the beginning of one of the longest ' +
+        'interplanetary journeys ever planned. There is no shortcut to Saturn: ' +
+        'the gravity of Earth, and even the Sun, is insufficient to throw a spacecraft that far directly. ' +
+        'Mission designers therefore plotted a route through the inner Solar System — ' +
+        'gravity assists at Venus twice, then Earth, then Jupiter. ' +
+        'Each flyby used the planet\'s gravitational pull as a slingshot, ' +
+        'building speed without consuming a single gram of propellant.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Cassini interplanetary trajectory: Earth — Venus — Venus — Earth — Jupiter — Saturn',
+        svg: `<svg viewBox="0 0 720 420" xmlns="http://www.w3.org/2000/svg">
+  <rect width="720" height="420" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Title -->
+  <text x="360" y="22" fill="#aabbcc" font-family="monospace" font-size="11" text-anchor="middle">Cassini trajectory — gravity assist maneuvers (1997–2004)</text>
+
+  <!-- Sun -->
+  <circle cx="360" cy="210" r="18" fill="#ff8844" opacity="0.9"/>
+  <text x="360" y="215" fill="#020510" font-family="monospace" font-size="9" text-anchor="middle" font-weight="bold">Sun</text>
+
+  <!-- Venus orbit (approx) -->
+  <ellipse cx="360" cy="210" rx="90" ry="85" fill="none" stroke="#334455" stroke-width="1" stroke-dasharray="4,5" opacity="0.6"/>
+  <!-- Venus -->
+  <circle cx="270" cy="210" r="6" fill="#ff8844" opacity="0.7"/>
+  <text x="254" y="205" fill="#8899aa" font-family="monospace" font-size="9">Venus</text>
+
+  <!-- Earth orbit (approx) -->
+  <ellipse cx="360" cy="210" rx="130" ry="125" fill="none" stroke="#334455" stroke-width="1" stroke-dasharray="4,5" opacity="0.6"/>
+  <!-- Earth -->
+  <circle cx="360" cy="85" r="7" fill="#4488aa" opacity="0.9"/>
+  <text x="365" y="82" fill="#8899aa" font-family="monospace" font-size="9">Earth</text>
+
+  <!-- Jupiter orbit (approx) -->
+  <ellipse cx="360" cy="210" rx="220" ry="200" fill="none" stroke="#334455" stroke-width="1" stroke-dasharray="4,5" opacity="0.4"/>
+  <!-- Jupiter -->
+  <circle cx="140" cy="210" r="10" fill="#ff8844" opacity="0.6"/>
+  <text x="100" y="205" fill="#8899aa" font-family="monospace" font-size="9">Jupiter</text>
+
+  <!-- Saturn orbit (approx, partial arc) -->
+  <ellipse cx="360" cy="210" rx="320" ry="290" fill="none" stroke="#334455" stroke-width="1" stroke-dasharray="4,5" opacity="0.3"/>
+  <!-- Saturn -->
+  <circle cx="680" cy="210" r="12" fill="#aabbcc" opacity="0.7"/>
+  <ellipse cx="680" cy="210" rx="22" ry="5" fill="none" stroke="#aabbcc" stroke-width="1.5" opacity="0.8"/>
+  <text x="660" y="230" fill="#aabbcc" font-family="monospace" font-size="9">Saturn</text>
+  <text x="658" y="242" fill="#667788" font-family="monospace" font-size="8">2004</text>
+
+  <!-- Launch point -->
+  <circle cx="360" cy="85" r="4" fill="#44ff88" opacity="0.9"/>
+  <text x="365" y="72" fill="#44ff88" font-family="monospace" font-size="8">Launch 1997</text>
+
+  <!-- Trajectory path — approximate VVEJGA -->
+  <!-- Earth -> Venus 1 -->
+  <path d="M360,85 Q310,170 270,210" fill="none" stroke="#7bb8ff" stroke-width="1.8" opacity="0.8"/>
+  <!-- Flyby marker Venus 1 -->
+  <circle cx="270" cy="210" r="4" fill="#44ff88" opacity="0.9"/>
+  <text x="240" y="228" fill="#44ff88" font-family="monospace" font-size="8">Venus 1</text>
+  <text x="240" y="238" fill="#667788" font-family="monospace" font-size="8">1998</text>
+
+  <!-- Venus 1 -> Venus 2 -->
+  <path d="M270,210 Q260,310 290,335" fill="none" stroke="#7bb8ff" stroke-width="1.8" opacity="0.8"/>
+  <!-- Flyby marker Venus 2 -->
+  <circle cx="290" cy="335" r="4" fill="#44ff88" opacity="0.9"/>
+  <text x="295" y="348" fill="#44ff88" font-family="monospace" font-size="8">Venus 2  1999</text>
+
+  <!-- Venus 2 -> Earth flyby -->
+  <path d="M290,335 Q380,370 405,300" fill="none" stroke="#7bb8ff" stroke-width="1.8" opacity="0.8"/>
+  <circle cx="405" cy="300" r="4" fill="#44ff88" opacity="0.9"/>
+  <text x="408" y="315" fill="#44ff88" font-family="monospace" font-size="8">Earth 1999</text>
+
+  <!-- Earth -> Jupiter -->
+  <path d="M405,300 Q240,310 140,210" fill="none" stroke="#7bb8ff" stroke-width="1.8" opacity="0.8"/>
+  <circle cx="140" cy="210" r="4" fill="#44ff88" opacity="0.9"/>
+  <text x="80" y="225" fill="#44ff88" font-family="monospace" font-size="8">Jupiter 2000</text>
+
+  <!-- Jupiter -> Saturn -->
+  <path d="M140,210 Q350,120 680,210" fill="none" stroke="#7bb8ff" stroke-width="1.8" opacity="0.8"/>
+  <circle cx="680" cy="210" r="5" fill="#44ff88" opacity="0.9"/>
+
+  <!-- Legend -->
+  <line x1="30" y1="380" x2="60" y2="380" stroke="#7bb8ff" stroke-width="2"/>
+  <text x="65" y="384" fill="#8899aa" font-family="monospace" font-size="9">Cassini trajectory</text>
+  <line x1="200" y1="380" x2="230" y2="380" stroke="#334455" stroke-width="1" stroke-dasharray="4,5"/>
+  <text x="235" y="384" fill="#667788" font-family="monospace" font-size="9">planetary orbits (schematic)</text>
+  <circle cx="420" cy="380" r="4" fill="#44ff88" opacity="0.9"/>
+  <text x="428" y="384" fill="#8899aa" font-family="monospace" font-size="9">gravity assist</text>
+</svg>`,
+        caption:
+          'Cassini\'s route to Saturn included two Venus flybys, one Earth flyby, and one Jupiter flyby. ' +
+          'This "slingshot" scheme — the gravity assist — allowed the spacecraft to accumulate the speed required ' +
+          'without expending propellant for the maneuver. ' +
+          'The total distance traveled from launch to Saturn orbit insertion exceeded three billion kilometers.',
+      },
+    },
+
+    {
+      heading: 'Huygens: the only landing in the outer Solar System',
+      level: 2,
+      paragraphs: [
+        'Titan is Saturn\'s largest moon and the second largest in the entire Solar System. ' +
+        'It has something almost no other moon can claim: a dense nitrogen atmosphere with surface pressure ' +
+        'comparable to Earth\'s. For decades scientists suspected that something extraordinary ' +
+        'lay hidden beneath the orange haze — but radars and telescopes could not penetrate the opaque aerosol.',
+
+        'In January 2005 the Huygens probe separated from Cassini and began its descent through Titan\'s atmosphere. ' +
+        'The sequence was unique: atmospheric entry at a distant moon, parachute deployment at roughly ' +
+        'one hundred and fifty kilometers altitude, nearly four hours of slow drift through cloud layers, ' +
+        'and finally touchdown on the surface. Huygens became the first Earth-built object ' +
+        'to land in the outer Solar System — and it remains the only one.',
+
+        'What it found exceeded all expectations. Titan\'s surface turned out to be covered ' +
+        'with dark dunes of organic hydrocarbons — complex molecules that settle out of the atmosphere ' +
+        'as a kind of organic snow. Nearby lay rounded cobbles polished not by water but by liquid methane. ' +
+        'Titan has a complete liquid cycle: methane clouds, methane rain, methane rivers, ' +
+        'and entire seas of liquid methane at the poles. ' +
+        'It is the analogue of Earth\'s hydrological cycle — ' +
+        'but with methane instead of water at minus one hundred and seventy degrees Celsius.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'cassini-huygens-titan-descent',
+        prompt:
+          'Photorealistic science encyclopedia illustration: the Huygens probe descending through Titan\'s thick orange-brown atmosphere on a parachute. ' +
+          'Glimpses of the surface visible below through gaps in haze — dark hydrocarbon dunes and a bright shoreline of a methane lake. ' +
+          'The probe is a metallic dish-shaped lander with antennas. ' +
+          'Atmosphere is layered in amber and brown tones. Hard sci-fi style, dramatic lighting. ' +
+          'Add the following text labels on the image: "Huygens probe", "Titan atmosphere", "hydrocarbon dunes", "methane lake".',
+        alt: 'The Huygens probe descending on a parachute through Titan\'s orange atmosphere — dark hydrocarbon dunes and the shoreline of a methane lake visible below the clouds',
+        caption:
+          'Huygens transmitted data throughout the descent and for over an hour after touching down. ' +
+          'Cassini, flying overhead as a relay station, forwarded the data to Earth. ' +
+          'When the signal finally cut off — not from failure but because the relay window closed — ' +
+          'it marked the end of the first and still only surface visit to Titan.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Enceladus: an ocean beneath the ice and the question of life',
+      level: 2,
+      paragraphs: [
+        'If Titan forced a rethink of chemistry, Enceladus forced a rethink of astrobiology. ' +
+        'Before Cassini, this small moon — only about five hundred kilometers across — ' +
+        'looked like an uninteresting piece of ice. But the first close flybys revealed something astonishing: ' +
+        'geysers erupting from the south pole.',
+
+        'Not clouds of vapor. Real geysers of water ice and gas ' +
+        'rising thousands of kilometers into open space, ' +
+        'feeding one of Saturn\'s rings — the E ring. ' +
+        'To drive water off the surface of a tiny body requires a heat source. ' +
+        'And where there is heat, there may be liquid water. ' +
+        'Cassini confirmed this through direct measurement: ' +
+        'beneath the ice shell of Enceladus exists a global liquid ocean.',
+
+        'But the most consequential finding lay in the chemistry of the plume. ' +
+        'Passes through the geyser spray revealed water vapor and water ice — ' +
+        'already a sensation on its own. But together with them came organic molecules, ' +
+        'nitrogen compounds, and most critically, molecular hydrogen. ' +
+        'Molecular hydrogen in this context is the chemical signature of hydrothermal activity: ' +
+        'reactions between superheated water and rock at the ocean floor. ' +
+        'This is precisely what happens at black smoker vents on Earth\'s ocean floor — ' +
+        'and those are exactly the environments where life was first found ' +
+        'to thrive independently of sunlight.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'cassini-enceladus-geysers',
+        prompt:
+          'Photorealistic science encyclopedia illustration: Enceladus moon of Saturn viewed from close range. ' +
+          'Dramatic south polar region showing multiple water ice geysers erupting into black space, ' +
+          'creating a faint plume cloud. Tiger stripe fractures across the south pole glow faintly with internal heat. ' +
+          'Saturn\'s rings visible as a thin line in the background. Hard sci-fi style, dark background, accurate scale. ' +
+          'Add the following text labels on the image: "ice geysers", "south pole", "tiger stripes", "subsurface ocean".',
+        alt: 'Water ice geysers erupting from Enceladus south pole — tiger stripe fractures glow with internal heat, jets blast into open space',
+        caption:
+          'The tiger stripes — four parallel fractures each roughly one hundred and thirty kilometers long ' +
+          'across Enceladus\'s south pole — are the source of the geysers. ' +
+          'Through them, the liquid ocean below forces water and vapor into space under internal pressure. ' +
+          'Cassini made twenty-three flybys of Enceladus, ' +
+          'each time sampling the plume directly from space.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'The hexagonal storm and the rings as science',
+      level: 2,
+      paragraphs: [
+        'Saturn before Cassini was a planet with rings and a handful of known moons. ' +
+        'Saturn after Cassini is an entire world with its own meteorology that has no parallel anywhere in the Solar System.',
+
+        'The most striking example is the hexagonal vortex at the north pole. ' +
+        'A geometrically regular hexagon more than twenty-five thousand kilometers across, ' +
+        'rotating in sync with the planet, apparently stable for decades. ' +
+        'No other planet in the Solar System shows anything like it. ' +
+        'The origin of such geometry is still debated: ' +
+        'the most likely explanation involves interactions between atmospheric layers ' +
+        'rotating at different speeds, generating a standing wave pattern.',
+
+        'Saturn\'s rings turned out to be a far more complex structure than anyone had anticipated. ' +
+        'Cassini showed them to be a dynamic system: ice particles ranging from microscopic grains ' +
+        'to objects the size of a house collide, clump, and scatter constantly. ' +
+        'Within the rings are "propellers" — wave-like disturbances created by invisible embedded moonlets. ' +
+        'There are sharp gaps maintained by the gravitational resonances of moons. ' +
+        'There are bands only a kilometer wide stretching hundreds of thousands of kilometers, ' +
+        'yet with a thickness of only a few hundred meters — ' +
+        'thinner relative to their diameter than a sheet of paper.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'cassini-saturn-hexagon',
+        prompt:
+          'Photorealistic science encyclopedia image: Saturn\'s north pole viewed from directly above, ' +
+          'showing the dramatic hexagonal storm system. ' +
+          'The hexagon is clearly defined, with swirling cloud bands inside and outside the six-sided boundary. ' +
+          'Central polar vortex visible. Color palette: golden and amber clouds against deep blue polar region. ' +
+          'Hard sci-fi style, top-down polar projection. ' +
+          'Add the following text labels on the image: "hexagonal vortex", "polar storm", "north pole", "cloud bands".',
+        alt: 'Saturn\'s north pole viewed from above: a geometrically regular hexagonal vortex with a central polar storm inside swirling cloud bands',
+        caption:
+          'The hexagonal storm at Saturn\'s north pole was first glimpsed by the Voyager spacecraft in the early 1980s, ' +
+          'but Cassini produced the first detailed imagery. ' +
+          'The hexagon is larger than Earth in diameter and appears to have maintained its shape for decades. ' +
+          'No equivalent structure has been found on any other planet.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'One hundred and sixty-two flybys and thirteen years of science',
+      level: 2,
+      paragraphs: [
+        'Over thirteen years in orbit, Cassini completed one hundred and sixty-two flybys of Titan ' +
+        'and twenty-three of Enceladus. Each pass brought new measurements, new images, ' +
+        'new environmental samples. The spacecraft studied Saturn\'s magnetosphere — ' +
+        'the enormous magnetic bubble surrounding the planet that shields the system from the solar wind. ' +
+        'It observed polar auroras, probed radiation belts, measured atmospheric composition, ' +
+        'and tracked storm systems that can persist for years.',
+
+        'The mission discovered or characterized dozens of small moons — ' +
+        'from tiny ring shepherds to Mimas with its giant Herschel crater ' +
+        'that gives it an uncanny resemblance to a science-fiction battle station. ' +
+        'Each moon proved to be a unique object with its own geological and dynamical history.',
+
+        'In total the mission collected roughly six hundred gigabytes of scientific data ' +
+        'and returned more than four hundred and fifty thousand images. ' +
+        'Thousands of scientific papers have been based on those data — ' +
+        'and new publications continue to appear, because the volume of material gathered ' +
+        'exceeds what the research community has been able to fully analyze even years after the mission ended.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'cassini-ring-detail',
+        prompt:
+          'Photorealistic science encyclopedia image: extreme close-up of Saturn\'s ring system photographed by Cassini. ' +
+          'Individual ring bands visible with gaps between them — Cassini Division clearly shown as a dark gap. ' +
+          'Fine ringlets and wave patterns within the B ring. ' +
+          'A small propeller-shaped disturbance caused by a moonlet embedded in the rings. ' +
+          'Hard sci-fi style, high-resolution detail, dark space background. ' +
+          'Add the following text labels on the image: "Cassini Division", "B ring", "propeller moonlet", "ringlets".',
+        alt: 'Close-up of Saturn\'s ring system — the Cassini Division, individual ring bands, fine ringlets within the B ring, and a propeller disturbance from an embedded moonlet',
+        caption:
+          'Saturn\'s rings are astonishingly thin: hundreds of thousands of kilometers wide ' +
+          'yet only a few hundred meters thick in places. ' +
+          'Cassini identified thousands of individual ringlets and propeller structures — ' +
+          'disturbances created by moonlets too small to see directly.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'The Grand Finale: 22 dives and a farewell to Saturn',
+      level: 2,
+      paragraphs: [
+        'By 2017 the onboard propellant was nearly exhausted. ' +
+        'Cassini could no longer control its own orbit — ' +
+        'and the mission team faced the classic problem of exploring distant worlds: ' +
+        'what do you do with a spacecraft that can no longer navigate?',
+
+        'The answer was shaped by the discoveries of the mission itself. ' +
+        'Simply abandoning Cassini to drift would eventually result in a collision ' +
+        'with Enceladus or Titan. And on board were bacteria, organic molecules, ' +
+        'microorganisms that had survived in a sterilized but imperfectly clean spacecraft. ' +
+        'Contaminating Enceladus — a potentially living world — with Earth\'s organic chemistry ' +
+        'would mean permanently destroying the ability to ever determine ' +
+        'whether life had arisen there independently.',
+
+        'A different strategy was chosen — the Grand Finale. ' +
+        'Between April and September 2017 Cassini made twenty-two dives ' +
+        'between the rings and the upper layers of Saturn\'s atmosphere — ' +
+        'a region no spacecraft had ever entered. ' +
+        'Far less dust and particles were encountered than models had predicted. ' +
+        'Gravitational field measurements taken inside the ring gap ' +
+        'allowed scientists to refine the internal structure of the planet ' +
+        'and calculate the mass of the rings with unprecedented precision.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Grand Finale: Cassini orbits between Saturn\'s rings and atmosphere (2017)',
+        svg: `<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg">
+  <rect width="720" height="400" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Title -->
+  <text x="360" y="22" fill="#aabbcc" font-family="monospace" font-size="11" text-anchor="middle">Grand Finale — Cassini orbits between rings and Saturn</text>
+
+  <!-- Saturn body -->
+  <ellipse cx="360" cy="200" rx="70" ry="65" fill="#ff8844" opacity="0.25"/>
+  <ellipse cx="360" cy="200" rx="70" ry="65" fill="none" stroke="#ff8844" stroke-width="1.5" opacity="0.7"/>
+  <text x="360" y="204" fill="#aabbcc" font-family="monospace" font-size="10" text-anchor="middle">Saturn</text>
+
+  <!-- D ring (closest) -->
+  <ellipse cx="360" cy="200" rx="85" ry="25" fill="none" stroke="#667788" stroke-width="1" opacity="0.6"/>
+  <text x="455" y="190" fill="#667788" font-family="monospace" font-size="8">D</text>
+
+  <!-- C ring -->
+  <ellipse cx="360" cy="200" rx="110" ry="30" fill="none" stroke="#667788" stroke-width="1" opacity="0.6"/>
+  <text x="478" y="193" fill="#667788" font-family="monospace" font-size="8">C</text>
+
+  <!-- B ring -->
+  <ellipse cx="360" cy="200" rx="145" ry="38" fill="none" stroke="#8899aa" stroke-width="1.5" opacity="0.7"/>
+  <text x="513" y="196" fill="#8899aa" font-family="monospace" font-size="8">B</text>
+
+  <!-- Cassini Division gap -->
+  <ellipse cx="360" cy="200" rx="165" ry="44" fill="none" stroke="#334455" stroke-width="2" stroke-dasharray="3,4" opacity="0.5"/>
+  <text x="534" y="198" fill="#334455" font-family="monospace" font-size="7">Division</text>
+
+  <!-- A ring -->
+  <ellipse cx="360" cy="200" rx="185" ry="50" fill="none" stroke="#8899aa" stroke-width="1.5" opacity="0.7"/>
+  <text x="553" y="200" fill="#8899aa" font-family="monospace" font-size="8">A</text>
+
+  <!-- F ring (outer boundary of A) -->
+  <ellipse cx="360" cy="200" rx="200" ry="54" fill="none" stroke="#667788" stroke-width="1" opacity="0.5"/>
+  <text x="568" y="200" fill="#667788" font-family="monospace" font-size="8">F</text>
+
+  <!-- Grand Finale orbit path — dipping between F and D rings -->
+  <path d="M360,136 C490,120 560,200 490,280 C420,360 290,360 220,280 C150,200 220,120 360,136"
+        fill="none" stroke="#44ff88" stroke-width="2" opacity="0.85"/>
+
+  <!-- Cassini position marker -->
+  <circle cx="360" cy="136" r="5" fill="#44ff88" opacity="1"/>
+  <text x="365" y="128" fill="#44ff88" font-family="monospace" font-size="9">Cassini</text>
+
+  <!-- Gap zone annotation -->
+  <line x1="360" y1="136" x2="430" y2="80" stroke="#44ff88" stroke-width="0.8" stroke-dasharray="3,4" opacity="0.7"/>
+  <text x="432" y="76" fill="#44ff88" font-family="monospace" font-size="9">gap between F ring and atmosphere</text>
+
+  <!-- 22 dives label -->
+  <text x="360" y="370" fill="#aabbcc" font-family="monospace" font-size="10" text-anchor="middle">22 dives: April — September 2017</text>
+  <text x="360" y="385" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">final atmospheric entry: September 15 2017</text>
+
+  <!-- Legend -->
+  <line x1="30" y1="360" x2="55" y2="360" stroke="#44ff88" stroke-width="2"/>
+  <text x="60" y="364" fill="#8899aa" font-family="monospace" font-size="9">Grand Finale orbit</text>
+  <line x1="220" y1="360" x2="245" y2="360" stroke="#8899aa" stroke-width="1.5"/>
+  <text x="250" y="364" fill="#667788" font-family="monospace" font-size="9">Saturn's ring system</text>
+</svg>`,
+        caption:
+          'During the Grand Finale, Cassini passed through the gap between the innermost D ring and Saturn\'s cloud tops — ' +
+          'approximately two thousand kilometers above the visible atmosphere. ' +
+          'No spacecraft had ever taken gravitational field measurements or ring composition samples from this vantage point.',
+      },
+    },
+
+    {
+      heading: 'The final plunge: a deliberate decision',
+      level: 2,
+      paragraphs: [
+        'On September 15, 2017, at approximately eight in the morning Pacific time, ' +
+        'Cassini entered Saturn\'s upper atmosphere. ' +
+        'The spacecraft fought to maintain its orientation with its thrusters until the end — ' +
+        'this allowed it to continue transmitting science data until aerodynamic forces ' +
+        'finally overwhelmed attitude control. ' +
+        'The total time from atmospheric entry to complete destruction was under a minute. ' +
+        'The signal took more than an hour and twenty minutes to reach Earth, ' +
+        'so the event had already occurred when operators at the Jet Propulsion Laboratory ' +
+        'received the final data packet.',
+
+        'The decision to deliberately destroy the spacecraft became one of the most discussed ' +
+        'topics in planetary protection. Planetary protection protocols require that spacecraft ' +
+        'must not deposit potentially contaminated debris on bodies ' +
+        'where life might exist or arise. ' +
+        'Cassini met that requirement: destroyed in the planet\'s atmosphere, ' +
+        'with no possibility of contaminating Enceladus or Titan.',
+
+        'But beyond the technical dimension, the Cassini finale took on symbolic meaning. ' +
+        'The spacecraft that had discovered an ocean beneath the ice of a moon, ' +
+        'that had delivered the first landing on Titan, ' +
+        'that had revealed the geysers of Enceladus — ' +
+        'ended its existence by becoming part of the planet it had spent thirteen years studying.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'cassini-final-plunge',
+        prompt:
+          'Photorealistic science encyclopedia illustration: artistic reconstruction of the Cassini spacecraft entering Saturn\'s atmosphere. ' +
+          'The spacecraft is partially ablated and glowing red-orange from atmospheric entry heating. ' +
+          'Saturn\'s cloud bands and ring system visible behind. ' +
+          'Cassini shown tumbling slightly, antenna still transmitting signal shown as a faint radio wave graphic. ' +
+          'Hard sci-fi style, dramatic lighting, emotionally resonant but scientifically grounded. ' +
+          'Add the following text labels on the image: "final transmission", "atmospheric entry", "Saturn clouds", "September 15 2017".',
+        alt: 'Artistic reconstruction of Cassini entering Saturn\'s atmosphere — the spacecraft ablates and glows as Saturn\'s cloud bands and rings fill the background',
+        caption:
+          'During the final plunge, Cassini continued measuring atmospheric composition and transmitting data ' +
+          'until the last second of stable signal. ' +
+          'It did not simply disintegrate — it collected scientific data during its own destruction. ' +
+          'This approach is now considered a model for future missions to potentially habitable worlds.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'Legacy and what comes next',
+      level: 2,
+      paragraphs: [
+        'Cassini raised questions that have no answers yet. ' +
+        'Does Enceladus\'s ocean provide conditions sufficient for microbial life to arise? ' +
+        'If hydrothermal activity genuinely exists at the ocean floor, ' +
+        'it simultaneously provides an energy source and a chemical environment ' +
+        'analogous to where Earth\'s first life may have emerged.',
+
+        'Among the mission concepts developed as successors to Cassini, ' +
+        'two directions stand out. The first is an orbiter and lander for Enceladus, ' +
+        'a concept developed under the name Enceladus Orbilander ' +
+        'as part of the priorities set by the planetary science community for the coming decade. ' +
+        'Rather than a brief plume flyby, such a mission would settle into orbit around Enceladus ' +
+        'and analyze geyser material in detail, searching for biosignatures.',
+
+        'The second is Dragonfly, a rotorcraft for Titan. ' +
+        'The spacecraft resembles a large drone capable of flight through Titan\'s dense atmosphere, ' +
+        'relocating between sites tens of kilometers apart and collecting samples of organic material. ' +
+        'Under current plans Dragonfly is to launch in the mid-2020s ' +
+        'and reach Titan around 2034. ' +
+        'It will be the first spacecraft to explore Titan not through clouds from orbit ' +
+        'but directly from the surface and air.',
+
+        'Long before any successor arrives, however, the Cassini data continue working. ' +
+        'Scientists around the world are still mining terabytes of images, spectra, and field measurements, ' +
+        'finding new ring structures, new details of Titan\'s chemistry, ' +
+        'and new clues about the nature of Enceladus\'s deep ocean. ' +
+        'A mission that ended physically continues intellectually.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'cassini-dragonfly-titan',
+        prompt:
+          'Photorealistic science encyclopedia concept illustration: the Dragonfly rotorcraft flying low over Titan\'s surface. ' +
+          'The landscape shows dark hydrocarbon dunes stretching to the horizon, with methane puddles reflecting amber sky. ' +
+          'Dragonfly is a multi-rotor drone-like spacecraft with scientific instruments visible. ' +
+          'Titan\'s thick orange-brown atmosphere creates a hazy diffused light. ' +
+          'Hard sci-fi style, photorealistic, technically accurate spacecraft design. ' +
+          'Add the following text labels on the image: "Dragonfly rotorcraft", "hydrocarbon dunes", "Titan surface", "methane puddles".',
+        alt: 'Concept illustration of the Dragonfly rotorcraft flying over Titan\'s surface — dark hydrocarbon dunes under an amber sky, methane puddles reflecting diffused light',
+        caption:
+          'Dragonfly is Cassini\'s successor for Titan exploration. Unlike Huygens, which had a single landing opportunity, ' +
+          'Dragonfly will be able to relocate between sites tens of kilometers apart, ' +
+          'collecting samples in different geological contexts. ' +
+          'Arrival is planned for approximately 2034.',
+        aspectRatio: '4:3',
+      },
+    },
+  ],
+
+  glossary: [
+    {
+      term: 'Gravity assist',
+      definition:
+        'A maneuver in which a spacecraft flies close to a planet and uses its gravitational field to change speed and direction. Allows significant velocity gain without using onboard propellant. Cassini used four such maneuvers on its way to Saturn.',
+    },
+    {
+      term: 'Geyser plume',
+      definition:
+        'A column of gas, ice, and fine particles erupting from Enceladus through fractures in its ice shell. Cassini flew directly through the plume and analyzed its chemical composition on multiple occasions.',
+    },
+    {
+      term: 'Molecular hydrogen',
+      definition:
+        'The chemical compound H2, detected in the Enceladus geyser plume. Its presence is a chemical signature of hydrothermal activity — reactions between superheated water and rock at the ocean floor. On Earth, such environments sustain microorganisms.',
+    },
+    {
+      term: 'Hydrothermal activity',
+      definition:
+        'A geological process in which water is heated inside a planetary body and chemically reacts with surrounding rock. On Earth, hydrothermal vents on the ocean floor support ecosystems without sunlight. Cassini detected its chemical signatures in the Enceladus plume.',
+    },
+    {
+      term: 'Planetary protection',
+      definition:
+        'The field of practice and international protocols aimed at preventing contamination of other worlds by Earth organisms, and vice versa. Planetary protection requirements drove the decision to deliberately plunge Cassini into Saturn\'s atmosphere rather than leave it in uncontrolled orbit.',
+    },
+    {
+      term: 'Hexagonal vortex',
+      definition:
+        'A geometrically regular six-sided atmospheric structure at Saturn\'s north pole, more than twenty-five thousand kilometers across. It has maintained its shape for decades and has no known equivalent on any other planet.',
+    },
+    {
+      term: 'Grand Finale',
+      definition:
+        'The concluding phase of the Cassini mission in 2017: twenty-two orbits diving between Saturn\'s innermost ring and the planet\'s upper atmosphere, culminating in a deliberate atmospheric entry. Measurements included gravity field, magnetosphere, and upper-atmosphere chemistry.',
+    },
+    {
+      term: 'E ring',
+      definition:
+        'The widest and most diffuse ring of Saturn, fed by material from Enceladus\'s geysers. Cassini established a direct link between the moon\'s geyser activity and the chemical composition of this ring.',
+    },
+    {
+      term: 'Tiger stripes',
+      definition:
+        'Four parallel fractures each roughly one hundred and thirty kilometers long across Enceladus\'s south pole, through which the geysers erupt. They show elevated heat flow relative to the surrounding surface, indicating the subsurface heat source driving the geyser activity.',
+    },
+  ],
+
+  quiz: [
+    {
+      question: 'Why did Cassini travel to Saturn via Venus, Earth, and Jupiter rather than taking a direct route?',
+      options: [
+        'Saturn was positioned behind Jupiter at launch and the direct path was blocked',
+        'The launch vehicle lacked sufficient power for a direct flight — gravity assists accumulated speed without using propellant',
+        'Cassini had to conduct measurements at each of those planets as primary science targets',
+        'A direct path to Saturn takes longer because of the shape of Earth\'s orbit',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Reaching Saturn orbit requires enormous velocity. The launch vehicle alone could not provide it. Gravity assists — close flybys of planets — allowed the spacecraft to "borrow" kinetic energy from each planet. Each assist added speed without drawing on the limited propellant supply on board.',
+    },
+    {
+      question: 'What made the discovery of Enceladus geysers astrobiologically significant?',
+      options: [
+        'The geysers showed that Enceladus has an atmosphere breathable by organisms',
+        'The plume contained molecular hydrogen — a signature of hydrothermal activity and a potential energy source for microorganisms',
+        'The geysers consist of liquid methane, indicating a warm surface temperature',
+        'The discovery confirmed that Enceladus once had a dense atmosphere',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Molecular hydrogen in the Enceladus plume is the chemical signature of reactions between superheated water and rock — hydrothermal activity. On Earth, exactly these conditions support microbial life on the deep ocean floor without sunlight. This made Enceladus one of the most promising locations for searching for extraterrestrial microbial life.',
+    },
+    {
+      question: 'Why was Cassini deliberately plunged into Saturn\'s atmosphere rather than left in orbit?',
+      options: [
+        'To collect data on atmospheric composition — that was the primary science goal from the start',
+        'Propellant ran out and the spacecraft entered an uncontrolled descent',
+        'To prevent a possible future collision with Enceladus or Titan that could contaminate them with Earth microorganisms',
+        'To clear the orbit for the next incoming spacecraft',
+      ],
+      correctIndex: 2,
+      explanation:
+        'Planetary protection protocols prohibit leaving spacecraft carrying potential Earth microorganisms near bodies where life might exist. Enceladus and Titan qualify as such bodies. Deliberate entry into Saturn\'s atmosphere guaranteed complete destruction of the spacecraft with no risk of contaminating those moons.',
+    },
+    {
+      question: 'What was the Grand Finale of the Cassini mission?',
+      options: [
+        'A final imaging sequence of Saturn\'s rings before the cameras were powered down',
+        'A series of twenty-two orbits diving between the rings and Saturn\'s atmosphere — a region no spacecraft had ever entered',
+        'A joint press conference held by the three partner agencies after the mission ended',
+        'A final close flyby of Enceladus with a dive through the geyser plume',
+      ],
+      correctIndex: 1,
+      explanation:
+        'The Grand Finale consisted of twenty-two orbital dives through the gap between the inner edge of the D ring and the upper layers of Saturn\'s atmosphere. Gravity field measurements taken there allowed scientists to refine the planet\'s internal structure and calculate ring mass with unprecedented accuracy. The final pass ended with atmospheric entry.',
+    },
+    {
+      question: 'What unique property of Titan made it the primary target for the Huygens probe?',
+      options: [
+        'Titan is the only moon in the Solar System with a liquid water ocean on its surface',
+        'Titan has a dense nitrogen atmosphere and a full liquid cycle — the only known analogue of the hydrological cycle beyond Earth',
+        'Titan orbits closest to Saturn and is therefore the most accessible moon',
+        'Signals possibly indicating a technological civilization had previously been detected from Titan',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Titan is the only known body in the Solar System besides Earth with a liquid cycle active at its surface. Instead of water, methane plays the role: methane clouds, methane rain, methane rivers and seas. Its dense nitrogen atmosphere and complex organic chemistry make it a key target for studying prebiotic chemistry.',
+    },
+  ],
+
+  sources: [
+    {
+      title: 'NASA — Cassini Mission Overview',
+      url: 'https://solarsystem.nasa.gov/missions/cassini/overview/',
+      meta: 'NASA Solar System Exploration, open access',
+    },
+    {
+      title: 'Waite J. H. et al. — Cassini finds molecular hydrogen in the Enceladus plume (2017)',
+      url: 'https://www.science.org/doi/10.1126/science.aai8703',
+      meta: 'Science, 2017, doi:10.1126/science.aai8703',
+    },
+    {
+      title: 'Porco C. C. et al. — Cassini Observes the Active South Pole of Enceladus (2006)',
+      url: 'https://www.science.org/doi/10.1126/science.1123013',
+      meta: 'Science, 2006, doi:10.1126/science.1123013',
+    },
+    {
+      title: 'Tobie G. et al. — Titan\'s internal structure inferred from a coupled thermal-orbital model (2006)',
+      url: 'https://www.nature.com/articles/nature04943',
+      meta: 'Nature, 2006',
+    },
+    {
+      title: 'ESA — Huygens mission to Titan',
+      url: 'https://www.esa.int/Science_Exploration/Space_Science/Cassini-Huygens/Huygens_mission_to_Titan',
+      meta: 'ESA Science, open access',
+    },
+    {
+      title: 'NASA JPL — Cassini Grand Finale Science',
+      url: 'https://www.jpl.nasa.gov/news/cassini-grand-finale-science',
+      meta: 'JPL, 2017, open access',
+    },
+    {
+      title: 'Iess L. et al. — Measurement and implications of Saturn\'s gravity field and ring mass (2019)',
+      url: 'https://www.science.org/doi/10.1126/science.aat2965',
+      meta: 'Science, 2019 — Grand Finale results',
+    },
+    {
+      title: 'NASA — Dragonfly Mission to Titan',
+      url: 'https://dragonfly.jhuapl.edu/',
+      meta: 'Johns Hopkins APL / NASA, updated 2024',
+    },
+    {
+      title: 'National Academies — Origins, Worlds, and Life: Planetary Science Decadal Survey 2023–2032',
+      url: 'https://www.nationalacademies.org/our-work/planetary-science-and-astrobiology-decadal-survey-2023-2032',
+      meta: 'National Academies Press, 2022 — Enceladus Orbilander recommendations',
+    },
+    {
+      title: 'Brown M. E. et al. — The identification of water ice and chemical composition of Titan (2011)',
+      url: 'https://doi.org/10.1016/j.icarus.2011.02.015',
+      meta: 'Icarus, 2011',
+    },
+  ],
+
+  lastVerified: '2026-05-06',
+};
+
+export default lesson;

@@ -1,0 +1,285 @@
+{
+  "slug": "yuri-gagarin",
+  "language": "en",
+  "section": "crewed-missions",
+  "order": 1,
+  "difficulty": "beginner",
+  "readingTimeMin": 11,
+  "title": "Yuri Gagarin — First in Space",
+  "subtitle": "One hundred and eight minutes of flight that redefined what humanity believed was possible.",
+  "hero": {
+    "cacheKey": "gagarin-hero-vostok-launch",
+    "prompt": "Photorealistic illustration for a science encyclopedia: a Soviet R-7 rocket lifting off from a launch pad at dawn, enormous flame and smoke billowing at the base, the rocket silhouetted against a pale orange sky transitioning to deep blue. Constructivist launch tower visible at the sides. Hard sci-fi style, dark space background at top of image, dramatic lighting from the exhaust plume below. No human faces. Add the following text labels on the image: \"Vostok 1\", \"April 12, 1961\", \"Baikonur\".",
+    "alt": "Launch of Vostok 1 from Baikonur at dawn on April 12, 1961 — column of flame and smoke beneath the rising rocket",
+    "caption": "Liftoff of the Vostok launch vehicle from Baikonur Cosmodrome. The rocket placed a spherical capsule weighing approximately four thousand six hundred kilograms into orbit. Gagarin spent one hundred and eight minutes aboard.",
+    "aspectRatio": "16:9"
+  },
+  "body": [
+    {
+      "paragraphs": [
+        "On April 12, 1961, a human being left Earth for the first time and saw the planet whole — a blue sphere suspended in black vacuum. Until that moment, this view existed only in the imagination of artists and in the equations of physicists. Yuri Gagarin made it real. One hundred and eight minutes of flight — a single orbit around Earth — and the question \"can a human survive space?\" received its answer.",
+        "But to understand why that day changed everything, it must be seen at the right scale. Only four years earlier, in 1957, the first artificial satellite — Sputnik 1 — had reached orbit. Humanity went from zero to crewed spaceflight in less than four years. No other technological race in history compressed so many breakthroughs into so short a span.",
+        "Gagarin's flight was not simply a feat of courage or a competitive trophy. It was an answer to a question that had no scientific resolution before the moment of launch: can the human body survive vacuum, weightlessness, the vibration of ascent, radiation exposure, and reentry through the atmosphere? Nobody knew for certain. Gagarin understood the uncertainty better than anyone."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "gagarin-r7-rocket-evolution",
+        "prompt": "Photorealistic scientific illustration for a science encyclopedia: side-by-side profile comparison of two rockets — a Soviet R-7 ICBM ballistic missile on the left (military warhead configuration, no payload fairing) and the Vostok launch vehicle on the right (same core with upper stage and spherical capsule on top). Both shown at same scale against dark space background. Hard sci-fi style, dark background, monospace labels. Add the following text labels on the image: \"R-7 ICBM\", \"Vostok launch vehicle\", \"Vostok capsule\", \"same core rocket\".",
+        "alt": "Comparison of the R-7 ballistic missile and Vostok launch vehicle — both built on the same rocket core with different upper sections",
+        "caption": "Korolev's R-7 began as an intercontinental ballistic missile for nuclear warheads. The engine platform remained nearly identical — only the top changed: the warhead gave way to upper stages and the spherical Vostok capsule.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "A rocket born as a weapon",
+      "level": 2,
+      "paragraphs": [
+        "The rocket that carried Gagarin to orbit did not originate in a space program. The R-7 — the first intercontinental ballistic missile ever built — was developed by Sergei Korolev's team in the mid-1950s as a delivery vehicle for a nuclear warhead across the Atlantic. It could carry a payload more than eight thousand kilometers — meaning no point in the United States was out of reach.",
+        "But Korolev saw something else in it. From the beginning he lobbied to use the R-7 for satellites and crewed vehicles, and he eventually prevailed. The Vostok launch vehicle kept the four strap-on boosters of the first stage and the central core of the second stage, but instead of a warhead it received an upper stage and the spherical cosmonaut cabin. That basic architecture proved so reliable that descendants of the R-7 are still used to deliver crews to orbital stations today — more than sixty years later.",
+        "Korolev's engineering choice was both elegant and pragmatic: rather than designing a new rocket from scratch, he re-purposed an already proven and production-ready platform. That logic is precisely what allowed the first crewed flight to happen so quickly after Sputnik."
+      ]
+    },
+    {
+      "heading": "Selection and training: why fighter pilots",
+      "level": 2,
+      "paragraphs": [
+        "When the Soviet space program began searching for its first cosmonauts, the selection criteria were strict and, at first glance, surprising. Not scientists. Not engineers. Fighter pilots — and very specific ones: young, short (the Vostok cabin was cramped), in flawless health, and matching a particular psychological profile.",
+        "The reasoning was sound: a jet fighter pilot was already accustomed to high acceleration forces, to making decisions under pressure, and to operating in environments where any error is lethal. He was familiar with the isolation of a cockpit, trained to stay calm when something goes wrong. Gagarin met every criterion: twenty-seven years old, one hundred and fifty-nine centimeters tall, a first-class pilot, steady and dependable under stress.",
+        "Beyond the formal requirements there was something harder to quantify. Other pilots in the cosmonaut corps later recalled that Gagarin possessed a rare quality — he could be completely natural and at ease with people of any rank, from a mechanic to a marshal. In an era when the first cosmonaut was to become a national face and an ideal of the new age, that quality mattered no less than technical readiness."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "gagarin-vostok-capsule-cutaway",
+        "prompt": "Photorealistic scientific cut-away illustration for a science encyclopedia: cross-section of the Soviet Vostok spacecraft showing internal layout — spherical descent module at top with cosmonaut seat and control panel visible inside, instrument module cylinder attached below with attitude control thrusters and retro-rocket. The sphere is shown open/transparent to reveal interior. Dark space background. Hard sci-fi style, technically accurate geometry. No human faces visible. Add the following text labels on the image: \"spherical descent module\", \"ejection seat\", \"instrument module\", \"retro-rocket\", \"attitude thrusters\".",
+        "alt": "Cut-away view of the Vostok spacecraft — spherical descent module with ejection seat and cylindrical instrument module",
+        "caption": "The Vostok's design was dictated by a single goal: return a human being alive. The spherical shape of the descent module ensured uniform atmospheric braking without complex guidance systems. The ejection seat was the backup if the rocket failed at launch — and the primary landing method at seven kilometers altitude.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "One hundred and eight minutes: what actually happened",
+      "level": 2,
+      "paragraphs": [
+        "Launch occurred in the early morning hours Moscow time. The rocket climbed almost vertically for the first seconds, then tilted eastward onto its departure heading. Two minutes after liftoff the four strap-on boosters separated and fell back into the steppe. Minutes later the core second stage exhausted its propellant and also separated. The third stage carried Vostok to orbit — and weightlessness arrived.",
+        "Gagarin completed one orbit of Earth. The maximum altitude was approximately three hundred and eleven kilometers above the surface. At that height the atmosphere is so thin that aerodynamic drag is negligible — but Earth's magnetic field still deflects the bulk of cosmic radiation. The orbital period was approximately ninety-two minutes. Gagarin witnessed both sunrise and sunset within a single flight and observed Earth from the altitude where the planet's curvature is clearly visible.",
+        "The retro-rocket fired over Africa. The descent module separated from the instrument module and entered the atmosphere over Egypt. At this point the first complication arose: the cables connecting the two modules failed to release on schedule, and the joined sections tumbled for several minutes before the cables burned through in the heat of reentry, allowing the descent module to stabilize. Gagarin did not report these minutes in his initial official debrief."
+      ]
+    },
+    {
+      "heading": "The secret of the ejection seat",
+      "level": 2,
+      "paragraphs": [
+        "Gagarin did not land inside the capsule. At seven kilometers altitude he ejected and parachuted down separately from the spherical descent module, which landed on its own parachute a few kilometers away. This was not an emergency — it was the planned procedure. Vostok had no soft-landing system, and the impact of the capsule against the ground at more than seven meters per second could have been injurious.",
+        "The Soviet side concealed this fact for years. The reason was prosaic: rules of the International Aeronautical Federation required that the pilot land inside his vehicle for a record to be officially recognized. Had the truth been announced immediately, the flight would formally not have qualified as a record. So official accounts for decades claimed Gagarin landed in the cabin. The truth became widely known only after the collapse of the Soviet Union.",
+        "This detail illustrates clearly how science, engineering, and political image management were intertwined in that race. The flight itself was real. The achievement was unambiguous. But around it was constructed a carefully managed legend in which inconvenient details were omitted."
+      ]
+    },
+    {
+      "diagram": {
+        "title": "Vostok 1 ground track — April 12, 1961",
+        "svg": "<svg viewBox=\"0 0 700 360\" xmlns=\"http://www.w3.org/2000/svg\">\n  <rect width=\"700\" height=\"360\" fill=\"rgba(10,15,25,0.5)\"/>\n\n  <!-- Title -->\n  <text x=\"350\" y=\"20\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"12\" text-anchor=\"middle\">Vostok 1 ground track — one orbit (108 minutes)</text>\n\n  <!-- Ocean background -->\n  <rect x=\"30\" y=\"35\" width=\"640\" height=\"280\" fill=\"#0a1520\" rx=\"3\"/>\n\n  <!-- Continents simplified -->\n  <!-- North America -->\n  <path d=\"M70,80 L110,75 L140,85 L155,100 L150,130 L130,145 L110,140 L90,130 L75,110 Z\" fill=\"#1a2535\" stroke=\"#334455\" stroke-width=\"0.5\"/>\n  <!-- South America -->\n  <path d=\"M120,155 L145,150 L160,165 L165,195 L155,220 L135,235 L120,225 L110,200 L108,175 Z\" fill=\"#1a2535\" stroke=\"#334455\" stroke-width=\"0.5\"/>\n  <!-- Europe/Africa -->\n  <path d=\"M290,65 L330,60 L345,75 L340,95 L325,100 L305,95 L290,80 Z\" fill=\"#1a2535\" stroke=\"#334455\" stroke-width=\"0.5\"/>\n  <path d=\"M295,105 L335,100 L355,120 L360,155 L345,185 L320,200 L300,190 L285,160 L280,130 L285,110 Z\" fill=\"#1a2535\" stroke=\"#334455\" stroke-width=\"0.5\"/>\n  <!-- Asia/Russia -->\n  <path d=\"M345,55 L430,45 L500,50 L540,65 L550,85 L520,95 L480,90 L440,85 L400,80 L360,75 Z\" fill=\"#1a2535\" stroke=\"#334455\" stroke-width=\"0.5\"/>\n  <path d=\"M390,90 L470,88 L520,100 L530,120 L510,135 L480,130 L450,125 L410,115 L385,105 Z\" fill=\"#1a2535\" stroke=\"#334455\" stroke-width=\"0.5\"/>\n  <!-- Australia -->\n  <path d=\"M500,175 L545,170 L565,185 L560,210 L535,220 L510,215 L495,195 Z\" fill=\"#1a2535\" stroke=\"#334455\" stroke-width=\"0.5\"/>\n\n  <!-- Equator line -->\n  <line x1=\"30\" y1=\"175\" x2=\"670\" y2=\"175\" stroke=\"#334455\" stroke-width=\"0.8\" stroke-dasharray=\"6,4\" opacity=\"0.7\"/>\n  <text x=\"36\" y=\"172\" fill=\"#667788\" font-family=\"monospace\" font-size=\"8\">equator</text>\n\n  <!-- Ground track polyline -->\n  <polyline\n    points=\"462,101 490,80 530,72 570,82 610,103 640,130 670,161 670,175\"\n    fill=\"none\" stroke=\"#44ff88\" stroke-width=\"1.8\" opacity=\"0.85\"/>\n  <polyline\n    points=\"30,175 55,189 90,210 130,230 170,238 210,232 250,212 285,185 310,160 340,138 375,120 410,110 435,107 462,101\"\n    fill=\"none\" stroke=\"#44ff88\" stroke-width=\"1.8\" opacity=\"0.85\"/>\n\n  <!-- Arrow indicating orbit direction -->\n  <polygon points=\"270,217 260,208 278,210\" fill=\"#44ff88\" opacity=\"0.85\"/>\n\n  <!-- Launch: Baikonur -->\n  <circle cx=\"462\" cy=\"101\" r=\"5\" fill=\"#ff8844\" stroke=\"#aabbcc\" stroke-width=\"1\"/>\n  <text x=\"468\" y=\"96\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"9\">LAUNCH</text>\n  <text x=\"468\" y=\"106\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"8\">Baikonur</text>\n\n  <!-- Retro fire point: over Africa -->\n  <circle cx=\"315\" cy=\"183\" r=\"4\" fill=\"#cc4444\" stroke=\"#aabbcc\" stroke-width=\"1\"/>\n  <text x=\"320\" y=\"178\" fill=\"#cc4444\" font-family=\"monospace\" font-size=\"9\">retro-rocket</text>\n  <text x=\"320\" y=\"188\" fill=\"#cc4444\" font-family=\"monospace\" font-size=\"8\">fires (Africa)</text>\n\n  <!-- Landing: Saratov region -->\n  <circle cx=\"430\" cy=\"107\" r=\"5\" fill=\"#7bb8ff\" stroke=\"#aabbcc\" stroke-width=\"1\"/>\n  <text x=\"436\" y=\"102\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"9\">LANDING</text>\n  <text x=\"436\" y=\"112\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"8\">Saratov (parachute)</text>\n\n  <!-- Legend -->\n  <rect x=\"35\" y=\"295\" width=\"12\" height=\"3\" fill=\"#44ff88\" opacity=\"0.85\"/>\n  <text x=\"52\" y=\"300\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"9\">orbital ground track</text>\n  <circle cx=\"42\" cy=\"318\" r=\"4\" fill=\"#ff8844\"/>\n  <text x=\"52\" y=\"321\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"9\">launch / landing</text>\n  <circle cx=\"42\" cy=\"335\" r=\"4\" fill=\"#cc4444\"/>\n  <text x=\"52\" y=\"338\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"9\">retro-rocket ignition</text>\n\n  <!-- Annotations -->\n  <text x=\"665\" y=\"295\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"end\">108 min</text>\n  <text x=\"665\" y=\"307\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"end\">1 orbit</text>\n  <text x=\"665\" y=\"319\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"end\">inclination ~65°</text>\n</svg>",
+        "caption": "Ground track of Vostok 1: one orbit around Earth in one hundred and eight minutes. The retro-rocket fired over Africa; reentry followed over Egypt and the Mediterranean. Gagarin landed by parachute in the Saratov region — not far from the places of his childhood."
+      }
+    },
+    {
+      "heading": "The physics of the first orbital flight",
+      "level": 2,
+      "paragraphs": [
+        "An orbit is not simply 'very high up'. It is a state of continuous free fall in which the vehicle's horizontal velocity is large enough that Earth's surface curves away as fast as the vehicle falls toward it. For low Earth orbit that velocity is approximately eight kilometers per second — twenty-three times faster than a bullet from a standard rifle.",
+        "The weightlessness Gagarin experienced arises from exactly this: both he and the spacecraft were falling with the same acceleration, so there were no support forces between them. This is not the absence of gravity — at three hundred kilometers altitude Earth's gravitational pull is only about ten percent weaker than at the surface. It is free fall along a closed trajectory.",
+        "Before the flight nobody knew for certain how the human body would respond to prolonged weightlessness. Could a person swallow food? Would the vestibular system become so disoriented that the pilot would lose the ability to make decisions? Would blood circulation be disrupted? Gagarin answered all of those questions at once — and the answer was: a human manages. With some discomfort, but manages."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "gagarin-cold-war-space-race-timeline",
+        "prompt": "Scientific infographic for a science encyclopedia: a horizontal timeline of Cold War space race milestones from 1957 to 1969, with USSR events shown above the center line in red and USA events below in blue. Key events: Sputnik 1957, Gagarin April 1961, Shepard May 1961, Tereshkova 1963, Apollo 11 1969. Dark space background, monospace labels, timeline arrow running left to right. Hard sci-fi style, no human faces. Add the following text labels on the image: \"Sputnik 1957\", \"Gagarin Apr 1961\", \"Shepard May 1961\", \"Tereshkova 1963\", \"Apollo 11 1969\", \"USSR\", \"USA\".",
+        "alt": "Timeline of the Cold War space race 1957-1969: Sputnik, Gagarin, Shepard, Tereshkova, Apollo 11",
+        "caption": "Four weeks separated Gagarin's orbital flight and Alan Shepard's first American suborbital hop. The Soviet program led at every major milestone until the lunar landing in 1969.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "Cold War context: four weeks before Shepard",
+      "level": 2,
+      "paragraphs": [
+        "Gagarin's flight occurred inside a specific geopolitical reality. The morning news of a successful orbital flight reached the world at the exact moment the American space program was preparing its own first crewed flight — a far more modest suborbital hop. Alan Shepard completed his fifteen-minute suborbital trajectory only four weeks after Gagarin — on May 5, 1961.",
+        "The difference between the two flights is fundamental. A suborbital flight is a ballistic trajectory — a parabola that does not close around Earth. The vehicle rises, reaches a peak, and falls back. Gagarin executed a complete orbital revolution — a substantially more demanding task that required a far more powerful rocket and a far more precise insertion maneuver.",
+        "American reaction to Gagarin's flight was layered. Publicly: congratulations and acknowledgment. Behind closed doors: urgent meetings at the White House. The shock of the flight is, by most historical accounts, what accelerated the approval of the Apollo program and President Kennedy's commitment to land on the Moon before the end of the decade — a speech he delivered six weeks after Gagarin's flight."
+      ]
+    },
+    {
+      "heading": "After the flight: fame, constraints, and death",
+      "level": 2,
+      "paragraphs": [
+        "Gagarin returned to Earth as a different man in the eyes of the world. He was received in Moscow with enormous celebration, then toured dozens of countries — everywhere crowds, ceremonies, photographs. He became the face of Soviet science and an argument for a power's capability that could not be dismissed. But with global fame came restrictions: the leadership of the Soviet space program decided not to risk a national symbol on further flights.",
+        "Gagarin worked to return to active flying. He was permitted to train on combat aircraft. On March 9, 1968 — a few weeks after his thirty-fourth birthday — he died together with instructor Vladimir Seryogin during a training flight in a MiG-15. The precise cause of the accident remains debated by researchers: the official finding points to a sharp maneuver to avoid collision with another aircraft or a bird, leading to an unrecoverable spin at low altitude.",
+        "Gagarin was thirty-four years old. He did not live to see a human walk on the Moon — the event he had himself precipitated by setting in motion the chain of reactions that drove the United States into the Apollo program. April 12 became Cosmonautics Day in the Soviet Union, and since 2001 has been celebrated globally as Yuri's Night — an annual event with gatherings in dozens of countries."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "gagarin-vostok-orbital-view",
+        "prompt": "Photorealistic illustration for a science encyclopedia: view from inside a Soviet Vostok spacecraft porthole looking out at Earth below — the curvature of Earth clearly visible, blue atmosphere halo, dark black space above. The porthole frame is visible in foreground. No human figure visible inside. Hard sci-fi style, dark space background, technically accurate Earth atmosphere layers. Add the following text labels on the image: \"altitude 300 km\", \"Earth curvature\", \"atmosphere limb\", \"orbital velocity 8 km/s\".",
+        "alt": "View from the Vostok porthole toward Earth — curved horizon, blue atmospheric halo, black space",
+        "caption": "At three hundred kilometers altitude Earth's curvature is clearly visible. The thin blue halo of the atmosphere looks extraordinarily fragile — roughly twenty kilometers of gas separating the surface from radiation and vacuum.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "Legacy: what one orbit changed",
+      "level": 2,
+      "paragraphs": [
+        "Gagarin's flight resolved the most important unknown question of its era: a human being can survive and function normally in space. That opened the door to everything that followed. Every crewed mission from Mercury to Apollo, from Soyuz to the Space Shuttle, from Mir to the International Space Station, rests on that foundation.",
+        "In 1963, Valentina Tereshkova became the first woman in space — also aboard a Vostok-type vehicle. The basic R-7 platform that Korolev adapted for Gagarin remained in active service for more than sixty years. Soyuz rockets — direct descendants of that original design — remain among the workhorses for delivering crews to orbital stations.",
+        "But the deepest impact of Gagarin's flight was not technical. It changed what people believed was possible. Before 1961, putting a human in space was a mathematical hypothesis and a subject of science fiction. After April 12 it was a fact. And that fact opened a new horizon of questions: if orbit — then the Moon. If the Moon — then further."
+      ]
+    }
+  ],
+  "glossary": [
+    {
+      "term": "Orbit",
+      "definition": "A trajectory around a planet or other massive body in which centripetal acceleration from gravity keeps the object in a closed curved path. At low Earth orbit, the required horizontal velocity is approximately eight kilometers per second."
+    },
+    {
+      "term": "Suborbital flight",
+      "definition": "A ballistic trajectory that reaches space (above one hundred kilometers) but does not close into an orbit. The vehicle rises, reaches a peak, and falls back. Requires substantially less energy than orbital flight."
+    },
+    {
+      "term": "Ejection seat",
+      "definition": "An emergency escape system that fires the pilot's seat clear of an aircraft or capsule using a rocket charge, followed by parachute deployment. On Vostok it was also the planned landing method: Gagarin ejected at seven kilometers altitude."
+    },
+    {
+      "term": "Intercontinental ballistic missile",
+      "definition": "A rocket weapon with a range exceeding five thousand kilometers, designed to deliver a nuclear warhead. The R-7 was the first such missile in the world and became the basis for the Vostok launch vehicle."
+    },
+    {
+      "term": "Weightlessness",
+      "definition": "A state of free fall in which all parts of the body and vehicle accelerate equally, eliminating any support forces between them. In orbit, weightlessness arises not from the absence of gravity but from continuous free fall along a closed trajectory."
+    },
+    {
+      "term": "Descent module",
+      "definition": "The portion of a spacecraft that reenters the atmosphere and returns the crew to Earth. On Vostok it was spherical — that shape ensures even aerodynamic braking without complex attitude control."
+    },
+    {
+      "term": "Orbital inclination",
+      "definition": "The angle between an orbit's plane and Earth's equatorial plane. Vostok's orbit had an inclination of approximately sixty-five degrees, allowing coverage of most of Earth's surface and a favorable launch trajectory from Baikonur."
+    },
+    {
+      "term": "Retro-rocket",
+      "definition": "A rocket engine mounted on an orbiting spacecraft that fires opposite to the direction of travel to slow the vehicle and initiate reentry. On Vostok the retro-rocket fired over Africa to begin the descent toward the Soviet Union."
+    }
+  ],
+  "quiz": [
+    {
+      "question": "How long did Gagarin's orbital flight last and how many times did he orbit Earth?",
+      "options": [
+        "Fifteen minutes — a suborbital hop with no complete orbit",
+        "One hundred and eight minutes — one complete orbit",
+        "Two hundred and forty minutes — three complete orbits",
+        "Ninety-two minutes — one complete orbit"
+      ],
+      "correctIndex": 1,
+      "explanation": "Gagarin completed one full orbit of Earth in one hundred and eight minutes. The fifteen-minute suborbital flight belongs to Alan Shepard, who launched four weeks after Gagarin."
+    },
+    {
+      "question": "Why did Gagarin land by parachute separately from the descent capsule rather than inside it?",
+      "options": [
+        "An emergency occurred — the capsule caught fire during reentry",
+        "It was the planned procedure: Vostok had no soft-landing system, and the International Aeronautical Federation required pilots to land inside their vehicle for a record — a fact the Soviet side concealed for years",
+        "The ejection seat fired accidentally due to a malfunction",
+        "Gagarin chose to exit the capsule independently to speed up rescue"
+      ],
+      "correctIndex": 1,
+      "explanation": "Ejecting at seven kilometers was the planned landing method — Vostok had no soft-landing system. To protect the official record, Soviet authorities claimed for decades that Gagarin landed inside the capsule. The truth became public only after the Soviet Union dissolved."
+    },
+    {
+      "question": "Which rocket launched Gagarin into orbit and what was its original purpose?",
+      "options": [
+        "The Proton rocket, designed specifically for crewed spaceflight",
+        "The R-7 — the first intercontinental ballistic missile in the world, adapted by Korolev for satellites and the Vostok capsule",
+        "The N-1, intended for the Soviet lunar program",
+        "The Titan II, borrowed from the American Gemini program"
+      ],
+      "correctIndex": 1,
+      "explanation": "The R-7 was developed as a nuclear-warhead delivery vehicle. Korolev secured its adaptation for space purposes. Soyuz rockets — direct R-7 descendants — still launch crews to orbit today."
+    },
+    {
+      "question": "How long after Gagarin's flight did Alan Shepard complete the first American crewed spaceflight?",
+      "options": [
+        "Three days later",
+        "One year later",
+        "Four weeks later",
+        "Six months later"
+      ],
+      "correctIndex": 2,
+      "explanation": "On May 5, 1961 — four weeks after Gagarin — Alan Shepard completed a fifteen-minute suborbital trajectory. Unlike Gagarin, he did not orbit Earth; he followed a ballistic arc that rose and fell without closing into an orbit."
+    },
+    {
+      "question": "What is weightlessness in orbit from a physics standpoint?",
+      "options": [
+        "Complete absence of gravity at high altitude",
+        "A state of free fall along a closed trajectory: both the pilot and the spacecraft accelerate equally, leaving no support forces between them",
+        "A repulsive effect of high orbital velocity pushing against gravity",
+        "The result of equipment aboard the spacecraft artificially reducing gravitational force"
+      ],
+      "correctIndex": 1,
+      "explanation": "At three hundred kilometers altitude gravity is only about ten percent weaker than at the surface. Weightlessness arises because the pilot and spacecraft follow the same free-fall trajectory — there are no forces between them because nothing is providing support."
+    }
+  ],
+  "sources": [
+    {
+      "title": "NASA — Yuri Gagarin: First Human in Space (history archive)",
+      "url": "https://www.nasa.gov/history/gagarin-anniversary/",
+      "meta": "NASA History Division, open access"
+    },
+    {
+      "title": "Siddiqi A. — Challenge to Apollo: The Soviet Union and the Space Race, 1945–1974",
+      "url": "https://history.nasa.gov/SP-4408pt1.pdf",
+      "meta": "NASA SP-4408, 2000 — definitive academic history, open access"
+    },
+    {
+      "title": "ESA — Vostok 1: First Human Spaceflight",
+      "url": "https://www.esa.int/About_Us/Welcome_to_ESA/ESA_history/50_years_of_humans_in_space",
+      "meta": "ESA, 2011, open access"
+    },
+    {
+      "title": "FAI — Record of Vostok 1 Flight (original certification)",
+      "url": "https://www.fai.org/record/14279",
+      "meta": "International Aeronautical Federation, record archive"
+    },
+    {
+      "title": "Gagarin Y. — Road to the Stars (autobiography)",
+      "url": "https://archive.org/details/RoadToTheStars",
+      "meta": "Foreign Languages Publishing House, Moscow, 1961, Archive.org"
+    },
+    {
+      "title": "Harford J. — Korolev: How One Man Masterminded the Soviet Drive to Beat America to the Moon",
+      "url": "https://www.wiley.com/en-us/Korolev-p-9780471327219",
+      "meta": "Wiley, 1997 — biography of Korolev"
+    },
+    {
+      "title": "Smithsonian NASM — Vostok Spacecraft Collection",
+      "url": "https://airandspace.si.edu/collection-objects/vostok-spacecraft",
+      "meta": "Smithsonian National Air and Space Museum"
+    },
+    {
+      "title": "BBC — The Truth About Gagarin's Spaceflight (investigation)",
+      "url": "https://www.bbc.com/future/article/20170412-the-hidden-secrets-of-gagarins-vostok-mission",
+      "meta": "BBC Future, 2017, open access"
+    },
+    {
+      "title": "Yuri's Night — Official Global Celebration",
+      "url": "https://yurisnight.net",
+      "meta": "yurisnight.net, open access"
+    },
+    {
+      "title": "Encyclopaedia Britannica — Yuri Gagarin",
+      "url": "https://www.britannica.com/biography/Yuri-Gagarin",
+      "meta": "Britannica, updated 2024"
+    }
+  ],
+  "lastVerified": "2026-05-06"
+}

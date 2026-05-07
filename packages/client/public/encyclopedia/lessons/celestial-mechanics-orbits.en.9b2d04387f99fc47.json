@@ -1,0 +1,308 @@
+{
+  "slug": "celestial-mechanics-orbits",
+  "language": "en",
+  "section": "astronomy",
+  "order": 14,
+  "difficulty": "intermediate",
+  "readingTimeMin": 12,
+  "title": "Celestial Mechanics and Orbits",
+  "subtitle": "How three laws from the seventeenth century still govern everything that moves in space — from artificial satellites to comet trajectories.",
+  "hero": {
+    "cacheKey": "celestial-mechanics-orbits-hero",
+    "prompt": "Photorealistic scientific illustration showing orbital mechanics in deep space: a large planet (Jupiter-like, banded, tan and cream) at center-right, with three distinct orbital paths visible as glowing lines — an elliptical orbit of a small moon in blue-white, a parabolic comet trajectory in amber, and a hyperbolic escape path in pale cyan. The ellipse clearly shows perihelion and aphelion points as bright nodes. Hard sci-fi style, dark space background with faint star field, no atmospheric glow. Add the following text labels on the image: \"elliptic orbit\", \"parabolic trajectory\", \"hyperbolic escape\", \"perihelion\", \"aphelion\".",
+    "alt": "Three orbital types around a massive planet — elliptic, parabolic, and hyperbolic — against a star field",
+    "caption": "The shape of any orbit is determined by a single number: eccentricity. From zero (a perfect circle) through an ellipse to a parabola and a hyperbola — the higher the body's energy, the more open its trajectory.",
+    "aspectRatio": "16:9"
+  },
+  "body": [
+    {
+      "paragraphs": [
+        "Everything moving through the sky — planets, comets, satellites, interstellar probes — obeys the same set of rules. Those rules were discovered in the seventeenth century by two men who never met: Johann Kepler, who identified patterns in planetary motion empirically, and Isaac Newton, who explained why those patterns exist. Together they laid the foundation of **celestial mechanics** — the science of how gravity governs the motion of bodies in space.",
+        "For their era, this was a revolution. The idea that Earth and the planets move in perfect circles had been inherited from ancient Greek philosophy and held sway for more than fifteen hundred years. Kepler, working through Tycho Brahe's extraordinarily precise observations, proved there were no perfect circles. There were ellipses. And Newton showed that behind every ellipse stood a single force acting identically on a falling apple and on the Moon."
+      ]
+    },
+    {
+      "heading": "Kepler's Three Laws",
+      "level": 2,
+      "paragraphs": [
+        "Kepler published his first two laws in the early seventeenth century; the third followed a decade later. He did not know why they worked. But they proved so accurate that Newton used them as raw material when deriving the law of universal gravitation.",
+        "**The first law** (the law of ellipses): every planet moves along an _ellipse_, with the Sun at one of the two foci. This means the distance between a planet and the Sun changes continuously. The closest point of the orbit to the Sun is called _perihelion_; the farthest is called _aphelion_. For Earth, the difference between these two distances is roughly five million kilometers.",
+        "**The second law** (the law of equal areas): the radius vector from the Sun to the planet sweeps equal areas in equal intervals of time. In practice this means a planet moves _faster_ when it is closer to the Sun and _slower_ when it is farther away. Earth in January (near perihelion) moves faster than in July (near aphelion). This is a direct consequence of the conservation of angular momentum — the same physical law that makes a figure skater spin faster when pulling in their arms.",
+        "**The third law** (the law of harmonies): the square of a planet's orbital _period_ is proportional to the cube of the _semi-major axis_ of its orbit. Knowing the size of an orbit, you can calculate exactly how long one revolution takes — and vice versa. This law gave humanity its first means of determining the relative distances from the Sun to all known planets long before any direct measurement method existed."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "celestial-mechanics-kepler-laws",
+        "prompt": "Scientific diagram illustrating Kepler's three laws of planetary motion: top panel shows an elliptical orbit with Sun at one focus, perihelion and aphelion labeled, middle panel shows equal swept areas (two shaded triangular sectors of equal area at different orbit positions), bottom panel shows a log-log chart of orbital period squared vs semi-major axis cubed for the eight planets. Hard sci-fi style, dark background, monospace labels, accent colors: cyan for orbits, amber for swept areas. Add the following text labels on the image: \"perihelion\", \"aphelion\", \"focus (Sun)\", \"equal areas\", \"T² ∝ a³\".",
+        "alt": "Kepler's three laws — ellipse with Sun at focus, equal areas, and T-squared proportional to a-cubed",
+        "caption": "Kepler's three laws describe the shape of an orbit, the speed of motion along it, and the relationship between the orbit's size and the revolution period. They are equally accurate for planets, moons, comets, and artificial spacecraft.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "Newton and the Law of Universal Gravitation",
+      "level": 2,
+      "paragraphs": [
+        "In the second half of the seventeenth century, Newton took the step Kepler could not: he explained why ellipses exist. He formulated the law of universal gravitation: any two bodies in the universe attract each other with a force proportional to the product of their masses and inversely proportional to the square of the distance between them.",
+        "All three of Kepler's laws follow mathematically from this single rule. Furthermore, it predicts not only elliptical orbits: depending on the initial speed of a body relative to the central object, three different types of trajectory are possible. Each corresponds to a specific value of _eccentricity_ — a number describing the shape of a conic section.",
+        "Newtonian gravity remains accurate enough for the vast majority of celestial mechanics problems. Only in extreme conditions — near neutron stars or black holes, or to explain the precession of Mercury's perihelion — is Einstein's general theory of relativity required. But trajectory calculations for interplanetary missions such as Voyager or New Horizons are performed entirely within Newtonian mechanics, achieving accuracy sufficient to hit a target billions of kilometers away."
+      ]
+    },
+    {
+      "heading": "Orbital Shape: Eccentricity and Conic Sections",
+      "level": 2,
+      "paragraphs": [
+        "Imagine a cone sliced by a plane at different angles. Depending on the angle, the cross-section has a different shape: a circle, an ellipse, a parabola, or a hyperbola. These four curves describe every possible trajectory in the gravitational field of a point-like source. The measure of shape is _eccentricity_, denoted e.",
+        "When eccentricity equals zero, the orbit is a perfect **circle**. When eccentricity falls between zero and one, the orbit is an **ellipse**: a closed path, the body always returns. Planets in the Solar System have eccentricities ranging from near-zero (Venus, roughly 0.007) to noticeable (Mercury, roughly 0.206). Earth has eccentricity near 0.017, which is why the difference between perihelion and aphelion has little effect on climate.",
+        "When eccentricity is exactly one, the trajectory is a **parabola**: the body follows an open path and will never return, but its speed at infinite distance is exactly zero. This is the theoretical boundary between bound and unbound orbits — parabolic speed is the _escape velocity_ at any given distance from the central body.",
+        "When eccentricity exceeds one, the trajectory is a **hyperbola**: curved but open. The body accelerates on approach, sweeps around the central body, and departs into space forever with a nonzero residual velocity. The interstellar object 'Oumuamua, detected passing through our Solar System in the early part of this decade, had a hyperbolic trajectory with eccentricity greater than one — confirming its interstellar origin."
+      ]
+    },
+    {
+      "diagram": {
+        "title": "Orbital Elements",
+        "svg": "<svg viewBox=\"0 0 720 460\" xmlns=\"http://www.w3.org/2000/svg\">\n  <rect width=\"720\" height=\"460\" fill=\"rgba(10,15,25,0.75)\" rx=\"4\"/>\n\n  <defs>\n    <marker id=\"arr-orb-en\" markerWidth=\"7\" markerHeight=\"7\" refX=\"5\" refY=\"3.5\" orient=\"auto\">\n      <polygon points=\"0 0, 7 3.5, 0 7\" fill=\"#7bb8ff\"/>\n    </marker>\n    <marker id=\"arr-orb2-en\" markerWidth=\"7\" markerHeight=\"7\" refX=\"5\" refY=\"3.5\" orient=\"auto\">\n      <polygon points=\"0 0, 7 3.5, 0 7\" fill=\"#ff8844\"/>\n    </marker>\n    <marker id=\"arr-orb3-en\" markerWidth=\"7\" markerHeight=\"7\" refX=\"5\" refY=\"3.5\" orient=\"auto\">\n      <polygon points=\"0 0, 7 3.5, 0 7\" fill=\"#44ff88\"/>\n    </marker>\n  </defs>\n\n  <!-- Reference plane (equator/ecliptic) as ellipse -->\n  <ellipse cx=\"360\" cy=\"300\" rx=\"260\" ry=\"70\" fill=\"rgba(68,136,170,0.07)\" stroke=\"#334455\" stroke-width=\"1\" stroke-dasharray=\"6,4\"/>\n  <text x=\"610\" y=\"307\" fill=\"#667788\" font-family=\"monospace\" font-size=\"10\">ecliptic plane</text>\n\n  <!-- Orbit ellipse (tilted) -->\n  <ellipse cx=\"360\" cy=\"230\" rx=\"220\" ry=\"120\" fill=\"none\" stroke=\"#7bb8ff\" stroke-width=\"1.6\" stroke-dasharray=\"4,3\" transform=\"rotate(-18,360,230)\"/>\n\n  <!-- Sun at focus -->\n  <circle cx=\"300\" cy=\"255\" r=\"10\" fill=\"#ffdd55\" opacity=\"0.9\"/>\n  <text x=\"312\" y=\"252\" fill=\"#ffee88\" font-family=\"monospace\" font-size=\"10\">Sun (focus)</text>\n\n  <!-- Orbiting body -->\n  <circle cx=\"470\" cy=\"145\" r=\"7\" fill=\"#7bb8ff\" opacity=\"0.95\"/>\n  <text x=\"481\" y=\"142\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"10\">body</text>\n\n  <!-- Semi-major axis a -->\n  <line x1=\"145\" y1=\"230\" x2=\"570\" y2=\"230\" stroke=\"#aabbcc\" stroke-width=\"0.8\" stroke-dasharray=\"3,3\"/>\n  <line x1=\"300\" y1=\"230\" x2=\"570\" y2=\"230\" stroke=\"#aabbcc\" stroke-width=\"1.4\" marker-end=\"url(#arr-orb-en)\"/>\n  <text x=\"400\" y=\"222\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"11\">a (semi-major axis)</text>\n\n  <!-- Perihelion -->\n  <circle cx=\"148\" cy=\"228\" r=\"5\" fill=\"#cc4444\"/>\n  <text x=\"100\" y=\"215\" fill=\"#cc4444\" font-family=\"monospace\" font-size=\"10\">perihelion</text>\n\n  <!-- Aphelion -->\n  <circle cx=\"572\" cy=\"228\" r=\"5\" fill=\"#4488aa\"/>\n  <text x=\"576\" y=\"224\" fill=\"#4488aa\" font-family=\"monospace\" font-size=\"10\">aphelion</text>\n\n  <!-- Line of nodes -->\n  <line x1=\"210\" y1=\"300\" x2=\"510\" y2=\"300\" stroke=\"#ff8844\" stroke-width=\"1.2\" stroke-dasharray=\"5,3\" marker-end=\"url(#arr-orb2-en)\"/>\n  <text x=\"515\" y=\"296\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"10\">line of nodes</text>\n  <circle cx=\"210\" cy=\"300\" r=\"4\" fill=\"#ff8844\" opacity=\"0.7\"/>\n  <text x=\"155\" y=\"296\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"10\">ascending node</text>\n\n  <!-- Inclination arc -->\n  <path d=\"M 340 300 Q 330 270 340 248\" fill=\"none\" stroke=\"#44ff88\" stroke-width=\"1.2\" marker-end=\"url(#arr-orb3-en)\"/>\n  <text x=\"268\" y=\"270\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"10\">i (inclination)</text>\n\n  <!-- Labels for orbital elements -->\n  <rect x=\"30\" y=\"30\" width=\"240\" height=\"158\" rx=\"3\" fill=\"rgba(5,10,20,0.7)\" stroke=\"#334455\" stroke-width=\"1\"/>\n  <text x=\"42\" y=\"52\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"11\" font-weight=\"bold\">Orbital Elements</text>\n  <text x=\"42\" y=\"72\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"10\">a — semi-major axis</text>\n  <text x=\"42\" y=\"89\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"10\">e — eccentricity</text>\n  <text x=\"42\" y=\"106\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"10\">i — orbital inclination</text>\n  <text x=\"42\" y=\"123\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"10\">&#x3A9; — right ascension of ascending node</text>\n  <text x=\"42\" y=\"140\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"10\">&#x3C9; — argument of perihelion</text>\n  <text x=\"42\" y=\"157\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"10\">&#x3BD; — true anomaly</text>\n  <text x=\"42\" y=\"176\" fill=\"#667788\" font-family=\"monospace\" font-size=\"9\">(6 numbers = unique orbit)</text>\n\n  <!-- True anomaly arc -->\n  <path d=\"M 220 240 Q 230 200 310 195\" fill=\"none\" stroke=\"#7bb8ff\" stroke-width=\"1\" stroke-dasharray=\"3,2\"/>\n  <text x=\"200\" y=\"195\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"10\">&#x3BD; (true anomaly)</text>\n\n  <!-- Argument of periapsis angle indicator -->\n  <path d=\"M 270 300 Q 250 270 224 252\" fill=\"none\" stroke=\"#aabbcc\" stroke-width=\"1\" stroke-dasharray=\"3,2\"/>\n  <text x=\"185\" y=\"330\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"10\">&#x3C9; (argument of perihelion)</text>\n</svg>",
+        "caption": "Six orbital elements uniquely define any orbit in space: size (semi-major axis), shape (eccentricity), orientation of the orbital plane (inclination and right ascension of ascending node), orientation of the ellipse within the plane (argument of perihelion), and the body's position on the orbit (true anomaly)."
+      }
+    },
+    {
+      "heading": "The Six Orbital Elements",
+      "level": 2,
+      "paragraphs": [
+        "To uniquely describe the position and shape of any orbit in three-dimensional space, six numbers suffice — the _orbital elements_. Astronomers have used them for centuries, and modern mission control centers store them for every one of the thousands of tracked objects in space.",
+        "The _semi-major axis_ (denoted a) is half the longest diameter of the ellipse. It determines the orbit's size and, via Kepler's third law, the orbital period. _Eccentricity_ (e) measures the departure from a circle: it ranges from zero to one for elliptical orbits.",
+        "_Inclination_ (i) is the angle between the orbital plane and a reference plane (such as the ecliptic for Solar System bodies or Earth's equatorial plane for satellites). The _right ascension of ascending node_ — often abbreviated in technical contexts but written here in full — specifies in which direction the orbital plane intersects the reference plane. These two elements together fix the orientation of the orbital plane in space.",
+        "The _argument of perihelion_ (omega) specifies the direction within the orbital plane where perihelion lies. Finally, the _true anomaly_ (nu) gives the body's position on the ellipse at a specific instant. Together with an initial epoch, these six numbers fully describe a body's motion in the gravitational field of a single central object."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "celestial-mechanics-lagrange-points",
+        "prompt": "Scientific illustration of the five Lagrange points in the Sun-Earth system: large glowing yellow Sun on the left, small blue-white Earth on the right in its orbit, five labeled equilibrium points L1 through L5 shown as glowing cyan dots. L1 between Sun and Earth, L2 beyond Earth (on the far side), L3 on the opposite side of the Sun, L4 and L5 at the 60-degree positions forming equilateral triangles. Contour lines (gravitational equipotential) shown as faint blue curves around the points. JWST spacecraft shown as a small angular shape near L2. Hard sci-fi style, dark space background, monospace labels. Add the following text labels on the image: \"L1 (SOHO)\", \"L2 (JWST)\", \"L3\", \"L4 (Trojans)\", \"L5 (Trojans)\", \"Sun\", \"Earth\".",
+        "alt": "The five Lagrange points in the Sun-Earth system — gravitational equilibrium locations with JWST and SOHO positions marked",
+        "caption": "Lagrange points L1 and L2 lie roughly one and a half million kilometers from Earth. The Solar and Heliospheric Observatory spacecraft occupies L1; the James Webb Space Telescope occupies L2. Trojan asteroids cluster at the stable points L4 and L5.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "The Lagrange Points",
+      "level": 2,
+      "paragraphs": [
+        "In the second half of the eighteenth century, French mathematician Joseph-Louis Lagrange solved a special version of the three-body problem: two massive bodies orbit each other, and a third — infinitely small — moves with them. He found five equilibrium points where the small body can remain stationary relative to the two large ones. These points bear his name: **Lagrange points L1 through L5**.",
+        "Point **L1** lies between the two massive bodies, where their gravitational pulls partially cancel. In the Sun-Earth system, L1 is roughly one and a half million kilometers from Earth toward the Sun. This is where the Solar and Heliospheric Observatory spacecraft is stationed — always facing the Sun, with no eclipses and no gaps in coverage.",
+        "Point **L2** is symmetrically placed at the same distance on the opposite side of Earth from the Sun. An object at L2 orbits the Sun with the same angular velocity as Earth, so it always remains \"behind\" Earth in its orbit. This is the ideal position for telescopes that need to look into deep space while keeping the Sun, Earth, and Moon behind them. The James Webb Space Telescope has operated there since 2022.",
+        "Point **L3** is on the opposite side of the Sun from Earth. It is unstable and has no practical application at present. Points **L4** and **L5** lie on the orbit of the smaller body, at the vertices of equilateral triangles with both massive bodies. They are stable: a body that drifts slightly away is pulled back by the combined gravity of the two large bodies. In the Sun-Jupiter system, thousands of _Trojan asteroids_ have accumulated at L4 and L5, co-orbiting the Sun alongside Jupiter."
+      ]
+    },
+    {
+      "heading": "The Restricted Three-Body Problem",
+      "level": 3,
+      "paragraphs": [
+        "The two-body problem — a planet and a star, or a satellite and a planet — has an exact analytical solution: Keplerian ellipses. But as soon as a third body of significant mass appears, the situation becomes fundamentally more complex. The general three-body problem has no closed analytical solution — Henri Poincare proved this in the late nineteenth century, simultaneously laying the groundwork for chaos theory.",
+        "For practical astrodynamics, a simplified version is used — the _restricted three-body problem_: two massive bodies follow a Keplerian orbit, while the third (a spacecraft) has such negligible mass that it does not affect the motion of the two large bodies. The Lagrange points are exact solutions of this simplified problem. Around them exist so-called _halo orbits_ — unstable trajectories maintained by small thruster corrections. The Webb telescope follows such an orbit around L2."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "celestial-mechanics-orbital-resonance",
+        "prompt": "Scientific illustration of orbital resonance in the Jupiter system: Jupiter as a large tan-banded planet at center, with three concentric orbital rings for Io, Europa, and Ganymede. The rings show the resonance relationship: Io completes 4 orbits in the time Ganymede completes 1, Europa completes 2. Small colored dots representing the moons positioned to show one configuration. A separate inset in the corner shows Neptune and Pluto orbit crossing with 2:3 resonance label. Hard sci-fi style, dark space background, monospace font labels. Add the following text labels on the image: \"Io (4 orbits)\", \"Europa (2 orbits)\", \"Ganymede (1 orbit)\", \"Laplace resonance 1:2:4\", \"Jupiter\".",
+        "alt": "The Laplace orbital resonance between Jupiter's moons Io, Europa, and Ganymede in the ratio 1:2:4",
+        "caption": "The Laplace resonance among Io, Europa, and Ganymede is self-sustaining: gravity from the three moons keeps each other locked in ratio. The consequence for Io is a permanently non-circular orbit, which drives relentless tidal heating — powering the most active volcanism in the Solar System.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "Orbital Resonances",
+      "level": 2,
+      "paragraphs": [
+        "When the orbital periods of two bodies relate as whole numbers, an _orbital resonance_ arises between them. This is not a coincidence: the bodies regularly approach each other at the same points in their orbits, and their mutual gravitational influence accumulates and either stabilizes or destabilizes their orbits over time.",
+        "The most frequently cited example is the **Laplace resonance** among three of Jupiter's Galilean moons. In the time Ganymede completes one orbit around Jupiter, Europa completes exactly two, and Io completes exactly four. This one-to-two-to-four ratio is self-maintained: if one moon drifts slightly, the gravity of the other two pulls it back. A side effect of this resonance is that Io's orbit cannot settle into a perfect circle. It remains slightly elliptical, and the tidal deformation from Jupiter's gravity continuously heats Io's interior, sustaining the most intense volcanism in the Solar System.",
+        "Equally well known is the **two-to-three resonance between Neptune and Pluto**: while Neptune completes three orbits around the Sun, Pluto completes exactly two. Although Pluto's orbit crosses Neptune's, the two bodies never come dangerously close — the resonance guarantees that when Pluto is at the crossing point, it is always at a different position in its orbit than Neptune.",
+        "Trojan asteroids demonstrate a **one-to-one resonance** with Jupiter: they orbit the Sun along the same path as Jupiter, either sixty degrees ahead or sixty degrees behind. The first Trojans were discovered in the early twentieth century; more than twelve thousand are now known. Another well-known family: the resonance-driven gaps in Saturn's rings — such as the Cassini Division — appear wherever a resonance with Mimas or another moon expels ring particles."
+      ]
+    },
+    {
+      "heading": "Tidal Forces",
+      "level": 2,
+      "paragraphs": [
+        "Gravity decreases with distance. If a body has nonzero size, the gravitational force from an external object acts more strongly on the near side than on the far side. The difference between these forces is the _tidal force_ — it stretches the body along the line connecting the two centers of mass and compresses it from the sides.",
+        "The ocean tides on Earth arise from the tidal action of the Moon and, to a lesser extent, the Sun. But on planetary scales, tidal forces can do more: they synchronize rotation. The Moon always faces Earth with the same hemisphere — this is _tidal locking_, the result of tidal deformation of the Moon gradually slowing its spin to match its orbital period. Mercury is not synchronously locked to the Sun, but it is in a three-to-two resonance: for every two orbits around the Sun, Mercury rotates three times on its axis.",
+        "At sufficiently small distances, tidal forces can exceed the structural strength of a body and tear it apart. The Roche limit is the distance from the central body within which a fluid or loosely bound satellite breaks up under tidal stress. The rings of Saturn, Jupiter, Uranus, and Neptune lie inside or near the Roche limits of their respective planets — which is precisely why that material never coalesced into compact moons."
+      ]
+    },
+    {
+      "diagram": {
+        "title": "Lagrange Points in the Sun-Earth System",
+        "svg": "<svg viewBox=\"0 0 720 400\" xmlns=\"http://www.w3.org/2000/svg\">\n  <rect width=\"720\" height=\"400\" fill=\"rgba(10,15,25,0.75)\" rx=\"4\"/>\n\n  <defs>\n    <radialGradient id=\"sunGlow-en\" cx=\"50%\" cy=\"50%\" r=\"50%\">\n      <stop offset=\"0%\" stop-color=\"#ffdd55\" stop-opacity=\"0.9\"/>\n      <stop offset=\"60%\" stop-color=\"#ff9900\" stop-opacity=\"0.5\"/>\n      <stop offset=\"100%\" stop-color=\"#ff6600\" stop-opacity=\"0\"/>\n    </radialGradient>\n    <radialGradient id=\"earthGlow-en\" cx=\"50%\" cy=\"50%\" r=\"50%\">\n      <stop offset=\"0%\" stop-color=\"#4488ff\" stop-opacity=\"0.9\"/>\n      <stop offset=\"100%\" stop-color=\"#2244aa\" stop-opacity=\"0\"/>\n    </radialGradient>\n  </defs>\n\n  <!-- Earth orbit (dashed) -->\n  <ellipse cx=\"360\" cy=\"200\" rx=\"260\" ry=\"260\" fill=\"none\" stroke=\"#334455\" stroke-width=\"1\" stroke-dasharray=\"5,4\"/>\n\n  <!-- Sun -->\n  <circle cx=\"360\" cy=\"200\" r=\"26\" fill=\"url(#sunGlow-en)\"/>\n  <circle cx=\"360\" cy=\"200\" r=\"18\" fill=\"#ffdd55\"/>\n  <text x=\"360\" y=\"237\" fill=\"#ffee88\" font-family=\"monospace\" font-size=\"11\" text-anchor=\"middle\">Sun</text>\n\n  <!-- Earth -->\n  <circle cx=\"620\" cy=\"200\" r=\"10\" fill=\"url(#earthGlow-en)\"/>\n  <circle cx=\"620\" cy=\"200\" r=\"7\" fill=\"#3366cc\"/>\n  <text x=\"620\" y=\"225\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">Earth</text>\n\n  <!-- L1: between Sun and Earth -->\n  <circle cx=\"565\" cy=\"200\" r=\"6\" fill=\"rgba(68,255,136,0.3)\" stroke=\"#44ff88\" stroke-width=\"1.5\"/>\n  <text x=\"565\" y=\"183\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"11\" text-anchor=\"middle\">L1</text>\n  <text x=\"565\" y=\"168\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">SOHO</text>\n\n  <!-- L2: beyond Earth -->\n  <circle cx=\"675\" cy=\"200\" r=\"6\" fill=\"rgba(68,255,136,0.3)\" stroke=\"#44ff88\" stroke-width=\"1.5\"/>\n  <text x=\"675\" y=\"183\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"11\" text-anchor=\"middle\">L2</text>\n  <text x=\"675\" y=\"168\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">JWST</text>\n\n  <!-- L3: opposite side -->\n  <circle cx=\"100\" cy=\"200\" r=\"6\" fill=\"rgba(68,255,136,0.3)\" stroke=\"#44ff88\" stroke-width=\"1.5\"/>\n  <text x=\"100\" y=\"183\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"11\" text-anchor=\"middle\">L3</text>\n\n  <!-- L4: 60 degrees ahead -->\n  <circle cx=\"430\" cy=\"79\" r=\"6\" fill=\"rgba(68,255,136,0.3)\" stroke=\"#44ff88\" stroke-width=\"1.5\"/>\n  <text x=\"440\" y=\"75\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"11\">L4</text>\n  <text x=\"440\" y=\"89\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">Trojans</text>\n\n  <!-- L5: 60 degrees behind -->\n  <circle cx=\"430\" cy=\"321\" r=\"6\" fill=\"rgba(68,255,136,0.3)\" stroke=\"#44ff88\" stroke-width=\"1.5\"/>\n  <text x=\"440\" y=\"317\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"11\">L5</text>\n  <text x=\"440\" y=\"331\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">Trojans</text>\n\n  <!-- Triangle lines -->\n  <line x1=\"360\" y1=\"200\" x2=\"430\" y2=\"79\" stroke=\"#334455\" stroke-width=\"0.8\" stroke-dasharray=\"4,3\"/>\n  <line x1=\"360\" y1=\"200\" x2=\"430\" y2=\"321\" stroke=\"#334455\" stroke-width=\"0.8\" stroke-dasharray=\"4,3\"/>\n  <line x1=\"620\" y1=\"200\" x2=\"430\" y2=\"79\" stroke=\"#334455\" stroke-width=\"0.8\" stroke-dasharray=\"4,3\"/>\n  <line x1=\"620\" y1=\"200\" x2=\"430\" y2=\"321\" stroke=\"#334455\" stroke-width=\"0.8\" stroke-dasharray=\"4,3\"/>\n\n  <!-- 60 degree labels -->\n  <text x=\"590\" y=\"175\" fill=\"#667788\" font-family=\"monospace\" font-size=\"9\">60°</text>\n  <text x=\"590\" y=\"235\" fill=\"#667788\" font-family=\"monospace\" font-size=\"9\">60°</text>\n\n  <!-- Legend box -->\n  <rect x=\"22\" y=\"22\" width=\"195\" height=\"80\" rx=\"3\" fill=\"rgba(5,10,20,0.7)\" stroke=\"#334455\" stroke-width=\"1\"/>\n  <text x=\"34\" y=\"44\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"11\" font-weight=\"bold\">Lagrange Points</text>\n  <circle cx=\"40\" cy=\"62\" r=\"5\" fill=\"none\" stroke=\"#44ff88\" stroke-width=\"1.5\"/>\n  <text x=\"52\" y=\"66\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"10\">L1, L2, L3 — unstable</text>\n  <circle cx=\"40\" cy=\"82\" r=\"5\" fill=\"rgba(68,255,136,0.3)\" stroke=\"#44ff88\" stroke-width=\"1.5\"/>\n  <text x=\"52\" y=\"86\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"10\">L4, L5 — stable</text>\n\n  <!-- Scale note -->\n  <text x=\"360\" y=\"388\" fill=\"#667788\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Diagram not to scale. Earth-Sun distance approximately 150 million kilometers.</text>\n</svg>",
+        "caption": "The five Lagrange points are the only locations where a small body can remain stationary relative to two large co-orbiting bodies. L1 and L2 are ideal for space observatories: L1 watches the Sun, L2 faces deep space."
+      }
+    },
+    {
+      "heading": "From Theory to Practice: Modern Astrodynamics",
+      "level": 2,
+      "paragraphs": [
+        "Celestial mechanics is not merely abstract science. Every spacecraft trajectory is calculated using its principles. Gravity-assist maneuvers — also called gravitational slingshots — allow a probe to gain or shed speed by passing close to a planet, with no propellant expenditure: momentum is exchanged through the planet's gravitational field. Voyager 2 used four such maneuvers — around Jupiter, Saturn, Uranus, and Neptune — to fly through the outer Solar System in a fraction of the time that direct propulsion would require.",
+        "Missions to Lagrange points require continuous small corrections: L1 and L2 are saddle points in the gravitational potential, stable in one direction but unstable in others. Without corrections, a spacecraft slowly drifts away. Webb consumes very little propellant on these corrections — its fuel reserve is projected to sustain at least twenty years of operations.",
+        "Orbital resonances are taken into account when designing constellations of navigation and communications satellites, and when assessing potentially hazardous objects. Asteroids in resonance with Jupiter can accumulate orbital perturbations over time and gradually drift onto trajectories that cross Earth's orbit. Celestial mechanics, founded by Kepler and Newton in the seventeenth century, today serves as the tool for both planetary defense and the exploration of the most remote corners of the Solar System."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "celestial-mechanics-gravity-assist",
+        "prompt": "Scientific illustration of a gravity assist maneuver: a large planet (Saturn-like with visible rings) moving to the left across the frame, a small spacecraft approaching from the lower-left on a curved trajectory, swinging around the planet gravity well shown as warped grid lines in teal, then departing to the upper-right at higher speed (indicated by a longer velocity arrow). Two velocity vectors shown: one on approach (shorter, cyan) and one on departure (longer, amber). Hard sci-fi style, dark space background, monospace labels, technically precise geometry. Add the following text labels on the image: \"approach velocity\", \"departure velocity (higher)\", \"planet motion\", \"gravity well\", \"spacecraft trajectory\".",
+        "alt": "Gravity-assist maneuver near a massive planet — the probe gains speed from the planet's gravitational field without expending propellant",
+        "caption": "A gravity assist transfers kinetic energy from the planet's motion to the spacecraft. Total mechanical energy of the Solar System is conserved: the probe accelerates, the planet slows by an immeasurably tiny fraction — an effect that will never be detectable even over billions of years.",
+        "aspectRatio": "16:9"
+      }
+    }
+  ],
+  "glossary": [
+    {
+      "term": "Eccentricity",
+      "definition": "A dimensionless number from zero to infinity describing the shape of an orbit. Zero gives a perfect circle; between zero and one, an ellipse; exactly one, a parabola; greater than one, a hyperbola."
+    },
+    {
+      "term": "Perihelion / aphelion",
+      "definition": "The closest (perihelion) and farthest (aphelion) points of a Solar orbit. For orbits around Earth, the equivalent terms are perigee and apogee."
+    },
+    {
+      "term": "Semi-major axis",
+      "definition": "Half the longest diameter of an elliptical orbit. It determines the orbit's size and, via Kepler's third law, the orbital period."
+    },
+    {
+      "term": "Inclination",
+      "definition": "The angle between the orbital plane of a body and a reference plane (such as the ecliptic for Solar System bodies, or Earth's equatorial plane for satellites)."
+    },
+    {
+      "term": "Lagrange point",
+      "definition": "One of five equilibrium points in a system of two co-orbiting massive bodies, where a small third body can remain stationary relative to the two larger ones. Points L4 and L5 are stable; L1, L2, and L3 are unstable."
+    },
+    {
+      "term": "Orbital resonance",
+      "definition": "A configuration in which the orbital periods of two or more bodies relate as simple whole numbers (for example, 1:2, 2:3, or 1:2:4). This leads to repeated gravitational interactions that can stabilize or destabilize orbits."
+    },
+    {
+      "term": "Tidal force",
+      "definition": "The difference in gravitational forces acting on opposite sides of a body with nonzero size. Responsible for ocean tides, the tidal locking of the Moon, and the volcanic activity of Io."
+    },
+    {
+      "term": "Roche limit",
+      "definition": "The distance from a central body inside which tidal forces exceed the self-gravity or structural strength of a satellite, causing it to disintegrate. Planetary ring systems lie inside or near the Roche limits of their host planets."
+    },
+    {
+      "term": "Gravity assist",
+      "definition": "A technique for changing a spacecraft's speed and direction by flying close to a planet's gravitational field, without expending propellant. Momentum is exchanged between the spacecraft and the planet."
+    }
+  ],
+  "quiz": [
+    {
+      "question": "What determines whether an orbit is circular, elliptical, or hyperbolic?",
+      "options": [
+        "The mass of the central body",
+        "The eccentricity of the orbit",
+        "The inclination of the orbit to the ecliptic plane",
+        "The argument of perihelion"
+      ],
+      "correctIndex": 1,
+      "explanation": "Eccentricity is the single number that determines the shape of the trajectory. Zero gives a circle; between zero and one, a closed ellipse; exactly one, a parabola; greater than one, a hyperbola from which the body never returns. The mass of the central body sets the scale but not the shape."
+    },
+    {
+      "question": "Where is the James Webb Space Telescope located, and why was that position chosen?",
+      "options": [
+        "Low Earth orbit, to avoid cosmic rays",
+        "The Sun-Earth Lagrange point L2, so the Sun, Earth, and Moon are always kept behind it",
+        "The Sun-Earth Lagrange point L1, to continuously observe the Sun",
+        "Mars orbit, far from Earth's thermal emission"
+      ],
+      "correctIndex": 1,
+      "explanation": "Point L2 lies roughly one and a half million kilometers from Earth in the direction opposite the Sun. An object at L2 orbits the Sun with the same angular velocity as Earth, keeping the Sun, Earth, and Moon permanently \"behind\" it — ideal for an infrared telescope that needs a cold, dark background."
+    },
+    {
+      "question": "Why is Io the most volcanically active body in the Solar System?",
+      "options": [
+        "Io is close to Jupiter and therefore absorbs more solar radiation",
+        "The Laplace resonance with Europa and Ganymede forces Io's orbit to remain elliptical, and tidal heating from Jupiter drives the volcanism",
+        "Io has a very large iron core producing heat through radioactive decay",
+        "Constant meteorite impacts keep the surface heated"
+      ],
+      "correctIndex": 1,
+      "explanation": "The one-to-two-to-four resonance among Io, Europa, and Ganymede prevents Io's orbit from circularizing. It remains slightly elliptical, and tidal deformation from Jupiter's gravity continuously dissipates heat inside Io through friction. This explains the more than four hundred active volcanoes on its surface."
+    },
+    {
+      "question": "Kepler's second law states that the radius vector of a planet sweeps equal areas in equal times. What does this mean in practice?",
+      "options": [
+        "A planet moves at constant speed throughout its orbit",
+        "A planet moves faster near the Sun and slower farther away from it",
+        "The orbital period is proportional to the cube of the semi-major axis",
+        "All planets have the same angular velocity"
+      ],
+      "correctIndex": 1,
+      "explanation": "The second law is a direct consequence of conservation of angular momentum. When a planet approaches the Sun, the radius vector shortens, so its linear speed must increase to sweep the same area. Earth near perihelion in January moves roughly one kilometer per second faster than near aphelion in July."
+    },
+    {
+      "question": "How many orbital elements are needed to uniquely define an orbit in space?",
+      "options": [
+        "Two: semi-major axis and eccentricity",
+        "Three: semi-major axis, eccentricity, and inclination",
+        "Six: semi-major axis, eccentricity, inclination, right ascension of ascending node, argument of perihelion, and true anomaly",
+        "Twelve: six position coordinates and six velocity components"
+      ],
+      "correctIndex": 2,
+      "explanation": "Six orbital elements are the minimum complete description of an orbit. The semi-major axis and eccentricity define the size and shape of the ellipse. Inclination and right ascension of ascending node orient the orbital plane in space. The argument of perihelion orients the ellipse within that plane. True anomaly gives the body's position on the orbit at a specific moment."
+    }
+  ],
+  "sources": [
+    {
+      "title": "Kepler J. — Astronomia Nova (1609) — original publication of the first two laws",
+      "url": "https://www.e-rara.ch/bau_1/content/titleinfo/6581035",
+      "meta": "e-rara.ch — digital library, open access"
+    },
+    {
+      "title": "Newton I. — Philosophiae Naturalis Principia Mathematica (1687)",
+      "url": "https://archive.org/details/newtonspmathema00newt",
+      "meta": "Internet Archive — open access, digitized"
+    },
+    {
+      "title": "Murray C.D., Dermott S.F. — Solar System Dynamics",
+      "url": "https://www.cambridge.org/core/books/solar-system-dynamics/2B8D4F9BCD7FF5E7A31C7E79D2B97DCA",
+      "meta": "Cambridge University Press, 1999 — standard celestial mechanics textbook"
+    },
+    {
+      "title": "NASA JPL — Horizons System (orbital elements for all Solar System bodies)",
+      "url": "https://ssd.jpl.nasa.gov/horizons/",
+      "meta": "NASA JPL, active database"
+    },
+    {
+      "title": "ESA — Webb's Orbit at L2 (explained)",
+      "url": "https://www.esa.int/Science_Exploration/Space_Science/Webb/Webb_s_orbit",
+      "meta": "ESA official site, 2022"
+    },
+    {
+      "title": "NASA — SOHO Mission Overview (L1 halo orbit)",
+      "url": "https://soho.nascom.nasa.gov/about/orbit.html",
+      "meta": "NASA / ESA SOHO official page"
+    },
+    {
+      "title": "Peale S.J. et al. — Melting of Io by Tidal Dissipation (1979)",
+      "url": "https://www.science.org/doi/10.1126/science.203.4383.892",
+      "meta": "Science, 203(4383), 1979 — predicted Io volcanism three days before confirmation"
+    },
+    {
+      "title": "Gladman B. et al. — Trojan Asteroids and Orbital Resonances",
+      "url": "https://www.annualreviews.org/doi/10.1146/annurev.earth.37.031508.100508",
+      "meta": "Annual Review of Earth and Planetary Sciences, 37, 2009"
+    },
+    {
+      "title": "Meech K.J. et al. — A brief visit from a red and extremely elongated interstellar asteroid ('Oumuamua)",
+      "url": "https://www.nature.com/articles/nature25020",
+      "meta": "Nature, 552, 378–381, 2017 — hyperbolic trajectory confirmed"
+    },
+    {
+      "title": "Vallado D.A. — Fundamentals of Astrodynamics and Applications (4th ed.)",
+      "url": "https://www.springer.com/gp/book/9781881883180",
+      "meta": "Microcosm Press / Springer, 2013 — practical astrodynamics textbook"
+    }
+  ],
+  "lastVerified": "2026-05-06"
+}

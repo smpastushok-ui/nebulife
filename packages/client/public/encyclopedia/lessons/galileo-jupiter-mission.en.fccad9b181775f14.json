@@ -1,0 +1,314 @@
+{
+  "slug": "galileo-jupiter-mission",
+  "language": "en",
+  "section": "robotic-missions",
+  "order": 12,
+  "difficulty": "intermediate",
+  "readingTimeMin": 11,
+  "title": "Galileo — Mission to Jupiter",
+  "subtitle": "The first dedicated Jupiter orbiter, an atmospheric probe, and eight years of discoveries at the edge of the Solar System.",
+  "hero": {
+    "cacheKey": "galileo-jupiter-hero",
+    "prompt": "Photorealistic science encyclopedia illustration: the Galileo spacecraft in orbit around Jupiter. Jupiter fills the background with turbulent orange-brown cloud bands and the Great Red Spot visible. Galileo spacecraft in foreground — distinctive high-gain antenna dish (partially furled), science boom arm, spinning section with thrusters, probe release mechanism. Golden foil insulation panels. Hard sci-fi style, dark space background, technically accurate. Add the following text labels on the image: \"Galileo orbiter\", \"Jupiter\", \"high-gain antenna\", \"atmospheric probe\".",
+    "alt": "The Galileo spacecraft in orbit around Jupiter — antenna, magnetometer boom, and the gas giant cloud bands",
+    "caption": "The Galileo spacecraft in Jupiter orbit. The large high-gain antenna never fully opened after launch, severely limiting the data downlink rate — but the mission team refused to let the hardware failure become a scientific failure.",
+    "aspectRatio": "16:9"
+  },
+  "body": [
+    {
+      "paragraphs": [
+        "Jupiter is the largest planet in the Solar System, and by the late twentieth century humanity had never placed a spacecraft in its orbit long enough to study it properly. Voyager 1 and Voyager 2 had raced past in a matter of days in the late 1970s — far too brief for deep analysis. What was needed was an orbiter: a probe that would stay.",
+        "The concept was straightforward: send a spacecraft that would not simply fly past but stop and remain. Seven or eight years in orbit around Jupiter — enough time to study the planet itself, its rings, its four large moons, and, as it turned out most crucially, the liquid ocean hiding beneath the ice of Europa. This was one of the most ambitious projects the National Aeronautics and Space Administration had ever attempted.",
+        "The road to Jupiter was difficult even before launch. A lengthy delay following the Challenger disaster in the mid-1980s forced engineers to completely redesign the flight trajectory. What finally lifted off in October 1989 aboard the Space Shuttle Atlantis would spend six years in transit before reaching its target — made possible by an elegant gravity-assist scheme that turned three planets into free engines."
+      ]
+    },
+    {
+      "heading": "The path through the Solar System: a gravitational slingshot",
+      "level": 2,
+      "paragraphs": [
+        "A direct trajectory to Jupiter would have required a far more powerful launch vehicle than was available. Engineers solved the problem elegantly: they used the gravity of three planets as a free source of propulsion.",
+        "The scheme takes its name from the sequence of planetary encounters: Venus, Earth, Earth — three gravity assists over six years of flight. First came a flyby of Venus in February 1990, where the planet's gravity added speed and bent the trajectory back through the inner Solar System. Then two flybys of Earth itself, in December 1990 and December 1992. Each time, Earth flung the spacecraft outward, surrendering a tiny fraction of its own orbital momentum — so small as to be utterly negligible for the planet, but the difference between reachable and unreachable for Galileo.",
+        "During the first Earth flyby, the spacecraft photographed our planet and the Moon from a vantage point unavailable to ground telescopes, providing a calibration check of the science instruments. Then in the summer of 1994, still en route, Galileo became the only spacecraft in the Solar System with a direct view of Comet Shoemaker-Levy 9 striking Jupiter. Earth-based telescopes could only see the aftermath; Galileo captured the moment of impact itself, from a unique angle no other instrument could provide."
+      ]
+    },
+    {
+      "diagram": {
+        "title": "Galileo flight trajectory: Venus + Earth + Earth to Jupiter",
+        "svg": "<svg viewBox=\"0 0 700 420\" xmlns=\"http://www.w3.org/2000/svg\">\n  <rect width=\"700\" height=\"420\" fill=\"rgba(10,15,25,0.5)\"/>\n\n  <!-- Title -->\n  <text x=\"350\" y=\"22\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"12\" text-anchor=\"middle\">Galileo trajectory: gravity assists 1989–1995</text>\n\n  <!-- Sun -->\n  <circle cx=\"350\" cy=\"210\" r=\"18\" fill=\"#ff8844\" opacity=\"0.9\"/>\n  <text x=\"350\" y=\"245\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">Sun</text>\n\n  <!-- Venus orbit -->\n  <ellipse cx=\"350\" cy=\"210\" rx=\"80\" ry=\"80\" fill=\"none\" stroke=\"#8899aa\" stroke-width=\"0.8\" stroke-dasharray=\"3,5\" opacity=\"0.5\"/>\n  <!-- Venus -->\n  <circle cx=\"350\" cy=\"130\" r=\"6\" fill=\"#ff8844\" opacity=\"0.7\"/>\n  <text x=\"360\" y=\"128\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">Venus</text>\n\n  <!-- Earth orbit -->\n  <ellipse cx=\"350\" cy=\"210\" rx=\"130\" ry=\"130\" fill=\"none\" stroke=\"#8899aa\" stroke-width=\"0.8\" stroke-dasharray=\"3,5\" opacity=\"0.5\"/>\n  <!-- Earth -->\n  <circle cx=\"480\" cy=\"210\" r=\"7\" fill=\"#7bb8ff\" opacity=\"0.85\"/>\n  <text x=\"490\" y=\"213\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"9\">Earth</text>\n\n  <!-- Jupiter orbit -->\n  <ellipse cx=\"350\" cy=\"210\" rx=\"290\" ry=\"200\" fill=\"none\" stroke=\"#8899aa\" stroke-width=\"0.8\" stroke-dasharray=\"3,5\" opacity=\"0.4\"/>\n  <!-- Jupiter -->\n  <circle cx=\"60\" cy=\"210\" r=\"14\" fill=\"#ff8844\" opacity=\"0.8\"/>\n  <text x=\"15\" y=\"230\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Jupiter</text>\n\n  <!-- Galileo trajectory -->\n  <path d=\"M 480,210 Q 360,60 350,130 Q 340,180 420,230 Q 500,270 450,270 Q 370,290 200,240 Q 100,215 60,210\"\n        fill=\"none\" stroke=\"#44ff88\" stroke-width=\"1.8\" opacity=\"0.85\"/>\n\n  <!-- Launch point -->\n  <circle cx=\"480\" cy=\"210\" r=\"4\" fill=\"#44ff88\"/>\n  <text x=\"488\" y=\"200\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"9\">Launch October 1989</text>\n\n  <!-- Venus flyby marker -->\n  <circle cx=\"350\" cy=\"130\" r=\"5\" fill=\"#44ff88\" opacity=\"0.8\"/>\n  <text x=\"365\" y=\"120\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"9\">Assist February 1990</text>\n\n  <!-- Earth flyby 1 -->\n  <circle cx=\"420\" cy=\"230\" r=\"4\" fill=\"#44ff88\" opacity=\"0.7\"/>\n  <text x=\"425\" y=\"248\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"9\">Assist December 1990</text>\n\n  <!-- Earth flyby 2 -->\n  <circle cx=\"450\" cy=\"270\" r=\"4\" fill=\"#44ff88\" opacity=\"0.7\"/>\n  <text x=\"455\" y=\"287\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"9\">Assist December 1992</text>\n\n  <!-- SL9 impact label on trajectory -->\n  <circle cx=\"250\" cy=\"248\" r=\"4\" fill=\"#cc4444\" opacity=\"0.9\"/>\n  <text x=\"255\" y=\"244\" fill=\"#cc4444\" font-family=\"monospace\" font-size=\"9\">Comet Shoemaker-Levy 9</text>\n  <text x=\"255\" y=\"256\" fill=\"#cc4444\" font-family=\"monospace\" font-size=\"9\">July 1994</text>\n\n  <!-- Jupiter arrival -->\n  <circle cx=\"60\" cy=\"210\" r=\"5\" fill=\"#7bb8ff\"/>\n  <text x=\"15\" y=\"200\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Arrival</text>\n  <text x=\"15\" y=\"212\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">December 1995</text>\n\n  <!-- Legend -->\n  <line x1=\"540\" y1=\"360\" x2=\"570\" y2=\"360\" stroke=\"#44ff88\" stroke-width=\"2\"/>\n  <text x=\"575\" y=\"364\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"9\">Galileo trajectory</text>\n  <line x1=\"540\" y1=\"378\" x2=\"570\" y2=\"378\" stroke=\"#8899aa\" stroke-width=\"1\" stroke-dasharray=\"3,4\"/>\n  <text x=\"575\" y=\"382\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">Planet orbits</text>\n</svg>",
+        "caption": "Schematic of the Galileo trajectory from Earth to Jupiter via three gravity assists. Each planetary flyby added speed at no propellant cost. Total transit time: six years."
+      }
+    },
+    {
+      "image": {
+        "cacheKey": "galileo-veega-trajectory",
+        "prompt": "Photorealistic science illustration showing the inner solar system with curved orbital paths: the Sun at center, Venus orbit, Earth orbit, and an elegant spiraling trajectory arc showing a spacecraft looping past Venus once and Earth twice before heading outward to Jupiter. Planets shown as glowing spheres — Venus pale yellow, Earth blue-green, Jupiter large orange-brown at edge. Trajectory line in bright green with small spacecraft icon. Hard sci-fi style, dark background. Add the following text labels on the image: \"Venus flyby 1990\", \"Earth flyby 1990\", \"Earth flyby 1992\", \"Jupiter arrival 1995\", \"Galileo trajectory\".",
+        "alt": "Galileo trajectory diagram showing gravity assists at Venus and twice at Earth before Jupiter arrival",
+        "caption": "The Venus-Earth-Earth gravity assist route gave the spacecraft the velocity needed to reach Jupiter without a heavier launch vehicle.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "The atmospheric probe: first plunge into a gas giant",
+      "level": 2,
+      "paragraphs": [
+        "Even before the orbiter reached Jupiter, it completed the most dramatic part of the mission. Five months before the main spacecraft arrived, a separate atmospheric probe was released — a capsule massing approximately three hundred and eighty kilograms, encased in a heat shield designed to survive conditions beyond anything yet attempted.",
+        "Entry into Jupiter's atmosphere took place in December 1995. The probe struck the upper atmosphere at roughly seventy kilometers per second — the fastest atmospheric entry of any artificial body at that time. The heat shield heated to temperatures comparable to the surface of the Sun, ablated away as designed, and the probe survived. After slowing under a parachute, it began direct transmission of measurements to the orbiter overhead.",
+        "The next fifty-seven minutes rewrote what scientists thought they knew about Jupiter. The probe descended approximately one hundred and fifty-six kilometers into the atmosphere, where pressure built to twenty-two atmospheres and temperature exceeded one hundred and fifty degrees Celsius — until the structure finally failed and the mission ended. By that depth, sunlight could no longer penetrate. No human instrument had ever sampled conditions that far inside a gas giant."
+      ]
+    },
+    {
+      "heading": "What the probe found: a surprisingly dry Jupiter",
+      "level": 3,
+      "paragraphs": [
+        "The results were puzzling. The atmosphere was far drier than theoretical models had predicted — water was dramatically less abundant than expected. Fewer cloud layers were present, and winds were stronger than anticipated. Later analysis suggested the probe had entered a \"hot spot\" — a region of relatively clear, dry, descending air that is not representative of most of Jupiter's atmosphere. A single entry point could not capture the full picture.",
+        "Crucially, lightning was detected deep in the atmosphere, far more energetic than anything on Earth. Chemical composition measurements found helium, argon, krypton, xenon, and neon in concentrations that differed significantly from the Sun's proportions. The enrichment of heavy noble gases was particularly striking: it implied Jupiter had formed in much colder conditions than previously assumed, or that early Solar System processes operated in ways that existing models had not fully captured."
+      ]
+    },
+    {
+      "diagram": {
+        "title": "Probe descent profile: pressure and temperature versus depth",
+        "svg": "<svg viewBox=\"0 0 680 380\" xmlns=\"http://www.w3.org/2000/svg\">\n  <rect width=\"680\" height=\"380\" fill=\"rgba(10,15,25,0.5)\"/>\n\n  <!-- Title -->\n  <text x=\"340\" y=\"22\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"12\" text-anchor=\"middle\">Galileo probe descent into Jupiter atmosphere</text>\n\n  <!-- Left axis: depth (km) -->\n  <line x1=\"90\" y1=\"40\" x2=\"90\" y2=\"320\" stroke=\"#334455\" stroke-width=\"1.5\"/>\n  <line x1=\"90\" y1=\"320\" x2=\"590\" y2=\"320\" stroke=\"#334455\" stroke-width=\"1.5\"/>\n\n  <!-- Y axis label -->\n  <text x=\"22\" y=\"185\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\" transform=\"rotate(-90,22,185)\">Depth (km)</text>\n\n  <!-- Depth ticks — 0 at top, -156 at bottom -->\n  <text x=\"82\" y=\"44\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"end\">0</text>\n  <text x=\"82\" y=\"113\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"end\">-40</text>\n  <text x=\"82\" y=\"182\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"end\">-80</text>\n  <text x=\"82\" y=\"251\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"end\">-120</text>\n  <text x=\"82\" y=\"320\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"end\">-156</text>\n\n  <!-- Horizontal grid lines -->\n  <line x1=\"90\" y1=\"44\" x2=\"590\" y2=\"44\" stroke=\"#334455\" stroke-width=\"0.5\" stroke-dasharray=\"4,6\" opacity=\"0.4\"/>\n  <line x1=\"90\" y1=\"113\" x2=\"590\" y2=\"113\" stroke=\"#334455\" stroke-width=\"0.5\" stroke-dasharray=\"4,6\" opacity=\"0.4\"/>\n  <line x1=\"90\" y1=\"182\" x2=\"590\" y2=\"182\" stroke=\"#334455\" stroke-width=\"0.5\" stroke-dasharray=\"4,6\" opacity=\"0.4\"/>\n  <line x1=\"90\" y1=\"251\" x2=\"590\" y2=\"251\" stroke=\"#334455\" stroke-width=\"0.5\" stroke-dasharray=\"4,6\" opacity=\"0.4\"/>\n\n  <!-- Temperature curve (left zone 90..340) — orange -->\n  <polyline\n    points=\"90,44 145,113 210,182 265,251 320,320\"\n    fill=\"none\" stroke=\"#ff8844\" stroke-width=\"2.5\" opacity=\"0.9\"/>\n  <text x=\"96\" y=\"58\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"9\">-110°C</text>\n  <text x=\"150\" y=\"127\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"9\">-20°C</text>\n  <text x=\"215\" y=\"196\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"9\">60°C</text>\n  <text x=\"270\" y=\"265\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"9\">110°C</text>\n  <text x=\"295\" y=\"334\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"9\">153°C</text>\n\n  <!-- Pressure curve (right zone 340..590) — blue -->\n  <polyline\n    points=\"344,44 365,113 420,182 490,251 580,320\"\n    fill=\"none\" stroke=\"#7bb8ff\" stroke-width=\"2.5\" opacity=\"0.9\"/>\n  <text x=\"344\" y=\"58\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"9\">0.4 atm</text>\n  <text x=\"368\" y=\"127\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"9\">2 atm</text>\n  <text x=\"423\" y=\"196\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"9\">6 atm</text>\n  <text x=\"493\" y=\"265\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"9\">14 atm</text>\n  <text x=\"535\" y=\"334\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"9\">22 atm</text>\n\n  <!-- Divider line -->\n  <line x1=\"340\" y1=\"40\" x2=\"340\" y2=\"325\" stroke=\"#334455\" stroke-width=\"1\" stroke-dasharray=\"2,4\" opacity=\"0.6\"/>\n\n  <!-- End of mission marker -->\n  <line x1=\"90\" y1=\"320\" x2=\"590\" y2=\"320\" stroke=\"#cc4444\" stroke-width=\"1.5\" stroke-dasharray=\"5,4\" opacity=\"0.8\"/>\n  <text x=\"340\" y=\"340\" fill=\"#cc4444\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Mission end: probe destroyed (22 atm pressure, 156 km depth)</text>\n\n  <!-- Legend -->\n  <line x1=\"110\" y1=\"358\" x2=\"140\" y2=\"358\" stroke=\"#ff8844\" stroke-width=\"2.5\"/>\n  <text x=\"145\" y=\"362\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"9\">Temperature</text>\n  <line x1=\"260\" y1=\"358\" x2=\"290\" y2=\"358\" stroke=\"#7bb8ff\" stroke-width=\"2.5\"/>\n  <text x=\"295\" y=\"362\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"9\">Atmospheric pressure</text>\n\n  <!-- Time annotation -->\n  <text x=\"340\" y=\"370\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Total descent duration: 57 minutes</text>\n</svg>",
+        "caption": "Temperature and pressure profile during the probe descent in December 1995. In fifty-seven minutes the probe traveled one hundred and fifty-six kilometers into Jupiter, where pressure reached twenty-two atmospheres and temperature exceeded one hundred and fifty degrees Celsius."
+      }
+    },
+    {
+      "heading": "The antenna that would not open: how the mission survived",
+      "level": 2,
+      "paragraphs": [
+        "Galileo was designed to transmit data through a large parabolic dish antenna roughly four and a half meters across — intended to unfurl in space like an umbrella. It never did. The antenna's ribs had bonded together during the spacecraft's time on the ground: the antenna sat exposed for long periods in a humid hangar, and the lubricant on the deployment pins had partially dried out. After launch, despite repeated commands and heating attempts, the antenna remained stuck.",
+        "The consequences for data throughput were severe. Instead of the planned hundreds of thousands of bits per second, the spacecraft could transmit only about ten bits per second through a small backup low-gain antenna — roughly a thousandfold reduction. For comparison, a modern mobile phone connection moves millions of bits per second.",
+        "The mission team did not concede. Engineers wrote entirely new software, uplinked it to the spacecraft during flight, and squeezed the most out of every transmitted bit through advanced data compression algorithms and rigorous prioritization of observations. In the end, despite the crippled link, the mission recovered approximately seventy percent of its planned scientific output. It remains one of the clearest demonstrations in spaceflight history of software engineering rescuing a hardware failure."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "galileo-antenna-problem",
+        "prompt": "Photorealistic science illustration of the Galileo spacecraft focusing on its high-gain antenna: the large dish antenna shown partially furled, ribs not fully deployed, some stuck together. Small low-gain antenna visible nearby. Spacecraft body with golden thermal insulation. Deep space background. Hard sci-fi style, technically accurate, dramatic side lighting. Add the following text labels on the image: \"high-gain antenna (stuck)\", \"low-gain antenna\", \"science boom\", \"spacecraft bus\".",
+        "alt": "The Galileo spacecraft high-gain antenna partially unfurled with stuck ribs, small backup antenna visible",
+        "caption": "The main high-gain antenna never fully deployed. The entire mission was conducted through a backup low-gain antenna with one-thousandth of the planned data rate. New onboard software and data compression salvaged most of the science.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "Eight years in orbit: the Galilean moons up close",
+      "level": 2,
+      "paragraphs": [
+        "After entering Jupiter orbit in December 1995, the spacecraft completed thirty-five orbits over the next eight years. Each orbit brought close flybys of the Galilean moons: Io, Europa, Ganymede, and Callisto — and each flyby returned data that shifted the scientific consensus."
+      ]
+    },
+    {
+      "heading": "Io: the most volcanically active world in the Solar System",
+      "level": 3,
+      "paragraphs": [
+        "Io turned out to be the most volcanically active body yet discovered. The spacecraft documented hundreds of active volcanic centers, lava lakes of molten sulfur and silicates, and geyser plumes rising hundreds of kilometers above the surface. The heat source is tidal friction: Jupiter's immense gravity, combined with gravitational resonances with the neighboring moons Europa and Ganymede, constantly deforms Io's interior, generating enough heat to keep it in a near-permanent state of eruption. The surface renews itself so rapidly that Io shows no impact craters at all."
+      ]
+    },
+    {
+      "heading": "Europa: the subsurface ocean",
+      "level": 3,
+      "paragraphs": [
+        "The loudest scientific result of the entire mission was the confirmation of a liquid ocean beneath Europa's icy surface. The key evidence came from the moon's magnetic signature. Galileo measured an induced magnetic field in Europa — one that responded to changes in Jupiter's own rotating magnetic field in a way that only a conducting layer could produce. The only substance that fits those conditions is salty liquid water.",
+        "The subsurface ocean of Europa, by various estimates, may hold more liquid water than all Earth's oceans combined. The heat sustaining it comes from the same tidal friction that drives Io's volcanoes. This discovery fundamentally redefined the concept of a habitable zone: liquid water can exist far beyond the traditional range around a star if a different heat source is available. The seed planted by Galileo motivates modern missions to Europa and Saturn's moon Enceladus."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "galileo-europa-ocean",
+        "prompt": "Photorealistic science encyclopedia illustration of Europa surface and subsurface cross-section: upper half shows Europa ice surface with cracked reddish-brown lineae, disrupted chaos terrain, no impact craters, Jupiter visible on the horizon. Lower half shows a schematic cutaway: thin ice shell 10-30 km, then deep liquid water ocean 100+ km, then rocky silicate seafloor. Bioluminescent suggestion subtle in the ocean (not cartoonish). Hard sci-fi style, dark space background. Add the following text labels on the image: \"ice shell\", \"subsurface ocean\", \"rocky mantle\", \"lineae cracks\", \"Jupiter\".",
+        "alt": "Europa surface and subsurface cross-section: ice shell, subsurface salty ocean, rocky mantle",
+        "caption": "The induced magnetic anomaly measured by Galileo pointed to a conducting layer beneath Europa's ice. The subsurface ocean, estimated at up to one hundred kilometers deep, is one of the most compelling targets in the search for life beyond Earth.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "Ganymede: the only moon with its own magnetic field",
+      "level": 3,
+      "paragraphs": [
+        "Ganymede is the largest moon in the Solar System — larger than the planet Mercury. Galileo discovered that it possesses its own intrinsic magnetic field, making it the only moon anywhere known to generate one. The field arises from convection in a liquid iron core, in the same manner as Earth's geodynamo, though considerably weaker. It is strong enough to carve out a small magnetosphere nested inside Jupiter's far larger one. Subsequent analysis also found evidence for a subsurface ocean in Ganymede, sandwiched between layers of ice at different pressures."
+      ]
+    },
+    {
+      "heading": "Comet Shoemaker-Levy 9: a unique witness",
+      "level": 2,
+      "paragraphs": [
+        "In the summer of 1994, while Galileo was still en route, one of the most spectacular astronomical events in recorded observation history played out: Comet Shoemaker-Levy 9, torn apart by Jupiter's gravity into twenty-one fragments, slammed into the planet over the course of several days.",
+        "Earth-based telescopes could see Jupiter but not the impact sites directly — the collisions occurred on the hemisphere facing away from Earth. Galileo was the only spacecraft in the Solar System with a direct line of sight to the impact zone. Its cameras captured bright flashes from each collision. Those images not only documented an unprecedented event — they gave scientists a way to measure how Jupiter acts as a gravitational shield for the inner Solar System, deflecting or absorbing objects that might otherwise threaten Earth."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "galileo-sl9-impact",
+        "prompt": "Photorealistic science encyclopedia illustration of Comet Shoemaker-Levy 9 fragments impacting Jupiter: a chain of 21 comet fragments approaching Jupiter from below left, Jupiter filling most of the frame with turbulent cloud bands, bright impact fireball visible on Jupiter limb with expanding dark debris cloud, Galileo spacecraft silhouette small in upper right with camera pointed at impact site. Hard sci-fi style, dramatic lighting, dark space background. Add the following text labels on the image: \"comet fragments\", \"impact fireball\", \"Jupiter\", \"Galileo vantage point\".",
+        "alt": "Comet Shoemaker-Levy 9 fragments striking Jupiter in 1994 — Galileo was the only spacecraft with a direct view",
+        "caption": "In the summer of 1994 Galileo was the only spacecraft with a direct view of the Shoemaker-Levy 9 impact sites. The event helped scientists quantify Jupiter's role as a gravitational shield for the inner Solar System.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "The end: a deliberate plunge to protect Europa",
+      "level": 2,
+      "paragraphs": [
+        "In September 2003 the mission ended as planned from years earlier: the spacecraft was intentionally directed into Jupiter's atmosphere. The reason was not mechanical failure or exhausted propellant — though maneuvering fuel was nearly gone — but planetary protection.",
+        "Left uncontrolled in orbit, Galileo could eventually impact Europa. Although sterilized before launch, the spacecraft might still carry hardy Earth microorganisms. Contaminating Europa — the moon with the highest assessed potential for extraterrestrial life — with terrestrial biology would be irreversible from a scientific standpoint. Better to destroy the spacecraft in Jupiter than to risk it.",
+        "Galileo struck the upper layers of Jupiter's atmosphere and disintegrated within minutes, becoming part of the planet it had spent eight years studying. Over thirty-five orbital revolutions the mission had gathered data on the ring system, atmospheric dynamics, the magnetosphere, and all four large moons, rewriting the textbooks on the outer Solar System. Its most enduring legacy is Europa: the subsurface ocean revealed by Galileo is today the primary scientific motivation for dedicated future missions to that world."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "galileo-final-plunge",
+        "prompt": "Photorealistic science illustration of the Galileo spacecraft entering Jupiter atmosphere: spacecraft shown from above and slightly behind as it plunges into the upper clouds of Jupiter, bright reentry heating glow forming around the spacecraft body, Jupiter cloud bands visible below in brown and orange, deep black space above. Dramatic, accurate, no explosion — just bright atmospheric heating. Hard sci-fi style. Add the following text labels on the image: \"Galileo final entry September 2003\", \"Jupiter atmosphere\", \"reentry heating\".",
+        "alt": "Galileo spacecraft final atmospheric entry at Jupiter in September 2003",
+        "caption": "In September 2003 Galileo was deliberately steered into Jupiter's atmosphere to prevent any risk of contaminating Europa. After fourteen years in space and thirty-five orbits of Jupiter, the mission had fundamentally changed human understanding of the outer Solar System.",
+        "aspectRatio": "4:3"
+      }
+    }
+  ],
+  "glossary": [
+    {
+      "term": "Gravity assist",
+      "definition": "A navigation technique in which a spacecraft uses a planet's gravitational field to change its speed and direction without burning propellant. Also called a gravitational slingshot or flyby. Each encounter trades a tiny fraction of the planet's orbital momentum to the spacecraft."
+    },
+    {
+      "term": "Orbiter",
+      "definition": "A spacecraft designed to enter orbit around a celestial body and conduct sustained observations from close range, as opposed to a flyby probe that simply passes by."
+    },
+    {
+      "term": "Atmospheric probe",
+      "definition": "A spacecraft designed to enter a planetary atmosphere directly and measure temperature, pressure, and chemical composition during descent. The Galileo probe was the first to enter the atmosphere of a gas giant."
+    },
+    {
+      "term": "Induced magnetic signature",
+      "definition": "A magnetic field generated in a conducting material such as salty liquid water in response to an external varying magnetic field. This effect, detected by Galileo at Europa, indicated the presence of a subsurface ocean."
+    },
+    {
+      "term": "Tidal heating",
+      "definition": "The generation of internal heat in a moon caused by continuous gravitational deformation from the parent planet and neighboring moons. Tidal heating is the only energy source powerful enough to sustain Io's volcanism and keep Europa's ocean liquid."
+    },
+    {
+      "term": "Planetary protection",
+      "definition": "A set of practices designed to prevent the transfer of Earth microorganisms to other Solar System bodies, and vice versa. Planetary protection requirements led to the deliberate destruction of Galileo in Jupiter's atmosphere."
+    },
+    {
+      "term": "Comet Shoemaker-Levy 9",
+      "definition": "A comet captured and torn apart by Jupiter's gravity into twenty-one fragments, which struck the planet over several days in July 1994. It remains the most thoroughly documented planetary-scale impact in observational history."
+    },
+    {
+      "term": "Habitable zone",
+      "definition": "The region around a star where liquid water could exist on the surface of a rocky planet. Galileo's discovery of Europa's subsurface ocean showed that liquid water — and potentially life — can exist far beyond this traditional boundary, given an alternative heat source."
+    },
+    {
+      "term": "Low-gain antenna",
+      "definition": "An antenna with a broad radiation pattern that can maintain contact with Earth without precise pointing, but at very low data rates. Galileo relied on its low-gain antenna as the backup after the main high-gain dish failed to deploy."
+    }
+  ],
+  "quiz": [
+    {
+      "question": "Why did the Galileo spacecraft travel to Jupiter via Venus and two Earth flybys rather than flying directly?",
+      "options": [
+        "Direct trajectories to the outer Solar System were prohibited after the Challenger disaster",
+        "A direct trajectory would have required a far more powerful launch vehicle — gravity assists provided the necessary speed for free",
+        "The spacecraft had a primary mission to conduct science observations of Venus and Earth",
+        "The Venus-Earth-Earth route was the shortest path to Jupiter given planetary alignments at the time"
+      ],
+      "correctIndex": 1,
+      "explanation": "A direct trajectory to Jupiter exceeded the capability of available launch vehicles. The gravity assist scheme using Venus and two Earth flybys accumulated the required velocity by borrowing orbital momentum from the planets themselves, without expending additional propellant."
+    },
+    {
+      "question": "How did Galileo obtain evidence for a subsurface ocean beneath Europa's ice?",
+      "options": [
+        "Cameras imaged water erupting through cracks in the ice",
+        "A radar instrument penetrated the ice and detected liquid beneath",
+        "The spacecraft measured an induced magnetic field that could only be produced by a conducting layer — salty liquid water",
+        "A spectrometer detected water vapor molecules rising above Europa's surface"
+      ],
+      "correctIndex": 2,
+      "explanation": "Galileo detected that Jupiter's rotating magnetic field induced a varying magnetic field in Europa that responded in a way only a conducting layer could explain. Salty liquid water is the only substance consistent with those conditions at that depth and temperature."
+    },
+    {
+      "question": "Why was the Galileo mission ended by intentionally steering the spacecraft into Jupiter's atmosphere?",
+      "options": [
+        "The spacecraft ran out of fuel and lost attitude control",
+        "The antenna failure made it impossible to receive any further data",
+        "To prevent any risk of contaminating Europa with Earth microorganisms",
+        "Jupiter's gravity had captured the spacecraft with no possibility of maneuvering"
+      ],
+      "correctIndex": 2,
+      "explanation": "Planetary protection requirements prohibited leaving the spacecraft in uncontrolled orbit. An unguided Galileo could eventually impact Europa, potentially transferring surviving Earth microorganisms to the moon with the highest assessed potential for extraterrestrial life. Deliberate Jupiter entry guaranteed destruction of the spacecraft."
+    },
+    {
+      "question": "What discovery about Ganymede made it unique among all moons in the Solar System?",
+      "options": [
+        "Ganymede has a dense nitrogen atmosphere similar to Saturn's moon Titan",
+        "Ganymede is the only moon known to generate its own intrinsic magnetic field",
+        "Ganymede has active volcanism similar to Io",
+        "Ganymede is tidally locked to Jupiter, always showing the same face"
+      ],
+      "correctIndex": 1,
+      "explanation": "Galileo discovered that Ganymede generates its own magnetic field — the only moon in the Solar System known to do so. The field arises from convection in a liquid iron core, just as on Earth, and creates a small magnetosphere nested within Jupiter's far larger one."
+    },
+    {
+      "question": "How did the mission team compensate for the failure of Galileo's high-gain antenna?",
+      "options": [
+        "Astronauts performed a spacewalk to repair the antenna during the mission",
+        "A new relay satellite was placed in Jupiter orbit",
+        "New software with data compression algorithms was uplinked during flight, and observations were reprioritized",
+        "Transmission was switched to an optical laser communication channel"
+      ],
+      "correctIndex": 2,
+      "explanation": "There was no way to physically fix the antenna. Instead, engineers uploaded new software during the cruise phase with advanced compression and smarter data prioritization. This recovered approximately seventy percent of the planned scientific return despite a thousandfold reduction in downlink capacity."
+    }
+  ],
+  "sources": [
+    {
+      "title": "NASA — Galileo Mission Overview (Jet Propulsion Laboratory)",
+      "url": "https://solarsystem.nasa.gov/missions/galileo/overview/",
+      "meta": "NASA / JPL, open access"
+    },
+    {
+      "title": "Anderson J. D. et al. — Galileo gravity results and the internal structure of Io, Europa, Ganymede, and Callisto",
+      "url": "https://doi.org/10.1126/science.272.5267.1481",
+      "meta": "Science, 1996"
+    },
+    {
+      "title": "Kivelson M. G. et al. — A magnetic signature at Io: Initial report from the Galileo magnetometer",
+      "url": "https://doi.org/10.1126/science.273.5273.337",
+      "meta": "Science, 1996"
+    },
+    {
+      "title": "Kivelson M. G. et al. — Europa's magnetic signature: Report from Galileo's pass on 19 December 1996",
+      "url": "https://doi.org/10.1126/science.276.5316.1239",
+      "meta": "Science, 1997 — key evidence for Europa's ocean"
+    },
+    {
+      "title": "Mahaffy P. R. et al. — Noble gas abundances and isotope ratios in the atmosphere of Jupiter",
+      "url": "https://doi.org/10.1029/1999JE001024",
+      "meta": "Journal of Geophysical Research, 2000"
+    },
+    {
+      "title": "Young R. E. — The Galileo probe mission to Jupiter: Science overview",
+      "url": "https://doi.org/10.1029/1999JE001011",
+      "meta": "Journal of Geophysical Research, 1998"
+    },
+    {
+      "title": "Showman A. P., Malhotra R. — The Galilean Satellites (review)",
+      "url": "https://doi.org/10.1126/science.286.5437.77",
+      "meta": "Science, 1999"
+    },
+    {
+      "title": "JPL — Galileo End of Mission Press Kit (2003)",
+      "url": "https://www.jpl.nasa.gov/news/press_kits/galileo-end-of-mission.pdf",
+      "meta": "NASA / JPL, September 2003"
+    },
+    {
+      "title": "Harland D. M. — Jupiter Odyssey: The Story of NASA's Galileo Mission",
+      "url": "https://link.springer.com/book/9781852337094",
+      "meta": "Springer / Praxis, 2000"
+    },
+    {
+      "title": "NASA — Shoemaker-Levy 9 Collision with Jupiter",
+      "url": "https://solarsystem.nasa.gov/news/13021/the-impact-of-comet-shoemaker-levy-9/",
+      "meta": "NASA Solar System Exploration, open access"
+    }
+  ],
+  "lastVerified": "2026-05-06"
+}

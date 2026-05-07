@@ -1,0 +1,658 @@
+import type { Lesson } from '../../types.js';
+
+const lesson: Lesson = {
+  slug: 'supernovae-types',
+  language: 'en',
+  section: 'astrophysics',
+  order: 3,
+  difficulty: 'intermediate',
+  readingTimeMin: 12,
+  title: 'Supernovae Types',
+  subtitle: 'The most powerful explosions in the universe. From the thermonuclear detonation of a white dwarf to the collapse of an iron core — and why this concerns every atom in your body.',
+
+  hero: {
+    cacheKey: 'supernovae-types-hero',
+    prompt:
+      'Photorealistic scientific illustration of a supernova explosion in deep space: ' +
+      'a dying massive star at center engulfed in a blinding white-blue shockwave expanding outward, ' +
+      'surrounding gas shell glowing in orange and red filaments, ' +
+      'remnant nebula structure visible at the edges, dark star field in background. ' +
+      'Hard sci-fi style, wide aspect ratio, dark space background. ' +
+      'Add the following text labels on the image: "core collapse supernova", "expanding shock wave", "stellar remnant".',
+    alt: 'Supernova explosion — brilliant blast from a dying massive star with expanding shock wave and nebula remnant',
+    caption:
+      'A supernova is one of the brightest and shortest phenomena in the universe. At peak luminosity it can outshine an entire galaxy of hundreds of billions of stars.',
+    aspectRatio: '16:9',
+  },
+
+  body: [
+    {
+      paragraphs: [
+        'Every iron atom in your blood, every oxygen atom you breathe, every calcium atom in your bones — ' +
+        'all of them were once inside a star. Most elements heavier than iron could not have been ' +
+        'produced anywhere except in the heart of a supernova explosion. This is not a metaphor: ' +
+        '_nucleosynthesis_ in supernovae is the only known process that produces significant amounts ' +
+        'of elements heavier than iron in quantities sufficient to build planets and living organisms.',
+
+        'Supernovae are not a single phenomenon. They are an entire family of catastrophic events, ' +
+        'united only by colossal energy release and a brief flash of light. Different types arise from ' +
+        'fundamentally different physical mechanisms, leave different remnants, and are even used in ' +
+        'different areas of astrophysics — from mapping the large-scale structure of the universe ' +
+        'to measuring dark energy. Understanding their classification is simultaneously a lesson ' +
+        'in stellar physics, cosmochemistry, and cosmology.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'supernovae-types-crab-nebula',
+        prompt:
+          'Photorealistic scientific illustration of the Crab Nebula supernova remnant: ' +
+          'intricate filamentary structure of glowing red and orange gas filaments forming an irregular oval shape, ' +
+          'bright central pulsar visible as a point source surrounded by a blue-white synchrotron wind nebula, ' +
+          'dark space background with faint stars. ' +
+          'Hard sci-fi style scientific illustration. ' +
+          'Add the following text labels on the image: "Crab Nebula M1", "central pulsar", "synchrotron nebula", "filamentary shell".',
+        alt: 'Crab Nebula — remnant of the eleventh-century supernova with a central pulsar',
+        caption:
+          'The Crab Nebula (M1) is the remnant of a supernova recorded by Chinese chroniclers in the eleventh century. ' +
+          'At its center spins a pulsar rotating 30 times per second. The nebula is still expanding at approximately 1,500 kilometers per second.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Spectral Classification: How Types Are Distinguished',
+      level: 2,
+      paragraphs: [
+        'Astronomers classify supernovae primarily by spectrum. The key question: ' +
+        'does the spectrum show hydrogen lines? If not — it is Type I. If yes — Type II. ' +
+        'Type I is then subdivided by the presence of silicon and helium: ' +
+        'subtype "a" (Type Ia) — silicon present, no helium; subtype "b" (Type Ib) — helium present, no silicon; ' +
+        'subtype "c" (Type Ic) — neither hydrogen nor helium.',
+
+        'It is important to understand that this spectral classification only partially maps onto the physical mechanism. ' +
+        'Type Ia is a fundamentally different kind of explosion from Types Ib and Ic. ' +
+        '_Type Ia arises in binary star systems_, while Types II, Ib, and Ic are all ' +
+        'varieties of gravitational collapse of massive single stars, differing only in how much ' +
+        'of the hydrogen and helium envelope remained on the star at the time of the explosion.',
+      ],
+    },
+
+    {
+      heading: 'Type Ia: Thermonuclear Detonation',
+      level: 2,
+      paragraphs: [
+        'Imagine a white dwarf — the compact corpse of a star, about the size of Earth but with roughly ' +
+        'the mass of the Sun. It no longer burns: nuclear reactions within it have stopped, ' +
+        'and it holds its shape not by pressure but by the quantum _pressure of a degenerate electron gas_. ' +
+        'Nature has placed a strict upper limit on the mass of such objects — approximately 1.4 solar masses. ' +
+        'This is the _Chandrasekhar limit_.',
+
+        'If a white dwarf belongs to a binary system with a donor star, it can gradually accrete — ' +
+        'pull — material from its companion. Hydrogen settles on the surface and may ignite as a nova ' +
+        '(a recurring smaller explosion), but over the long term the dwarf\'s mass grows. ' +
+        'When it approaches the Chandrasekhar limit, the degenerate gas pressure can no longer resist gravity. ' +
+        'The temperature in the core rises sharply and a _thermonuclear detonation_ is triggered — ' +
+        'explosive burning of carbon and oxygen that sweeps through the entire volume of the dwarf within seconds. ' +
+        'The star is torn completely apart: no remnant is left behind.',
+
+        'This predictability — always the same initial mass at the Chandrasekhar limit — ' +
+        'makes Type Ia supernovae **standard candles** for cosmology. The peak absolute luminosity ' +
+        'of such an explosion is known with high precision. By measuring the apparent brightness and comparing ' +
+        'it with the known absolute brightness, one can precisely calculate the distance to the host galaxy — ' +
+        'even billions of light-years away. In 1998, two independent teams of astronomers, measuring distances ' +
+        'to distant Type Ia supernovae, found that the universe was not simply expanding — ' +
+        'it was expanding with _acceleration_. This discovery of dark energy earned the Nobel Prize ' +
+        'in Physics in 2011.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Diagram: Type Ia Supernova Mechanism',
+        svg: `<svg viewBox="0 0 680 300" xmlns="http://www.w3.org/2000/svg">
+  <rect width="680" height="300" fill="rgba(10,15,25,0.5)"/>
+
+  <defs>
+    <marker id="arr-sn-en" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+      <polygon points="0 0, 7 3.5, 0 7" fill="#667788"/>
+    </marker>
+    <radialGradient id="dwarf-glow-en" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="60%" stop-color="#aad4ff" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#4488aa" stop-opacity="0.1"/>
+    </radialGradient>
+    <radialGradient id="donor-glow-en" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffcc66" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#cc6633" stop-opacity="0.2"/>
+    </radialGradient>
+    <radialGradient id="explosion-glow-en" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="1"/>
+      <stop offset="40%" stop-color="#ffdd88" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#ff8844" stop-opacity="0.1"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Stage 1: binary system -->
+  <text x="115" y="22" fill="#8899aa" font-family="monospace" font-size="10" text-anchor="middle">Stage 1: binary system</text>
+  <circle cx="75" cy="110" r="38" fill="url(#donor-glow-en)"/>
+  <text x="75" y="163" fill="#ff8844" font-family="monospace" font-size="10" text-anchor="middle">donor star</text>
+  <circle cx="175" cy="110" r="14" fill="url(#dwarf-glow-en)"/>
+  <text x="175" y="140" fill="#aabbcc" font-family="monospace" font-size="10" text-anchor="middle">white dwarf</text>
+  <path d="M 113 95 Q 145 82 161 103" stroke="#7bb8ff" stroke-width="1.5" fill="none" stroke-dasharray="4,3"/>
+  <text x="133" y="75" fill="#7bb8ff" font-family="monospace" font-size="9" text-anchor="middle">accretion</text>
+  <ellipse cx="125" cy="110" rx="62" ry="22" fill="none" stroke="#334455" stroke-width="0.8" stroke-dasharray="5,5" opacity="0.6"/>
+
+  <!-- Arrow stage 1 -> 2 -->
+  <line x1="210" y1="110" x2="255" y2="110" stroke="#667788" stroke-width="1.2" marker-end="url(#arr-sn-en)"/>
+  <text x="232" y="103" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">~1.4 M☉</text>
+
+  <!-- Stage 2: near Chandrasekhar limit -->
+  <text x="330" y="22" fill="#8899aa" font-family="monospace" font-size="10" text-anchor="middle">Stage 2: Chandrasekhar limit</text>
+  <circle cx="330" cy="110" r="16" fill="url(#dwarf-glow-en)" stroke="#cc4444" stroke-width="2"/>
+  <text x="330" y="143" fill="#cc4444" font-family="monospace" font-size="10" text-anchor="middle">1.4 M☉ — unstable</text>
+  <line x1="330" y1="85" x2="330" y2="97" stroke="#ff8844" stroke-width="1.5" marker-end="url(#arr-sn-en)"/>
+  <line x1="305" y1="100" x2="316" y2="106" stroke="#ff8844" stroke-width="1.5" marker-end="url(#arr-sn-en)"/>
+  <line x1="355" y1="100" x2="344" y2="106" stroke="#ff8844" stroke-width="1.5" marker-end="url(#arr-sn-en)"/>
+  <text x="330" y="60" fill="#ff8844" font-family="monospace" font-size="9" text-anchor="middle">thermonuclear ignition</text>
+
+  <!-- Arrow stage 2 -> 3 -->
+  <line x1="365" y1="110" x2="415" y2="110" stroke="#667788" stroke-width="1.2" marker-end="url(#arr-sn-en)"/>
+  <text x="390" y="103" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">seconds</text>
+
+  <!-- Stage 3: explosion -->
+  <text x="555" y="22" fill="#8899aa" font-family="monospace" font-size="10" text-anchor="middle">Stage 3: Type Ia explosion</text>
+  <circle cx="555" cy="110" r="55" fill="url(#explosion-glow-en)" opacity="0.35"/>
+  <circle cx="555" cy="110" r="30" fill="url(#explosion-glow-en)" opacity="0.6"/>
+  <circle cx="555" cy="110" r="8" fill="#ffffff" opacity="0.95"/>
+  <line x1="555" y1="55" x2="555" y2="75" stroke="#ffdd88" stroke-width="1.5" opacity="0.8"/>
+  <line x1="595" y1="70" x2="581" y2="84" stroke="#ffdd88" stroke-width="1.5" opacity="0.8"/>
+  <line x1="610" y1="110" x2="590" y2="110" stroke="#ffdd88" stroke-width="1.5" opacity="0.8"/>
+  <line x1="595" y1="150" x2="581" y2="136" stroke="#ffdd88" stroke-width="1.5" opacity="0.8"/>
+  <line x1="555" y1="165" x2="555" y2="145" stroke="#ffdd88" stroke-width="1.5" opacity="0.8"/>
+  <line x1="515" y1="150" x2="529" y2="136" stroke="#ffdd88" stroke-width="1.5" opacity="0.8"/>
+  <line x1="500" y1="110" x2="520" y2="110" stroke="#ffdd88" stroke-width="1.5" opacity="0.8"/>
+  <line x1="515" y1="70" x2="529" y2="84" stroke="#ffdd88" stroke-width="1.5" opacity="0.8"/>
+  <text x="555" y="193" fill="#44ff88" font-family="monospace" font-size="10" text-anchor="middle">no remnant left</text>
+  <text x="555" y="207" fill="#44ff88" font-family="monospace" font-size="9" text-anchor="middle">nickel-56 → cobalt → iron</text>
+
+  <!-- Bottom label: standard candle -->
+  <text x="340" y="260" fill="#aabbcc" font-family="monospace" font-size="11" text-anchor="middle">Standard candle: known absolute luminosity → distance measurement across the universe</text>
+  <line x1="60" y1="270" x2="620" y2="270" stroke="#334455" stroke-width="0.8" stroke-dasharray="4,6" opacity="0.5"/>
+</svg>`,
+        caption:
+          'Type Ia supernova mechanism: accretion of mass onto a white dwarf to the Chandrasekhar limit (~1.4 solar masses) → thermonuclear detonation → complete destruction of the star with no remnant. ' +
+          'Because the initial mass is always the same, the peak luminosity is predictable — the foundation of cosmological distance measurements.',
+      },
+    },
+
+    {
+      heading: 'Type II: Gravitational Core Collapse',
+      level: 2,
+      paragraphs: [
+        'A massive star — eight solar masses or more — lives fast and dies catastrophically. ' +
+        'Over its relatively brief nuclear lifetime it burns progressively heavier elements: ' +
+        'hydrogen fuses to helium, helium to carbon, carbon to neon, oxygen, silicon. ' +
+        'Each subsequent stage is shorter and releases less energy. When an _iron_ core forms at the center — ' +
+        'the end is inevitable. Iron does not burn: its nuclear binding is so efficient that synthesizing ' +
+        'heavier elements absorbs energy rather than releasing it.',
+
+        'In less than a second, the iron core — exceeding 1.4 solar masses — collapses under its own weight. ' +
+        'The collapse takes less than a second: the core compresses from the size of Earth to a ball ' +
+        'roughly 20 to 30 kilometers across. Matter reaches nuclear density and _nuclear repulsive forces_ ' +
+        'abruptly halt the collapse. The core "bounces", and a shock wave propagates outward through ' +
+        'the outer layers of the star — this is the supernova explosion.',
+
+        'In Type II supernovae the star retained its hydrogen envelope all the way to the explosion — ' +
+        'which is why hydrogen lines are clearly seen in the spectrum. The remnant is either a _neutron star_, or — ' +
+        'if the core is massive enough — a _black hole_. Unlike Type Ia, a compact object remains ' +
+        'at the center of the expanding nebula.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'supernovae-types-core-collapse',
+        prompt:
+          'Scientific cross-section illustration of a massive star core collapse supernova: ' +
+          'onion-layer structure of the star shown in cross section — outer hydrogen envelope, helium layer, carbon layer, oxygen/neon layer, silicon layer, and innermost iron core highlighted in red, ' +
+          'central iron core collapsing with inward arrows, rebound shock wave shown as expanding orange ring, ' +
+          'neutrino burst shown as blue arrows radiating outward from center. ' +
+          'Hard sci-fi style scientific illustration, dark background, monospace labels. ' +
+          'Add the following text labels on the image: "iron core collapse", "neutrino burst", "shock wave rebound", "hydrogen envelope".',
+        alt: 'Cross-section of a massive star during collapse: layered structure, iron core, bouncing shock wave',
+        caption:
+          'A massive star before the explosion resembles an onion with layers of different elements. The iron core at the center can no longer produce energy — and it collapses in a fraction of a second.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Types Ib and Ic: Stripped Progenitors',
+      level: 2,
+      paragraphs: [
+        'Not all massive stars retain their hydrogen envelope until the end. Some — the most massive, ' +
+        'so-called _Wolf-Rayet stars_ — shed their outer layers during their active stellar lives ' +
+        'through powerful stellar winds. Others lose their envelopes through interaction with a companion ' +
+        'in a binary system. When such a "stripped" star explodes, ' +
+        'its spectrum shows no hydrogen — hence subtype "b" (Type Ib) or "c" (Type Ic).',
+
+        'Subtype "b" has retained its helium layer — those lines are visible in the spectrum. ' +
+        'Subtype "c" has lost helium as well — the spectrum shows primarily silicon, oxygen, and heavier elements. ' +
+        'The physical mechanism is the same as Type II: gravitational collapse of an iron core. ' +
+        'The key difference lies in what had already burned away or been shed before the explosion.',
+
+        'It is precisely among Type Ic supernovae that _hypernovae_ and _gamma-ray bursts_ occur — ' +
+        'the most powerful explosions in the universe. When a collapsing core rotates extremely rapidly ' +
+        'and forms a massive accretion disk with magnetically confined jets, the kinetic energy ' +
+        'exceeds that of a standard supernova by a factor of 10 to 100. A long gamma-ray burst ' +
+        'lasting more than two seconds is almost certainly connected with the collapse of a massive Type Ic star.',
+      ],
+    },
+
+    {
+      heading: 'Famous Supernovae: What They Left Behind',
+      level: 2,
+      paragraphs: [
+        'In the **eleventh century**, Chinese and Arab astronomers recorded the appearance of a ' +
+        '"guest star" in the constellation Taurus — so bright it was visible in daylight for several weeks. ' +
+        'This was the supernova of 1054, whose remnant we know today as the _Crab Nebula_. ' +
+        'At the nebula\'s center spins a pulsar — a neutron star rotating 30 times per second, ' +
+        'still powering the expansion of the gas shell with its magnetic field.',
+
+        'In the **sixteenth century**, the Danish astronomer Tycho Brahe observed a new star ' +
+        'in the constellation Cassiopeia — brighter than Venus. He measured the absence of parallax ' +
+        'and proved that the "new star" (supernova 1572, known today as "Tycho\'s supernova") ' +
+        'lay far beyond the sphere of the Moon, among the "fixed" stars. ' +
+        'This was a direct challenge to Aristotelian cosmology, which held the celestial sphere to be unchanging. ' +
+        'The starry sky turned out not to be eternal.',
+
+        'In **1987**, a supernova designated 1987A exploded in the Large Magellanic Cloud — ' +
+        'the nearest satellite galaxy to the Milky Way. It was the first supernova in a sufficiently ' +
+        'nearby galaxy in the era of modern astrophysics. It gave us an extraordinarily rare gift: ' +
+        '_neutrino_ detectors on Earth registered a burst of particles several hours before ' +
+        'any visible light appeared. In those three seconds, the explosion released more energy as neutrinos ' +
+        'than the Sun will radiate over its entire lifetime — approximately 10 billion years. ' +
+        'Supernova 1987A became the first direct confirmation of core-collapse theory and the role of neutrinos.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'supernovae-types-sn1987a',
+        prompt:
+          'Photorealistic scientific illustration of supernova remnant SN1987A in the Large Magellanic Cloud: ' +
+          'three glowing rings of gas illuminated by the supernova shock wave — a bright inner equatorial ring and two fainter outer rings forming an hourglass structure, ' +
+          'central brightening region where shock meets inner ring, dark space background with faint LMC star field. ' +
+          'Hard sci-fi style. ' +
+          'Add the following text labels on the image: "SN1987A", "inner circumstellar ring", "outer rings", "shock front".',
+        alt: 'Remnant of supernova 1987A with three rings of gas in the Large Magellanic Cloud',
+        caption:
+          'Supernova 1987A — the nearest supernova to us in the era of modern observations. ' +
+          'The three gas rings illuminated by the shock wave are material shed by the progenitor star thousands of years before the explosion.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Light Curves and Neutrinos',
+      level: 2,
+      paragraphs: [
+        'The light curve — a graph of a supernova\'s brightness over time — is one of the most powerful tools ' +
+        'for classification and understanding the underlying physics. Type Ia supernovae display a characteristic ' +
+        'sharp peak followed by a slow, steady decline driven by the decay of _nickel-56_ ' +
+        '(nickel-56 → cobalt-56 → iron-56, with known half-lives). ' +
+        'This predictability of the light curve shape is the physical basis of the standard candle: ' +
+        'the brighter the peak, the slower the subsequent decline — and vice versa.',
+
+        'Type II supernovae show a wider variety of light curve shapes. Some display an extended ' +
+        '"plateau" of brightness after the peak — this occurs when the shock wave moves through ' +
+        'a large hydrogen envelope that continuously recombines, sustaining the emission level. ' +
+        'Others have a narrower peak and faster decline.',
+
+        'The neutrino signal from supernova 1987A — 19 particles detected across three instruments ' +
+        'over 12 seconds — transformed neutrino astrophysics. From this data it was possible to measure ' +
+        'the _neutrino mass_ (found to be extremely small but nonzero), estimate the core temperature ' +
+        '(approximately 40 to 50 billion kelvin), and confirm the core-collapse model yielding a neutron star. ' +
+        'Three independent detectors registered the signal simultaneously — the first multi-messenger ' +
+        'astronomical observation: a single event seen through two distinct windows, neutrino and photon.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Diagram: Supernova Light Curves (Type Comparison)',
+        svg: `<svg viewBox="0 0 640 300" xmlns="http://www.w3.org/2000/svg">
+  <rect width="640" height="300" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Axes -->
+  <line x1="70" y1="240" x2="610" y2="240" stroke="#334455" stroke-width="1.5"/>
+  <line x1="70" y1="30" x2="70" y2="240" stroke="#334455" stroke-width="1.5"/>
+
+  <!-- Axis labels -->
+  <text x="340" y="270" fill="#8899aa" font-family="monospace" font-size="11" text-anchor="middle">time after explosion (days)</text>
+  <text x="18" y="135" fill="#8899aa" font-family="monospace" font-size="11" text-anchor="middle" transform="rotate(-90,18,135)">brightness (relative)</text>
+
+  <!-- X tick labels -->
+  <text x="70" y="255" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">0</text>
+  <text x="178" y="255" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">20</text>
+  <text x="286" y="255" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">40</text>
+  <text x="394" y="255" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">60</text>
+  <text x="502" y="255" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">80</text>
+  <text x="610" y="255" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">100</text>
+
+  <!-- Grid lines faint -->
+  <line x1="178" y1="30" x2="178" y2="240" stroke="#222c3a" stroke-width="0.8"/>
+  <line x1="286" y1="30" x2="286" y2="240" stroke="#222c3a" stroke-width="0.8"/>
+  <line x1="394" y1="30" x2="394" y2="240" stroke="#222c3a" stroke-width="0.8"/>
+  <line x1="502" y1="30" x2="502" y2="240" stroke="#222c3a" stroke-width="0.8"/>
+  <line x1="70" y1="135" x2="610" y2="135" stroke="#222c3a" stroke-width="0.8"/>
+
+  <!-- Type Ia light curve: sharp peak ~18d, then linear decline -->
+  <polyline
+    points="70,235 90,215 110,175 128,60 155,72 190,100 240,125 300,148 370,170 450,192 540,215 610,230"
+    fill="none" stroke="#7bb8ff" stroke-width="2.2"/>
+  <text x="135" y="50" fill="#7bb8ff" font-family="monospace" font-size="10">Type Ia</text>
+  <text x="135" y="62" fill="#7bb8ff" font-family="monospace" font-size="9">(thermonuclear)</text>
+
+  <!-- Type II-P light curve: rise, plateau, then drop -->
+  <polyline
+    points="70,235 95,220 120,185 155,120 200,118 260,120 320,122 370,124 400,128 430,150 480,185 540,210 610,228"
+    fill="none" stroke="#44ff88" stroke-width="2.2"/>
+  <text x="215" y="108" fill="#44ff88" font-family="monospace" font-size="10">Type II-P</text>
+  <text x="215" y="120" fill="#44ff88" font-family="monospace" font-size="9">(plateau)</text>
+
+  <!-- Type Ib/c light curve: similar to Ia but slightly fainter peak, faster decline -->
+  <polyline
+    points="70,235 92,220 115,188 140,80 175,95 215,118 268,142 335,162 415,186 500,210 580,228"
+    fill="none" stroke="#ff8844" stroke-width="1.8" stroke-dasharray="7,4"/>
+  <text x="460" y="198" fill="#ff8844" font-family="monospace" font-size="10">Type Ib/Ic</text>
+  <text x="460" y="210" fill="#ff8844" font-family="monospace" font-size="9">(stripped)</text>
+
+  <!-- Decay annotation for Ia -->
+  <line x1="155" y1="72" x2="430" y2="192" stroke="#7bb8ff" stroke-width="0.8" stroke-dasharray="3,5" opacity="0.5"/>
+  <text x="320" y="155" fill="#7bb8ff" font-family="monospace" font-size="9" opacity="0.7">nickel-56 → cobalt → iron</text>
+
+  <!-- Plateau annotation -->
+  <line x1="200" y1="118" x2="400" y2="128" stroke="#44ff88" stroke-width="0.8" stroke-dasharray="3,5" opacity="0.5"/>
+  <text x="290" y="110" fill="#44ff88" font-family="monospace" font-size="9" opacity="0.7" text-anchor="middle">H-envelope recombination</text>
+</svg>`,
+        caption:
+          'Typical light curves for three classes of supernovae. Type Ia — symmetric peak and steady decline ' +
+          'sustained by radioactive decay of nickel-56. Type II-P — extended plateau from recombination ' +
+          'of the hydrogen envelope. Types Ib and Ic — sharper peak and faster decline.',
+      },
+    },
+
+    {
+      heading: 'Nucleosynthesis: The Supernova as a Heavy-Element Factory',
+      level: 2,
+      paragraphs: [
+        'A supernova explosion is not only destruction. It is simultaneously production. ' +
+        'In the few seconds and minutes of the most intense phases, enormous quantities of new elements ' +
+        'are synthesized through processes unavailable under ordinary stellar conditions.',
+
+        'The so-called _r-process_ (rapid neutron capture) occurs under conditions of extraordinarily ' +
+        'high neutron flux — precisely those that arise during a supernova explosion or the merger of neutron stars. ' +
+        'This process is responsible for synthesizing roughly half of all elements heavier than iron: ' +
+        'gold, platinum, uranium, thorium, rare-earth metals. ' +
+        'Every gold ornament ever made by humanity was synthesized during a supernova explosion or a neutron-star merger ' +
+        'somewhere in the distant universe billions of years before the Solar System was born.',
+
+        'Slower _s-processes_ (slow neutron capture) also occur in massive stars at intermediate burning stages, ' +
+        'but it is the explosion that expels the synthesized elements into the interstellar medium. ' +
+        'The shock wave radiating from a supernova mixes these materials with surrounding gas, ' +
+        'and millions of years later they become the raw material for new stars, planets, and — ' +
+        'in certain solar systems — living organisms. We are literally made of stellar dust.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'supernovae-types-nucleosynthesis',
+        prompt:
+          'Scientific illustration of stellar nucleosynthesis: periodic table of elements with color coding showing origin — ' +
+          'hydrogen and helium from Big Bang in blue, elements up to iron from stellar fusion in yellow-orange, ' +
+          'elements heavier than iron from supernova r-process in red, s-process elements in purple, ' +
+          'neutron star merger elements in cyan. ' +
+          'Hard sci-fi style, dark background, monospace font labels. ' +
+          'Add the following text labels on the image: "Big Bang", "stellar fusion", "supernova r-process", "neutron star merger".',
+        alt: 'Periodic table color-coded by stellar origin: nucleosynthesis from the Big Bang to neutron-star mergers',
+        caption:
+          'Most elements heavier than iron are forged under conditions of extreme neutron flux — ' +
+          'during a supernova explosion or the collision of two neutron stars. Every gold atom has passed through one of these cataclysms.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'Hypernovae and Gamma-Ray Bursts',
+      level: 2,
+      paragraphs: [
+        'At the extreme end of the collapse-driven supernova sequence sit _hypernovae_: ' +
+        'explosions that release 10 to 100 times more kinetic energy than a standard supernova. ' +
+        'They are associated with very massive stars (above 30 to 40 solar masses) and likely with ' +
+        'rapidly rotating cores that form a transient _magnetar_ or a black hole with an accretion disk.',
+
+        'Long _gamma-ray bursts_ lasting more than two seconds are the most powerful electromagnetic ' +
+        'explosions in the observable universe. Their peak luminosity surpasses an entire galaxy ' +
+        'by a factor of billions. They occur when a collapsing massive Type Ic star forms a narrow ' +
+        'relativistic jet aimed almost directly at Earth. ' +
+        'Most gamma-ray bursts happen at cosmological distances — billions of light-years away. ' +
+        'If such a burst occurred in our Galaxy and were aimed at Earth, ' +
+        'it could destroy the ozone layer across half the planet. ' +
+        'Fortunately, the Milky Way currently contains no sufficiently massive candidate stars ' +
+        'in the right orientation.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'supernovae-types-gamma-ray-burst',
+        prompt:
+          'Scientific illustration of a long gamma-ray burst from a collapsing massive star: ' +
+          'central collapsing star with accretion disk forming around a nascent black hole, ' +
+          'two narrow bright blue-white relativistic jets shooting outward perpendicular to the disk, ' +
+          'surrounding cocoon of shocked gas glowing in orange and purple, ' +
+          'deep dark space background. ' +
+          'Hard sci-fi style, technically accurate. ' +
+          'Add the following text labels on the image: "collapsing star Type Ic", "relativistic jet", "accretion disk", "gamma-ray burst".',
+        alt: 'Gamma-ray burst from a collapsing massive star: plasma jet from an accretion disk around a forming black hole',
+        caption:
+          'A long gamma-ray burst occurs when a massive Type Ic star collapses and forms a narrow relativistic jet. ' +
+          'The peak power over a few seconds exceeds the emission of an entire galaxy over years.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Supernovae and Dark Energy',
+      level: 2,
+      paragraphs: [
+        'The discovery of 1998 changed modern cosmology. Two independent teams — ' +
+        'the Supernova Cosmology Project and the High-z Supernova Search Team — ' +
+        'were measuring distances to distant Type Ia supernovae, hoping to confirm ' +
+        'that gravity was slowing the expansion of the universe. Instead they found the opposite: ' +
+        'distant supernovae appeared _dimmer_ than expected for a uniform or decelerating expansion. ' +
+        'This meant they were farther away than predicted. The universe is expanding with acceleration.',
+
+        'The cause of this acceleration remains unknown — astrophysicists named it _dark energy_. ' +
+        'It accounts for approximately 68 percent of the total energy content of the universe ' +
+        'and acts as a negative pressure counteracting gravitational attraction. ' +
+        'Type Ia supernovae remain the primary instrument for measuring this parameter — ' +
+        'today through programs on the James Webb Space Telescope and the Euclid mission. ' +
+        'Pinning down the nature of dark energy is one of the central goals of astrophysics ' +
+        'through the 2030s.',
+      ],
+    },
+  ],
+
+  glossary: [
+    {
+      term: 'Supernova',
+      definition:
+        'A catastrophic stellar explosion that releases more energy in days or weeks than the Sun emits over billions of years. Divided into thermonuclear (Type Ia) and core-collapse (Types II, Ib, Ic) varieties.',
+    },
+    {
+      term: 'Chandrasekhar limit',
+      definition:
+        'The maximum possible mass of a white dwarf — approximately 1.4 solar masses. Exceeding this limit triggers thermonuclear detonation (Type Ia supernova) or core collapse.',
+    },
+    {
+      term: 'Standard candle',
+      definition:
+        'An astronomical object with a known absolute luminosity, allowing distance to be calculated from measured apparent brightness. Type Ia supernovae are the most accurate standard candles for cosmological distances.',
+    },
+    {
+      term: 'Gravitational core collapse',
+      definition:
+        'The near-instantaneous (under one second) implosion of a massive star\'s iron core under its own weight after nuclear fuel is exhausted. Triggers the explosion of a Type II, Ib, or Ic supernova.',
+    },
+    {
+      term: 'Neutrino burst',
+      definition:
+        'The flood of neutrinos released during the core collapse of a supernova. It carries approximately 99 percent of the total explosion energy. Nineteen neutrinos from supernova 1987A were detected across three instruments.',
+    },
+    {
+      term: 'r-process (rapid neutron capture)',
+      definition:
+        'A nuclear reaction in which atomic nuclei rapidly absorb neutrons under extremely high neutron-flux conditions. Responsible for synthesizing elements heavier than iron: gold, uranium, platinum, rare-earth metals.',
+    },
+    {
+      term: 'Hypernova',
+      definition:
+        'An exceptionally energetic core-collapse supernova releasing 10 to 100 times the kinetic energy of a standard supernova. Associated with very massive stars and often the progenitor of a long gamma-ray burst.',
+    },
+    {
+      term: 'Dark energy',
+      definition:
+        'An unknown form of energy permeating space that causes the accelerating expansion of the universe. Discovered in 1998 through observations of Type Ia supernovae. Accounts for approximately 68 percent of the universe\'s total energy content.',
+    },
+    {
+      term: 'Wolf-Rayet star',
+      definition:
+        'Exceptionally hot and massive stars (above 20 to 25 solar masses) that shed their outer layers through intense stellar winds. Progenitors of Type Ib and Type Ic supernovae.',
+    },
+  ],
+
+  quiz: [
+    {
+      question: 'Why are Type Ia supernovae used as "standard candles" for measuring cosmological distances?',
+      options: [
+        'Because they are the brightest of all supernovae',
+        'Because the initial mass (Chandrasekhar limit) is always the same — so the peak luminosity is predictable',
+        'Because they leave a neutron star with known characteristics',
+        'Because they always occur at the centers of galaxies',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Type Ia supernovae occur when a white dwarf reaches the Chandrasekhar limit (~1.4 solar masses) and undergoes thermonuclear detonation. Because the initial mass is always the same, the peak absolute luminosity is also the same — with a well-calibrated correction for light-curve shape. This allows distance to be calculated from apparent brightness.',
+    },
+    {
+      question: 'What is the physical difference between a Type II and a Type Ia supernova?',
+      options: [
+        'Type II is brighter than Type Ia',
+        'Type Ia is a thermonuclear detonation of a white dwarf; Type II is gravitational collapse of a massive star\'s core',
+        'Type Ia leaves a neutron star; Type II leaves nothing',
+        'Type II occurs only in young galaxies',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Type Ia is the complete thermonuclear destruction of a white dwarf, leaving no remnant. Type II is the gravitational collapse of a massive star\'s iron core, leaving a neutron star or black hole at the center of an expanding nebula.',
+    },
+    {
+      question: 'What did Earth-based detectors register from supernova 1987A before any visible light appeared?',
+      options: [
+        'Gravitational waves',
+        'X-rays from the expanding shock wave',
+        'Neutrinos from the collapsing core',
+        'Radio emission from a pulsar',
+      ],
+      correctIndex: 2,
+      explanation:
+        'Neutrinos interact almost not at all with matter and escaped the collapsing core instantly, while photons had to fight their way through the outer layers of the star over several hours. Three detectors registered 19 neutrinos over 12 seconds — the first observation of neutrinos from a specific astrophysical event.',
+    },
+    {
+      question: 'What role does nickel-56 play in the light curve of a Type Ia supernova?',
+      options: [
+        'It ignites the thermonuclear detonation at the start of the explosion',
+        'It forms the neutron star at the center',
+        'Its radioactive decay to cobalt-56 and iron-56 sustains the brightness after the peak',
+        'It absorbs the shock wave and slows the expansion',
+      ],
+      correctIndex: 2,
+      explanation:
+        'The thermonuclear detonation of a white dwarf synthesizes roughly 0.5 to 0.8 solar masses of nickel-56. This isotope is unstable and decays with known half-lives: nickel-56 → cobalt-56 (6.1 days) → iron-56 (77.2 days). This decay chain sustains the brightness of the supernova for weeks and months after the initial explosion.',
+    },
+    {
+      question: 'Why can Type Ic supernovae produce gamma-ray bursts while Type II supernovae generally cannot?',
+      options: [
+        'Because Type II does not release neutrinos',
+        'Because Type Ic has no hydrogen envelope — the jet can break out without being choked',
+        'Because Type Ic always occurs closer to Earth',
+        'Because Type II leaves a neutron star instead of a black hole',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Forming a gamma-ray burst requires a narrow relativistic jet. In Type II supernovae the massive hydrogen envelope absorbs and chokes the jet before it can break free. In Types Ib and Ic the outer layers were already shed before the explosion — so the jet punches through and produces a gamma-ray burst.',
+    },
+  ],
+
+  sources: [
+    {
+      title: 'Perlmutter S. et al. — Measurements of Omega and Lambda from 42 High-Redshift Supernovae',
+      url: 'https://arxiv.org/abs/astro-ph/9812133',
+      meta: 'ApJ, 517, 565, 1999. Nobel Prize in Physics 2011.',
+    },
+    {
+      title: 'Riess A. et al. — Observational Evidence from Supernovae for an Accelerating Universe',
+      url: 'https://arxiv.org/abs/astro-ph/9805200',
+      meta: 'AJ, 116, 1009, 1998. Nobel Prize in Physics 2011.',
+    },
+    {
+      title: 'Hirata K. et al. — Observation of a neutrino burst from the supernova SN1987A',
+      url: 'https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.58.1490',
+      meta: 'PRL, 58, 1490, 1987. Neutrinos from SN1987A.',
+    },
+    {
+      title: 'Arnett W. D. — Type I supernovae — I. Analytic solutions for the early part of the light curve',
+      url: 'https://ui.adsabs.harvard.edu/abs/1982ApJ...253..785A',
+      meta: 'ApJ, 253, 785, 1982.',
+    },
+    {
+      title: 'Woosley S., Janka T. — The Physics of Core-Collapse Supernovae',
+      url: 'https://arxiv.org/abs/astro-ph/0601261',
+      meta: 'Nature Physics, 1, 147, 2005. Review of the collapse mechanism.',
+    },
+    {
+      title: 'Nomoto K. et al. — Nucleosynthesis yields of core-collapse supernovae and hypernovae',
+      url: 'https://arxiv.org/abs/astro-ph/0603488',
+      meta: 'Nuclear Physics A, 777, 424, 2006.',
+    },
+    {
+      title: 'Mazzali P. et al. — The metamorphosis of SN 1998bw',
+      url: 'https://arxiv.org/abs/astro-ph/0101387',
+      meta: 'Science, 299, 1238, 2003. Hypernovae and gamma-ray bursts.',
+    },
+    {
+      title: 'Chandrasekhar S. — The Maximum Mass of Ideal White Dwarfs',
+      url: 'https://ui.adsabs.harvard.edu/abs/1931ApJ....74...81C',
+      meta: 'ApJ, 74, 81, 1931. Classic paper.',
+    },
+    {
+      title: 'NASA — Supernova Cosmology Project',
+      url: 'https://supernova.lbl.gov/',
+      meta: 'Lawrence Berkeley National Laboratory, open access.',
+    },
+    {
+      title: 'ESA — What is a supernova?',
+      url: 'https://www.esa.int/Science_Exploration/Space_Science/What_is_a_supernova',
+      meta: 'ESA Science official page, updated 2024.',
+    },
+  ],
+
+  lastVerified: '2026-05-06',
+};
+
+export default lesson;

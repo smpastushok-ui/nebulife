@@ -1,0 +1,634 @@
+import type { Lesson } from '../../types.js';
+
+const lesson: Lesson = {
+  slug: 'space-debris',
+  language: 'en',
+  section: 'space-tech',
+  order: 5,
+  difficulty: 'beginner',
+  readingTimeMin: 11,
+  title: 'Space Debris',
+  subtitle: 'Over 36,000 tracked fragments, the Kessler syndrome, and the first mission in history to clean up an orbit.',
+
+  hero: {
+    cacheKey: 'space-debris-hero',
+    prompt:
+      'Photorealistic illustration for a science encyclopedia: Earth seen from low orbit, surrounded by a dense shell of orbital debris — ' +
+      'thousands of fragments of different sizes, defunct satellites, spent rocket stages, and smaller pieces forming visible rings and clouds around the planet. ' +
+      'The debris shell is lit by the sun from the right, casting subtle shadows. Earth glows blue-white below. Hard sci-fi style, dark space background, technically detailed. ' +
+      'Add the following text labels on the image: "tracked debris", "low orbit zone", "collision risk".',
+    alt: 'Earth seen from low orbit surrounded by a dense shell of thousands of space debris fragments — defunct satellite parts, spent rocket stages, and micro-particles',
+    caption:
+      'An artistic reconstruction of Earth\'s orbit accounting for all tracked debris. The actual objects are not drawn to scale — at true scale they would be invisible. Each point represents a potential catastrophe for any active spacecraft.',
+    aspectRatio: '16:9',
+  },
+
+  body: [
+    {
+      paragraphs: [
+        'Space looks empty. But low Earth orbit — where the International Space Station operates, ' +
+        'along with weather satellites, remote sensing platforms, and thousands of commercial spacecraft — ' +
+        'has long since become a junkyard. Invisible, fast-moving, and lethally dangerous.',
+
+        'As of 2026, more than 36,000 objects larger than ten centimeters are tracked. ' +
+        'But that is only the top of the iceberg. There are over one million objects between one and ten centimeters. ' +
+        'More than 130 million fragments smaller than one centimeter. None of those appear in any catalog, ' +
+        'none are tracked, yet each one at orbital velocity can destroy a functioning spacecraft ' +
+        'on contact.',
+
+        'Orbital velocity in low Earth orbit is approximately 7.8 kilometers per second. ' +
+        'When two objects approach each other from opposing directions, the relative impact speed ' +
+        'can reach approximately 27,000 kilometers per hour. At that speed, even a pea-sized fragment ' +
+        'carries kinetic energy comparable to a conventional artillery shell. ' +
+        'A few-gram aluminum ball punches through a satellite\'s pressure hull as if it were paper.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'space-debris-size-comparison',
+        prompt:
+          'Scientific infographic for a space encyclopedia comparing space debris fragment sizes in cross-section: ' +
+          'four fragments shown side by side at accurate relative scale — a 10cm+ tracked piece (defunct satellite part), ' +
+          'a 5cm fragment (untracked but lethal), a 1cm bolt head (destroys satellites), a 1mm paint flake (erodes surfaces). ' +
+          'Each fragment shown as a silhouette against dark space with a brief danger label. ' +
+          'Hard sci-fi style, dark background, orange and red accent colors, monospace labels. ' +
+          'Add the following text labels on the image: "tracked (10cm+)", "untracked lethal (1-10cm)", "paint flake (mm)", "relative scale".',
+        alt: 'Comparison of space debris fragment sizes: from large tracked pieces to invisible sub-millimeter paint flakes',
+        caption:
+          'Fragments smaller than ten centimeters cannot be tracked from Earth by ground-based radars. ' +
+          'Yet even a one-centimeter particle at orbital impact speeds releases enough energy ' +
+          'to completely destroy a small satellite.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Where debris comes from',
+      level: 2,
+      paragraphs: [
+        'The first artificial Earth satellite appeared in the second half of the twentieth century. ' +
+        'Since then orbit has grown steadily more populated — and steadily more littered. ' +
+        'The sources of debris fall into several categories.',
+
+        '**Defunct spacecraft and spent rocket stages** — the largest and most visible objects. ' +
+        'When a satellite exhausts its fuel or fails, it remains in orbit. ' +
+        'The upper stages of launch vehicles that deploy payloads also typically remain in orbit ' +
+        'after separation. Hundreds of tonnes of dead metal circle Earth for decades.',
+
+        '**Collisions and explosions** — the most productive generators of new debris. ' +
+        'Each catastrophic event instantly converts one object into thousands of fragments. ' +
+        'Some old rocket stages exploded due to residual propellant or pressurized gas. ' +
+        'A single incident — the explosion of a spent American Delta upper stage in the nineteen-seventies — ' +
+        'produced over a thousand tracked fragments. Such explosions have occurred dozens of times.',
+
+        '**Paint flakes and micro-particles** — the invisible cloud. ' +
+        'Paint peels off under ultraviolet radiation and thermal cycling. ' +
+        'Fasteners shed into tiny screws and slivers. ' +
+        'These particles, ranging from fractions of a millimeter to several millimeters, ' +
+        'form a continuous abrasive environment that gradually erodes solar panels, ' +
+        'windows, and thermal protection on active spacecraft.',
+      ],
+    },
+
+    {
+      heading: 'Three events that transformed the orbit',
+      level: 2,
+      paragraphs: [
+        'Among all incidents, three stand out for the scale of their consequences ' +
+        'and for making the debris problem visible to the entire world.',
+      ],
+    },
+
+    {
+      heading: 'The Chinese anti-satellite test of 2007',
+      level: 3,
+      paragraphs: [
+        'In January 2007, China destroyed its own Fengyun 1C weather satellite ' +
+        'with a ballistic interceptor missile. It was a demonstration of anti-satellite weapons — ' +
+        'technology that allows a nation to destroy enemy satellites directly in orbit.',
+
+        'The consequences for the orbital environment were catastrophic: ' +
+        'over 3,000 tracked fragments and an estimated 150,000 untracked pieces. ' +
+        'Most of the debris ended up in orbits between roughly 800 and 850 kilometers — ' +
+        'the most heavily used zone for Earth remote sensing. ' +
+        'The Fengyun 1C cloud remains one of the densest debris concentrations in orbit ' +
+        'and will stay there for decades.',
+      ],
+    },
+
+    {
+      heading: 'The Iridium-Cosmos collision of 2009',
+      level: 3,
+      paragraphs: [
+        'In February 2009, roughly 790 kilometers above Siberia, the first accidental ' +
+        'collision between two full-sized satellites took place. ' +
+        'The American commercial communications satellite Iridium 33 struck the defunct ' +
+        'Russian military satellite Cosmos 2251.',
+
+        'Both spacecraft were completely destroyed in a fraction of a second. ' +
+        'The collision generated over 2,000 tracked fragments and an estimated more than 100,000 ' +
+        'untracked pieces. The debris clouds from both satellites still cross the orbits ' +
+        'of other spacecraft today and will remain a hazard for decades.',
+      ],
+    },
+
+    {
+      heading: 'The Russian anti-satellite test of 2021',
+      level: 3,
+      paragraphs: [
+        'In November 2021, Russia conducted an anti-satellite weapons test, ' +
+        'destroying its own old signals intelligence satellite Cosmos 1408 ' +
+        'with a direct-ascent interceptor. The test produced over 1,500 tracked fragments ' +
+        'and forced the crew of the International Space Station to shelter inside docked ' +
+        'transport spacecraft for several hours as the debris cloud passed through their orbit.',
+
+        'The international community condemned the test. But no international law and ' +
+        'no enforcement mechanism existed to prohibit such tests. ' +
+        'China, the United States, and India have also demonstrated anti-satellite capabilities. ' +
+        'Each such test adds thousands of fragments that will persist for decades.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'space-debris-kessler-cascade',
+        prompt:
+          'Scientific diagram illustrating the Kessler syndrome cascade for a space encyclopedia: ' +
+          'three panels side by side showing progression — panel 1: sparse debris field with few objects; ' +
+          'panel 2: first collision generates multiple fragments with diverging velocity arrows; ' +
+          'panel 3: fragments collide again creating exponentially more pieces filling the orbit. ' +
+          'Red collision explosion markers at each impact point. Orbital arc lines in the background. ' +
+          'Hard sci-fi style, dark background, red and orange accent colors, monospace labels. ' +
+          'Add the following text labels on the image: "initial debris", "first collision", "cascade begins", "orbit unusable".',
+        alt: 'Three-panel diagram of the Kessler syndrome: initial debris, first collision, and exponential fragment multiplication until the orbit is unusable',
+        caption:
+          'The Kessler syndrome is a self-sustaining cascade. Each collision generates new fragments ' +
+          'that increase the probability of the next collision. Once debris density crosses the critical threshold, ' +
+          'the process becomes irreversible without active intervention.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'The Kessler syndrome: orbit as a minefield',
+      level: 2,
+      paragraphs: [
+        'In 1978, NASA astrophysicist Donald Kessler and his colleague Burton Cour-Palais ' +
+        'described a scenario that has since become a nightmare for mission planners and space engineers. ' +
+        'The logic is straightforward: if the density of objects in orbit exceeds a certain threshold, ' +
+        'collisions become self-sustaining.',
+
+        'Every collision between two objects generates a cloud of fragments. ' +
+        'That cloud increases the total number of objects in orbit. ' +
+        'More objects means a higher probability of further collisions. ' +
+        'Further collisions mean more fragments. The cascade grows, and stopping it naturally ' +
+        'becomes impossible even if humanity were to halt all satellite launches entirely.',
+
+        'Some researchers believe certain orbital altitudes have already passed the point of no return. ' +
+        'This does not mean an immediate collapse — the process unfolds over decades. ' +
+        'But left unchecked, the relatively accessible low Earth orbit could become ' +
+        'practically unusable for new spacecraft within the next few generations. ' +
+        'Space debris is not a problem belonging to any one country — it belongs to civilization as a whole.',
+
+        'There is a more optimistic side: atmospheric drag at the lower reaches of low Earth orbit ' +
+        '(below roughly 400 to 500 kilometers) naturally brings orbits down into the atmosphere ' +
+        'within months or years. But above 800 kilometers, objects remain in orbit for hundreds of years ' +
+        'without active intervention.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Debris density distribution by orbital altitude',
+        svg: `<svg viewBox="0 0 680 340" xmlns="http://www.w3.org/2000/svg">
+  <rect width="680" height="340" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Title -->
+  <text x="340" y="22" fill="#aabbcc" font-family="monospace" font-size="12" text-anchor="middle">Tracked debris density by orbital altitude (km)</text>
+
+  <!-- Axes -->
+  <line x1="70" y1="270" x2="620" y2="270" stroke="#334455" stroke-width="1.5"/>
+  <line x1="70" y1="270" x2="70" y2="40" stroke="#334455" stroke-width="1.5"/>
+
+  <!-- X axis label -->
+  <text x="345" y="300" fill="#8899aa" font-family="monospace" font-size="10" text-anchor="middle">Orbital altitude (km)</text>
+
+  <!-- Y axis label -->
+  <text x="16" y="155" fill="#8899aa" font-family="monospace" font-size="10" text-anchor="middle" transform="rotate(-90,16,155)">Relative density</text>
+
+  <!-- X axis ticks -->
+  <text x="70"  y="285" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">200</text>
+  <text x="152" y="285" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">400</text>
+  <text x="234" y="285" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">600</text>
+  <text x="316" y="285" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">800</text>
+  <text x="398" y="285" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">1000</text>
+  <text x="480" y="285" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">1200</text>
+  <text x="562" y="285" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">1400</text>
+  <text x="620" y="285" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">1500</text>
+
+  <!-- Grid lines -->
+  <line x1="68" y1="270" x2="620" y2="270" stroke="#334455" stroke-width="0.5" stroke-dasharray="4,6" opacity="0.4"/>
+  <line x1="68" y1="212" x2="620" y2="212" stroke="#334455" stroke-width="0.5" stroke-dasharray="4,6" opacity="0.4"/>
+  <line x1="68" y1="155" x2="620" y2="155" stroke="#334455" stroke-width="0.5" stroke-dasharray="4,6" opacity="0.4"/>
+  <line x1="68" y1="97"  x2="620" y2="97"  stroke="#334455" stroke-width="0.5" stroke-dasharray="4,6" opacity="0.4"/>
+
+  <!-- Debris density profile: approximate bar chart by altitude bands -->
+  <!-- 200-400 km: low (atmosphere drags objects down fast) -->
+  <rect x="75"  y="258" width="74" height="12"  fill="#44ff88" opacity="0.7"/>
+  <!-- 400-600 km: medium-low (ISS altitude zone) -->
+  <rect x="157" y="238" width="74" height="32"  fill="#ff8844" opacity="0.75"/>
+  <!-- 600-800 km: HIGH peak (sun-synchronous zone, Fengyun, Starlink early) -->
+  <rect x="239" y="90"  width="74" height="180" fill="#cc4444" opacity="0.85"/>
+  <!-- 800-1000 km: highest concentration (Iridium-Cosmos, Fengyun halo) -->
+  <rect x="321" y="60"  width="74" height="210" fill="#cc4444" opacity="0.95"/>
+  <!-- 1000-1200 km: high but dropping -->
+  <rect x="403" y="145" width="74" height="125" fill="#ff8844" opacity="0.8"/>
+  <!-- 1200-1400 km: medium -->
+  <rect x="485" y="210" width="74" height="60"  fill="#ff8844" opacity="0.65"/>
+  <!-- 1400-1500 km: low -->
+  <rect x="567" y="248" width="50" height="22"  fill="#7bb8ff" opacity="0.6"/>
+
+  <!-- Annotation: ISS zone -->
+  <line x1="157" y1="238" x2="157" y2="40" stroke="#44ff88" stroke-width="1" stroke-dasharray="3,4" opacity="0.7"/>
+  <text x="159" y="52" fill="#44ff88" font-family="monospace" font-size="9">ISS</text>
+  <text x="159" y="63" fill="#44ff88" font-family="monospace" font-size="9">~400 km</text>
+
+  <!-- Annotation: Fengyun / Iridium-Cosmos peak -->
+  <text x="260" y="82" fill="#cc4444" font-family="monospace" font-size="9">Fengyun +</text>
+  <text x="260" y="93" fill="#cc4444" font-family="monospace" font-size="9">Iridium-Cosmos</text>
+
+  <!-- Starlink label -->
+  <text x="159" y="240" fill="#7bb8ff" font-family="monospace" font-size="9">Starlink</text>
+
+  <!-- Legend -->
+  <rect x="72" y="312" width="12" height="10" fill="#44ff88" opacity="0.7"/>
+  <text x="88" y="321" fill="#8899aa" font-family="monospace" font-size="9">low</text>
+  <rect x="130" y="312" width="12" height="10" fill="#ff8844" opacity="0.8"/>
+  <text x="146" y="321" fill="#8899aa" font-family="monospace" font-size="9">moderate</text>
+  <rect x="218" y="312" width="12" height="10" fill="#cc4444" opacity="0.9"/>
+  <text x="234" y="321" fill="#8899aa" font-family="monospace" font-size="9">critical</text>
+  <rect x="300" y="312" width="12" height="10" fill="#7bb8ff" opacity="0.6"/>
+  <text x="316" y="321" fill="#8899aa" font-family="monospace" font-size="9">commercial constellations</text>
+</svg>`,
+        caption:
+          'The most dangerous zones lie between 600 and 1,000 kilometers altitude — ' +
+          'where debris from anti-satellite weapons tests and the Iridium-Cosmos collision is concentrated. ' +
+          'At the International Space Station altitude (roughly 400 kilometers), atmospheric drag ' +
+          'naturally clears most small fragments within years. Above 800 kilometers they persist for centuries.',
+      },
+    },
+
+    {
+      heading: 'The most crowded orbits: why low Earth orbit is under the most pressure',
+      level: 2,
+      paragraphs: [
+        'Low Earth orbit is the zone from roughly 160 to 2,000 kilometers above the surface. ' +
+        'It is attractive for several reasons: comparatively low launch costs, ' +
+        'minimal signal latency for communications satellites, ' +
+        'and ideal geometry for Earth observation.',
+
+        'This is where most twenty-first-century commercial activity is concentrated. ' +
+        'By early 2026, over 8,000 satellites from SpaceX\'s Starlink network alone ' +
+        'were operating in low Earth orbit. Amazon\'s Project Kuiper plans to add several thousand more; ' +
+        'OneWeb is already deploying its constellation. ' +
+        'The total number of planned satellites across announced constellations exceeds 100,000 spacecraft. ' +
+        'If all those plans are realized, the orbital environment will be fundamentally transformed.',
+
+        'Sun-synchronous orbits are a particularly congested niche. ' +
+        'These orbits are inclined so that the spacecraft crosses any point on Earth at approximately ' +
+        'the same local solar time. That makes them ideal for mapping and Earth surveillance. ' +
+        'The problem: the vast majority of remote sensing spacecraft converge on the same orbital planes — ' +
+        'and so does the debris that comes with them.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'space-debris-starlink-constellation',
+        prompt:
+          'Photorealistic scientific illustration for a space encyclopedia: view from above Earth\'s north pole, showing the planet with thousands of small satellites ' +
+          'arranged in regular orbital shells at different altitudes, forming geometric patterns of orbital planes. ' +
+          'Each satellite trail is a faint blue-white line. The constellation structure is clearly geometric. ' +
+          'Hard sci-fi style, dark space background, technical and awe-inspiring. ' +
+          'Add the following text labels on the image: "low orbit constellation", "orbital planes", "8000+ satellites (2026)".',
+        alt: 'View above Earth\'s north pole with thousands of mega-constellation satellites in low Earth orbit forming geometric orbital planes',
+        caption:
+          'Commercial mega-constellations fundamentally change the collision statistics in low Earth orbit. ' +
+          'Every new satellite added is another object requiring avoidance maneuvers. ' +
+          'Starlink alone executes thousands of collision avoidance maneuvers per year.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'The Whipple shield and surviving in orbit',
+      level: 2,
+      paragraphs: [
+        'Spacecraft designers cannot ignore micro-particles. ' +
+        'Any vehicle spending months or years in orbit will inevitably encounter ' +
+        'a stream of small debris fragments and micro-meteoroids.',
+
+        'The **Whipple shield** is the most widespread structural solution. ' +
+        'American astronomer Fred Whipple proposed the concept in the mid-twentieth century. ' +
+        'The idea is elegant: a thin sacrificial plate of aluminum or high-strength material ' +
+        'is mounted some distance in front of the main structure. ' +
+        'When a micro-particle strikes the sacrificial plate, it fragments and partially vaporizes. ' +
+        'The resulting cloud of tiny pieces disperses across the gap ' +
+        'and fails to penetrate the main wall behind it. ' +
+        'The principle is applied to the International Space Station ' +
+        'and most crewed and high-value uncrewed spacecraft.',
+
+        'But even the Whipple shield is helpless against objects larger than about one centimeter: ' +
+        'at orbital velocities such a fragment punches through any reasonable protective structure. ' +
+        'The only defense is an avoidance maneuver. ' +
+        'For that, the orbit of the threatening object must be known in advance, ' +
+        'and only fragments above ten centimeters can be reliably tracked. ' +
+        'Millions of invisible particles remain an invisible threat.',
+      ],
+    },
+
+    {
+      heading: 'Passive cleanup: the role of the atmosphere',
+      level: 2,
+      paragraphs: [
+        'Below roughly 500 to 600 kilometers, Earth\'s atmosphere does not end completely — ' +
+        'it simply thins to vanishingly small densities. Even that tenuous gas ' +
+        'exerts a tiny but measurable drag on orbiting objects. ' +
+        'Over time that drag lowers the orbit, and after years or decades ' +
+        'the object enters the dense atmosphere and burns up.',
+
+        'At the altitude of the International Space Station (roughly 400 kilometers), ' +
+        'a small fragment stays in orbit for years; a large one for a few years or decades. ' +
+        'But already at 600 to 700 kilometers the residency time stretches to decades. ' +
+        'At 800 to 1,000 kilometers it reaches hundreds of years. ' +
+        'At geostationary orbit altitude (35,786 kilometers) objects remain essentially permanently: ' +
+        'the atmosphere does not reach there at all.',
+
+        'This is why the 25-year rule has become one of the key standards of modern spaceflight. ' +
+        'Any spacecraft that completes its mission in low Earth orbit ' +
+        'must be de-orbited within 25 years — ' +
+        'either by active braking using remaining propellant, ' +
+        'or passively through atmospheric drag. ' +
+        'The rule has been adopted by most space agencies, but it is not legally binding ' +
+        'and is often violated in practice.',
+      ],
+    },
+
+    {
+      heading: 'Active debris removal: the first missions',
+      level: 2,
+      paragraphs: [
+        'Rules and passive deorbit address the accumulation of new debris. ' +
+        'But the millions of fragments already in orbit require active removal. ' +
+        'This is an emerging sector of the space industry, still taking its first steps.',
+
+        'The **ClearSpace-1 mission** from the European Space Agency is the first active debris removal ' +
+        'mission in history. Its launch is planned for 2026. ' +
+        'The ClearSpace-1 spacecraft rendezvouses with a spent upper-stage adapter from a Vega rocket, ' +
+        'grasps it with robotic tentacle arms, and de-orbits both — ' +
+        'the target and the debris-removal spacecraft itself — for atmospheric burn-up. ' +
+        'The mission is modest in scale, but foundational: for the first time it demonstrates ' +
+        'rendezvous, capture, and deorbit of an actual piece of orbital debris.',
+
+        '**Astroscale** is a Japanese private company specializing in orbital cleanup. ' +
+        'Their demonstration mission proved and refined the technology for approaching ' +
+        'a passive target object — a necessary precursor to actual debris removal. ' +
+        'Subsequent missions are aimed at a defunct Japanese rocket stage.',
+
+        '**Drag sails** are a passive alternative. ' +
+        'A thin film deploys after mission completion and dramatically increases ' +
+        'the spacecraft\'s aerodynamic cross-section in the tenuous atmosphere. ' +
+        'Natural deorbit time is cut from decades to months. ' +
+        'Several companies are beginning to offer the technology as a standard module ' +
+        'for small satellites.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'space-debris-clearspace-mission',
+        prompt:
+          'Photorealistic scientific illustration for a space encyclopedia: a debris removal spacecraft with four robotic arms extended, ' +
+          'approaching and grappling a large spent rocket adapter tumbling slowly in low Earth orbit. ' +
+          'Earth curved horizon visible below. Spacecraft has a clean geometric design with solar panels and camera boom. ' +
+          'The target object is a dull grey metal cylinder, visibly aged and worn. ' +
+          'Hard sci-fi style, realistic scale and lighting, dark space background. ' +
+          'Add the following text labels on the image: "debris removal craft", "target adapter", "robotic arms", "deorbit maneuver".',
+        alt: 'A debris removal spacecraft with four robotic arms grappling a spent rocket adapter in low Earth orbit',
+        caption:
+          'The ClearSpace-1 mission concept. The spacecraft rendezvouses with its target, grasps it with robotic arms, ' +
+          'and de-orbits both objects for atmospheric burn-up. The first demonstration of active orbital debris removal in history.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Accountability and the legal vacuum',
+      level: 2,
+      paragraphs: [
+        'The space debris problem is not only technical. It is deeply legal and political. ' +
+        'The Outer Space Treaty of 1967 declared outer space the common heritage of humanity. ' +
+        'But it established no liability for debris left in orbit ' +
+        'after a mission ends.',
+
+        'The state that launches a spacecraft retains jurisdiction and ownership over it — ' +
+        'even after it stops functioning. But no mechanism exists to compel the removal of dead spacecraft. ' +
+        'It is legally impossible to force another state to clean up its satellites. ' +
+        'It is impossible to invoice for the debris cloud produced by an anti-satellite test.',
+
+        'Companies deploying mega-constellations are required to file deorbit plans ' +
+        'and follow coordination rules with regulators. ' +
+        'But the effectiveness of that regulation depends on the willingness of states to comply. ' +
+        'Without universally binding international norms, orbit remains an open tragedy of the commons: ' +
+        'everyone benefits from its use, but nobody bears full responsibility for its degradation.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'space-debris-drag-sail',
+        prompt:
+          'Photorealistic scientific illustration for a space encyclopedia: a small cubesat-sized satellite deploying a large rectangular drag sail — ' +
+          'a thin metallic reflective film unfolding from a compact housing, many times larger than the satellite body. ' +
+          'The drag sail slows the satellite and causes it to spiral down toward Earth\'s atmosphere visible at the bottom of the frame. ' +
+          'Hard sci-fi style, dark space background, technically detailed, clean design. ' +
+          'Add the following text labels on the image: "drag sail deployed", "increased atmospheric drag", "deorbit trajectory", "compact housing".',
+        alt: 'A small satellite deploying a large drag sail for accelerated deorbit — a thin metallic film many times larger than the spacecraft body',
+        caption:
+          'Drag sails are one of the cheapest means of guaranteed deorbit for small satellites. ' +
+          'Once the mission ends, the film deploys and sharply increases drag from the tenuous atmosphere. ' +
+          'Natural deorbit time drops from decades to months.',
+        aspectRatio: '4:3',
+      },
+    },
+  ],
+
+  glossary: [
+    {
+      term: 'Kessler syndrome',
+      definition:
+        'A scenario described in 1978 in which the density of objects in orbit exceeds a critical threshold and collisions become self-sustaining: each incident generates new fragments that increase the probability of the next collision.',
+    },
+    {
+      term: 'Anti-satellite weapon',
+      definition:
+        'A weapons system designed to destroy or disable an adversary\'s satellites directly in orbit. Ballistic interceptors, when detonating the target, produce thousands of fragments that remain in orbit for decades.',
+    },
+    {
+      term: 'Deorbit',
+      definition:
+        'A deliberate lowering of a spacecraft\'s orbit until it re-enters the dense atmosphere, where it burns up or impacts in a designated area. Can be active (braking engine) or passive (atmospheric drag, drag sail).',
+    },
+    {
+      term: 'Whipple shield',
+      definition:
+        'A spacecraft structural defense against micro-particles: a thin sacrificial plate mounted at a standoff distance from the main wall. A particle striking the plate fragments and loses energy, failing to penetrate the main structure.',
+    },
+    {
+      term: 'Low Earth orbit',
+      definition:
+        'The orbital zone from 160 to 2,000 kilometers above Earth\'s surface. The most populated and most debris-laden orbital environment. The International Space Station orbits at roughly 400 kilometers.',
+    },
+    {
+      term: 'Sun-synchronous orbit',
+      definition:
+        'A polar orbit inclined so that the spacecraft passes over any point on Earth at approximately the same local solar time. Ideal for remote sensing and mapping, but creates the densest clusters of spacecraft and debris.',
+    },
+    {
+      term: 'Drag sail',
+      definition:
+        'A thin film that deploys after mission completion and sharply increases the spacecraft\'s aerodynamic cross-section in the tenuous atmosphere of low Earth orbit. Reduces natural deorbit time from decades to months.',
+    },
+    {
+      term: '25-year rule',
+      definition:
+        'A recommended international standard requiring any spacecraft completing its mission in low Earth orbit to be de-orbited within 25 years. Adopted by most space agencies but not legally binding and frequently violated in practice.',
+    },
+    {
+      term: 'Active debris removal',
+      definition:
+        'Technology for deliberately approaching, capturing, and de-orbiting existing orbital debris fragments using specialized cleanup spacecraft. The first mission of this type is ClearSpace-1, launching in 2026.',
+    },
+  ],
+
+  quiz: [
+    {
+      question: 'How many tracked space debris fragments larger than 10 centimeters were recorded as of 2026?',
+      options: [
+        'Approximately 5,000',
+        'Over 36,000',
+        'Approximately 1 million',
+        'Over 130 million',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Over 36,000 objects larger than 10 centimeters are tracked by ground-based radar networks. Objects between 1 and 10 centimeters number over one million — they are not tracked but pose a serious threat to spacecraft in orbit.',
+    },
+    {
+      question: 'What is the Kessler syndrome?',
+      options: [
+        'A technology for detecting orbital debris using ground-based radars',
+        'A self-sustaining collision cascade: each impact generates new fragments that increase the probability of the next',
+        'An international treaty on liability for orbital debris',
+        'A method for clearing orbits by laser ablation of particles',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Kessler and Cour-Palais described this scenario in 1978: once debris density exceeds a threshold, collisions become self-reproducing. Each incident generates fragments that raise the probability of further collisions, even if no new launches ever take place.',
+    },
+    {
+      question: 'What is the relative impact speed of two objects in low Earth orbit approaching each other from opposing directions?',
+      options: [
+        'Approximately 1,000 kilometers per hour — like a fast aircraft',
+        'Approximately 7,800 kilometers per hour — the orbital speed of one object',
+        'Up to 27,000 kilometers per hour — roughly twice the orbital speed',
+        'A few hundred kilometers per hour — because objects travel mostly in parallel',
+      ],
+      correctIndex: 2,
+      explanation:
+        'When two objects approach head-on in low Earth orbit, the relative impact speed can reach approximately 27,000 kilometers per hour — roughly twice the orbital speed of a single object. At that speed even a fragment weighing a few grams carries kinetic energy comparable to an artillery projectile.',
+    },
+    {
+      question: 'Which mission was the first in history to actively remove orbital debris?',
+      options: [
+        'Dragon XL by SpaceX (2024)',
+        'ClearSpace-1 by the European Space Agency (2026)',
+        'Astroscale ELSA-G (2023)',
+        'RemoveSAT by NASA (2022)',
+      ],
+      correctIndex: 1,
+      explanation:
+        'ClearSpace-1 is the first active debris removal mission, with its launch planned for 2026. The spacecraft captures a spent Vega rocket adapter using robotic arms and de-orbits both objects for atmospheric burn-up.',
+    },
+    {
+      question: 'What is a Whipple shield and what does it protect against?',
+      options: [
+        'Radiation shielding against solar protons during solar flare events',
+        'A sacrificial thin plate in front of the main hull: an impacting particle fragments and cannot penetrate the main wall',
+        'An active laser deflection system for large debris fragments',
+        'A heat-resistant coating protecting against micro-meteoroids at high speeds',
+      ],
+      correctIndex: 1,
+      explanation:
+        'The Whipple shield, proposed in the mid-twentieth century, is a multi-layer defense: a thin sacrificial plate mounted at a standoff from the main hull. A micro-particle striking the plate fragments and disperses, failing to reach the main structure. Applied to the International Space Station and most crewed spacecraft.',
+    },
+  ],
+
+  sources: [
+    {
+      title: 'NASA — Orbital Debris Quarterly News',
+      url: 'https://orbitaldebris.jsc.nasa.gov/quarterly-news/',
+      meta: 'NASA Orbital Debris Program Office, updated quarterly',
+    },
+    {
+      title: 'ESA — Space Debris by the Numbers',
+      url: 'https://www.esa.int/Space_Safety/Space_Debris/Space_debris_by_the_numbers',
+      meta: 'European Space Agency, updated 2025',
+    },
+    {
+      title: 'Kessler D.J., Cour-Palais B.G. — Collision frequency of artificial satellites: the creation of a debris belt (1978)',
+      url: 'https://agupubs.onlinelibrary.wiley.com/doi/10.1029/JA083iA06p02637',
+      meta: 'Journal of Geophysical Research, 1978 — original Kessler paper',
+    },
+    {
+      title: 'ESA — ClearSpace-1: Europe\'s first debris removal mission',
+      url: 'https://www.esa.int/Space_Safety/ClearSpace-1',
+      meta: 'ESA Space Safety Programme, updated 2025',
+    },
+    {
+      title: 'Astroscale — Active Debris Removal mission overview',
+      url: 'https://astroscale.com/missions/adras-j/',
+      meta: 'Astroscale, open access, 2024',
+    },
+    {
+      title: 'NASA — Fengyun 1C Debris: 14 Years On',
+      url: 'https://orbitaldebris.jsc.nasa.gov/quarterly-news/pdfs/ODQNv21i2.pdf',
+      meta: 'NASA Orbital Debris Program Office, 2021',
+    },
+    {
+      title: 'Iridium-Cosmos collision — NASA technical report',
+      url: 'https://orbitaldebris.jsc.nasa.gov/quarterly-news/pdfs/ODQNv13i2.pdf',
+      meta: 'NASA Orbital Debris Quarterly News, 2009',
+    },
+    {
+      title: 'United States Space Command — Russian ASAT test November 2021',
+      url: 'https://www.spacecom.mil/News/Article-Display/Article/2842957/',
+      meta: 'US Space Command, November 2021',
+    },
+    {
+      title: 'Whipple F. — Meteorites and Space Travel (1947)',
+      url: 'https://ui.adsabs.harvard.edu/abs/1947AJ.....52..131W',
+      meta: 'Astronomical Journal, 1947 — original shield proposal',
+    },
+    {
+      title: 'Inter-Agency Space Debris Coordination Committee — IADC Space Debris Mitigation Guidelines',
+      url: 'https://www.iadc-home.org/documents_public/view/id/82',
+      meta: 'IADC, revised 2021 — international mitigation guidelines',
+    },
+  ],
+
+  lastVerified: '2026-05-06',
+};
+
+export default lesson;

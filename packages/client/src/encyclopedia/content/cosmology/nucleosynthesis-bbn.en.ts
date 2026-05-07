@@ -1,0 +1,727 @@
+import type { Lesson } from '../../types.js';
+
+const lesson: Lesson = {
+  slug: 'nucleosynthesis-bbn',
+  language: 'en',
+  section: 'cosmology',
+  order: 9,
+  difficulty: 'intermediate',
+  readingTimeMin: 12,
+  title: 'Big Bang Nucleosynthesis',
+  subtitle:
+    'In the first few minutes after the universe was born, all the hydrogen and helium that still exists was forged. How nuclear physics predicted the composition of the universe to within a percent — and where that precision breaks down.',
+
+  hero: {
+    cacheKey: 'nucleosynthesis-bbn-hero',
+    prompt:
+      'Photorealistic illustration for a science encyclopedia: primordial nucleosynthesis — ' +
+      'the first minutes of the universe. A vast glowing plasma of protons, neutrons and light nuclei ' +
+      'fusing together against a blazing hot background of orange-white radiation. ' +
+      'Particle collisions visible as bright flashes. Temperature gradient from intense white-hot center ' +
+      'to cooler deep red at edges. Hard sci-fi style, dark space background. ' +
+      'Add the following text labels on the image: "t = 1 s", "T = 10^10 K", "n + p -> D", "He-4 25%". ' +
+      'Aspect ratio 16:9.',
+    alt:
+      'Primordial plasma of the first minutes of the universe — protons and neutrons fusing into helium nuclei.',
+    caption:
+      'Big Bang Nucleosynthesis: in the first few minutes after the birth of the universe, ' +
+      'nuclear reactions established the primordial chemical inventory — hydrogen and helium in a 3:1 ratio by mass.',
+    aspectRatio: '16:9',
+  },
+
+  body: [
+    {
+      paragraphs: [
+        'When astrophysicists measure the composition of the oldest stars in our Galaxy — ' +
+        'those that formed before the first supernovae had a chance to enrich the surrounding gas with heavy elements — ' +
+        'they find the same number every time: roughly one quarter of the star\'s mass is helium. ' +
+        'Not a third. Not one tenth. Precisely one quarter, with remarkable consistency. ' +
+        'That consistency is not coincidence. It is written into the physics of the universe\'s first minutes ' +
+        'with the same inevitability that governs planetary orbits.',
+
+        'Big Bang Nucleosynthesis is the collective name for the nuclear reactions that took place ' +
+        'roughly from the first second to the first thousand seconds after the universe was born. ' +
+        'During that interval, the temperature fell from ten billion kelvin to tens of millions of kelvin — ' +
+        'exactly the range in which nuclear reactions can first proceed and then can no longer. ' +
+        'The result: all the hydrogen and helium in the universe was produced in those first few minutes. ' +
+        'Everything that came after — the whole periodic table beyond lithium — is the work of stars born much later.',
+      ],
+    },
+
+    {
+      heading: 'What Happened Before Nucleosynthesis',
+      level: 2,
+      paragraphs: [
+        'In the first second after the universe was born, temperatures were so extreme ' +
+        'that nuclei could not exist at all. Any nucleus that managed to form was immediately torn apart ' +
+        'by the relentless flood of energetic photons. ' +
+        'But protons and neutrons — the building blocks of future nuclei — were already present, ' +
+        'and they were continuously interconverting through _weak nuclear interactions_.',
+
+        'Weak interaction reactions kept protons and neutrons in thermodynamic equilibrium: ' +
+        'a neutron would convert into a proton, a proton into a neutron, ' +
+        'the system endlessly exchanging identity. ' +
+        'The equilibrium ratio favored protons, because a neutron is heavier ' +
+        'and requires more energy to produce. ' +
+        'The lower the temperature, the smaller the neutron fraction.',
+
+        'Approximately one second after the birth of the universe — when the temperature fell below ten billion kelvin — ' +
+        'a decisive transition occurred: **weak interaction freeze-out**. ' +
+        'The universe was expanding and cooling so rapidly ' +
+        'that weak interaction reactions could no longer keep pace with the expansion rate. ' +
+        'From that moment on, the neutron-to-proton ratio was locked at roughly one to six. ' +
+        'This ratio is not a peripheral detail — it is the foundation: ' +
+        'it will determine the final helium content of the universe.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'nucleosynthesis-bbn-freeze-out',
+        prompt:
+          'Scientific illustration for a science encyclopedia: weak interaction freeze-out in early universe. ' +
+          'A graph showing neutron-to-proton ratio over time (log scale) starting from ~1:1 at high temperature ' +
+          'and dropping to ~1:7 at freeze-out around t=1 second, T=10^10 K. ' +
+          'Dashed vertical line marking the freeze-out point. ' +
+          'Hard sci-fi style, dark background #020510, cyan and orange accent lines, monospace labels. ' +
+          'Add the following text labels on the image: "n/p ratio", "freeze-out: n/p = 1/6", ' +
+          '"T = 10^10 K", "t = 1 s", "free neutron decay". ' +
+          'Aspect ratio 4:3.',
+        alt:
+          'Graph: the declining neutron fraction at weak interaction freeze-out, locking n/p at approximately 1 to 6.',
+        caption:
+          'Weak interaction freeze-out at a temperature of approximately ten billion kelvin locked ' +
+          'the neutron-to-proton ratio at around one to six — the foundation of the eventual helium abundance.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'The Deuterium Bottleneck: Why Nucleosynthesis Was Delayed',
+      level: 2,
+      paragraphs: [
+        'Even after weak interaction freeze-out, full-scale nucleosynthesis could not begin immediately. ' +
+        'The first step toward any complex nucleus is the fusion of one proton and one neutron into _deuterium_ — ' +
+        'heavy hydrogen with mass number two. ' +
+        'But deuterium is fragile, easily shattered by photons, ' +
+        'and the early universe was saturated with them.',
+
+        'For the first few minutes, the temperature remained high enough ' +
+        'that photons destroyed deuterium faster than it could form. ' +
+        'This is the **deuterium bottleneck** — the narrow constraint that delayed the entire nucleosynthesis chain. ' +
+        'Meanwhile, neutrons were not waiting patiently: a free neutron is unstable and decays ' +
+        'into a proton, an electron, and an antineutrino, with a characteristic lifetime of roughly ten minutes. ' +
+        'Every second of delay consumed some of the available neutron supply.',
+
+        'When the temperature finally dropped to the threshold where photons could no longer efficiently photodisintegrate deuterium — ' +
+        'roughly three minutes after the birth of the universe — ' +
+        'the bottleneck opened and reactions proceeded in a rapid cascade. ' +
+        'Deuterium fused into helium-3; helium-3 and deuterium fused into helium-4; ' +
+        'a small fraction went on to form lithium-7. ' +
+        'Because by that point free neutron decay had shifted the neutron-to-proton ratio ' +
+        'from roughly one to six to closer to one to seven, ' +
+        'the final helium-4 mass fraction came out at approximately twenty-five percent.',
+      ],
+    },
+
+    {
+      heading: 'Why Nothing Heavier Than Lithium-7 Was Made',
+      level: 2,
+      paragraphs: [
+        'Helium-4 turned out to be an exceptionally tightly bound nucleus — ' +
+        'two pairs of nucleons in closed shells, making it extremely resistant to further fusion. ' +
+        'To build anything heavier, you must pass through mass numbers five and eight — ' +
+        'but nature placed an impassable barrier there.',
+
+        'Nuclei with mass number five do not exist in stable form at all — ' +
+        'helium-5 and lithium-5 disintegrate almost instantaneously. ' +
+        'Beryllium-8 — the natural next candidate in the chain — is also unstable, ' +
+        'decaying into two helium-4 nuclei in an incredibly short time. ' +
+        'These **gaps at mass numbers five and eight** make it impossible to build heavier nuclei ' +
+        'under Big Bang Nucleosynthesis conditions.',
+
+        'Stars circumvent this problem through the _triple-alpha process_: ' +
+        'three helium-4 nuclei fuse nearly simultaneously at the extreme temperatures and densities of a stellar core. ' +
+        'But in Big Bang Nucleosynthesis the conditions were fundamentally different — ' +
+        'within a few minutes of the reactions beginning, the temperature was already falling below the required threshold, ' +
+        'and the density was far lower than in a stellar core. ' +
+        'So nucleosynthesis halted at lithium-7 and ended. ' +
+        'Everything heavier — carbon, oxygen, iron, gold — was forged later, ' +
+        'inside stars and in the violence of supernova explosions.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Diagram: Big Bang Nucleosynthesis Reaction Network',
+        svg: `<svg viewBox="0 0 700 320" xmlns="http://www.w3.org/2000/svg">
+  <rect width="700" height="320" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Title -->
+  <text x="350" y="20" text-anchor="middle" fill="#aabbcc" font-family="monospace" font-size="11">Big Bang Nucleosynthesis Reaction Network</text>
+
+  <!-- p (proton) -->
+  <circle cx="80" cy="100" r="22" fill="rgba(123,184,255,0.2)" stroke="#7bb8ff" stroke-width="1.5"/>
+  <text x="80" y="96" text-anchor="middle" fill="#7bb8ff" font-family="monospace" font-size="12">p</text>
+  <text x="80" y="110" text-anchor="middle" fill="#8899aa" font-family="monospace" font-size="9">proton</text>
+
+  <!-- n (neutron) -->
+  <circle cx="80" cy="200" r="22" fill="rgba(255,136,68,0.2)" stroke="#ff8844" stroke-width="1.5"/>
+  <text x="80" y="196" text-anchor="middle" fill="#ff8844" font-family="monospace" font-size="12">n</text>
+  <text x="80" y="210" text-anchor="middle" fill="#8899aa" font-family="monospace" font-size="9">neutron</text>
+
+  <!-- Arrow p+n -> D -->
+  <line x1="104" y1="125" x2="185" y2="155" stroke="#44ff88" stroke-width="1" stroke-dasharray="4,3"/>
+  <line x1="104" y1="178" x2="185" y2="155" stroke="#44ff88" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="130" y="148" fill="#44ff88" font-family="monospace" font-size="9">+gamma</text>
+
+  <!-- D (deuterium) -->
+  <circle cx="210" cy="155" r="24" fill="rgba(68,255,136,0.15)" stroke="#44ff88" stroke-width="1.5"/>
+  <text x="210" y="151" text-anchor="middle" fill="#44ff88" font-family="monospace" font-size="13">D</text>
+  <text x="210" y="167" text-anchor="middle" fill="#8899aa" font-family="monospace" font-size="9">deuterium</text>
+
+  <!-- Arrow D -> He3 -->
+  <line x1="235" y1="145" x2="315" y2="120" stroke="#aabbcc" stroke-width="1"/>
+  <polygon points="315,120 305,118 309,128" fill="#aabbcc"/>
+  <text x="265" y="125" fill="#8899aa" font-family="monospace" font-size="8">D+p</text>
+
+  <!-- He-3 -->
+  <circle cx="340" cy="108" r="24" fill="rgba(123,184,255,0.15)" stroke="#7bb8ff" stroke-width="1.5"/>
+  <text x="340" y="104" text-anchor="middle" fill="#7bb8ff" font-family="monospace" font-size="11">He-3</text>
+  <text x="340" y="118" text-anchor="middle" fill="#8899aa" font-family="monospace" font-size="9">helium-3</text>
+
+  <!-- Arrow D -> T -->
+  <line x1="235" y1="165" x2="315" y2="192" stroke="#aabbcc" stroke-width="1"/>
+  <polygon points="315,192 305,186 307,196" fill="#aabbcc"/>
+  <text x="265" y="185" fill="#8899aa" font-family="monospace" font-size="8">D+n</text>
+
+  <!-- T (tritium) -->
+  <circle cx="340" cy="200" r="24" fill="rgba(204,68,68,0.15)" stroke="#cc4444" stroke-width="1.5"/>
+  <text x="340" y="196" text-anchor="middle" fill="#cc4444" font-family="monospace" font-size="11">T</text>
+  <text x="340" y="210" text-anchor="middle" fill="#8899aa" font-family="monospace" font-size="9">tritium</text>
+
+  <!-- He3 + T -> He4 -->
+  <line x1="364" y1="118" x2="460" y2="148" stroke="#ff8844" stroke-width="1.2"/>
+  <line x1="364" y1="192" x2="460" y2="165" stroke="#ff8844" stroke-width="1.2"/>
+  <polygon points="460,155 450,148 450,162" fill="#ff8844"/>
+
+  <!-- He-4 (main product) -->
+  <circle cx="485" cy="155" r="30" fill="rgba(255,136,68,0.25)" stroke="#ff8844" stroke-width="2"/>
+  <text x="485" y="150" text-anchor="middle" fill="#ff8844" font-family="monospace" font-size="13">He-4</text>
+  <text x="485" y="165" text-anchor="middle" fill="#ff8844" font-family="monospace" font-size="9">25% mass</text>
+
+  <!-- He4 -> Li7 (trace) -->
+  <line x1="515" y1="145" x2="595" y2="115" stroke="#667788" stroke-width="1" stroke-dasharray="3,3"/>
+  <polygon points="595,115 585,112 588,122" fill="#667788"/>
+  <text x="545" y="122" fill="#667788" font-family="monospace" font-size="8">He4+T</text>
+
+  <!-- Li-7 -->
+  <circle cx="620" cy="104" r="22" fill="rgba(68,136,170,0.15)" stroke="#4488aa" stroke-width="1"/>
+  <text x="620" y="100" text-anchor="middle" fill="#4488aa" font-family="monospace" font-size="11">Li-7</text>
+  <text x="620" y="114" text-anchor="middle" fill="#8899aa" font-family="monospace" font-size="9">trace</text>
+
+  <!-- BARRIER label -->
+  <rect x="560" y="170" width="130" height="38" rx="2" fill="rgba(204,68,68,0.1)" stroke="#cc4444" stroke-width="1" stroke-dasharray="4,2"/>
+  <text x="625" y="187" text-anchor="middle" fill="#cc4444" font-family="monospace" font-size="9">mass 5 and 8:</text>
+  <text x="625" y="200" text-anchor="middle" fill="#cc4444" font-family="monospace" font-size="9">no stable nuclei</text>
+
+  <!-- Timeline bar at bottom -->
+  <line x1="40" y1="275" x2="660" y2="275" stroke="#334455" stroke-width="1"/>
+  <text x="80" y="292" text-anchor="middle" fill="#667788" font-family="monospace" font-size="9">~1 s</text>
+  <text x="80" y="303" text-anchor="middle" fill="#667788" font-family="monospace" font-size="9">freeze-out</text>
+  <text x="210" y="292" text-anchor="middle" fill="#667788" font-family="monospace" font-size="9">~3 min</text>
+  <text x="210" y="303" text-anchor="middle" fill="#667788" font-family="monospace" font-size="9">D bottleneck</text>
+  <text x="485" y="292" text-anchor="middle" fill="#ff8844" font-family="monospace" font-size="9">~20 min</text>
+  <text x="485" y="303" text-anchor="middle" fill="#ff8844" font-family="monospace" font-size="9">He-4 complete</text>
+  <text x="650" y="292" text-anchor="middle" fill="#667788" font-family="monospace" font-size="9">end</text>
+  <polygon points="662,272 655,269 655,275" fill="#aabbcc"/>
+</svg>`,
+        caption:
+          'Simplified Big Bang Nucleosynthesis reaction network: from protons and neutrons to helium-4 and trace lithium-7. ' +
+          'The absence of stable nuclei at mass numbers five and eight blocked any further buildup.',
+      },
+    },
+
+    {
+      heading: 'Alpher, Bethe, and Gamow: The Alpha-Beta-Gamma Paper of 1948',
+      level: 2,
+      paragraphs: [
+        'The theory of Big Bang Nucleosynthesis was born in the mid-twentieth century, ' +
+        'when physicists recognized that the early universe could have been hot enough for nuclear reactions. ' +
+        'In 1948, American physicist **George Gamow** and his doctoral student ' +
+        '**Ralph Alpher** published a paper calculating, for the first time, ' +
+        'how light elements might have been synthesized in a hot early universe.',
+
+        'Gamow was known for his sense of humor. He arranged to add Nobel laureate **Hans Bethe** to the author list — ' +
+        'even though Bethe had played no role in the work — ' +
+        'simply because the three surnames would sound like the Greek letters alpha, beta, gamma. ' +
+        'The paper became known as the **alpha-beta-gamma paper**. ' +
+        'Alpher, whose contribution was by far the largest, later joked that his name was overshadowed ' +
+        'by two famous scientists on either side.',
+
+        'The calculations of Gamow and Alpher turned out to be partly correct — ' +
+        'Big Bang Nucleosynthesis does explain hydrogen, helium-4, deuterium, helium-3, and lithium-7, ' +
+        'but not the heavier elements the authors initially hoped to account for. ' +
+        'Heavier elements — carbon and beyond — are made in stars, ' +
+        'as **Margaret Burbidge, Geoffrey Burbidge, William Fowler, and Fred Hoyle** ' +
+        'showed definitively in their landmark paper of 1957 — ' +
+        'usually cited simply by the authors\' initials as B²FH.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'nucleosynthesis-bbn-abundance-eta',
+        prompt:
+          'Scientific diagram for a science encyclopedia: Big Bang Nucleosynthesis predicted abundances ' +
+          'versus baryon-to-photon ratio (eta). ' +
+          'Log-log plot showing abundance curves for He-4 (nearly flat, ~0.25 mass fraction), ' +
+          'deuterium (steeply falling), He-3 (gently falling), and Li-7 (U-shaped minimum) ' +
+          'as functions of baryon density parameter eta (x-axis from 1e-10 to 1e-9). ' +
+          'Vertical shaded band marking Planck-constrained eta value at ~6e-10. ' +
+          'Hard sci-fi style, dark background #020510, cyan/orange/green/red lines, monospace font. ' +
+          'Add the following text labels on the image: "He-4 mass fraction", "D/H", "He-3/H", "Li-7/H", ' +
+          '"Planck eta", "baryon-to-photon ratio". ' +
+          'Aspect ratio 4:3.',
+        alt:
+          'Graph: light element abundances predicted by Big Bang Nucleosynthesis as a function of baryon density.',
+        caption:
+          'Predicted light element abundances are exquisitely sensitive to the baryon density of the universe. ' +
+          'The vertical band marks the value measured by the Planck satellite.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'The Quantitative Result: Why Twenty-Five Percent',
+      level: 2,
+      paragraphs: [
+        'Computing the final helium-4 fraction is one of the most elegant exercises in physics. ' +
+        'If at the onset of nucleosynthesis the neutron-to-proton ratio is one to seven, ' +
+        'then for every seven protons there is one neutron — eight nucleons in total. ' +
+        'All available neutrons are rapidly incorporated into helium-4 nuclei, ' +
+        'each requiring two neutrons and two protons. ' +
+        'With two neutrons, you can build one helium-4 nucleus using two of those eight nucleons, ' +
+        'leaving six protons as hydrogen.',
+
+        'The mass of one helium-4 nucleus is four atomic mass units. ' +
+        'The total mass of all eight nucleons is eight units. ' +
+        'The helium mass fraction is therefore four divided by sixteen — wait, not eight but sixteen if we have two neutrons, ' +
+        'fourteen protons. ' +
+        'More precisely: two neutrons pair with two protons to make helium-4 (mass four), ' +
+        'twelve protons remain as hydrogen (mass twelve), total mass sixteen. ' +
+        'Four divided by sixteen equals exactly twenty-five percent.',
+
+        'This is the **helium-4 mass fraction observed throughout the universe** — ' +
+        'twenty-four to twenty-six percent, consistent across all measurements ' +
+        'of ancient stars and primordial gas clouds. ' +
+        'Theory and observation agree to within a few percent of the value. ' +
+        'The slight departure from a perfect one-to-seven ratio at the moment of freeze-out — ' +
+        'caused by the ongoing neutron decay during the deuterium bottleneck — ' +
+        'is fully accounted for in detailed numerical calculations.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'nucleosynthesis-bbn-helium-fraction',
+        prompt:
+          'Scientific illustration for a science encyclopedia: primordial helium mass fraction calculation. ' +
+          'Simple clear diagram showing 8 nucleons (1 neutron + 7 protons) arranged in two groups: ' +
+          'one He-4 nucleus (2n + 2p, highlighted in orange) and remaining 6 protons (in blue). ' +
+          'Arrow showing mass fraction = 4/16 = 25%. ' +
+          'Hard sci-fi style, dark background, monospace labels, clean geometry. ' +
+          'Add the following text labels on the image: "n/p = 1/7", "He-4: 2n + 2p", ' +
+          '"remaining H", "mass fraction = 25%". ' +
+          'Aspect ratio 4:3.',
+        alt:
+          'Diagram: calculating the helium-4 mass fraction — with n/p = 1/7, exactly 25 percent of mass goes into He-4.',
+        caption:
+          'The key calculation: with a neutron-to-proton ratio of one to seven, ' +
+          'exactly twenty-five percent of the baryon mass is incorporated into helium-4.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Big Bang Nucleosynthesis as a Test of Cosmology',
+      level: 2,
+      paragraphs: [
+        'The unique power of Big Bang Nucleosynthesis as a scientific tool lies in its total independence ' +
+        'from the _Cosmic Microwave Background_. ' +
+        'Both phenomena describe the early universe, but at different epochs and through entirely different physics. ' +
+        'The microwave background corresponds to the era three hundred eighty thousand years after the universe was born; ' +
+        'nucleosynthesis was complete within the first few minutes. ' +
+        'When both methods produce a consistent picture, the confirmation is extraordinarily robust.',
+
+        'Big Bang Nucleosynthesis theory delivers specific numbers: ' +
+        'a helium-4 mass fraction of approximately twenty-five percent; ' +
+        'a deuterium-to-hydrogen ratio of two to three parts per hundred thousand by number; ' +
+        'helium-3 at roughly one part per hundred thousand; ' +
+        'and lithium-7 at one to two parts per ten billion. ' +
+        'All these numbers are determined by a single key parameter: ' +
+        'the ratio of baryons to photons in the universe.',
+
+        'That parameter, denoted by the Greek letter eta, ' +
+        'is measured independently from the microwave background analysis by the Planck satellite — ' +
+        'the 2013 and 2018 measurements gave approximately six units per ten billion. ' +
+        'Plugging that value into the nucleosynthesis equations yields predictions ' +
+        'that agree with direct measurements of light element abundances in ancient stars and gas clouds ' +
+        'at a level of precision rarely achieved in physics. ' +
+        'The exception is lithium — but that is a story of its own.',
+      ],
+    },
+
+    {
+      heading: 'The Cosmological Lithium Problem',
+      level: 2,
+      paragraphs: [
+        'If Big Bang Nucleosynthesis is so precise, there is one prominent exception ' +
+        'that has troubled astrophysicists for several decades. ' +
+        'Theory predicts roughly one to two lithium-7 atoms per ten billion hydrogen atoms. ' +
+        'But when researchers measure the lithium content of the oldest stars in our Galaxy — ' +
+        'stars on what is known as the Spite Plateau, identified in the 1980s — ' +
+        'they consistently find roughly **three times less** lithium than the theory predicts.',
+
+        'This discrepancy became known as the **cosmological lithium problem**, ' +
+        'or simply the lithium problem. ' +
+        'It is not a scatter in individual measurements — it is a systematic offset ' +
+        'that holds across all independent observations. ' +
+        'To resolve it, one must either modify the nucleosynthesis theory ' +
+        'or find a mechanism by which stars destroy or hide their primordial lithium.',
+
+        'To date, no hypothesis has achieved consensus as a solution. ' +
+        'Some researchers argue that stellar interiors gradually transport lithium downward during evolution, ' +
+        'where it is destroyed by nuclear reactions. ' +
+        'Others seek new physics — perhaps an unknown decay channel for lithium-7 ' +
+        'in the first minutes of the universe, or the influence of hypothetical massive particles. ' +
+        'As of 2026, the problem remains open.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'nucleosynthesis-bbn-lithium-problem',
+        prompt:
+          'Scientific illustration for a science encyclopedia: the cosmological lithium problem. ' +
+          'A comparison chart showing BBN theory prediction for lithium-7 abundance (higher bar, orange) ' +
+          'versus actual observations in old metal-poor halo stars — Spite plateau (lower bar, blue), ' +
+          'with a factor-of-3 gap labeled. ' +
+          'Hard sci-fi style, dark background, monospace labels, red dashed line marking discrepancy. ' +
+          'Add the following text labels on the image: "BBN prediction", "Spite plateau (observed)", ' +
+          '"factor 3 discrepancy", "lithium problem unsolved 2026". ' +
+          'Aspect ratio 4:3.',
+        alt:
+          'Graph: the lithium problem — Big Bang Nucleosynthesis prediction is three times higher than the observed Spite Plateau.',
+        caption:
+          'The cosmological lithium problem: Big Bang Nucleosynthesis predicts a lithium-7 abundance ' +
+          'approximately three times higher than what is measured in the oldest stars of the Galaxy. ' +
+          'No explanation has been established as of May 2026.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'What Big Bang Nucleosynthesis Measures About the Universe',
+      level: 2,
+      paragraphs: [
+        'The light element abundances are not merely numbers. ' +
+        'They are direct measurements of the **baryon density of the universe** — ' +
+        'the total count of protons and neutrons in the material world we know. ' +
+        'Big Bang Nucleosynthesis theory connects the abundances of deuterium, helium-3, helium-4, and lithium-7 ' +
+        'to the parameter Omega-b h-squared — the baryon density relative to the critical density, ' +
+        'multiplied by the square of the reduced Hubble constant.',
+
+        'Deuterium measurements in distant quasar absorption systems yield ' +
+        'Omega-b h-squared approximately equal to zero point twenty-two, ' +
+        'in perfect agreement with the value derived from the microwave background — ' +
+        'also approximately zero point twenty-two. ' +
+        'This is one of the most striking concordances in all of cosmology: ' +
+        'one measurement reaches back to the universe at three minutes old, ' +
+        'the other to the universe at three hundred eighty thousand years old.',
+
+        'Big Bang Nucleosynthesis also constrains the number of _neutrino flavors_. ' +
+        'The more types of neutrinos exist in nature, ' +
+        'the faster the early universe cooled through their influence on the expansion rate, ' +
+        'and the more helium-4 would have been produced. ' +
+        'The observed helium-4 abundance allowed physicists to predict, already in the 1980s, ' +
+        'that there are exactly three light neutrino flavors — ' +
+        'a result that particle accelerators confirmed independently only at the end of that same decade.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Diagram: Abundances Versus Baryon Density',
+        svg: `<svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg">
+  <rect width="700" height="260" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Title -->
+  <text x="350" y="20" text-anchor="middle" fill="#aabbcc" font-family="monospace" font-size="11">BBN Predictions: Light Element Abundances vs Baryon Density</text>
+
+  <!-- Axes -->
+  <line x1="80" y1="30" x2="80" y2="220" stroke="#334455" stroke-width="1"/>
+  <line x1="80" y1="220" x2="650" y2="220" stroke="#334455" stroke-width="1"/>
+
+  <!-- Y label -->
+  <text x="20" y="130" text-anchor="middle" fill="#8899aa" font-family="monospace" font-size="9" transform="rotate(-90,20,130)">abundance (log scale)</text>
+
+  <!-- X label -->
+  <text x="365" y="245" text-anchor="middle" fill="#8899aa" font-family="monospace" font-size="9">baryon density Omegab h^2 (lower left, higher right)</text>
+
+  <!-- Planck band -->
+  <rect x="350" y="30" width="50" height="190" fill="rgba(68,255,136,0.07)" stroke="#44ff88" stroke-width="1" stroke-dasharray="3,3"/>
+  <text x="375" y="43" text-anchor="middle" fill="#44ff88" font-family="monospace" font-size="8">Planck</text>
+
+  <!-- He-4 curve: nearly flat, high -->
+  <polyline points="90,55 200,57 350,60 400,62 550,65 640,68" fill="none" stroke="#ff8844" stroke-width="2"/>
+  <text x="648" y="70" fill="#ff8844" font-family="monospace" font-size="9">He-4</text>
+  <text x="648" y="80" fill="#ff8844" font-family="monospace" font-size="8">~25%</text>
+
+  <!-- D curve: steeply falling -->
+  <polyline points="90,90 150,100 250,120 350,145 450,165 550,182 640,195" fill="none" stroke="#7bb8ff" stroke-width="2"/>
+  <text x="648" y="197" fill="#7bb8ff" font-family="monospace" font-size="9">D/H</text>
+
+  <!-- He-3 curve: gently falling -->
+  <polyline points="90,105 200,112 350,125 450,132 550,138 640,143" fill="none" stroke="#44ff88" stroke-width="1.5"/>
+  <text x="648" y="145" fill="#44ff88" font-family="monospace" font-size="9">He-3/H</text>
+
+  <!-- Li-7 curve: U-shape (minimum near Planck) -->
+  <polyline points="90,175 150,168 250,152 350,148 400,150 450,155 550,162 640,170" fill="none" stroke="#cc4444" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <text x="648" y="172" fill="#cc4444" font-family="monospace" font-size="9">Li-7/H</text>
+
+  <!-- Spite plateau line for Li -->
+  <line x1="80" y1="188" x2="640" y2="188" stroke="#cc4444" stroke-width="1" stroke-dasharray="2,4" opacity="0.5"/>
+  <text x="130" y="184" fill="#cc4444" font-family="monospace" font-size="8">Spite plateau</text>
+
+  <!-- Gap annotation -->
+  <line x1="375" y1="150" x2="375" y2="186" stroke="#cc4444" stroke-width="1"/>
+  <text x="392" y="170" fill="#cc4444" font-family="monospace" font-size="8">x3 gap</text>
+</svg>`,
+        caption:
+          'Light element abundances as functions of baryon density. ' +
+          'The green band marks the Planck-measured value. ' +
+          'The red dashed line is the observed lithium abundance from the Spite Plateau, ' +
+          'three times below the theoretical curve.',
+      },
+    },
+
+    {
+      heading: 'What Remains Unexplained',
+      level: 2,
+      paragraphs: [
+        'Big Bang Nucleosynthesis is one of the most precise theories in all of physics. ' +
+        'But most precise does not mean complete. ' +
+        'The lithium problem is the most visible crack, but it is not the only open question.',
+
+        'The standard theory assumes that neutrinos in the early universe behaved predictably, ' +
+        'with no additional interactions and no unexpected decay channels. ' +
+        'If neutrinos have non-standard properties — ' +
+        'for instance, interacting with one another more strongly than currently believed — ' +
+        'this would alter the cooling rate of the universe and shift the predicted abundances. ' +
+        'Such effects have not been detected to date.',
+
+        'Another open question: _dark matter_. ' +
+        'We know it exists, from its gravitational effects on galaxies and galaxy clusters. ' +
+        'In Big Bang Nucleosynthesis, dark matter appears only as a background gravitational contribution, ' +
+        'taking no part in nuclear reactions. ' +
+        'But if dark matter particles decay or annihilate with energy release ' +
+        'during the first minutes of the universe, ' +
+        'the predicted abundances would shift. ' +
+        'No such signal has yet appeared in precision measurements, ' +
+        'but future missions will search for deviations with greater sensitivity.',
+
+        'Big Bang Nucleosynthesis remains a window into the first minutes of the universe — ' +
+        'the only nuclear-physics imprint of that epoch accessible to direct measurement. ' +
+        'Every anomaly in an elemental abundance is a potential trace of new physics. ' +
+        'The lithium problem might be mundane stellar astrophysics. ' +
+        'Or it might be the first hint of something we do not yet understand.',
+      ],
+    },
+  ],
+
+  glossary: [
+    {
+      term: 'Big Bang Nucleosynthesis',
+      definition:
+        'The set of nuclear reactions that took place in the first seconds to thousands of seconds after the universe was born, producing the primordial chemical inventory: hydrogen, helium-4, deuterium, helium-3, and lithium-7.',
+    },
+    {
+      term: 'Weak interaction freeze-out',
+      definition:
+        'The moment approximately one second after the birth of the universe when the rate of weak-interaction reactions converting neutrons to protons fell behind the expansion rate, locking the neutron-to-proton ratio at roughly one to six.',
+    },
+    {
+      term: 'Deuterium bottleneck',
+      definition:
+        'The bottleneck in Big Bang Nucleosynthesis: deuterium — the first step toward helium — could not accumulate while temperatures were high enough for photodisintegration. Nucleosynthesis only proceeded once the temperature dropped sufficiently, several minutes after the Big Bang.',
+    },
+    {
+      term: 'Helium-4 mass fraction',
+      definition:
+        'Approximately twenty-four to twenty-six percent of the baryon mass of the universe consists of helium-4 synthesized in the first minutes. This figure is predicted by Big Bang Nucleosynthesis and confirmed by observation.',
+    },
+    {
+      term: 'Mass-5 and mass-8 gaps',
+      definition:
+        'No stable nuclei exist with mass numbers five or eight, making it impossible for Big Bang Nucleosynthesis to build elements beyond helium-4 to lithium-7. The triple-alpha process in stars eventually bypasses this barrier.',
+    },
+    {
+      term: 'Cosmological lithium problem',
+      definition:
+        'A systematic discrepancy between the lithium-7 abundance predicted by Big Bang Nucleosynthesis and the abundance measured in the oldest stars of the Galaxy — theory gives approximately three times more than is observed. The cause is unknown as of 2026.',
+    },
+    {
+      term: 'Baryon density (Omega-b h-squared)',
+      definition:
+        'The ratio of baryon matter density to the critical density of the universe, multiplied by the square of the reduced Hubble constant. The key parameter of Big Bang Nucleosynthesis, which sets all the light element abundances.',
+    },
+    {
+      term: 'Spite Plateau',
+      definition:
+        'The nearly constant lithium abundance found in old, metal-poor halo stars of our Galaxy, identified by Monique and Francois Spite in 1982. Considered the best proxy for primordial lithium, but a factor of three below the Big Bang Nucleosynthesis prediction.',
+    },
+    {
+      term: 'Neutrino flavors',
+      definition:
+        'The three known types of neutrinos: electron, muon, and tau. Their number determines the expansion and cooling rate of the early universe and therefore the final helium-4 abundance. Big Bang Nucleosynthesis predicted three flavors before accelerator confirmation.',
+    },
+  ],
+
+  quiz: [
+    {
+      question:
+        'Why did Big Bang Nucleosynthesis stop at lithium-7 and produce no heavier elements?',
+      options: [
+        'The temperature dropped below absolute zero',
+        'There were not enough neutrons available',
+        'Nuclei with mass numbers five and eight are unstable — there is no bridge to heavier nuclei',
+        'Gravity halted the reactions',
+      ],
+      correctIndex: 2,
+      explanation:
+        'Helium-5 and lithium-5 are instantaneously unstable; beryllium-8 is also unstable. ' +
+        'Without a stable intermediate nucleus, there is no chain from helium-4 to heavier elements. ' +
+        'Stars circumvent this with the triple-alpha process, but Big Bang Nucleosynthesis conditions were different.',
+    },
+    {
+      question:
+        'What is the deuterium bottleneck in Big Bang Nucleosynthesis?',
+      options: [
+        'A shortage of neutrons for deuterium synthesis',
+        'A delay in nucleosynthesis caused by photodisintegration of deuterium at high temperature',
+        'A nuclear resonance that slows the reaction',
+        'Weak interaction freeze-out',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Deuterium is easily photodisintegrated — destroyed by photons. ' +
+        'While the temperature was high, it could not accumulate, ' +
+        'even though protons and neutrons were already present. ' +
+        'Once the temperature dropped below the threshold, the bottleneck opened and reactions cascaded.',
+    },
+    {
+      question:
+        'What helium-4 mass fraction does Big Bang Nucleosynthesis theory predict?',
+      options: [
+        'Approximately ten percent',
+        'Approximately fifty percent',
+        'Approximately twenty-five percent',
+        'Approximately forty percent',
+      ],
+      correctIndex: 2,
+      explanation:
+        'With a neutron-to-proton ratio of one to seven, ' +
+        'exactly twenty-five percent of the baryon mass goes into helium-4. ' +
+        'This is one of the most precise predictions in all of cosmology.',
+    },
+    {
+      question:
+        'What is the cosmological lithium problem?',
+      options: [
+        'Far more lithium-7 is observed in the universe than theory predicts',
+        'The lithium-7 abundance in old stars is three times lower than Big Bang Nucleosynthesis predicts',
+        'Lithium has not been detected in any star',
+        'Big Bang Nucleosynthesis cannot account for lithium production at all',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Theory predicts one to two lithium-7 atoms per ten billion hydrogen atoms, ' +
+        'but the oldest Galactic halo stars (the Spite Plateau) show approximately three times less. ' +
+        'The systematic nature of this discrepancy has no agreed explanation.',
+    },
+    {
+      question:
+        'What does Big Bang Nucleosynthesis measure independently of the Cosmic Microwave Background?',
+      options: [
+        'The current expansion rate of the universe',
+        'The baryon density of the universe',
+        'The mass of dark matter',
+        'The age of the first star',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Light element abundances depend on the baryon-to-photon ratio — ' +
+        'that is, on the baryon density. ' +
+        'Deuterium measurements give Omega-b h-squared approximately equal to zero point twenty-two, ' +
+        'in perfect agreement with the Planck microwave background result.',
+    },
+  ],
+
+  sources: [
+    {
+      title: 'Alpher R.A., Bethe H., Gamow G. — The Origin of Chemical Elements',
+      url: 'https://ui.adsabs.harvard.edu/abs/1948PhRv...73..803A',
+      meta: 'Phys. Rev. 73, 803 (1948) — the original alpha-beta-gamma paper',
+    },
+    {
+      title: 'Burbidge E.M., Burbidge G.R., Fowler W.A., Hoyle F. — Synthesis of the Elements in Stars (B2FH)',
+      url: 'https://ui.adsabs.harvard.edu/abs/1957RvMP...29..547B',
+      meta: 'Rev. Mod. Phys. 29, 547 (1957) — stellar nucleosynthesis',
+    },
+    {
+      title: 'Cyburt R.H. et al. — Big Bang Nucleosynthesis: Present Status',
+      url: 'https://arxiv.org/abs/1505.01076',
+      meta: 'Rev. Mod. Phys. 88, 015004 (2016), arXiv:1505.01076',
+    },
+    {
+      title: 'Planck Collaboration — Planck 2018 Results VI: Cosmological Parameters',
+      url: 'https://arxiv.org/abs/1807.06209',
+      meta: 'A&A 641, A6 (2020), arXiv:1807.06209',
+    },
+    {
+      title: 'Cooke R.J. et al. — Precision Measures of the Primordial Abundance of Deuterium',
+      url: 'https://arxiv.org/abs/1710.11129',
+      meta: 'ApJ 855, 102 (2018), arXiv:1710.11129',
+    },
+    {
+      title: 'Spite M., Spite F. — Abundance of Lithium in Unevolved Halo Stars and Old Disk Stars (Spite Plateau)',
+      url: 'https://ui.adsabs.harvard.edu/abs/1982A%26A...115..357S',
+      meta: 'A&A 115, 357 (1982) — discovery of the Spite Plateau',
+    },
+    {
+      title: 'Fields B.D. — The Primordial Lithium Problem',
+      url: 'https://arxiv.org/abs/1203.3551',
+      meta: 'Annu. Rev. Nucl. Part. Sci. 61, 47 (2011), arXiv:1203.3551',
+    },
+    {
+      title: 'Schramm D.N., Turner M.S. — Big-Bang Nucleosynthesis Enters the Precision Era',
+      url: 'https://ui.adsabs.harvard.edu/abs/1998RvMP...70..303S',
+      meta: 'Rev. Mod. Phys. 70, 303 (1998)',
+    },
+    {
+      title: 'Particle Data Group — Review of Particle Physics: Big Bang Nucleosynthesis',
+      url: 'https://pdg.lbl.gov/2023/reviews/rpp2023-rev-bbang-nucleosynthesis.pdf',
+      meta: 'PDG 2023 review',
+    },
+    {
+      title: 'Steigman G. — Primordial Nucleosynthesis in the Precision Cosmology Era',
+      url: 'https://arxiv.org/abs/0712.2004',
+      meta: 'Annu. Rev. Nucl. Part. Sci. 57, 463 (2007), arXiv:0712.2004',
+    },
+  ],
+
+  lastVerified: '2026-05-06',
+};
+
+export default lesson;

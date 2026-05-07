@@ -1,0 +1,651 @@
+import type { Lesson } from '../../types.js';
+
+const lesson: Lesson = {
+  slug: 'space-economy',
+  language: 'en',
+  section: 'applied-space',
+  order: 6,
+  difficulty: 'beginner',
+  readingTimeMin: 12,
+  title: 'Space Economy',
+  subtitle: 'From government programs to market-driven space: how a half-trillion-dollar industry rewrote the rules of orbital access.',
+
+  hero: {
+    cacheKey: 'space-economy-hero',
+    prompt:
+      'Photorealistic illustration for a science encyclopedia: a sweeping view of Earth from low orbit, ' +
+      'with multiple commercial satellites of different designs visible in the foreground — ' +
+      'communications arrays, Earth-observation platforms, a cargo spacecraft approaching a station. ' +
+      'Sunlight glints off solar panels. Hard sci-fi style, dark space background, technically plausible hardware. ' +
+      'Add the following text labels on the image: "commercial satellites", "low Earth orbit", "global connectivity".',
+    alt: 'View of Earth from low orbit with several commercial satellites of different types in the foreground',
+    caption:
+      'By the early 2020s, hundreds of commercial operators were competing for orbital access. ' +
+      'New launch vehicles and microsatellites made space more accessible than at any previous point in its short history.',
+    aspectRatio: '16:9',
+  },
+
+  body: [
+    {
+      paragraphs: [
+        'For the first thirty years of spaceflight, the industry existed as an extension of government policy — ' +
+        'a competition between two superpowers where economic logic was subordinate to strategic ambition. ' +
+        'Budgets did not require justification. The cost per launch was not a pressing question: ' +
+        'what mattered was being first. That model produced extraordinary achievements and ' +
+        'equally extraordinary waste.',
+
+        'In 2024, the global space economy exceeded 546 billion dollars, ' +
+        'according to Space Foundation\'s annual Space Report. ' +
+        'But the structure of that money is at least as important as the total: ' +
+        'roughly four-fifths of industry revenue comes not from launches or rocket manufacturing, ' +
+        'but from services — navigation, telecommunications, Earth observation. ' +
+        'Space stopped being a heroic endeavor long ago and became infrastructure.',
+
+        'A parallel transformation has been equally radical: private capital has displaced government ' +
+        'as the sole customer and operator. SpaceX, Planet Labs, Rocket Lab, Astroscale — ' +
+        'none of these companies existed at the start of the 2000s. ' +
+        'Today they set the pace for the entire industry. ' +
+        'Understanding how this industry is organized means understanding how humanity ' +
+        'actually manages its presence in space.',
+      ],
+    },
+
+    {
+      heading: 'Two halves of the market: upstream and downstream',
+      level: 2,
+      paragraphs: [
+        'Analysts divide the space economy into two broad segments. ' +
+        '**Upstream** covers everything related to reaching space: ' +
+        'designing and manufacturing launch vehicles, building satellites, ' +
+        'and operating ground infrastructure for launches. ' +
+        'This includes components, engines, and onboard electronics. ' +
+        'It is capital-intensive, slow-cycle manufacturing with specialized supply chains.',
+
+        '**Downstream** encompasses the services and products made possible by space infrastructure. ' +
+        'Global navigation — systems like the American, Russian, European, and Chinese positioning networks — ' +
+        'satellite broadband and telephony, Earth observation for monitoring crops, sea ice, ' +
+        'traffic, and disasters, meteorology, and financial transactions synchronized to satellite time. ' +
+        'This segment generates approximately four-fifths of all industry revenue ' +
+        'and is practically invisible to most consumers precisely because it is woven ' +
+        'seamlessly into daily life.',
+
+        'That ratio has an important implication: most people working in the space industry ' +
+        'have never watched a rocket launch and never studied orbital mechanics. ' +
+        'They write software for image analysis, sell insurance products to farmers ' +
+        'relying on satellite monitoring data, or design antennas for smartphones ' +
+        'with positioning system support.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'space-economy-upstream-downstream',
+        prompt:
+          'Scientific infographic for a space encyclopedia: a clean two-column comparison diagram. ' +
+          'Left column labeled "upstream" shows rocket manufacturing, satellite assembly, launch pads. ' +
+          'Right column labeled "downstream" shows GPS navigation icon, satellite TV dish, Earth observation ' +
+          'imagery grid, financial network nodes. ' +
+          'A large annotation shows downstream at approximately 80 percent of total revenue. ' +
+          'Hard sci-fi style, dark background, orange and cyan accent colors, monospace labels. ' +
+          'Add the following text labels on the image: "upstream: launch + manufacturing", "downstream: services ~80%", "GPS", "telecoms", "Earth observation".',
+        alt: 'Diagram of the space economy: upstream (manufacturing, launches) and downstream (services, approximately 80 percent of revenue)',
+        caption:
+          'Downstream services generate approximately four-fifths of space industry revenues. ' +
+          'Navigation, telecommunications, and Earth observation have become ' +
+          'critical infrastructure for the global economy.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'The accessibility revolution: how launch costs fell',
+      level: 2,
+      paragraphs: [
+        'The cost of lifting one kilogram of payload to low Earth orbit is perhaps ' +
+        'the single most important metric in the space economy. ' +
+        'It determines who can afford to launch a satellite, ' +
+        'what payload mass makes sense, and whether a given commercial project ' +
+        'is viable at all.',
+
+        'During the Space Shuttle era, that figure ran to approximately twenty thousand dollars ' +
+        'per kilogram — and despite the program\'s genuine scientific achievements, ' +
+        'it was an economic disaster. Falcon 9 rewrote that arithmetic: ' +
+        'through reuse of the first stage and high-volume engine production, ' +
+        'the cost fell to approximately 1,500 dollars per kilogram in the reuse configuration. ' +
+        'That is a reduction of more than ten times in a relatively short period — ' +
+        'something that almost never happens in aerospace.',
+
+        'Starship, if it reaches full and rapid reusability, is targeting costs below ' +
+        'two hundred dollars per kilogram. Even if the real numbers turn out two or three ' +
+        'times higher, the order-of-magnitude shift is fundamental: ' +
+        'cheap orbital access opens markets that simply do not exist today — ' +
+        'from mass orbital logistics to in-space resource extraction.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Launch cost (dollars per kilogram to low Earth orbit, logarithmic scale, 1960–2026)',
+        svg: `<svg viewBox="0 0 700 340" xmlns="http://www.w3.org/2000/svg">
+  <rect width="700" height="340" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Title -->
+  <text x="350" y="22" fill="#aabbcc" font-family="monospace" font-size="11" text-anchor="middle">$/kg to low orbit — log scale, 1960–2026</text>
+
+  <!-- Axes -->
+  <line x1="80" y1="270" x2="660" y2="270" stroke="#334455" stroke-width="1.5"/>
+  <line x1="80" y1="270" x2="80" y2="38" stroke="#334455" stroke-width="1.5"/>
+
+  <!-- Y axis label -->
+  <text x="18" y="160" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle" transform="rotate(-90,18,160)">$/kg (log)</text>
+
+  <!-- Y gridlines and labels (log scale: 100, 1000, 10000, 100000) -->
+  <line x1="78" y1="230" x2="660" y2="230" stroke="#334455" stroke-width="0.5" stroke-dasharray="3,5" opacity="0.5"/>
+  <line x1="78" y1="180" x2="660" y2="180" stroke="#334455" stroke-width="0.5" stroke-dasharray="3,5" opacity="0.5"/>
+  <line x1="78" y1="130" x2="660" y2="130" stroke="#334455" stroke-width="0.5" stroke-dasharray="3,5" opacity="0.5"/>
+  <line x1="78" y1="80" x2="660" y2="80" stroke="#334455" stroke-width="0.5" stroke-dasharray="3,5" opacity="0.5"/>
+
+  <text x="72" y="274" fill="#8899aa" font-family="monospace" font-size="8" text-anchor="end">100</text>
+  <text x="72" y="234" fill="#8899aa" font-family="monospace" font-size="8" text-anchor="end">1,000</text>
+  <text x="72" y="184" fill="#8899aa" font-family="monospace" font-size="8" text-anchor="end">10,000</text>
+  <text x="72" y="134" fill="#8899aa" font-family="monospace" font-size="8" text-anchor="end">100,000</text>
+  <text x="72" y="84" fill="#8899aa" font-family="monospace" font-size="8" text-anchor="end">1,000,000</text>
+
+  <!-- X axis ticks -->
+  <text x="80"  y="284" fill="#8899aa" font-family="monospace" font-size="8" text-anchor="middle">1960</text>
+  <text x="176" y="284" fill="#8899aa" font-family="monospace" font-size="8" text-anchor="middle">1970</text>
+  <text x="272" y="284" fill="#8899aa" font-family="monospace" font-size="8" text-anchor="middle">1980</text>
+  <text x="368" y="284" fill="#8899aa" font-family="monospace" font-size="8" text-anchor="middle">1990</text>
+  <text x="464" y="284" fill="#8899aa" font-family="monospace" font-size="8" text-anchor="middle">2000</text>
+  <text x="560" y="284" fill="#8899aa" font-family="monospace" font-size="8" text-anchor="middle">2015</text>
+  <text x="640" y="284" fill="#8899aa" font-family="monospace" font-size="8" text-anchor="middle">2026</text>
+
+  <!-- Historical cost trend line -->
+  <polyline
+    points="80,115 176,120 272,178 368,165 464,160 560,238 640,249"
+    fill="none" stroke="#ff8844" stroke-width="2" opacity="0.85"/>
+
+  <!-- Data points -->
+  <circle cx="176" cy="120" r="3" fill="#ff8844"/>
+  <text x="178" y="116" fill="#ff8844" font-family="monospace" font-size="8">Saturn V</text>
+  <text x="178" y="126" fill="#8899aa" font-family="monospace" font-size="7">~$54,000/kg</text>
+
+  <circle cx="272" cy="178" r="3" fill="#ff8844"/>
+  <text x="274" y="174" fill="#ff8844" font-family="monospace" font-size="8">Shuttle</text>
+  <text x="274" y="184" fill="#8899aa" font-family="monospace" font-size="7">~$20,000/kg</text>
+
+  <circle cx="464" cy="160" r="3" fill="#ff8844"/>
+  <text x="466" y="156" fill="#ff8844" font-family="monospace" font-size="8">Atlas V</text>
+  <text x="466" y="166" fill="#8899aa" font-family="monospace" font-size="7">~$13,000/kg</text>
+
+  <circle cx="560" cy="238" r="4" fill="#7bb8ff"/>
+  <text x="562" y="234" fill="#7bb8ff" font-family="monospace" font-size="8">Falcon 9</text>
+  <text x="562" y="244" fill="#8899aa" font-family="monospace" font-size="7">~$1,500/kg</text>
+
+  <circle cx="640" cy="249" r="4" fill="#44ff88"/>
+  <text x="618" y="262" fill="#44ff88" font-family="monospace" font-size="8">Starship</text>
+  <text x="618" y="272" fill="#44ff88" font-family="monospace" font-size="7">target &lt;$200/kg</text>
+
+  <text x="350" y="310" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">Cost reduction: more than 100x over 60 years of commercialization</text>
+</svg>`,
+        caption:
+          'Launch costs declined unevenly: after a long plateau in the Space Shuttle era, ' +
+          'they dropped sharply through Falcon 9 first-stage reuse. ' +
+          'Starship targets another order-of-magnitude reduction — if the program reaches full reusability.',
+      },
+    },
+
+    {
+      heading: 'SpaceX and the redistribution of the market',
+      level: 2,
+      paragraphs: [
+        'No company has reshaped the modern space industry as radically as SpaceX. ' +
+        'Before Falcon 9, the global commercial launch market was divided among ' +
+        'Ariane 5 of the European space agency, Proton from Russia, ' +
+        'and a handful of American vehicles. None of them returned their first stage.',
+
+        'Falcon 9 changed not just cost but the underlying logic of the market: ' +
+        'a reliable vehicle with predictable pricing and ever-shorter turnaround times ' +
+        'attracted customers who previously could not afford orbit at all. ' +
+        'By the mid-2020s, SpaceX was delivering more mass to orbit than ' +
+        'the rest of the world combined. That is not an exaggeration: ' +
+        'more than four-fifths of all mass launched to orbit in 2024 flew on SpaceX vehicles — ' +
+        'largely because a large fraction consisted of the company\'s own Starlink satellites.',
+
+        'Competitors responded in different ways. Rocket Lab captured the small-launcher ' +
+        'niche for microsatellites and began recovering Electron first stages. ' +
+        'Blue Origin spent over a decade developing the BE-4 engine and finally launched ' +
+        'New Glenn in 2025. Relativity Space and Firefly Aerospace attempted to enter ' +
+        'the small-launcher segment. India\'s state space organization and China\'s state ' +
+        'launch authority expanded commercial offerings for foreign customers. ' +
+        'The market remains in turbulent restructuring.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'space-economy-launch-market',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: a Falcon 9 rocket first stage ' +
+          'performing a propulsive landing on a drone ship at sea at dusk, ' +
+          'four landing legs deployed, engine exhaust illuminating ocean spray below, ' +
+          'second stage and fairing already separated high above. ' +
+          'Hard sci-fi style, dramatic lighting, technically accurate hardware. ' +
+          'Add the following text labels on the image: "reusable first stage", "propulsive landing", "commercial launch".',
+        alt: 'Falcon 9 first stage performing a propulsive landing on an autonomous drone ship — the key technology behind cheaper commercial launches',
+        caption:
+          'Recovery and reuse of the first stage is the single engineering decision that most ' +
+          'transformed the economics of commercial launches over the past decade. ' +
+          'The same Falcon 9 first stage has flown over twenty missions.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'Downstream: satellite services and their scale',
+      level: 2,
+      paragraphs: [
+        'When you check a route on your phone, a bank card transaction clears, ' +
+        'or a meteorologist spots a cold front — satellite infrastructure is involved in all of it. ' +
+        'That is the downstream segment, and it is far larger than anything related to rockets.',
+
+        'Telecommunications traditionally dominate: geostationary satellites ' +
+        'at altitudes above thirty-five thousand kilometers provide broadcasting, ' +
+        'broadband connectivity in remote areas, and backbone internet links. ' +
+        'The market is consolidating under competitive pressure: in 2023 Eutelsat absorbed OneWeb, ' +
+        'and in 2024 SES and Intelsat announced a merger. ' +
+        'Low-orbit networks, led by Starlink, are forcing traditional operators ' +
+        'to find new niches or combine.',
+
+        'Earth observation is undergoing its own revolution. ' +
+        'Planet Labs images the entire planet surface daily with hundreds of small satellites. ' +
+        'Capella Space operates a synthetic aperture radar network — ' +
+        'a system that sees through clouds and darkness. ' +
+        'HawkEye 360 tracks radio frequency signals from orbit, ' +
+        'pinpointing vessel and aircraft locations. ' +
+        'BlackSky combines frequent revisit rates with artificial intelligence analysis. ' +
+        'The customers for this data include governments, insurance companies, ' +
+        'agricultural corporations, and analytics firms — ' +
+        'an audience that never thought of itself as a "space consumer".',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'space-economy-earth-observation',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: a constellation of small Earth-observation satellites ' +
+          'in low orbit, each imaging different parts of a continent below — agricultural fields, coastlines, urban areas. ' +
+          'Data downlink beams shown as faint lines to ground stations. ' +
+          'Hard sci-fi style, dark space background with sunlit Earth below. ' +
+          'Add the following text labels on the image: "Earth-observation constellation", "daily imaging", "data downlink".',
+        alt: 'A constellation of small Earth-observation satellites in low orbit imaging the planetary surface daily',
+        caption:
+          'Modern commercial Earth-observation operators image the entire planetary surface every day. ' +
+          'Radar and optical sensor data is processed by algorithms and sold as analytical products ' +
+          'to governments, insurers, and agricultural operators.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'New frontiers: orbital debris, the Moon, and private stations',
+      level: 2,
+      paragraphs: [
+        'The growth in satellite numbers has generated a new category of business: ' +
+        'cleaning up orbital debris. The number of active objects in orbit is growing ' +
+        'faster than at any previous time. Even a fragment one centimeter across, ' +
+        'moving at orbital velocity, carries enough kinetic energy to destroy a satellite. ' +
+        'Japan\'s Astroscale has developed spacecraft for proximity operations and ' +
+        'capture of orbital debris — including landing its first commercial contract ' +
+        'with the Japan Aerospace Exploration Agency. ' +
+        'Europe\'s ClearSpace is preparing a demonstration mission. ' +
+        'This remains a niche for now, but with rising orbital traffic it will become a necessity.',
+
+        'The Moon is back on the agenda — this time for practical rather than ideological reasons. ' +
+        'The Artemis program of the American space agency became a customer for private landers: ' +
+        'Intuitive Machines successfully landed on the Moon in 2024, ' +
+        'delivering scientific instruments under a commercial services contract. ' +
+        'Astrobotic experienced a mission failure in the same wave. ' +
+        'The primary prize is access to water ice in permanently shadowed polar craters, ' +
+        'which can be split into hydrogen and oxygen for rocket propellant. ' +
+        'Extracting resources directly in space — in-situ resource utilization — ' +
+        'potentially transforms the economics of deep-space missions.',
+
+        'Private space stations are the next large project on the horizon. ' +
+        'The International Space Station is approaching the end of its active service life, ' +
+        'and the American space agency has deliberately bet on commercial operators. ' +
+        'Axiom Space is already flying commercial astronauts to the current station ' +
+        'while building its own modules. Blue Origin and partners are developing Orbital Reef. ' +
+        'Starlab plans a single-module launch. ' +
+        'These stations are intended as platforms for microgravity manufacturing, ' +
+        'scientific research, and eventually space tourism.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'space-economy-lunar-lander',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: a commercial lunar lander ' +
+          'on the Moon surface near a permanently shadowed polar crater rim, ' +
+          'solar panels deployed, scientific instruments visible on the deck, ' +
+          'Earth as a blue crescent in the black sky above. ' +
+          'Hard sci-fi style, technically plausible hardware, cold grey lunar regolith. ' +
+          'Add the following text labels on the image: "commercial lunar lander", "polar crater", "scientific payload".',
+        alt: 'Commercial lunar lander on the Moon surface near a polar crater with deployed solar panels',
+        caption:
+          'The first commercial Moon landing occurred in 2024, when Intuitive Machines delivered ' +
+          'scientific instruments under the Artemis program. ' +
+          'This represents a new model: the government agency purchases a service ' +
+          'rather than funding its own vehicle.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Space tourism: reality and limits',
+      level: 2,
+      paragraphs: [
+        'Space tourism exists in two fundamentally different formats. ' +
+        'Suborbital flights — Blue Origin and Virgin Galactic — take passengers ' +
+        'to a few minutes of weightlessness and a view of Earth\'s curvature, ' +
+        'but never reach orbit. Ticket prices run to hundreds of thousands of dollars. ' +
+        'Virgin Galactic struggled with technical issues for years, ' +
+        'and commercial regularity remains uneven.',
+
+        'Orbital tourism is an entirely different proposition in complexity and cost. ' +
+        'In 2021 the Inspiration4 mission sent four civilian passengers ' +
+        'for three days in orbit aboard a SpaceX Dragon capsule — ' +
+        'the first time in history with no professional astronaut on board. ' +
+        'In 2024 the Polaris Dawn mission included the first commercial ' +
+        'spacewalk in history. ' +
+        'These flights cost tens of millions of dollars per seat ' +
+        'and remain accessible only to the wealthiest clients. ' +
+        'But they demonstrate: orbit is no longer the exclusive domain ' +
+        'of government agencies and trained military pilots.',
+
+        'The prospect of mass space tourism remains debatable. ' +
+        'Even under the most optimistic scenarios, ' +
+        'the cost of an orbital flight will not approach ' +
+        'the level of conventional aviation in any foreseeable future. ' +
+        'Suborbital tourism may become a stable niche market — ' +
+        'comparable to Arctic cruises or deep-sea submersible dives.',
+      ],
+    },
+
+    {
+      heading: 'Geopolitics and structural tensions',
+      level: 2,
+      paragraphs: [
+        'The space economy does not exist outside geopolitics. ' +
+        'The Wolf Amendment, passed in 2011, prohibits direct bilateral contacts ' +
+        'between the American space agency and China without specific congressional authorization. ' +
+        'This means China has developed a parallel infrastructure of its own: ' +
+        'its own orbital station, its own Beidou navigation network, ' +
+        'its own commercial operators. ' +
+        'The two largest space powers develop in largely parallel rather than cooperative tracks.',
+
+        'Orbital crowding is a separate and growing problem. ' +
+        'Megaconstellations such as Starlink, OneWeb, and future competitors ' +
+        'are adding thousands of satellites to orbital shells ' +
+        'that previously held only dozens. ' +
+        'The International Telecommunication Union coordinates orbital slot ' +
+        'and radio frequency assignments, but enforcement mechanisms are weak. ' +
+        'Astronomers have documented degraded optical sky quality from satellite reflections. ' +
+        'The problem of orbital crowding has no technological solution — only a regulatory one.',
+
+        'This industry combines genuine achievements with real risks. ' +
+        'Access to orbit is democratizing — that is straightforwardly good. ' +
+        'At the same time, the concentration of market power in a few companies ' +
+        'and states, the absence of effective international governance mechanisms, ' +
+        'and the growing dependence of critical infrastructure on commercial operators ' +
+        'raise questions that do not yet have ready answers.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Global space economy structure 2024 (~$546 billion)',
+        svg: `<svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg">
+  <rect width="700" height="300" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Title -->
+  <text x="350" y="22" fill="#aabbcc" font-family="monospace" font-size="11" text-anchor="middle">Global Space Economy 2024 — segment distribution</text>
+
+  <!-- Downstream slice (80%) -->
+  <path d="M 220 155 L 220 55 A 100 100 0 1 1 118 205 Z" fill="#ff8844" opacity="0.75"/>
+  <text x="170" y="155" fill="#020510" font-family="monospace" font-size="11" font-weight="bold" text-anchor="middle">80%</text>
+
+  <!-- Upstream slice (14%) -->
+  <path d="M 220 155 L 118 205 A 100 100 0 0 1 150 60 Z" fill="#7bb8ff" opacity="0.75"/>
+  <text x="148" y="210" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">14%</text>
+
+  <!-- Government slice (6%) -->
+  <path d="M 220 155 L 150 60 A 100 100 0 0 1 220 55 Z" fill="#44ff88" opacity="0.75"/>
+  <text x="198" y="62" fill="#aabbcc" font-family="monospace" font-size="9" text-anchor="middle">6%</text>
+
+  <!-- Legend -->
+  <rect x="360" y="80" width="14" height="14" fill="#ff8844" opacity="0.75"/>
+  <text x="380" y="92" fill="#aabbcc" font-family="monospace" font-size="10">Downstream services</text>
+  <text x="380" y="104" fill="#8899aa" font-family="monospace" font-size="9">(navigation, telecoms, Earth obs.)</text>
+  <text x="380" y="114" fill="#8899aa" font-family="monospace" font-size="9">~$437 billion</text>
+
+  <rect x="360" y="130" width="14" height="14" fill="#7bb8ff" opacity="0.75"/>
+  <text x="380" y="142" fill="#aabbcc" font-family="monospace" font-size="10">Upstream</text>
+  <text x="380" y="154" fill="#8899aa" font-family="monospace" font-size="9">(manufacturing, launches)</text>
+  <text x="380" y="164" fill="#8899aa" font-family="monospace" font-size="9">~$77 billion</text>
+
+  <rect x="360" y="180" width="14" height="14" fill="#44ff88" opacity="0.75"/>
+  <text x="380" y="192" fill="#aabbcc" font-family="monospace" font-size="10">Government non-commercial</text>
+  <text x="380" y="204" fill="#8899aa" font-family="monospace" font-size="9">(science agencies, defense)</text>
+  <text x="380" y="214" fill="#8899aa" font-family="monospace" font-size="9">~$32 billion</text>
+
+  <text x="350" y="275" fill="#667788" font-family="monospace" font-size="8" text-anchor="middle">Source: Space Foundation — The Space Report 2024</text>
+</svg>`,
+        caption:
+          'Four-fifths of the global space economy consists of services, ' +
+          'not rockets and satellites in themselves. ' +
+          'The upstream segment — manufacturing and launches — generates approximately fourteen percent of revenues.',
+      },
+    },
+  ],
+
+  glossary: [
+    {
+      term: 'Upstream',
+      definition:
+        'The segment of the space industry covering design and manufacturing of launch vehicles, ' +
+        'satellites, and launch ground infrastructure. Capital-intensive, long-cycle manufacturing ' +
+        'with specialized supply chains.',
+    },
+    {
+      term: 'Downstream',
+      definition:
+        'Services and products made possible by space infrastructure: navigation, ' +
+        'telecommunications, Earth observation, meteorology, and financial time synchronization. ' +
+        'Generates approximately four-fifths of industry revenues.',
+    },
+    {
+      term: 'Earth observation',
+      definition:
+        'Acquisition of information about the Earth\'s surface using satellite sensors — ' +
+        'optical, radar, or thermal. Used in agriculture, cartography, climate monitoring, ' +
+        'and disaster response.',
+    },
+    {
+      term: 'Synthetic aperture radar',
+      definition:
+        'A type of satellite radar that forms a detailed image of the Earth\'s surface ' +
+        'by combining signals from multiple positions along the satellite\'s flight path. ' +
+        'Allows imaging through clouds and in darkness, unlike optical sensors.',
+    },
+    {
+      term: 'In-situ resource utilization',
+      definition:
+        'The concept of extracting and processing raw materials directly on astronomical bodies — ' +
+        'the Moon, asteroids, or Mars — to produce propellant, water, or building materials ' +
+        'without delivery from Earth.',
+    },
+    {
+      term: 'Megaconstellation',
+      definition:
+        'A large number of small satellites in low orbit functioning as a single system. ' +
+        'Examples include Starlink and OneWeb. They provide low-latency broadband internet ' +
+        'but contribute to orbital crowding.',
+    },
+    {
+      term: 'Geostationary orbit',
+      definition:
+        'A circular orbit at approximately 35,800 kilometers altitude where the orbital period ' +
+        'equals one Earth day. A satellite there appears stationary relative to a ground observer, ' +
+        'making it convenient for telecommunications.',
+    },
+    {
+      term: 'Wolf Amendment',
+      definition:
+        'A provision in US law enacted in 2011 that prohibits direct bilateral contacts ' +
+        'between the American space agency and China without specific congressional authorization. ' +
+        'It has driven parallel rather than cooperative development of the two largest space programs.',
+    },
+    {
+      term: 'Suborbital flight',
+      definition:
+        'A spaceflight in which the vehicle crosses the boundary of space (conventionally 100 kilometers) ' +
+        'but does not reach orbital velocity and does not enter a stable orbit. ' +
+        'Passengers experience a few minutes of weightlessness before the vehicle returns to Earth.',
+    },
+  ],
+
+  quiz: [
+    {
+      question: 'What share of the global space economy is generated by downstream services such as navigation, telecoms, and Earth observation?',
+      options: [
+        'Approximately twenty percent — most revenue comes from rocket manufacturing',
+        'Approximately half — the industry is evenly split between manufacturing and services',
+        'Approximately eighty percent — services dominate over manufacturing',
+        'Nearly one hundred percent — rocket manufacturing is loss-making and subsidized by governments',
+      ],
+      correctIndex: 2,
+      explanation:
+        'According to Space Foundation, approximately four-fifths of global space economy revenues ' +
+        'are generated by downstream services — navigation, telecommunications, and Earth observation. ' +
+        'Rocket manufacturing and launches are important but represent a smaller portion.',
+    },
+    {
+      question: 'How did the cost of launching one kilogram to orbit change between the Space Shuttle era and Falcon 9?',
+      options: [
+        'It stayed roughly the same — inflation offset technological improvements',
+        'It increased due to more complex technology and safety requirements',
+        'It fell by roughly half — a modest improvement',
+        'It fell by more than ten times through reusable first-stage recovery',
+      ],
+      correctIndex: 3,
+      explanation:
+        'The Space Shuttle cost on the order of twenty thousand dollars per kilogram. ' +
+        'Falcon 9 in reuse configuration reduced that to approximately 1,500 dollars — ' +
+        'a reduction of more than ten times. Starship targets another order of magnitude lower.',
+    },
+    {
+      question: 'Which mission in 2021 flew an all-civilian orbital crew with no professional astronaut on board for the first time in history?',
+      options: [
+        'Virgin Galactic SpaceShipTwo — first commercial suborbital flight',
+        'Inspiration4 aboard SpaceX Dragon — three days in orbit',
+        'Blue Origin New Shepard — suborbital flight with a veteran astronaut',
+        'Axiom Mission 1 — commercial astronauts aboard the International Space Station',
+      ],
+      correctIndex: 1,
+      explanation:
+        'The Inspiration4 mission in 2021 sent four civilian passengers for three days ' +
+        'in orbit aboard a SpaceX Dragon capsule — with no NASA astronaut on board. ' +
+        'This was the first purely commercial orbital crew in history.',
+    },
+    {
+      question: 'What does the Wolf Amendment of 2011 prohibit?',
+      options: [
+        'Private companies from entering the commercial launch market',
+        'The American space agency from purchasing foreign-built rocket engines',
+        'Direct bilateral contacts between the American space agency and China without congressional authorization',
+        'Commercial tourists from flying to the International Space Station',
+      ],
+      correctIndex: 2,
+      explanation:
+        'The Wolf Amendment prohibits direct bilateral cooperation between the American space agency ' +
+        'and China without specific congressional authorization. ' +
+        'This has driven China to develop its own parallel space infrastructure, ' +
+        'including its own orbital station and navigation satellite network.',
+    },
+    {
+      question: 'What best describes the concept of in-situ resource utilization?',
+      options: [
+        'Launching resources from Earth to supply lunar or Martian bases',
+        'Extracting and processing raw materials directly on astronomical bodies without delivery from Earth',
+        'Returning soil samples from the Moon or asteroids to Earth for laboratory analysis',
+        'Recycling waste aboard spacecraft for repeated use',
+      ],
+      correctIndex: 1,
+      explanation:
+        'In-situ resource utilization means extracting and processing resources directly on the Moon, ' +
+        'asteroids, or Mars. Water ice in polar lunar craters can be split into hydrogen and oxygen — ' +
+        'rocket propellant — without shipping it from Earth, ' +
+        'which fundamentally changes the economics of deep-space missions.',
+    },
+  ],
+
+  sources: [
+    {
+      title: 'Space Foundation — The Space Report 2024',
+      url: 'https://www.spacefoundation.org/space_brief/the-space-report/',
+      meta: 'Space Foundation, 2024 — industry annual benchmark',
+    },
+    {
+      title: 'Bryce Space and Technology — Start-Up Space 2024',
+      url: 'https://brycetech.com/reports/report-documents/Bryce_Start_Up_Space_2024.pdf',
+      meta: 'Bryce Tech, 2024 — commercial investment data',
+    },
+    {
+      title: 'SpaceX — Launch Manifest and Vehicle Pricing',
+      url: 'https://www.spacex.com/vehicles/falcon-9/',
+      meta: 'SpaceX official, 2024',
+    },
+    {
+      title: 'Planet Labs — How We Image the Earth',
+      url: 'https://www.planet.com/pulse/',
+      meta: 'Planet Labs PBC, 2024',
+    },
+    {
+      title: 'Astroscale — Commercial Orbital Servicing',
+      url: 'https://astroscale.com/services/',
+      meta: 'Astroscale, 2024 — debris removal and servicing',
+    },
+    {
+      title: 'NASA CLPS — Commercial Lunar Payload Services Overview',
+      url: 'https://www.nasa.gov/commercial-lunar-payload-services/',
+      meta: 'NASA, 2024 — Artemis commercial lander program',
+    },
+    {
+      title: 'ITU — Radio Regulations and Orbital Slot Filing',
+      url: 'https://www.itu.int/en/ITU-R/space/Pages/orbital-filing.aspx',
+      meta: 'International Telecommunication Union, regulatory framework',
+    },
+    {
+      title: 'Polaris Program — Polaris Dawn Mission Report 2024',
+      url: 'https://polarisprogram.com/',
+      meta: 'Polaris Program, 2024 — first commercial spacewalk',
+    },
+    {
+      title: 'SES — SES and Intelsat Merger Announcement 2024',
+      url: 'https://www.ses.com/press-release/ses-and-intelsat-to-combine',
+      meta: 'SES S.A., 2024',
+    },
+    {
+      title: 'UNOOSA — Space Debris and Long-Term Sustainability Guidelines',
+      url: 'https://www.unoosa.org/oosa/en/ourwork/topics/space-debris.html',
+      meta: 'UN Office for Outer Space Affairs, 2024',
+    },
+  ],
+
+  lastVerified: '2026-05-06',
+};
+
+export default lesson;

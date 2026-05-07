@@ -1,0 +1,308 @@
+{
+  "slug": "orbital-mechanics-spacecraft",
+  "language": "en",
+  "section": "space-tech",
+  "order": 2,
+  "difficulty": "intermediate",
+  "readingTimeMin": 12,
+  "title": "Orbital Mechanics for Spacecraft",
+  "subtitle": "How engineers move probes between orbits, steal velocity from planets, and overcome gravity with minimal propellant.",
+  "hero": {
+    "cacheKey": "orbital-mechanics-hero",
+    "prompt": "Photorealistic science encyclopedia illustration: a spacecraft performing an orbital transfer maneuver in space. Two elliptical orbits shown as glowing cyan and orange curves around a planet. A spacecraft at the intersection point fires its engine — small bright exhaust plume visible. Planet partially visible at lower left with thin atmospheric haze. Deep black space background with faint star field. Hard sci-fi style, technically precise geometry. Add the following text labels on the image: \"initial orbit\", \"transfer ellipse\", \"target orbit\", \"delta-V burn\".",
+    "alt": "A spacecraft executing an orbital transfer maneuver — two orbits and a transfer ellipse around a planet",
+    "caption": "An orbital maneuver demands precise timing and direction for the engine burn. A small error accumulates over thousands of kilometers of trajectory.",
+    "aspectRatio": "16:9"
+  },
+  "body": [
+    {
+      "paragraphs": [
+        "A spacecraft in flight is not an automobile. It cannot simply press the accelerator and go wherever it wants. The moment its engines cut off, the vehicle follows a precisely determined curve governed entirely by gravity. Stopping is not an option. Turning back is prohibitively expensive. The only way to reach a destination is a precise, brief impulse at exactly the right moment, after which the spacecraft falls again along a new curve. Orbital mechanics is the art of managing that fall.",
+        "All of those curves have names: circles, ellipses, parabolas, hyperbolas. They obey the laws Kepler formulated in the early seventeenth century and the equations Newton derived from them. Modern spacecraft navigation has invented nothing fundamentally new — it has simply refined those laws to a precision where an error of a few meters over a billion kilometers of travel is considered normal.",
+        "The basic unit of measurement for all maneuvers is _delta-V_ — the change in velocity: how many meters per second must be added to or subtracted from the spacecraft's velocity vector. Every meter per second of delta-V costs propellant. Every maneuver consumes a share of the budget. The delta-V budget is the mission's currency, and it cannot be replenished."
+      ]
+    },
+    {
+      "heading": "Orbits: low, geostationary, and everything in between",
+      "level": 2,
+      "paragraphs": [
+        "Before discussing maneuvers, it helps to understand what one maneuvers between. Several classical orbital \"floors\" exist around Earth, each with distinct physics and purpose.",
+        "**Low Earth orbit** — altitude from roughly two hundred to two thousand kilometers. The International Space Station operates here; the Starlink constellation is deployed here. Orbital velocity is approximately eight kilometers per second, and one complete revolution takes about ninety minutes. Getting to this orbit consumes nearly the entire delta-V budget of a launch vehicle, roughly nine kilometers per second accounting for atmospheric and gravitational losses.",
+        "**Geostationary transfer orbit** — a highly elongated ellipse with the low point (perigee) in low orbit and the high point (apogee) at thirty-six thousand kilometers altitude. Commercial rockets deliver satellites to this intermediate orbit, after which the spacecraft uses its own engine to complete the raise to the final orbit.",
+        "**Geostationary orbit** — exactly thirty-six thousand kilometers above the equator. A spacecraft there completes one revolution per day — meaning it hangs motionless above a fixed point on Earth. The ideal position for telecommunications and weather satellites. But reaching this orbit costs considerable delta-V, and changing the orbital inclination at this altitude is nearly impossible without enormous propellant expenditure.",
+        "**High elliptical orbit** is used by science missions that need extended time outside the radiation belts or a wide viewing angle of Earth. Observatories such as XMM-Newton and Chandra spend most of their time in the relatively clean electromagnetic environment of such high orbits."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "orbital-mechanics-orbit-types",
+        "prompt": "Scientific diagram for science encyclopedia showing four Earth orbits to scale: a small tight circle close to Earth labeled \"Low Earth orbit (200-2000 km)\", a large elongated ellipse labeled \"Geostationary transfer orbit\", a perfect circle at 36000 km labeled \"Geostationary orbit\", and a highly elliptical orbit labeled \"High elliptical orbit\". Earth shown as a blue sphere at center. Dark space background with grid lines. Hard sci-fi style, monospace labels, cyan and orange orbit lines. Add the following text labels on the image: \"LEO\", \"GTO\", \"GEO 36,000 km\", \"HEO\".",
+        "alt": "Four orbit types around Earth: low, geostationary transfer, geostationary, and high elliptical",
+        "caption": "Distances are not to scale. Geostationary orbit lies roughly one hundred times farther from Earth than low orbit. Each orbital tier requires its own route and delta-V budget.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "Hohmann transfer: the most fuel-efficient route between orbits",
+      "level": 2,
+      "paragraphs": [
+        "In 1925 the German engineer Walter Hohmann mathematically proved that there exists a most efficient way to travel between two circular orbits. The spacecraft performs two short engine burns: the first to leave the lower orbit and enter an elongated transfer ellipse, the second at the farthest point of that ellipse to circularize the trajectory at the higher orbit.",
+        "Why an ellipse? Because it allows the spacecraft to \"borrow\" the maximum orbital energy from the first burn. After igniting once, the vehicle coasts unpowered — climbing and slowing like a thrown ball — then at the highest point a second brief burn raises the orbit to the target. Together the two burns consume less delta-V than any other path between the same two orbits.",
+        "The drawback of the Hohmann transfer is time. Between the two burns the spacecraft coasts for hours, weeks, or months depending on the scale. A Hohmann transfer from Earth to Mars takes roughly nine months. For crewed missions that is a serious constraint; for robotic probes it is entirely acceptable."
+      ]
+    },
+    {
+      "diagram": {
+        "title": "Hohmann transfer: the geometry of two burns",
+        "svg": "<svg viewBox=\"0 0 600 420\" xmlns=\"http://www.w3.org/2000/svg\">\n  <rect width=\"600\" height=\"420\" fill=\"rgba(10,15,25,0.5)\"/>\n\n  <!-- Central body -->\n  <circle cx=\"200\" cy=\"210\" r=\"28\" fill=\"#4488aa\" opacity=\"0.85\"/>\n  <text x=\"200\" y=\"215\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">planet</text>\n\n  <!-- Inner orbit (circular) -->\n  <circle cx=\"200\" cy=\"210\" r=\"70\" fill=\"none\" stroke=\"#ff8844\" stroke-width=\"1.5\" stroke-dasharray=\"6,4\" opacity=\"0.7\"/>\n  <text x=\"200\" y=\"132\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">initial orbit</text>\n\n  <!-- Outer orbit (circular) -->\n  <circle cx=\"200\" cy=\"210\" r=\"175\" fill=\"none\" stroke=\"#7bb8ff\" stroke-width=\"1.5\" stroke-dasharray=\"6,4\" opacity=\"0.7\"/>\n  <text x=\"200\" y=\"27\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">target orbit</text>\n\n  <!-- Transfer ellipse -->\n  <ellipse cx=\"147\" cy=\"210\" rx=\"123\" ry=\"103\" fill=\"none\" stroke=\"#44ff88\" stroke-width=\"2\" opacity=\"0.9\"/>\n  <text x=\"370\" y=\"245\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"10\">transfer</text>\n  <text x=\"370\" y=\"257\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"10\">ellipse</text>\n\n  <!-- Burn point 1 marker (perigee) -->\n  <circle cx=\"130\" cy=\"210\" r=\"7\" fill=\"#44ff88\" opacity=\"0.9\"/>\n  <text x=\"100\" y=\"200\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"end\">burn 1</text>\n  <text x=\"100\" y=\"212\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"end\">+delta-V</text>\n  <line x1=\"130\" y1=\"210\" x2=\"130\" y2=\"186\" stroke=\"#44ff88\" stroke-width=\"1.5\" marker-end=\"url(#arrowGreenEn)\"/>\n\n  <!-- Burn point 2 marker (apogee) -->\n  <circle cx=\"375\" cy=\"210\" r=\"7\" fill=\"#7bb8ff\" opacity=\"0.9\"/>\n  <text x=\"385\" y=\"200\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"10\">burn 2</text>\n  <text x=\"385\" y=\"212\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"10\">+delta-V</text>\n  <line x1=\"375\" y1=\"210\" x2=\"375\" y2=\"186\" stroke=\"#7bb8ff\" stroke-width=\"1.5\" marker-end=\"url(#arrowBlueEn)\"/>\n\n  <!-- Spacecraft icon -->\n  <text x=\"260\" y=\"128\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">direction of travel</text>\n  <polygon points=\"260,142 255,155 265,155\" fill=\"#aabbcc\" opacity=\"0.8\"/>\n\n  <defs>\n    <marker id=\"arrowGreenEn\" markerWidth=\"8\" markerHeight=\"8\" refX=\"4\" refY=\"4\" orient=\"auto\">\n      <polygon points=\"0,8 4,0 8,8\" fill=\"#44ff88\"/>\n    </marker>\n    <marker id=\"arrowBlueEn\" markerWidth=\"8\" markerHeight=\"8\" refX=\"4\" refY=\"4\" orient=\"auto\">\n      <polygon points=\"0,8 4,0 8,8\" fill=\"#7bb8ff\"/>\n    </marker>\n  </defs>\n\n  <!-- Legend -->\n  <rect x=\"10\" y=\"360\" width=\"580\" height=\"50\" fill=\"rgba(5,10,20,0.6)\" rx=\"3\"/>\n  <line x1=\"20\" y1=\"375\" x2=\"50\" y2=\"375\" stroke=\"#ff8844\" stroke-width=\"1.5\" stroke-dasharray=\"5,3\"/>\n  <text x=\"58\" y=\"379\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"10\">initial orbit</text>\n  <line x1=\"175\" y1=\"375\" x2=\"205\" y2=\"375\" stroke=\"#7bb8ff\" stroke-width=\"1.5\" stroke-dasharray=\"5,3\"/>\n  <text x=\"213\" y=\"379\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"10\">target orbit</text>\n  <line x1=\"330\" y1=\"375\" x2=\"360\" y2=\"375\" stroke=\"#44ff88\" stroke-width=\"2\"/>\n  <text x=\"368\" y=\"379\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"10\">transfer ellipse</text>\n  <text x=\"20\" y=\"400\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">Two short burns — minimum delta-V to change orbital altitude</text>\n</svg>",
+        "caption": "The Hohmann transfer between two circular orbits uses exactly two engine burns. The first places the spacecraft onto the transfer ellipse; the second, at the highest point, circularizes the trajectory at the target altitude. This is the minimum possible propellant expenditure for the maneuver."
+      }
+    },
+    {
+      "heading": "Bi-elliptic transfer: when Hohmann is not enough",
+      "level": 2,
+      "paragraphs": [
+        "The Hohmann transfer works well when the difference between the initial and target orbits is moderate. But when the target is much larger — roughly fifteen times or more — a different scheme can be more efficient under certain conditions: the **bi-elliptic transfer**.",
+        "Instead of one transfer ellipse, the spacecraft first flies to a very distant intermediate point — far beyond the target orbit — then uses two additional burns to work its way back. This sounds counterintuitive: why fly farther to end up closer? Mathematics shows that for very large orbital size ratios, three small burns can require less total delta-V than two large ones in the Hohmann scheme.",
+        "In practice the bi-elliptic transfer is rarely chosen because of time: the arc out to the distant intermediate point can take years to traverse. For commercial satellites that is unacceptable. For scientific probes, however, where the mission is planned across decades, the delta-V saving can outweigh the timeline cost."
+      ]
+    },
+    {
+      "heading": "Gravity assist: borrowing velocity from a planet",
+      "level": 2,
+      "paragraphs": [
+        "If the Hohmann transfer is the most efficient way to spend delta-V, the **gravity assist** — also called the slingshot maneuver — is the technique for spending none at all. A probe flies close to a planet; the planet's gravity curves its trajectory and adds or subtracts velocity relative to the Sun. The planet receives a tiny equal and opposite kick, but its mass is so vastly larger than the probe's that the effect is unmeasurably small.",
+        "The textbook example is the Voyager program in the nineteen-seventies. Astronomers calculated that once every few decades Jupiter, Saturn, Uranus, and Neptune align favorably. Voyager 1 and Voyager 2 exploited that alignment: successive gravity assists accelerated them from planet to planet, accumulating velocity that no rocket of the era could have delivered with chemical propellant. Without this \"grand tour\" trajectory, a mission reaching Neptune would have required many times more propellant and travel time.",
+        "The Cassini mission is an even more elaborate example of gravitational navigation. To reach Saturn, the spacecraft made two flybys of Venus, then one of Earth, then one of Jupiter — four gravity assists instead of a single direct flight. Each flyby was planned months in advance to the meter. The net propellant saving was enormous: a purely propulsive trajectory to Saturn orbit would have demanded a launch vehicle many times larger.",
+        "A gravity assist can also brake. If a spacecraft approaches a planet from the direction opposing its orbital motion around the Sun, it loses speed. That is how the Messenger probe shed velocity before being captured into orbit around Mercury — several flybys, each stripping away excess speed, so the spacecraft could enter orbit without carrying a prohibitive propellant reserve for braking."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "orbital-mechanics-gravity-assist",
+        "prompt": "Scientific diagram for encyclopedia showing a gravity assist (slingshot) maneuver: a planet shown as a large blue sphere moving left to right (orbital velocity arrow). Spacecraft trajectory shown as a hyperbolic curve approaching from lower left, bending tightly around the planet, then departing upper right at a steeper angle and higher speed. Incoming velocity vector labeled, outgoing velocity vector labeled — outgoing visibly longer. Dashed lines show the planet reference frame versus solar frame. Hard sci-fi style, dark space background, orange and cyan lines, monospace labels. Add the following text labels on the image: \"planet motion\", \"incoming trajectory\", \"gravity bend\", \"outgoing trajectory (faster)\", \"delta-V gained\".",
+        "alt": "Gravity assist diagram: spacecraft trajectory bends around a planet, exit velocity higher than entry velocity",
+        "caption": "A gravity assist violates no conservation laws. The probe borrows angular momentum from the planet — which orbits the Sun — at the cost of an infinitesimally small change in the planet's own orbit.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "The delta-V budget: the price list of the Solar System",
+      "level": 2,
+      "paragraphs": [
+        "Delta-V is the currency of space missions. Each maneuver spends a share of the budget, which can only be replenished through gravity assists or atmospheric braking. A few reference figures illustrate the scale.",
+        "Reaching low Earth orbit costs approximately nine kilometers per second (including atmospheric losses). Raising from low orbit to geostationary orbit requires another roughly four kilometers per second. Escaping Earth's gravitational influence and transferring to the Moon demands approximately three and a half. A transfer from Earth to Mars (without slowing at Mars) costs about three kilometers per second. Entering Mars orbit with braking adds one to two more, depending on the method.",
+        "Changing orbital inclination is one of the most expensive operations in orbital mechanics. Inclination differs from altitude: altitude changes efficiently through a Hohmann transfer, but changing the orbital plane requires canceling the sideways velocity component and building a new one. At low Earth orbit, a thirty-degree inclination change costs as much delta-V as launching the spacecraft to orbit in the first place. This is why satellites are launched from latitudes as close as possible to their target inclination — correcting the inclination in orbit is far more expensive than choosing the right launch site."
+      ]
+    },
+    {
+      "heading": "Rendezvous and docking: dancing in orbit",
+      "level": 2,
+      "paragraphs": [
+        "Orbital mechanics makes the task of closing in on another spacecraft deeply counterintuitive. If a chasing vehicle wants to catch a target ahead of it on the same orbit, firing the engine is the wrong move — that merely raises the chaser's orbit, making it go slower and fall further behind. The correct approach is to lower the orbit first, fly faster on the lower path, gradually close the gap, then raise back to the target altitude.",
+        "The final approach also has two standard corridors. The **V-bar** approach runs along the velocity vector: the chaser comes from ahead or behind. Convenient, but demanding — any thruster misfire deflects the vehicle up or down to a different orbit. The **R-bar** approach runs along the local vertical (radially, toward or away from the planet). Safer: if thrusters fail, natural orbital dynamics return the vehicle to its position without causing a collision.",
+        "The launch window for a Mars mission opens roughly every twenty-six months — precisely when Earth and Mars align so that a Hohmann transfer ellipse carries the spacecraft to where Mars will be nine months later. Miss the window, and the wait is another two years. That is why Mars missions are prepared so meticulously: a delay of a few weeks can mean years of additional waiting."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "orbital-mechanics-rendezvous",
+        "prompt": "Scientific illustration for encyclopedia of two spacecraft performing orbital rendezvous: a target station shown as a large white modular structure in the background on a circular orbit. An approaching capsule shown in foreground on a slightly lower orbit, closing the distance. Two approach corridors labeled: \"V-bar approach\" (horizontal) and \"R-bar approach\" (vertical). Trajectory lines show the phasing maneuver. Earth visible as a curved horizon below. Hard sci-fi style, dark space background, monospace labels. Add the following text labels on the image: \"target station\", \"approaching spacecraft\", \"V-bar\", \"R-bar\", \"orbital direction\".",
+        "alt": "Two spacecraft performing orbital rendezvous — V-bar and R-bar approach corridors to the target station",
+        "caption": "Orbital rendezvous requires a coordinated sequence of maneuvers unfolding over several hours. Every crew member assigned to the International Space Station trains extensively on simulators until these maneuvers become automatic.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "Aerobraking: using the atmosphere as free propellant",
+      "level": 2,
+      "paragraphs": [
+        "Reaching Mars orbit is only half the problem. To settle into a circular working orbit, the spacecraft must shed considerable speed. The traditional approach — engine braking — consumes an enormous amount of propellant. But if the planet has an atmosphere, there is another path: **aerobraking**.",
+        "Instead of firing engines, the spacecraft dips into the upper atmosphere for a few minutes on each pass near perigee; aerodynamic drag removes a fraction of the speed, and the vehicle emerges into space on a slightly lower orbit. Repeated dozens or hundreds of times, this process whittles the orbit down to the desired altitude, spending only heat-shield material rather than propellant.",
+        "The Mars Reconnaissance Orbiter is one of the most celebrated examples. After arriving at Mars in the early two-thousands, it spent six months in aerobraking, dipping into the Martian atmosphere at each periapsis pass. The result was a tight, low circular orbit optimized for detailed surface mapping — an orbit that pure engine braking could never have achieved within the same mass budget."
+      ]
+    },
+    {
+      "heading": "Lunar transfer: three days or three months — a question of budget",
+      "level": 2,
+      "paragraphs": [
+        "The straightforward path to the Moon is a direct Hohmann-style trajectory: the spacecraft accelerates, coasts along the transfer ellipse, reaches the Moon in three days, and brakes into lunar orbit. This is how the Apollo missions flew. Fast, but expensive in propellant: significant delta-V is needed for the arrival burn.",
+        "The alternative is the **ballistic weak-stability-boundary route**. Instead of a direct sprint, the spacecraft flies outward — far beyond the Moon to a region where the Sun's gravity and Earth's gravity roughly balance. From there, the trajectory \"falls\" toward the Moon with almost no additional delta-V. The total trip time is about three months, but the arrival braking burn to enter lunar orbit is dramatically smaller.",
+        "Japan's Hiten spacecraft, late in the twentieth century, demonstrated this route for the first time. It is well suited to small spacecraft with limited propellant — such as cubesats or low-cost science probes. For crewed missions, three months of transit is impractical; for robotic explorers, patience costs nothing."
+      ]
+    },
+    {
+      "heading": "Lagrange points and the lunar Gateway: stable pockets in the Earth-Moon system",
+      "level": 2,
+      "paragraphs": [
+        "In the gravitational field of two bodies orbiting each other — say, the Earth and the Moon — there exist five points where gravity and the centrifugal pseudo-force balance so precisely that a small spacecraft can remain there with minimal effort. These were identified in the eighteenth century by the mathematician Joseph-Louis Lagrange.",
+        "Lagrange points L1 and L2 lie between Earth and Moon and just beyond the Moon, respectively. They are unstable — a displaced spacecraft will slowly drift away — but maintaining position requires only small periodic thruster corrections. Lagrange points L4 and L5 are stable: natural objects accumulate there (the Trojan asteroids of Jupiter occupy exactly the L4 and L5 points of Jupiter's orbit).",
+        "The Gateway station is planned for a **near rectilinear halo orbit** — a special family of orbits near the lunar L2 point — exploiting this gravitational balance. From that position, it is relatively cheap in delta-V terms to depart for the lunar surface, for Mars, or for asteroid targets. Gateway is conceived as a staging node for deep-space architecture — the equivalent of an international hub airport between Earth and the rest of the Solar System."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "orbital-mechanics-lagrange-points",
+        "prompt": "Scientific diagram for encyclopedia showing the five Lagrange points in the Earth-Moon system: Earth shown as a blue sphere on the left, Moon as a smaller grey sphere on the right. Five labeled points L1 (between Earth and Moon), L2 (beyond Moon), L3 (opposite Earth side), L4 (leading Moon 60 degrees), L5 (trailing Moon 60 degrees). A small spacecraft icon near L2 labeled \"Gateway station (NRHO)\". Gravitational potential shown as faint contour lines. Hard sci-fi style, dark background, cyan and orange accent colors, monospace labels. Add the following text labels on the image: \"L1\", \"L2\", \"L3\", \"L4\", \"L5\", \"Gateway (NRHO)\", \"Earth\", \"Moon\".",
+        "alt": "The five Lagrange points of the Earth-Moon system with the Gateway station marked near L2",
+        "caption": "Lagrange points L4 and L5 are stable gravitational \"pockets\". Gateway will reside in a near rectilinear halo orbit near L2 — unstable, but requiring only minimal delta-V to maintain.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "diagram": {
+        "title": "Comparative delta-V budget: key maneuvers",
+        "svg": "<svg viewBox=\"0 0 680 360\" xmlns=\"http://www.w3.org/2000/svg\">\n  <rect width=\"680\" height=\"360\" fill=\"rgba(10,15,25,0.5)\"/>\n\n  <!-- Title -->\n  <text x=\"340\" y=\"22\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"12\" text-anchor=\"middle\">Delta-V budget for key maneuvers (km/s)</text>\n\n  <!-- Y axis -->\n  <line x1=\"210\" y1=\"40\" x2=\"210\" y2=\"300\" stroke=\"#334455\" stroke-width=\"1\"/>\n  <line x1=\"210\" y1=\"300\" x2=\"650\" y2=\"300\" stroke=\"#334455\" stroke-width=\"1\"/>\n\n  <!-- Scale lines and labels -->\n  <line x1=\"208\" y1=\"300\" x2=\"650\" y2=\"300\" stroke=\"#334455\" stroke-width=\"0.5\" stroke-dasharray=\"3,6\" opacity=\"0.4\"/>\n  <line x1=\"208\" y1=\"252\" x2=\"650\" y2=\"252\" stroke=\"#334455\" stroke-width=\"0.5\" stroke-dasharray=\"3,6\" opacity=\"0.4\"/>\n  <line x1=\"208\" y1=\"204\" x2=\"650\" y2=\"204\" stroke=\"#334455\" stroke-width=\"0.5\" stroke-dasharray=\"3,6\" opacity=\"0.4\"/>\n  <line x1=\"208\" y1=\"156\" x2=\"650\" y2=\"156\" stroke=\"#334455\" stroke-width=\"0.5\" stroke-dasharray=\"3,6\" opacity=\"0.4\"/>\n  <line x1=\"208\" y1=\"108\" x2=\"650\" y2=\"108\" stroke=\"#334455\" stroke-width=\"0.5\" stroke-dasharray=\"3,6\" opacity=\"0.4\"/>\n  <line x1=\"208\" y1=\"60\" x2=\"650\" y2=\"60\" stroke=\"#334455\" stroke-width=\"0.5\" stroke-dasharray=\"3,6\" opacity=\"0.4\"/>\n\n  <text x=\"200\" y=\"303\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"end\">0</text>\n  <text x=\"200\" y=\"255\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"end\">2</text>\n  <text x=\"200\" y=\"207\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"end\">4</text>\n  <text x=\"200\" y=\"159\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"end\">6</text>\n  <text x=\"200\" y=\"111\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"end\">8</text>\n  <text x=\"200\" y=\"63\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"end\">10</text>\n\n  <!-- Bar: LEO ~9 km/s -->\n  <rect x=\"220\" y=\"82\" width=\"60\" height=\"218\" fill=\"#ff8844\" opacity=\"0.8\"/>\n  <text x=\"250\" y=\"78\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">~9.0</text>\n  <text x=\"250\" y=\"316\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">Reach</text>\n  <text x=\"250\" y=\"327\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">LEO</text>\n\n  <!-- Bar: LEO to GEO ~4 km/s -->\n  <rect x=\"295\" y=\"204\" width=\"60\" height=\"96\" fill=\"#ff8844\" opacity=\"0.7\"/>\n  <text x=\"325\" y=\"200\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">~4.0</text>\n  <text x=\"325\" y=\"316\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">LEO to</text>\n  <text x=\"325\" y=\"327\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">GEO</text>\n\n  <!-- Bar: Earth to Moon ~3.9 km/s -->\n  <rect x=\"370\" y=\"207\" width=\"60\" height=\"93\" fill=\"#7bb8ff\" opacity=\"0.8\"/>\n  <text x=\"400\" y=\"203\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">~3.9</text>\n  <text x=\"400\" y=\"316\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">Earth to</text>\n  <text x=\"400\" y=\"327\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">Moon</text>\n\n  <!-- Bar: Earth to Mars ~3.1 km/s -->\n  <rect x=\"445\" y=\"225\" width=\"60\" height=\"75\" fill=\"#7bb8ff\" opacity=\"0.7\"/>\n  <text x=\"475\" y=\"221\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">~3.1</text>\n  <text x=\"475\" y=\"316\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">Earth to</text>\n  <text x=\"475\" y=\"327\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">Mars</text>\n\n  <!-- Bar: Plane change 30 deg at LEO ~4.3 km/s -->\n  <rect x=\"520\" y=\"196\" width=\"60\" height=\"104\" fill=\"#cc4444\" opacity=\"0.75\"/>\n  <text x=\"550\" y=\"192\" fill=\"#cc4444\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">~4.3</text>\n  <text x=\"550\" y=\"316\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">Inclination</text>\n  <text x=\"550\" y=\"327\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">change 30 deg</text>\n\n  <!-- Legend -->\n  <rect x=\"10\" y=\"335\" width=\"660\" height=\"18\" fill=\"rgba(5,10,20,0.5)\" rx=\"2\"/>\n  <text x=\"340\" y=\"348\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">A 30-degree inclination change costs as much delta-V as a transfer from Earth to Mars</text>\n</svg>",
+        "caption": "Delta-V budget for key mission maneuvers. A thirty-degree inclination change at low Earth orbit costs approximately as much delta-V as a transfer from Earth to Mars — which is why orbital inclination is best chosen at launch rather than corrected in space."
+      }
+    }
+  ],
+  "glossary": [
+    {
+      "term": "Delta-V",
+      "definition": "The change in velocity of a spacecraft, expressed in meters or kilometers per second. The fundamental unit for measuring the cost of orbital maneuvers. Each maneuver consumes a share of the delta-V budget determined by the propellant supply."
+    },
+    {
+      "term": "Hohmann transfer",
+      "definition": "The most propellant-efficient route between two circular orbits: two short engine burns with a coasting transfer ellipse in between. Proposed by Walter Hohmann in 1925."
+    },
+    {
+      "term": "Gravity assist (slingshot)",
+      "definition": "A technique in which a spacecraft flies close to a planet and uses its gravity to change speed and direction relative to the Sun without burning propellant. The planet gains an equal and opposite momentum kick, negligible given its enormous mass."
+    },
+    {
+      "term": "Aerobraking",
+      "definition": "A method of lowering orbital altitude by repeatedly dipping into the upper atmosphere to use aerodynamic drag instead of engine braking. Requires thermal protection material but saves large amounts of propellant."
+    },
+    {
+      "term": "Lagrange points",
+      "definition": "Five equilibrium points in the gravitational field of two large bodies (such as Earth and Moon) where gravity and centrifugal forces balance. L1 and L2 are unstable, L4 and L5 are stable. Used for positioning science observatories and planned space stations."
+    },
+    {
+      "term": "Periapsis and apoapsis",
+      "definition": "The closest (periapsis) and farthest (apoapsis) points of an elliptical orbit from the central body. Engine burns are most efficient at these points: a burn at periapsis changes the apoapsis, and vice versa."
+    },
+    {
+      "term": "Weak stability boundary route",
+      "definition": "A lunar transfer trajectory that flies beyond Earth's dominant gravitational influence to a balance point between Earth and Sun gravity, then coasts to the Moon with minimal arrival braking. Takes roughly three months instead of three days but requires far less propellant to enter lunar orbit."
+    },
+    {
+      "term": "Bi-elliptic transfer",
+      "definition": "An orbital transfer scheme using an intermediate point far beyond the target orbit, executed in three burns. More efficient than the Hohmann transfer when the target orbit is more than roughly fifteen times larger than the initial orbit, but requires much more transit time."
+    },
+    {
+      "term": "Near rectilinear halo orbit (NRHO)",
+      "definition": "A class of highly elongated halo orbits near the lunar Lagrange L2 point. Provides continuous communications coverage and low delta-V access to both the lunar surface and deep space. Selected as the operational orbit for the Gateway lunar station."
+    }
+  ],
+  "quiz": [
+    {
+      "question": "Why does the Hohmann transfer use an ellipse rather than a direct line between the two orbits?",
+      "options": [
+        "Because a straight line between orbits is technically impossible without continuous thrust",
+        "The ellipse naturally connects both orbits and allows the minimum possible delta-V using exactly two burns",
+        "An ellipse is the shorter distance between the two orbits in three-dimensional space",
+        "Earth's rotation automatically deflects the spacecraft into an elliptical path"
+      ],
+      "correctIndex": 1,
+      "explanation": "The Hohmann transfer is mathematically proven to require the least delta-V of any two-burn scheme between two coplanar circular orbits. The transfer ellipse connects both orbits naturally: the first burn places the spacecraft onto it, and the second at the far end circularizes the trajectory at the target altitude. Any other two-burn route requires more total delta-V."
+    },
+    {
+      "question": "Why does a gravity assist give a spacecraft velocity \"for free\"?",
+      "options": [
+        "The spacecraft uses a hidden nuclear engine that fires as it departs from the planet",
+        "The planet transfers part of its own orbital angular momentum to the spacecraft — at the cost of an infinitesimally small change to its own orbit",
+        "The planet's denser gravity field near the surface allows the spacecraft to 'jump' to a higher speed",
+        "The planet's atmosphere compresses the spacecraft and ejects it at higher velocity"
+      ],
+      "correctIndex": 1,
+      "explanation": "A gravity assist conserves total momentum. The spacecraft borrows angular momentum from the planet, which is itself orbiting the Sun. The planet is slowed by a negligibly tiny amount because its mass exceeds the probe's by many billions of times. The Voyager probes accumulated enough velocity through sequential gravity assists at four planets to reach interstellar space on reasonable timescales."
+    },
+    {
+      "question": "Why is changing orbital inclination so expensive in delta-V?",
+      "options": [
+        "Inclination cannot be changed at all without returning to Earth and relaunching",
+        "Changing the orbital plane requires canceling all lateral velocity and building a new vector in a different direction — enormously costly at orbital speeds",
+        "The atmosphere brakes the spacecraft more when it changes inclination than when it changes altitude",
+        "Earth's gravity constantly restores the orbit to its original inclination, forcing continuous engine use"
+      ],
+      "correctIndex": 1,
+      "explanation": "At low Earth orbit the spacecraft moves at roughly eight kilometers per second. Rotating that velocity vector by thirty degrees requires adding about four kilometers per second — as much delta-V as transferring from low orbit to geostationary orbit, or nearly equivalent to launching from Earth to Mars. This is why mission designers choose launch sites and dates to match the target orbital inclination rather than correcting it in space."
+    },
+    {
+      "question": "Why does the launch window for a Mars mission occur only once every twenty-six months?",
+      "options": [
+        "Earth's magnetic fields block launches during all other periods",
+        "Launch vehicles require nearly two years of maintenance between flights",
+        "Only at that interval do Earth and Mars align so that a Hohmann transfer ellipse delivers the spacecraft to where Mars will be nine months later",
+        "Jupiter's gravity blocks trajectories to Mars during all other intervals"
+      ],
+      "correctIndex": 2,
+      "explanation": "Earth orbits the Sun in one year; Mars takes 1.88 years. Their relative configuration repeats every 26 months. Only at that moment does a spacecraft launched on a Hohmann transfer ellipse arrive at exactly the point in space where Mars will be nine months later. Missing the window means waiting for the next planetary alignment."
+    },
+    {
+      "question": "What advantage does aerobraking offer compared with pure engine braking when entering Mars orbit?",
+      "options": [
+        "The spacecraft accelerates rather than brakes, reducing travel time",
+        "Mars's atmosphere shields the spacecraft from solar radiation during the braking phase",
+        "Atmospheric drag replaces much of the engine propellant required for braking, allowing a significantly lower launch mass",
+        "Engine braking at Mars is prohibited because of the risk of contaminating the atmosphere with exhaust products"
+      ],
+      "correctIndex": 2,
+      "explanation": "Aerobraking substitutes atmospheric friction for engine propellant. The Mars Reconnaissance Orbiter spent six months performing aerobraking, dipping into the upper Martian atmosphere at each periapsis pass. The result was a low circular mapping orbit achievable within a propellant budget that pure engine braking could never have met. The cost is a capable heat shield and the patience to complete hundreds of passes."
+    }
+  ],
+  "sources": [
+    {
+      "title": "Bate, Mueller, White — Fundamentals of Astrodynamics (Dover, 1971)",
+      "url": "https://store.doverpublications.com/0486600610.html",
+      "meta": "Dover Publications — the standard introductory astrodynamics text"
+    },
+    {
+      "title": "NASA — Basics of Space Flight: Interplanetary Trajectories",
+      "url": "https://science.nasa.gov/learn/basics-of-space-flight/chapter-4/",
+      "meta": "NASA, open access, updated 2024"
+    },
+    {
+      "title": "NASA — Mars Reconnaissance Orbiter: Aerobraking Overview",
+      "url": "https://mars.nasa.gov/mro/mission/overview/",
+      "meta": "NASA JPL, open access"
+    },
+    {
+      "title": "NASA JPL — Voyager Mission: The Grand Tour",
+      "url": "https://voyager.jpl.nasa.gov/mission/",
+      "meta": "NASA JPL, open access"
+    },
+    {
+      "title": "ESA — Cassini-Huygens: Interplanetary Trajectory",
+      "url": "https://www.esa.int/Science_Exploration/Space_Science/Cassini-Huygens_overview",
+      "meta": "ESA, open access"
+    },
+    {
+      "title": "NASA — Artemis Gateway: Near Rectilinear Halo Orbit",
+      "url": "https://www.nasa.gov/gateway",
+      "meta": "NASA Artemis program, 2024"
+    },
+    {
+      "title": "Belbruno E. — Fly Me to the Moon: Weak Stability Boundary Theory",
+      "url": "https://press.princeton.edu/books/hardcover/9780691130545/fly-me-to-the-moon",
+      "meta": "Princeton University Press, 2007"
+    },
+    {
+      "title": "Hohmann W. — Die Erreichbarkeit der Himmelskörper (1925)",
+      "url": "https://archive.org/details/nasa_techdoc_19980230631",
+      "meta": "Archive.org, NASA translation"
+    },
+    {
+      "title": "Curtis H. — Orbital Mechanics for Engineering Students, 4th ed.",
+      "url": "https://www.elsevier.com/books/orbital-mechanics-for-engineering-students/curtis/978-0-08-102133-0",
+      "meta": "Elsevier, 2019 — contemporary academic text"
+    },
+    {
+      "title": "Wertz J., Larson W. — Space Mission Engineering: The New SMAD",
+      "url": "https://www.smad.com/",
+      "meta": "Microcosm Press, 2011 — mission design reference"
+    }
+  ],
+  "lastVerified": "2026-05-06"
+}

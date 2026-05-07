@@ -1,0 +1,298 @@
+{
+  "slug": "dark-matter",
+  "language": "en",
+  "section": "cosmology",
+  "order": 2,
+  "difficulty": "intermediate",
+  "readingTimeMin": 12,
+  "title": "Dark Matter",
+  "subtitle": "Twenty-seven percent of the universe's energy density — in matter we cannot see, hear, or catch. But it is there.",
+  "hero": {
+    "cacheKey": "dark-matter-hero",
+    "prompt": "Photorealistic illustration for a science encyclopedia: dark matter distribution in the universe. A massive galaxy cluster in the center surrounded by a glowing blue-violet haze representing the dark matter halo — invisible mass revealed only through gravitational lensing. Background galaxies visibly distorted and arced around the cluster. Hard sci-fi style, dark space background, cinematic composition. Add the following text labels on the image: \"dark matter halo\", \"gravitational lensing\", \"visible matter\", \"27% of universe\". Aspect ratio 16:9.",
+    "alt": "Dark matter cloud (blue halo) surrounding a galaxy cluster — reconstruction based on gravitational lensing data.",
+    "caption": "Dark matter neither emits nor absorbs light. Its presence is inferred solely through the curvature of space-time — gravitational lensing of background galaxies. The blue halo is a conventional representation of the dark matter distribution.",
+    "aspectRatio": "16:9"
+  },
+  "body": [
+    {
+      "paragraphs": [
+        "Look at any galaxy. You see stars, gas clouds, dust — everything that glows or reflects light. But there is strong reason to believe all of that visible material is only the tip of the iceberg. The rest — roughly four-fifths of the galaxy's total mass — is something that does not interact with light at all. It neither emits nor absorbs. **Dark matter** is not a metaphor, nor a label for ignorance. It is a concrete physical reality, documented by three independent classes of observation, each pointing to the same number: approximately twenty-seven percent of the total energy density of the universe.",
+        "For comparison: ordinary matter — atoms, molecules, stars, planets, your body — accounts for only about five percent. Another sixty-eight percent belongs to _dark energy_ — an entirely different phenomenon responsible for the accelerating expansion of the universe. What remains is our subject. Dark matter outweighs ordinary matter by roughly five to one."
+      ]
+    },
+    {
+      "heading": "Vera Rubin and Galaxy Rotation Curves",
+      "level": 2,
+      "paragraphs": [
+        "In the middle of the twentieth century, American astronomer **Vera Rubin**, working with Kent Ford, began systematically measuring how fast stars orbit the centers of spiral galaxies. Newtonian gravitational physics predicted a clear answer: the farther a star sits from the center, the slower it should move — just as the outer planets of the Solar System orbit more slowly than the inner ones.",
+        "What Rubin found was different. Stars at the outer edges of galaxies moved at roughly the same speed as stars near the nucleus. The _rotation curve_ — a plot of orbital velocity against distance from the center — did not decline. It remained flat, well beyond the limits of the visible stellar disk. This implied only one thing: there is mass out there that we cannot see. Mass distributed in an enormous spherical halo around the galaxy, extending far beyond the stellar disk.",
+        "Rubin and Ford repeated the measurements across dozens of galaxies — the result was the same. The unseen mass was not an anomaly or a measurement error. It is a systematic feature of every spiral galaxy. Without dark matter, galaxies would fly apart — stars at the outer edges simply could not be held in orbit by the gravity of what we can see."
+      ]
+    },
+    {
+      "diagram": {
+        "title": "Diagram: Galaxy Rotation Curve — Expected versus Observed",
+        "svg": "<svg viewBox=\"0 0 680 260\" xmlns=\"http://www.w3.org/2000/svg\">\n  <rect width=\"680\" height=\"260\" fill=\"rgba(10,15,25,0.5)\"/>\n\n  <!-- Axes -->\n  <line x1=\"60\" y1=\"200\" x2=\"620\" y2=\"200\" stroke=\"#334455\" stroke-width=\"1.5\"/>\n  <line x1=\"60\" y1=\"30\" x2=\"60\" y2=\"200\" stroke=\"#334455\" stroke-width=\"1.5\"/>\n\n  <!-- Axis labels -->\n  <text x=\"340\" y=\"230\" text-anchor=\"middle\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"11\">distance from galactic center</text>\n  <text x=\"20\" y=\"120\" text-anchor=\"middle\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"11\" transform=\"rotate(-90,20,120)\">orbital velocity</text>\n\n  <!-- Arrow heads -->\n  <polygon points=\"620,197 612,193 612,203\" fill=\"#334455\"/>\n  <polygon points=\"63,30 57,38 69,38\" fill=\"#334455\"/>\n\n  <!-- Expected (Keplerian) curve — dashed red -->\n  <path d=\"M 60 80 C 120 75, 180 110, 240 140 C 300 163, 380 175, 480 185 C 540 190, 580 193, 620 196\"\n        fill=\"none\" stroke=\"#cc4444\" stroke-width=\"2\" stroke-dasharray=\"6,4\"/>\n  <text x=\"510\" y=\"173\" fill=\"#cc4444\" font-family=\"monospace\" font-size=\"10\">expected curve</text>\n  <text x=\"510\" y=\"184\" fill=\"#cc4444\" font-family=\"monospace\" font-size=\"10\">(Keplerian)</text>\n\n  <!-- Observed (flat) curve — solid green -->\n  <path d=\"M 60 80 C 100 72, 150 68, 200 70 C 280 72, 380 72, 480 73 C 540 73, 580 73, 620 73\"\n        fill=\"none\" stroke=\"#44ff88\" stroke-width=\"2.5\"/>\n  <text x=\"490\" y=\"62\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"10\">observed curve</text>\n  <text x=\"490\" y=\"73\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"10\">(flat)</text>\n\n  <!-- Dark matter annotation -->\n  <line x1=\"400\" y1=\"73\" x2=\"400\" y2=\"130\" stroke=\"#7bb8ff\" stroke-width=\"1\" stroke-dasharray=\"3,3\"/>\n  <text x=\"410\" y=\"100\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"10\">dark matter</text>\n  <text x=\"410\" y=\"112\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"10\">holds stars in orbit</text>\n\n  <!-- Visible disk boundary -->\n  <line x1=\"240\" y1=\"35\" x2=\"240\" y2=\"200\" stroke=\"#334455\" stroke-width=\"1\" stroke-dasharray=\"4,3\"/>\n  <text x=\"245\" y=\"45\" fill=\"#667788\" font-family=\"monospace\" font-size=\"9\">edge of</text>\n  <text x=\"245\" y=\"56\" fill=\"#667788\" font-family=\"monospace\" font-size=\"9\">visible disk</text>\n\n  <text x=\"340\" y=\"20\" text-anchor=\"middle\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"11\">Galaxy Rotation Curve</text>\n</svg>",
+        "caption": "The dashed red line shows the velocity predicted by Newtonian gravity from the visible mass alone. The solid green line shows what is actually observed. The gap is explained by an unseen dark halo."
+      }
+    },
+    {
+      "heading": "The Bullet Cluster: The Most Convincing Proof",
+      "level": 2,
+      "paragraphs": [
+        "Rotation curves are a powerful argument, but one can theoretically imagine that we simply misunderstand gravity on large scales. In 2006, however, astronomers obtained evidence that effectively demolishes that counter-argument.",
+        "**The Bullet Cluster** (catalog designation 1E 0657-558) is two galaxy clouds that collided and passed through each other. During the collision, the hot gas — which constitutes most of the visible mass — slowed down and remained near the center of impact. Gas interacts electromagnetically and literally \"drags\" against itself. Stars, by contrast, are so sparsely distributed that they passed through each other without collision.",
+        "But where, in this picture, does the mass reside? Astronomers mapped the mass distribution using gravitational lensing — the bending of trajectories of background galaxies. The mass concentrations turned out to be **not where the gas is**, but where the stars are — plus something else, invisible, that passed through the collision just as freely as the stars did, because it barely interacts with ordinary matter at all. That is dark matter. The Bullet Cluster literally showed it separating from the gas."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "dark-matter-bullet-cluster",
+        "prompt": "Photorealistic illustration for a science encyclopedia: the Bullet Cluster galaxy collision. Two galaxy clusters that have passed through each other. Hot X-ray gas (glowing orange-red) concentrated in the center between the clusters. Blue halos on the outer sides representing dark matter distribution from gravitational lensing — offset from the gas, aligned with the stellar components. Hard sci-fi style, dark space background. Add the following text labels on the image: \"hot gas (X-ray)\", \"dark matter halo\", \"stars\", \"1E 0657-558\". Aspect ratio 16:9.",
+        "alt": "The Bullet Cluster: hot gas (orange) lagged behind while dark matter (blue halos) passed through with the stars.",
+        "caption": "The Bullet Cluster (2006) — the most compelling direct evidence for dark matter. Gas (X-ray emission, orange) stalled at the collision center; dark matter (blue, from lensing) passed straight through alongside the stars.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "The Cosmic Microwave Background and Large-Scale Structure",
+      "level": 2,
+      "paragraphs": [
+        "A third independent class of evidence comes from the earliest observable universe. The **Planck** mission of the European Space Agency — with results published in 2013 and 2018 — measured the spectrum of acoustic peaks in the Cosmic Microwave Background with extraordinary precision. These peaks are echoes of sound waves in the plasma of the early universe — and they are exquisitely sensitive to the amounts of different components: ordinary baryons, neutrinos, and dark matter.",
+        "The relative heights of the second and third acoustic peaks directly constrain how much dark matter existed at the moment of recombination — some three hundred and eighty thousand years after the Big Bang. The number that falls out of those measurements matches beautifully what rotation curves and lensing independently suggest: approximately twenty-seven percent of the total energy density of the universe.",
+        "Computer simulations of large-scale structure — models that calculate how gravity assembles filaments, walls, and voids from small initial fluctuations — also require dark matter. The landmark Millennium Simulation demonstrated that without dark matter, the structures we observe could not have formed on the timescales and scales we see. Dark matter is the scaffolding on which all galaxies assembled."
+      ]
+    },
+    {
+      "diagram": {
+        "title": "Diagram: Energy Density of the Universe — Three Components",
+        "svg": "<svg viewBox=\"0 0 680 280\" xmlns=\"http://www.w3.org/2000/svg\">\n  <rect width=\"680\" height=\"280\" fill=\"rgba(10,15,25,0.5)\"/>\n\n  <text x=\"340\" y=\"22\" text-anchor=\"middle\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"12\">Composition of the Universe (Planck 2018)</text>\n\n  <!-- Dark Energy slice: 68% = 244.8 deg -->\n  <path d=\"M 220 155 L 220 55 A 100 100 0 1 1 132 230 Z\"\n        fill=\"rgba(68,136,170,0.35)\" stroke=\"#4488aa\" stroke-width=\"1.5\"/>\n\n  <!-- Dark Matter slice: 27% = 97.2 deg -->\n  <path d=\"M 220 155 L 132 230 A 100 100 0 0 1 229 255 Z\"\n        fill=\"rgba(123,184,255,0.35)\" stroke=\"#7bb8ff\" stroke-width=\"1.5\"/>\n\n  <!-- Ordinary Matter slice: 5% = 18 deg -->\n  <path d=\"M 220 155 L 229 255 A 100 100 0 0 1 220 55 Z\"\n        fill=\"rgba(68,255,136,0.35)\" stroke=\"#44ff88\" stroke-width=\"1.5\"/>\n\n  <!-- Labels with lines -->\n  <line x1=\"160\" y1=\"110\" x2=\"90\" y2=\"90\" stroke=\"#4488aa\" stroke-width=\"1\"/>\n  <text x=\"85\" y=\"82\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"13\" font-weight=\"bold\">68%</text>\n  <text x=\"40\" y=\"98\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"11\">dark energy</text>\n\n  <line x1=\"175\" y1=\"240\" x2=\"120\" y2=\"255\" stroke=\"#7bb8ff\" stroke-width=\"1\"/>\n  <text x=\"60\" y=\"252\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"13\" font-weight=\"bold\">27%</text>\n  <text x=\"25\" y=\"267\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"11\">dark matter</text>\n\n  <line x1=\"225\" y1=\"255\" x2=\"260\" y2=\"265\" stroke=\"#44ff88\" stroke-width=\"1\"/>\n  <text x=\"262\" y=\"262\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"13\" font-weight=\"bold\">5%</text>\n  <text x=\"262\" y=\"275\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"11\">ordinary matter</text>\n\n  <!-- Right column explanation -->\n  <rect x=\"380\" y=\"60\" width=\"270\" height=\"50\" rx=\"3\" fill=\"rgba(68,136,170,0.1)\" stroke=\"#4488aa\" stroke-width=\"1\"/>\n  <text x=\"515\" y=\"82\" text-anchor=\"middle\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"11\">Dark Energy — 68%</text>\n  <text x=\"515\" y=\"98\" text-anchor=\"middle\" fill=\"#667788\" font-family=\"monospace\" font-size=\"10\">drives accelerating expansion</text>\n\n  <rect x=\"380\" y=\"125\" width=\"270\" height=\"50\" rx=\"3\" fill=\"rgba(123,184,255,0.1)\" stroke=\"#7bb8ff\" stroke-width=\"1\"/>\n  <text x=\"515\" y=\"147\" text-anchor=\"middle\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"11\">Dark Matter — 27%</text>\n  <text x=\"515\" y=\"163\" text-anchor=\"middle\" fill=\"#667788\" font-family=\"monospace\" font-size=\"10\">holds galaxies and structure</text>\n\n  <rect x=\"380\" y=\"190\" width=\"270\" height=\"50\" rx=\"3\" fill=\"rgba(68,255,136,0.1)\" stroke=\"#44ff88\" stroke-width=\"1\"/>\n  <text x=\"515\" y=\"212\" text-anchor=\"middle\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"11\">Ordinary Matter — 5%</text>\n  <text x=\"515\" y=\"228\" text-anchor=\"middle\" fill=\"#667788\" font-family=\"monospace\" font-size=\"10\">stars, gas, planets, you</text>\n\n  <text x=\"340\" y=\"260\" text-anchor=\"middle\" fill=\"#667788\" font-family=\"monospace\" font-size=\"10\">Source: Planck Collaboration 2018, arXiv:1807.06209</text>\n</svg>",
+        "caption": "The energy budget of the universe: ordinary matter accounts for only five percent. Dark matter and dark energy together constitute ninety-five percent of everything that exists."
+      }
+    },
+    {
+      "heading": "Who Could It Be: The Candidates",
+      "level": 2,
+      "paragraphs": [
+        "We detect dark matter only through gravity. What it actually is remains an open question. Over decades physicists have assembled several classes of candidates.",
+        "**Weakly interacting massive particles** — a category covering hypothetical particles with masses ranging from a few to thousands of proton masses, interacting only through the weak nuclear force and gravity. Extensions of the standard model proposed since the nineteen-eighties — supersymmetry in particular — naturally produce such candidates: neutralinos and others. They arise from the theory without ad hoc tuning, and their expected relic abundance from the Big Bang matches the observed dark matter density — a coincidence known as the \"weakly interacting massive particle miracle.\" Yet no direct detector and no particle collider has found them as of 2026.",
+        "**Axions** — ultra-light hypothetical particles originally proposed for an unrelated reason: to explain the near-perfect symmetry of quantum chromodynamics. Their mass may be a billion times smaller than the electron's, but if enough of them formed in the early universe, they could account for all the dark matter. Axion detectors — notably the project known as the Axion Dark Matter Experiment — search for them by exploiting their rare conversion into photons inside strong magnetic fields.",
+        "**Primordial black holes** — if the early universe contained regions of elevated density, black holes could have formed there with masses ranging from lunar to hundreds of solar masses. They emit nothing and interact gravitationally — ideal candidates. But microlensing surveys, gravitational wave observations, and analyses of the Cosmic Microwave Background have significantly constrained the fraction of cosmic mass that primordial black holes can constitute.",
+        "**Sterile neutrinos** — hypothetical heavy cousins of the known neutrinos, interacting only through gravity. Some models predict their decay produces an X-ray photon at a specific energy — a signal searched for by the XMM-Newton and Chandra X-ray observatories. A puzzling line near 3.5 kilo-electron-volts detected in the twenty-tens remains without a definitive explanation."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "dark-matter-candidates",
+        "prompt": "Scientific illustration for a science encyclopedia: dark matter particle candidates comparison chart. Four panels or quadrants showing: 1) WIMP — depicted as a heavy particle surrounded by weak force symbols, mass range 10 GeV - 10 TeV. 2) Axion — ultra-light wave-like particle, mass range 10^-6 to 10^-3 eV. 3) Primordial black hole — small black sphere with Hawking radiation glow, mass range 10^17 - 10^23 kg. 4) Sterile neutrino — ghostly particle outline, keV mass scale. Hard sci-fi style, dark background, monospace labels, dark blue-cyan palette. Add the following text labels on the image: \"WIMP\", \"Axion\", \"Primordial Black Hole\", \"Sterile Neutrino\". Aspect ratio 4:3.",
+        "alt": "Four classes of dark matter candidates: weakly interacting massive particles, axions, primordial black holes, sterile neutrinos.",
+        "caption": "None of the four candidate classes has been experimentally confirmed. They differ dramatically in mass and detection mechanism — which makes the search a genuinely difficult experimental problem.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "Searching in the Dark: Modern Detectors",
+      "level": 2,
+      "paragraphs": [
+        "If dark matter consists of weakly interacting massive particles, those particles should occasionally collide with ordinary atomic nuclei, transferring a tiny recoil impulse. Direct-detection experiments try to catch exactly that: a signal from a krypton or xenon nucleus recoiling after a strike from an invisible particle.",
+        "The most powerful such detectors are placed deep underground to shield them from cosmic rays and background radiation. The **LUX-ZEPLIN** project at the Sanford Underground Research Facility in South Dakota and **XENONnT** at the Gran Sasso underground laboratory in Italy are the most sensitive instruments in their class. Both completed data runs before 2026 without detecting a dark matter signal.",
+        "The Large Hadron Collider at CERN attempted to produce dark matter in particle collisions — the signature would appear as missing transverse momentum (particles \"leaving\" invisibly). The **ATLAS** and **CMS** detectors conducted thorough searches in the mass ranges where supersymmetric particles were expected. As of 2026, supersymmetry has not been found. This does not mean dark matter does not exist — only that it is either heavier or couples more weakly than the simplest models predicted.",
+        "Indirect detection is a third avenue. If two dark matter particles annihilate each other, they should produce known particles: gamma-ray photons, electrons, positrons. The Fermi Gamma-ray Space Telescope searches for excess gamma radiation from the galactic center and from dwarf galaxies. There are intriguing signals, but none constitutes conclusive evidence."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "dark-matter-detector",
+        "prompt": "Photorealistic illustration for a science encyclopedia: underground dark matter detector. A large cylindrical xenon detector vessel suspended in a deep underground cavern, surrounded by water shield tank. Technicians in the background shown as silhouettes. Photomultiplier tubes visible inside the vessel. Hard sci-fi style, dim blue-cyan lighting, dark rock walls visible. Add the following text labels on the image: \"liquid xenon target\", \"photomultiplier array\", \"water shielding\", \"1500m underground\". Aspect ratio 16:9.",
+        "alt": "Underground liquid-xenon dark matter detector — composite illustration in the style of LUX-ZEPLIN / XENONnT.",
+        "caption": "Direct-detection experiments are built deep underground to eliminate cosmic-ray backgrounds. Liquid xenon serves as the detection medium: a dark matter particle striking a xenon nucleus should produce a faint flash of light and a small charge pulse.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "The Alternative: Can We Do Without Dark Matter?",
+      "level": 2,
+      "paragraphs": [
+        "A minority of physicists proposes a different way out: perhaps the problem lies not in invisible matter but in an incomplete understanding of gravity at large scales. In the nineteen-eighties, Mordehai Milgrom proposed a theory that can be broadly described as Modified Newtonian Dynamics. The idea: at very low accelerations, gravity behaves differently from what Newton's law predicts, and this difference alone is enough to explain flat rotation curves without any extra mass.",
+        "For individual galaxies, this idea works surprisingly well. But it does not explain the Bullet Cluster — where the mass is offset from the gas — because any modification of gravity acts equally on all matter. It also struggles to reproduce the acoustic peaks of the Cosmic Microwave Background and the large-scale structure of the universe. Relativistic extensions of Modified Newtonian Dynamics — for example, Bekenstein's tensor-vector-scalar gravity theory — are considerably more complex than general relativity and carry their own serious limitations.",
+        "As of 2026, the consensus among most cosmologists favors dark matter as a real substance of unknown nature. But it would be premature to dismiss modified gravity theories entirely: some galaxies appear to contain little dark matter, and some tight binary star systems behave exactly as Modified Newtonian Dynamics predicts."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "dark-matter-large-scale-structure",
+        "prompt": "Photorealistic illustration for a science encyclopedia: cosmic large-scale structure simulation. The cosmic web — filaments of dark matter stretching across space, glowing faintly in blue-white against deep black, with bright nodes at filament intersections (galaxy clusters). Vast dark voids between the filaments. Hard sci-fi style, deep space background. Add the following text labels on the image: \"dark matter filaments\", \"galaxy cluster nodes\", \"cosmic voids\", \"Millennium Simulation\". Aspect ratio 16:9.",
+        "alt": "Large-scale structure of the universe — dark matter filaments and galaxy cluster nodes, in the style of the Millennium Simulation.",
+        "caption": "The Millennium Simulation (and its successors) demonstrated that without dark matter, the filaments and walls of the cosmic web could not have formed within the lifetime of the universe. Dark matter is the skeleton that holds visible matter in place.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "What We Know and What We Do Not",
+      "level": 2,
+      "paragraphs": [
+        "Three things are firmly established. Dark matter exists — at minimum, some additional gravitating component is unambiguously required to explain rotation curves, lensing, and structure. It is \"cold\" — it moves much slower than the speed of light and forms compact halos rather than a diffuse hot gas. And it is electromagnetically neutral — otherwise it would interact with light and would have been detected by optical means long ago.",
+        "We do not know what it is made of. Successive generations of detectors searching for weakly interacting massive particles in the most natural mass ranges have found nothing. Perhaps the particle exists but couples even more weakly than expected. Perhaps dark matter consists of axions or something still less predictable. Perhaps it is an entire \"dark sector\" with its own internal physics and interactions.",
+        "This is one of the deepest open questions in physics. We live inside a galaxy that is roughly eighty percent composed of matter whose nature we do not understand. And it is precisely that matter which acted as the gravitational scaffolding from which stars, galaxies, and ultimately the conditions for life emerged."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "dark-matter-galaxy-halo",
+        "prompt": "Photorealistic illustration for a science encyclopedia: dark matter halo around a spiral galaxy. A beautiful edge-on or slightly tilted spiral galaxy in the center, surrounded by a vast, faintly glowing spherical halo — much larger than the visible disk — representing the dark matter distribution. The halo is shown as a translucent blue-violet sphere extending well beyond the galaxy disk. Hard sci-fi style, dark space background. Add the following text labels on the image: \"visible stellar disk\", \"dark matter halo\", \"halo radius ~10x disk\", \"80% of galaxy mass\". Aspect ratio 16:9.",
+        "alt": "Galaxy with its dark halo: the visible stellar disk surrounded by an enormous spherical dark matter envelope.",
+        "caption": "The dark halo of a galaxy outweighs its visible component by four to five to one. It extends to distances ten times the radius of the stellar disk and is the primary gravitational anchor for all stellar orbits.",
+        "aspectRatio": "16:9"
+      }
+    }
+  ],
+  "glossary": [
+    {
+      "term": "Dark matter",
+      "definition": "A hypothetical form of matter that does not interact with electromagnetic radiation but manifests itself through gravity. It accounts for approximately twenty-seven percent of the total energy density of the universe."
+    },
+    {
+      "term": "Galaxy rotation curve",
+      "definition": "A plot of the orbital velocity of stars and gas as a function of distance from the galactic center. The observed flat curve — velocity not declining at the outer edges — is the primary evidence for a dark halo."
+    },
+    {
+      "term": "Gravitational lensing",
+      "definition": "The deflection of photon paths by massive objects, as predicted by general relativity. Weak lensing allows astronomers to map the distribution of dark matter that cannot be seen directly."
+    },
+    {
+      "term": "Weakly interacting massive particle",
+      "definition": "A hypothetical dark matter particle with a mass from a few to thousands of proton masses, interacting only through the weak nuclear force and gravity. Commonly abbreviated in scientific writing, but expanded fully in spoken text."
+    },
+    {
+      "term": "Axion",
+      "definition": "An ultra-light hypothetical particle originally proposed to resolve the symmetry problem in quantum chromodynamics. It is one of the leading dark matter candidates and can be searched for through its rare conversion into photons in strong magnetic fields."
+    },
+    {
+      "term": "Sterile neutrino",
+      "definition": "A hypothetical heavy particle resembling a neutrino but interacting only through gravity (not through the weak force). It may decay by emitting an X-ray photon at a characteristic energy."
+    },
+    {
+      "term": "Cold dark matter",
+      "definition": "A class of cosmological models in which dark matter consists of slow (non-relativistic) particles. Cold dark matter models are the most consistent with the observed large-scale structure of the universe."
+    },
+    {
+      "term": "Bullet Cluster",
+      "definition": "A system of two colliding galaxy clusters (catalog designation 1E 0657-558). One of the most compelling direct evidences for dark matter: the hot gas stalled at the collision center while the gravitational mass (from lensing) followed the stars."
+    },
+    {
+      "term": "Modified Newtonian Dynamics",
+      "definition": "An alternative theory proposing to modify the law of gravity at low accelerations instead of invoking dark matter. It explains rotation curves of some individual galaxies but fails to account for the Bullet Cluster and large-scale structure."
+    }
+  ],
+  "quiz": [
+    {
+      "question": "What fraction of the total energy density of the universe does dark matter constitute?",
+      "options": [
+        "Approximately five percent",
+        "Approximately twenty-seven percent",
+        "Approximately sixty-eight percent",
+        "Exactly fifty percent"
+      ],
+      "correctIndex": 1,
+      "explanation": "According to Planck mission data (2018): ordinary matter makes up about five percent, dark matter about twenty-seven percent, and dark energy about sixty-eight percent."
+    },
+    {
+      "question": "What did the Bullet Cluster reveal about dark matter?",
+      "options": [
+        "That dark matter emits X-ray light",
+        "That dark matter and hot gas behave differently during collisions",
+        "That dark matter is a variety of black holes",
+        "That dark matter is concentrated only in galactic centers"
+      ],
+      "correctIndex": 1,
+      "explanation": "When the two clusters collided, the gas slowed down and stayed at the collision center, while the gravitational mass (from lensing) moved with the stars. This showed that dark matter barely interacts with gas — only gravitationally."
+    },
+    {
+      "question": "Why are detectors searching for weakly interacting massive particles placed deep underground?",
+      "options": [
+        "Because the lower temperature underground is required for detection",
+        "To shield them from cosmic rays and background radiation",
+        "Because dark matter concentrates in the Earth's interior",
+        "Because X-rays from stars would interfere with the measurements"
+      ],
+      "correctIndex": 1,
+      "explanation": "The expected signal from a dark matter particle striking a nucleus is extremely faint. Background noise from cosmic rays and natural radioactivity would completely mask it. Several kilometers of rock act as a shield against this background."
+    },
+    {
+      "question": "What is the main weakness of Modified Newtonian Dynamics?",
+      "options": [
+        "It cannot explain flat rotation curves in spiral galaxies",
+        "It requires particles heavier than the proton",
+        "It cannot reproduce the Bullet Cluster effect or the large-scale structure of the universe",
+        "It contradicts minor details in Cosmic Microwave Background observations"
+      ],
+      "correctIndex": 2,
+      "explanation": "In the Bullet Cluster, the gravitational mass is offset from the visible matter (the gas). Any modified gravity theory acts equally on all matter, so it cannot explain this offset. The theory also struggles to reproduce the acoustic peaks of the Cosmic Microwave Background."
+    },
+    {
+      "question": "How does \"cold\" dark matter differ from \"hot\" dark matter?",
+      "options": [
+        "Cold dark matter has a lower temperature and is therefore easier to detect",
+        "Cold dark matter consists of much heavier and slower particles that form compact structures",
+        "Cold dark matter is distributed uniformly across the universe without condensing into halos",
+        "Cold dark matter interacts through the weak force; hot dark matter interacts only through gravity"
+      ],
+      "correctIndex": 1,
+      "explanation": "In cold dark matter, particles move far below the speed of light (non-relativistic). This allows them to gravitationally collapse and form galactic halos and large-scale structure at rates consistent with observations. Hot dark matter (for example, light neutrinos) would erase small-scale structures before they could form."
+    }
+  ],
+  "sources": [
+    {
+      "title": "Rubin V.C., Ford W.K. — Rotation of the Andromeda Nebula from a Spectroscopic Survey of Emission Regions",
+      "url": "https://ui.adsabs.harvard.edu/abs/1970ApJ...159..379R",
+      "meta": "ApJ 159, 379 (1970) — landmark Rubin and Ford rotation curve paper"
+    },
+    {
+      "title": "Clowe D. et al. — A Direct Empirical Proof of the Existence of Dark Matter (Bullet Cluster)",
+      "url": "https://arxiv.org/abs/astro-ph/0608407",
+      "meta": "ApJL 648, L109 (2006), arXiv:astro-ph/0608407"
+    },
+    {
+      "title": "Planck Collaboration — Planck 2018 Results VI: Cosmological Parameters",
+      "url": "https://arxiv.org/abs/1807.06209",
+      "meta": "A&A 641, A6 (2020), arXiv:1807.06209"
+    },
+    {
+      "title": "Springel V. et al. — Simulations of the Formation, Evolution and Clustering of Galaxies (Millennium Simulation)",
+      "url": "https://arxiv.org/abs/astro-ph/0504097",
+      "meta": "Nature 435, 629 (2005), arXiv:astro-ph/0504097"
+    },
+    {
+      "title": "LUX-ZEPLIN Collaboration — First Dark Matter Search Results from the LUX-ZEPLIN Experiment",
+      "url": "https://arxiv.org/abs/2207.03764",
+      "meta": "Phys. Rev. Lett. 131, 041002 (2023), arXiv:2207.03764"
+    },
+    {
+      "title": "XENON Collaboration — First Dark Matter Search with XENONnT",
+      "url": "https://arxiv.org/abs/2303.14729",
+      "meta": "Phys. Rev. Lett. 131, 041003 (2023), arXiv:2303.14729"
+    },
+    {
+      "title": "Milgrom M. — A Modification of the Newtonian Dynamics as a Possible Alternative to the Hidden Mass Hypothesis",
+      "url": "https://ui.adsabs.harvard.edu/abs/1983ApJ...270..365M",
+      "meta": "ApJ 270, 365 (1983) — original Modified Newtonian Dynamics paper"
+    },
+    {
+      "title": "Peccei R.D., Quinn H. — CP Conservation in the Presence of Pseudoparticles (Axion origin)",
+      "url": "https://ui.adsabs.harvard.edu/abs/1977PhRvL..38.1440P",
+      "meta": "Phys. Rev. Lett. 38, 1440 (1977)"
+    },
+    {
+      "title": "Bertone G., Hooper D., Silk J. — Particle Dark Matter: Evidence, Candidates and Constraints (review)",
+      "url": "https://arxiv.org/abs/hep-ph/0404175",
+      "meta": "Phys. Rept. 405, 279 (2005), arXiv:hep-ph/0404175"
+    },
+    {
+      "title": "ESA — Planck Mission Overview",
+      "url": "https://www.esa.int/Science_Exploration/Space_Science/Planck",
+      "meta": "ESA official Planck mission page"
+    }
+  ],
+  "lastVerified": "2026-05-06"
+}

@@ -1,0 +1,302 @@
+{
+  "slug": "eclipses-occultations",
+  "language": "en",
+  "section": "astronomy",
+  "order": 13,
+  "difficulty": "beginner",
+  "readingTimeMin": 10,
+  "title": "Eclipses and Occultations",
+  "subtitle": "When one celestial body blocks another — from total solar eclipses to Venus transits and stellar occultations.",
+  "hero": {
+    "cacheKey": "eclipses-occultations-hero",
+    "prompt": "Photorealistic scientific illustration of a total solar eclipse: the Moon perfectly centered over the Sun, revealing the solar corona — white pearlescent streamers and delicate plasma filaments radiating outward in all directions against deep black sky. Diamond ring effect visible at the limb transition. The landscape below is twilight dark with a faint glow on the horizon. Hard sci-fi style, dramatic and technically accurate, no people visible. Add the following text labels on the image: \"corona\", \"chromosphere\", \"totality\", \"Moon silhouette\".",
+    "alt": "Total solar eclipse — the solar corona glowing around the black disk of the Moon",
+    "caption": "During a total solar eclipse, the Moon nearly perfectly covers the solar disk. The solar corona — the outer atmosphere of the star — becomes visible only during these brief minutes. No other astronomical phenomenon provides such a window for observation.",
+    "aspectRatio": "16:9"
+  },
+  "body": [
+    {
+      "paragraphs": [
+        "Some events have been witnessed since the earliest moments of human awareness, and with each generation they revealed something new about the workings of the universe. Eclipses are among them. The sudden disappearance of the Sun from a clear sky struck terror and sacred awe, while simultaneously driving the most curious minds to count, predict, and measure. The journey from fear to precise forecasting took not millennia but a few centuries — extraordinarily fast by the timescale of intellectual history.",
+        "The modern definition is straightforward: an eclipse occurs when one celestial body passes into the shadow of another, or blocks it from view. But behind that compact statement lies remarkable geometry, coincidences of size unique to Earth, and still — the finest natural laboratory for studying the solar corona and testing fundamental theories of physics."
+      ]
+    },
+    {
+      "heading": "Shadow Geometry: Umbra and Penumbra",
+      "level": 2,
+      "paragraphs": [
+        "Any opaque body illuminated by an extended light source casts two shadow zones. The _umbra_ is the central, complete shadow: from inside it the light source is entirely hidden. The _penumbra_ is the partial shadow: from inside it part of the source remains visible. As the Moon orbits Earth it projects a cone of umbra and a wider cone of penumbra toward our planet. When the umbra reaches Earth's surface, a **total solar eclipse** occurs along a narrow track. When only the penumbra sweeps across the surface, observers experience a **partial eclipse** with no totality.",
+        "But the Moon's orbit is not a perfect circle — it is elliptical. When the Moon is near apogee — the farthest point from Earth — its angular diameter is slightly smaller than the Sun's. In that case the umbra never reaches Earth, and instead the _antumbra_ — the reverse shadow cone — takes over. An observer inside the antumbra sees an **annular eclipse**: a narrow bright ring of the solar disk surrounds the dark silhouette of the Moon. Visually striking, but it produces no totality and reveals no corona."
+      ]
+    },
+    {
+      "diagram": {
+        "title": "Solar Eclipse Geometry: Umbra, Penumbra, Antumbra",
+        "svg": "<svg viewBox=\"0 0 700 320\" xmlns=\"http://www.w3.org/2000/svg\">\n  <rect width=\"700\" height=\"320\" fill=\"rgba(10,15,25,0.85)\" rx=\"4\"/>\n\n  <!-- Sun (left) -->\n  <circle cx=\"72\" cy=\"160\" r=\"62\" fill=\"#ffee66\" opacity=\"0.9\"/>\n  <text x=\"72\" y=\"164\" fill=\"#020510\" font-family=\"monospace\" font-size=\"11\" text-anchor=\"middle\" font-weight=\"bold\">Sun</text>\n\n  <!-- Moon (center) -->\n  <circle cx=\"330\" cy=\"160\" r=\"22\" fill=\"#334455\" stroke=\"#8899aa\" stroke-width=\"1\"/>\n  <text x=\"330\" y=\"195\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">Moon</text>\n\n  <!-- Earth (right) -->\n  <circle cx=\"590\" cy=\"160\" r=\"36\" fill=\"#1a3a5c\" stroke=\"#4488aa\" stroke-width=\"1.2\"/>\n  <text x=\"590\" y=\"164\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"11\" text-anchor=\"middle\" font-weight=\"bold\">Earth</text>\n\n  <!-- Umbra cone lines -->\n  <line x1=\"72\" y1=\"98\" x2=\"352\" y2=\"138\" stroke=\"#cc4444\" stroke-width=\"1\" stroke-dasharray=\"4,3\" opacity=\"0.8\"/>\n  <line x1=\"72\" y1=\"222\" x2=\"352\" y2=\"182\" stroke=\"#cc4444\" stroke-width=\"1\" stroke-dasharray=\"4,3\" opacity=\"0.8\"/>\n  <line x1=\"352\" y1=\"138\" x2=\"570\" y2=\"150\" stroke=\"#cc4444\" stroke-width=\"1.2\" opacity=\"0.9\"/>\n  <line x1=\"352\" y1=\"182\" x2=\"570\" y2=\"170\" stroke=\"#cc4444\" stroke-width=\"1.2\" opacity=\"0.9\"/>\n\n  <!-- Umbra label -->\n  <text x=\"465\" y=\"155\" fill=\"#cc4444\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">umbra</text>\n\n  <!-- Penumbra outer lines -->\n  <line x1=\"72\" y1=\"98\" x2=\"308\" y2=\"138\" stroke=\"#667788\" stroke-width=\"0.8\" opacity=\"0.5\"/>\n  <line x1=\"72\" y1=\"98\" x2=\"560\" y2=\"124\" stroke=\"#667788\" stroke-width=\"0.8\" stroke-dasharray=\"3,3\" opacity=\"0.5\"/>\n  <line x1=\"72\" y1=\"222\" x2=\"308\" y2=\"182\" stroke=\"#667788\" stroke-width=\"0.8\" opacity=\"0.5\"/>\n  <line x1=\"72\" y1=\"222\" x2=\"560\" y2=\"196\" stroke=\"#667788\" stroke-width=\"0.8\" stroke-dasharray=\"3,3\" opacity=\"0.5\"/>\n\n  <!-- Penumbra labels -->\n  <text x=\"430\" y=\"122\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">penumbra</text>\n  <text x=\"430\" y=\"202\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">penumbra</text>\n\n  <!-- Totality zone on Earth -->\n  <rect x=\"564\" y=\"148\" width=\"12\" height=\"24\" fill=\"#cc4444\" opacity=\"0.5\" rx=\"1\"/>\n  <text x=\"590\" y=\"215\" fill=\"#cc4444\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">total</text>\n  <text x=\"590\" y=\"227\" fill=\"#cc4444\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">eclipse</text>\n\n  <!-- Antumbra label -->\n  <text x=\"480\" y=\"145\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">antumbra →</text>\n  <text x=\"480\" y=\"157\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">annular</text>\n\n  <!-- Direction arrow Moon around Earth -->\n  <path d=\"M 355 145 Q 470 80 590 125\" stroke=\"#4488aa\" stroke-width=\"1\" fill=\"none\" stroke-dasharray=\"5,3\" opacity=\"0.6\"/>\n  <polygon points=\"587,125 594,118 598,128\" fill=\"#4488aa\" opacity=\"0.7\"/>\n  <text x=\"476\" y=\"78\" fill=\"#4488aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Moon's orbit</text>\n</svg>",
+        "caption": "The umbra is the complete shadow where totality occurs. The antumbra — the reverse cone beyond the umbra tip — produces annular eclipses. The penumbra covers a much wider zone of partial eclipse."
+      }
+    },
+    {
+      "heading": "Total Solar Eclipse: What Happens",
+      "level": 2,
+      "paragraphs": [
+        "A total solar eclipse is an event that is difficult to describe to someone who has never experienced one. In the minutes before totality, the sky takes on a particular twilight quality unlike any ordinary dusk: the air cools, birds may fall silent or return to their roosts, planets and bright stars become visible. Then complete darkness arrives — and the corona appears.",
+        "The solar corona is the outer atmosphere of the Sun, a rarefied plasma at temperatures of millions of kelvin (paradoxically, the photosphere is only about six thousand kelvin). Ordinarily it is invisible — drowned out by the blazing photosphere. Only during totality does it emerge fully: a complex structure of streamers, loops, and plasma filaments stretching millions of kilometers into space.",
+        "In the final seconds before and after totality, the **Bailey's beads effect** appears — irregularities in the lunar terrain (mountains and craters) create gaps through which sunlight still passes. It shines through as individual bright points along the lunar limb, called _Bailey's beads_. When only a single bead remains against the backdrop of the corona, the famous **diamond ring effect** occurs."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "eclipses-occultations-corona-close",
+        "prompt": "Extreme close-up photorealistic scientific illustration of total solar eclipse totality: the Moon as a perfect matte black disk centered, surrounded by the intricate white solar corona with visible streamers, helmet streamers extending millions of kilometers, pink chromosphere layer barely visible at the limb, a single diamond ring bead at lower left limb. Deep black sky, no lens flare. Hard sci-fi scientific illustration style. Add the following text labels on the image: \"corona\", \"chromosphere\", \"helmet streamer\", \"Bailey bead\".",
+        "alt": "Close-up of the solar corona during totality — streamers, chromosphere, and a Bailey bead",
+        "caption": "The solar corona, hidden from us by the photosphere's glare on every other day, is accessible only during total eclipses. The chromosphere — a thin pink layer between the photosphere and the corona — appears at the very edge of the lunar limb.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "Lunar Eclipse: Earth Between Sun and Moon",
+      "level": 2,
+      "paragraphs": [
+        "A lunar eclipse is the mirror scenario: now Earth stands between the Sun and the Moon, casting its shadow across the lunar surface. It occurs at full moon and is visible simultaneously from the entire night side of the planet — unlike a solar eclipse, which is confined to a track only a few tens to three hundred kilometers wide.",
+        "Lunar eclipses come in three types. **Penumbral**: the Moon passes only through Earth's partial shadow — the darkening is barely noticeable even through binoculars, essentially invisible to the naked eye. **Partial**: part of the Moon enters Earth's umbra — a distinct dark arc becomes visible on the lunar disk. **Total**: the Moon is completely immersed in the umbra. Something unexpected happens: instead of vanishing, the Moon turns a deep copper-red or orange color.",
+        "The cause of the \"blood Moon\" is refraction of sunlight through Earth's atmosphere. The atmosphere does not fill the shadow with pure darkness — it filters and bends the light: blue wavelengths are scattered away, while red wavelengths curve around the globe and reach the umbra, bathing the Moon in the same warm, dark-red light we see on the horizon at sunset. The intensity of the color depends on the state of Earth's atmosphere: major volcanic eruptions load the stratosphere with fine particulates and can make the eclipsed Moon nearly invisible, almost charcoal grey."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "eclipses-occultations-lunar-eclipse",
+        "prompt": "Photorealistic scientific illustration of a total lunar eclipse: the full Moon glowing deep copper-red to dark burgundy, suspended against a star-filled black sky, Earth's curved shadow edge partially visible as a dark arc on the left side of the Moon, the Moon showing subtle texture of lunar maria and highlands in reddish tones. Hard sci-fi style, dramatic night sky atmosphere. Add the following text labels on the image: \"umbra shadow\", \"copper-red Moon\", \"totality\".",
+        "alt": "Total lunar eclipse — the Moon turns copper-red inside Earth's umbra",
+        "caption": "The color of the Moon during a total lunar eclipse depends on Earth's atmospheric conditions. After major volcanic eruptions the atmosphere is saturated with fine ash, and the Moon darkens to near-invisibility — a phenomenon rated on the Danjon scale.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "The Saros Cycle: Predicting Eclipses Without a Telescope",
+      "level": 2,
+      "paragraphs": [
+        "Eclipses repeat with astonishing regularity. The reason is the _Saros cycle_: approximately every eighteen years and eleven days, the Sun, Earth, and Moon return to nearly the same mutual configuration. This is not mysticism — it is arithmetic. The Saros arises because three lunar cycles nearly coincide: the synodic month (phases of the Moon, approximately twenty-nine and a half days), the anomalistic month (distance from Earth, approximately twenty-seven and a half days), and the draconic month (orbital inclination, approximately twenty-seven and two tenths days). After eighteen years all three complete a nearly whole number of cycles simultaneously, and the eclipse configuration repeats.",
+        "Babylonian astronomers knew the Saros without any theory of gravity: they simply recorded eclipses across generations and recognized the periodicity. This allowed them to predict eclipses to within a day — which gave them enormous psychological and political authority. Eclipses belonging to the same Saros form a _series_: each successive event is displaced roughly one hundred twenty degrees westward because Earth does not complete an exact whole number of rotations in eighteen years and eleven days. A complete Saros series contains roughly seventy to eighty eclipses and spans more than a thousand years."
+      ]
+    },
+    {
+      "heading": "Planetary Transits: When a Planet Crosses the Solar Disk",
+      "level": 2,
+      "paragraphs": [
+        "When Venus or Mercury passes between Earth and the Sun, observers can watch a _transit_ — a small dark disk slowly crossing the face of the Sun over several hours. This is not an eclipse in the full sense: the planets are too small to block any significant fraction of sunlight. But these events had enormous scientific importance.",
+        "In the eighteenth century, astronomers realized that observing a Venus transit simultaneously from two widely separated points on Earth would allow triangulation via parallax to determine the distance from Earth to the Sun — the so-called _astronomical unit_. This was the first practical opportunity to measure the scale of the Solar System with high accuracy. Coordinated international expeditions dispatched to remote corners of the globe to observe Venus transits became one of humanity's earliest truly global scientific projects.",
+        "Venus transits are extremely rare: they occur in pairs separated by eight years, with gaps of more than a century between each pair. The most recent Venus transit occurred in the early part of this decade's second decade; the next will not happen until late in the twenty-first century. Mercury transits are somewhat more frequent, occurring once every few decades."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "eclipses-occultations-venus-transit",
+        "prompt": "Photorealistic scientific illustration of a Venus transit: the solar disk fills most of the frame showing granulation texture and sunspot details, small perfect black circle of Venus silhouette near the solar limb with the black drop effect visible, faint luminous halo around Venus due to its atmosphere refracting sunlight. Hard sci-fi scientific illustration, historically significant scene. Add the following text labels on the image: \"Venus\", \"solar disk\", \"black drop effect\", \"limb\".",
+        "alt": "Venus transit — the dark planetary disk on the solar face with the black drop effect",
+        "caption": "The black drop effect — an optical artifact at the moment of ingress and egress when Venus appears to cling to the solar limb. It complicated precise contact timing during the eighteenth and nineteenth century transits, introducing uncertainty into the measured astronomical unit.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "Occultations of Stars and Planets by the Moon",
+      "level": 2,
+      "paragraphs": [
+        "As the Moon moves across the sky, it sometimes passes in front of a distant star or planet — this is an _occultation_. A star disappears instantaneously, as if a switch were thrown — because it is too remote to have any measurable angular size. This abruptness allowed nineteenth-century astronomers to map the shape of the lunar limb and identify mountains and valleys by analyzing the duration of \"disappearances\" at different points along the Moon's edge.",
+        "Planetary occultations look different: a planet, being a disk, fades out gradually over several seconds. Particularly spectacular are occultations of bright planets — Venus, Jupiter — or star clusters. When the Moon passes through a cluster such as the Pleiades or the Hyades, dozens of stars disappear and reappear over the course of an hour in a continuing stellar procession.",
+        "Astronomers also exploit occultations far beyond the Earth-Moon system. When an asteroid passes in front of a background star, blocking it for observers at several ground stations simultaneously, the combined timing measurements from those stations allow reconstruction of the asteroid's shape and dimensions — with no spacecraft required anywhere near it."
+      ]
+    },
+    {
+      "heading": "Eclipse as a Physics Experiment: Eddington, 1919",
+      "level": 2,
+      "paragraphs": [
+        "In 1919, British astronomer Arthur Eddington organized two scientific expeditions — to the island of Principe in the Gulf of Guinea, and to the Brazilian town of Sobral — to use a total solar eclipse to test Einstein's general theory of relativity. The theory predicted that a massive body like the Sun curves spacetime enough that rays of light from distant stars, passing close to the solar limb, are deflected. By measuring the positions of stars near the Sun during the eclipse and comparing them to their night-sky positions months later, Eddington confirmed that the deflection matched the prediction of general relativity — exactly twice the value that Newtonian mechanics would allow.",
+        "That year — 1919 — became a turning point in the history of physics. Eddington's results lifted Einstein's revolutionary idea from pure mathematics into observable reality. The eclipse lasted only a few minutes, but those minutes were enough to transform humanity's understanding of gravity forever.",
+        "Even in antiquity, eclipses delivered knowledge. The ancient Greek astronomer Hipparchus, in the second century before the common era, used the difference in the appearance of a partial solar eclipse as seen from the Hellespont and from Alexandria to estimate the distance to the Moon via parallax. His result was accurate to within a few percent of the modern value."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "eclipses-occultations-eddington-1919",
+        "prompt": "Photorealistic scientific illustration inspired by the 1919 Eddington expedition: a total solar eclipse with the corona fully visible, multiple faint stars marked with small cross-hair indicators near the solar limb, arrow indicators showing apparent star position shift due to gravitational lensing, dark dramatic sky, old glass-plate photographic aesthetic in monochromatic blue-grey tones. Hard sci-fi historical science illustration. Add the following text labels on the image: \"apparent star position\", \"actual position\", \"light bending\", \"solar corona\".",
+        "alt": "Illustration of Eddington's 1919 experiment — apparent stellar deflection near the solar limb confirming general relativity",
+        "caption": "During the 1919 eclipse Eddington measured the apparent positions of stars near the solar limb. The deflection matched the prediction of general relativity, not the smaller value from Newtonian mechanics.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "Recent and Upcoming Eclipses: 2024 and Beyond",
+      "level": 2,
+      "paragraphs": [
+        "In April 2024, a total solar eclipse swept across North America — from Mexico through the central United States and into Canada. The totality path, roughly one hundred seventy kilometers wide, passed over several major cities including Dallas and Cleveland, making this one of the most widely observed eclipses in history. Maximum totality duration reached four minutes and twenty-eight seconds. Millions of people witnessed it for the first time in their lives.",
+        "The next notable total solar eclipse over Europe and the Mediterranean comes in August 2026: the path crosses Spain, where totality will last more than two minutes. Then in August 2027 one of the longest solar eclipses in several centuries will occur: totality over northern Africa and the Arabian Peninsula will last approximately six minutes and twenty-three seconds — a maximum achievable only when the Moon is near perigee and the path crosses a latitude close to the subsolar point."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "eclipses-occultations-path-map",
+        "prompt": "Photorealistic scientific map illustration of total solar eclipse paths: a dark world map showing three distinct eclipse totality paths as bold red curved bands crossing continents and oceans, one path crossing North America (April 2024), one crossing Europe and Mediterranean (August 2026), one crossing North Africa and Arabian Peninsula (August 2027). Each path labeled with year. Hard sci-fi scientific map style, monospace labels, dark background. Add the following text labels on the image: \"2024 North America\", \"2026 Spain\", \"2027 North Africa\", \"totality path\".",
+        "alt": "Map of totality paths for solar eclipses in 2024, 2026, and 2027",
+        "caption": "The totality path of a total solar eclipse is narrow — only a few tens to three hundred kilometers wide. Outside it, only a partial eclipse is visible, with no darkness and no exposed corona.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "Why the Size Coincidence Is Extraordinary",
+      "level": 2,
+      "paragraphs": [
+        "Total solar eclipses exist on Earth because of a remarkable cosmic coincidence: the Sun is approximately four hundred times larger than the Moon in diameter, but it is also approximately four hundred times farther away. As a result, the two bodies subtend nearly identical angular diameters — roughly half a degree — in our sky. No other known planet in the Solar System has this precise match between its primary moon and its host star.",
+        "This coincidence is not permanent. The Moon is slowly receding — at roughly three to four centimeters per year — due to tidal braking. Approximately six hundred million years from now, the Moon will have moved far enough that its angular diameter will be smaller than the Sun's at every point in its orbit. Total solar eclipses will cease to exist — only annular eclipses will remain. We are living in a geologically unique era when this celestial illusion is still possible."
+      ]
+    }
+  ],
+  "glossary": [
+    {
+      "term": "Umbra",
+      "definition": "The central, complete shadow cast by an opaque body in front of a light source. From inside the umbra, the light source is entirely hidden, producing complete darkness. During a total solar eclipse the umbra's footprint on Earth's surface is a narrow band ranging from a few tens to three hundred kilometers across."
+    },
+    {
+      "term": "Penumbra",
+      "definition": "The partial shadow surrounding the umbra, from which the light source is only partially blocked. An observer in the penumbra sees a partial eclipse — the source is dimmed but not fully covered."
+    },
+    {
+      "term": "Syzygy",
+      "definition": "An astronomical configuration in which three bodies — typically the Sun, Earth, and Moon — are aligned in a straight line or nearly so. Syzygy is a necessary condition for any eclipse to occur."
+    },
+    {
+      "term": "Saros",
+      "definition": "A cycle of approximately eighteen years and eleven days after which the Sun, Earth, and Moon return to nearly the same mutual geometry, causing eclipse patterns to repeat. Known since Babylonian astronomy; it arises from the near-coincidence of three lunar periods."
+    },
+    {
+      "term": "Totality",
+      "definition": "The phase of a total solar eclipse during which the Moon completely covers the solar disk. Duration for any given surface location ranges from a fraction of a second up to a theoretical maximum of about seven minutes and thirty seconds."
+    },
+    {
+      "term": "Transit",
+      "definition": "The passage of a small celestial body — Venus or Mercury — across the face of the Sun as seen from Earth. Unlike an eclipse, a transit does not cover any appreciable fraction of the Sun; the planet appears as a small dark dot against the solar disk."
+    },
+    {
+      "term": "Occultation",
+      "definition": "The event when one celestial body hides another from an observer. The most common example is the Moon covering a star or planet. A star disappears instantaneously (it has no measurable angular size), while a planet fades out gradually."
+    },
+    {
+      "term": "Bailey's Beads",
+      "definition": "Individual bright points of sunlight visible along the lunar limb in the final seconds before and after totality, produced when sunlight passes through valleys and gaps between mountains on the Moon's edge."
+    },
+    {
+      "term": "Diamond Ring Effect",
+      "definition": "The dramatic visual moment at the beginning or end of totality when a single Bailey's bead remains on the otherwise dark lunar limb, creating the appearance of a luminous ring set with one brilliant diamond."
+    }
+  ],
+  "quiz": [
+    {
+      "question": "Why does the Moon turn copper-red during a total lunar eclipse?",
+      "options": [
+        "The Moon enters complete shadow and receives no light at all",
+        "Reflected light from Mars reaches the Moon during the eclipse",
+        "Earth's atmosphere refracts sunlight, bending only red wavelengths into the umbra",
+        "The Moon is heated by thermal radiation from the Earth"
+      ],
+      "correctIndex": 2,
+      "explanation": "Earth's atmosphere scatters short blue wavelengths and bends longer red wavelengths around the globe into the umbra. The mechanism is the same as the one that paints the sky red at sunrise and sunset. The richness of the color depends on atmospheric conditions: after major volcanic eruptions the Moon can darken to near-invisibility."
+    },
+    {
+      "question": "What is the Bailey's beads effect?",
+      "options": [
+        "A bright flash at the instant totality begins, caused by sudden changes in solar luminosity",
+        "Individual bright points of sunlight along the lunar limb, produced by gaps in the Moon's mountainous terrain",
+        "Distortion of the solar disk's shape due to atmospheric refraction",
+        "Shadow bands rippling across Earth's surface just before totality"
+      ],
+      "correctIndex": 1,
+      "explanation": "Mountains, craters, and valleys along the lunar limb create openings through which sunlight still passes. These pinpoints — the \"beads\" — appear in the final seconds before and after totality. When only one bead remains, the famous diamond ring effect occurs."
+    },
+    {
+      "question": "What did Arthur Eddington test during the 1919 solar eclipse?",
+      "options": [
+        "The chemical composition of the solar corona",
+        "The prediction of general relativity that the Sun's gravity bends starlight",
+        "The duration of the Saros cycle",
+        "The distance to the Moon by parallax"
+      ],
+      "correctIndex": 1,
+      "explanation": "General relativity predicts that a massive body warps spacetime and deflects passing light rays. Eddington measured the apparent positions of stars near the solar limb during the eclipse and confirmed that the deflection matched Einstein's prediction, which was exactly twice the value predicted by Newtonian mechanics."
+    },
+    {
+      "question": "Why are total solar eclipses on Earth unusual within the Solar System?",
+      "options": [
+        "Earth's atmosphere amplifies the effect in a way that does not occur on other planets",
+        "The angular sizes of the Moon and the Sun are nearly identical in Earth's sky — a unique coincidence",
+        "The Moon rotates more slowly than other moons, so eclipses last longer here",
+        "Only Earth has oceans, which amplify tidal forces and equalize shadow sizes"
+      ],
+      "correctIndex": 1,
+      "explanation": "The Sun is about four hundred times wider than the Moon, but it is also about four hundred times farther away. This means their angular diameters nearly match, allowing the Moon to just cover the solar disk. No other known planet in the Solar System has this precise match with its primary moon."
+    },
+    {
+      "question": "What enables astronomers to predict eclipses using the Saros cycle?",
+      "options": [
+        "The Saros is a permanent gravitational wave between the Moon and Earth",
+        "The Saros is an approximately eighteen-year cycle after which the Sun, Earth, and Moon return to the same configuration",
+        "The Saros describes the Sun's orbit around the Galaxy",
+        "The Saros is the minimum Moon-Earth distance at which an eclipse can occur"
+      ],
+      "correctIndex": 1,
+      "explanation": "The Saros arises from the near-coincidence of three lunar periods — synodic, anomalistic, and draconic. After eighteen years and eleven days all three complete a nearly whole number of cycles, and the eclipse geometry repeats. Babylonian astronomers discovered the Saros empirically — through meticulous record-keeping, without any gravitational theory."
+    }
+  ],
+  "sources": [
+    {
+      "title": "NASA — Total Solar Eclipse of April 8, 2024",
+      "url": "https://science.nasa.gov/eclipses/future-eclipses/eclipse-2024/",
+      "meta": "NASA Science, official page, 2024"
+    },
+    {
+      "title": "NASA Eclipse Website — Fred Espenak, Xavier Jubier",
+      "url": "https://eclipse.gsfc.nasa.gov/",
+      "meta": "NASA Goddard — comprehensive eclipse database"
+    },
+    {
+      "title": "Espenak F., Meeus J. — Five Millennium Canon of Solar Eclipses",
+      "url": "https://eclipse.gsfc.nasa.gov/SEcanon/SEcanon.html",
+      "meta": "NASA Technical Publication, 2006"
+    },
+    {
+      "title": "Dyson F.W., Eddington A.S., Davidson C. — A Determination of the Deflection of Light by the Sun's Gravitational Field (1920)",
+      "url": "https://doi.org/10.1098/rsta.1920.0009",
+      "meta": "Philosophical Transactions of the Royal Society A, 220, 291–333, 1920"
+    },
+    {
+      "title": "Meeus J. — Astronomical Algorithms (2nd ed.)",
+      "url": "https://www.willbell.com/math/mc1.htm",
+      "meta": "Willmann-Bell, 1998 — standard reference for eclipse calculations"
+    },
+    {
+      "title": "ESA — Lunar eclipses explained",
+      "url": "https://www.esa.int/Science_Exploration/Space_Science/Lunar_eclipses_explained",
+      "meta": "ESA Science, public article"
+    },
+    {
+      "title": "Royal Astronomical Society — The Saros Cycle",
+      "url": "https://ras.ac.uk/ras-news/saros-cycle-eclipse-prediction",
+      "meta": "RAS, educational resource"
+    },
+    {
+      "title": "Transits of Venus — The Galileo Project, Rice University",
+      "url": "http://galileo.rice.edu/sci/observations/venus_transits.html",
+      "meta": "Rice University, science history article"
+    },
+    {
+      "title": "Xavier Jubier — Interactive Eclipse Map",
+      "url": "http://xjubier.free.fr/en/site_pages/solar_eclipses/5MCSE/xSE_Five_Millennium_Canon.html",
+      "meta": "Interactive atlas of five thousand years of eclipses"
+    },
+    {
+      "title": "Dunham D., Herald D. — Asteroidal Occultations (IOTA)",
+      "url": "https://occultations.org/",
+      "meta": "International Occultation Timing Association"
+    }
+  ],
+  "lastVerified": "2026-05-06"
+}

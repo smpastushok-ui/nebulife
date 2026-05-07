@@ -1,0 +1,293 @@
+{
+  "slug": "jwst-mission",
+  "language": "en",
+  "section": "robotic-missions",
+  "order": 3,
+  "difficulty": "intermediate",
+  "readingTimeMin": 13,
+  "title": "James Webb Space Telescope — Mission",
+  "subtitle": "How the most expensive scientific instrument in human history rewrote our understanding of the first stars, galaxies, and exoplanet atmospheres.",
+  "hero": {
+    "cacheKey": "jwst-mission-hero",
+    "prompt": "Photorealistic illustration for a science encyclopedia: the James Webb Space Telescope deployed in deep space, fully unfolded 18-segment gold hexagonal primary mirror gleaming, five-layer sunshield extended like a flat diamond kite beneath, Earth a small blue crescent barely visible in the far background, star field surrounding. Hard sci-fi style, dark space background, high detail engineering accuracy. Add the following text labels on the image: \"primary mirror (6.5 m)\", \"sunshield\", \"L2 orbit\".",
+    "alt": "The James Webb Space Telescope fully deployed in deep space — gold 18-segment primary mirror and five-layer sunshield",
+    "caption": "The James Webb Space Telescope at the Lagrange point L2, approximately 1.5 million kilometers from Earth. The gold coating of the primary mirror reflects not visible light but infrared radiation arriving from the oldest objects in the universe.",
+    "aspectRatio": "16:9"
+  },
+  "body": [
+    {
+      "paragraphs": [
+        "Some scientific instruments confirm what we already know. Others reveal that we knew almost nothing. The James Webb Space Telescope belongs to the second category. Launched in December 2021, in its first two years of operation it rewrote our picture of the early universe, detected molecules in the atmospheres of planets around other stars, and found galaxies that, by every theoretical prediction, should not have existed.",
+        "Its official name honors the administrator of the National Aeronautics and Space Administration in the 1960s, the era of the Apollo program. The project was born in the late 1980s as a concept for the successor to Hubble, but the path from idea to launch spanned more than thirty years, and the cost grew from an initial estimate of 1.6 billion dollars to approximately ten billion. The consortium includes the National Aeronautics and Space Administration, the European Space Agency, and the Canadian Space Agency — three organizations that divided the technical work, the expenses, and access to the telescope between them.",
+        "But why does it cost that much, and why did it take so long to build? The answer lies in the physics of infrared light — and in what must be done to observe the universe in that wavelength range from space."
+      ]
+    },
+    {
+      "heading": "Why infrared, and why so cold",
+      "level": 2,
+      "paragraphs": [
+        "The universe is expanding. That means light that left distant galaxies billions of years ago has been stretched along with space as it traveled toward us. The ultraviolet and visible light emitted by the first stars and galaxies has by now been transformed into _infrared_ — thermal radiation at wavelengths the human eye cannot detect. Hubble works superbly in the visible and ultraviolet ranges, but a window into the early universe requires a telescope optimized for infrared.",
+        "Here lies a problem: any warm object emits infrared light itself. A human body, a rocket engine, a telescope mirror at room temperature — all radiate in the very band where the observations need to happen. To detect the faint infrared glow from a galaxy that existed four hundred million years after the Big Bang, the telescope's detectors must be cooled to temperatures near absolute zero. The Mid-Infrared Instrument is chilled to minus 266 degrees Celsius — only seven degrees above absolute zero, and colder than any natural point in the Solar System.",
+        "That is why a giant sunshield is required. A five-layer shield made of a material called Kapton, with the area of a tennis court, keeps the telescope permanently in its own shadow — shielded from the Sun, Earth, and Moon simultaneously. On the hot side of the shield the temperature reaches approximately 85 degrees Celsius. On the cold side: minus 233 degrees. The temperature difference across the two faces of a single spacecraft is more than three hundred degrees."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "jwst-mission-sunshield-diagram",
+        "prompt": "Scientific diagram for a science encyclopedia: cross-section view of the James Webb Space Telescope five-layer Kapton sunshield, showing heat flow from Sun side (hot, orange glow) through five numbered membrane layers to the cold mirror side (deep blue). Temperature values shown at each layer boundary. Hard sci-fi style, dark background, monospace labels. Add the following text labels on the image: \"Sun side ~85C\", \"layer 1\", \"layer 2\", \"layer 3\", \"layer 4\", \"layer 5\", \"mirror side -233C\".",
+        "alt": "Diagram of the five-layer Kapton sunshield of the Webb telescope — each membrane reflects and dissipates thermal radiation, reducing temperature from plus 85 to minus 233 degrees Celsius",
+        "caption": "Five Kapton layers reduce thermal power by a factor of roughly one hundred thousand between the hot and cold faces. Each successive layer is warmer on the Sun side and colder on the mirror side. Between the layers is vacuum, eliminating thermal conduction.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "The mirror: gold-coated beryllium honeycombs",
+      "level": 2,
+      "paragraphs": [
+        "The primary mirror of the Webb telescope measures 6.5 meters across — nearly three times the diameter of the Hubble mirror. But launching a solid mirror of that size is impossible: no rocket has a fairing of that diameter. Engineers therefore devised a solution resembling origami: the mirror is made of 18 hexagonal segments that fold into a compact configuration for launch and unfurl once in space.",
+        "The segment material is **beryllium** — an exceptionally light and rigid metal that holds its shape at cryogenic temperatures. The surface of each segment is coated with a thin layer of _gold_ — not for aesthetic reasons, but because gold is the best practical reflector of infrared light. The total mass of gold coating across all 18 segments is approximately 48 grams — less than a tablespoon.",
+        "Each segment is fitted with six actuators capable of nanometer-scale adjustments, allowing the mirror to be aligned with the precision needed for coherent light focusing. Without that alignment, 18 separate mirrors would produce 18 blurred images instead of one ultra-sharp one. Alignment took several months after launch and proved even more precise than specifications demanded."
+      ]
+    },
+    {
+      "diagram": {
+        "title": "Primary mirror: the 18 hexagonal segment layout",
+        "svg": "<svg viewBox=\"0 0 520 480\" xmlns=\"http://www.w3.org/2000/svg\">\n  <rect width=\"520\" height=\"480\" fill=\"rgba(10,15,25,0.5)\"/>\n\n  <!-- Title -->\n  <text x=\"260\" y=\"22\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"12\" text-anchor=\"middle\">Webb Primary Mirror — 18 Segments</text>\n\n  <!-- Center hex (C1) -->\n  <polygon points=\"260,199 308,227 308,283 260,311 212,283 212,227\" fill=\"none\" stroke=\"#7bb8ff\" stroke-width=\"1.5\" opacity=\"0.85\"/>\n  <text x=\"260\" y=\"260\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">C1</text>\n\n  <!-- Ring 1 hexes (6 around center) -->\n  <!-- Top -->\n  <polygon points=\"260,143 308,171 308,227 260,255 212,227 212,171\" fill=\"none\" stroke=\"#7bb8ff\" stroke-width=\"1.5\" opacity=\"0.85\"/>\n  <text x=\"260\" y=\"204\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">B1</text>\n\n  <!-- Top-right -->\n  <polygon points=\"308,171 356,199 356,255 308,283 260,255 260,199\" fill=\"none\" stroke=\"#7bb8ff\" stroke-width=\"1.5\" opacity=\"0.85\"/>\n  <text x=\"308\" y=\"232\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">B2</text>\n\n  <!-- Bottom-right -->\n  <polygon points=\"308,283 356,311 356,367 308,395 260,367 260,311\" fill=\"none\" stroke=\"#7bb8ff\" stroke-width=\"1.5\" opacity=\"0.85\"/>\n  <text x=\"308\" y=\"344\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">C2</text>\n\n  <!-- Bottom -->\n  <polygon points=\"260,311 308,339 308,395 260,423 212,395 212,339\" fill=\"none\" stroke=\"#7bb8ff\" stroke-width=\"1.5\" opacity=\"0.85\"/>\n  <text x=\"260\" y=\"372\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">C3</text>\n\n  <!-- Bottom-left -->\n  <polygon points=\"212,283 260,311 260,367 212,395 164,367 164,311\" fill=\"none\" stroke=\"#7bb8ff\" stroke-width=\"1.5\" opacity=\"0.85\"/>\n  <text x=\"212\" y=\"344\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">B3</text>\n\n  <!-- Top-left -->\n  <polygon points=\"212,171 260,199 260,255 212,283 164,255 164,199\" fill=\"none\" stroke=\"#7bb8ff\" stroke-width=\"1.5\" opacity=\"0.85\"/>\n  <text x=\"212\" y=\"232\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">B4</text>\n\n  <!-- Ring 2 outer partial (12 hexes) -->\n  <!-- Top-center -->\n  <polygon points=\"260,87 308,115 308,171 260,199 212,171 212,115\" fill=\"none\" stroke=\"#44ff88\" stroke-width=\"1.5\" opacity=\"0.7\"/>\n  <text x=\"260\" y=\"148\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">A1</text>\n\n  <!-- Top-right-1 -->\n  <polygon points=\"308,115 356,143 356,199 308,227 260,199 260,143\" fill=\"none\" stroke=\"#44ff88\" stroke-width=\"1.5\" opacity=\"0.7\"/>\n  <text x=\"308\" y=\"176\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">A2</text>\n\n  <!-- Right-1 -->\n  <polygon points=\"356,199 404,227 404,283 356,311 308,283 308,227\" fill=\"none\" stroke=\"#44ff88\" stroke-width=\"1.5\" opacity=\"0.7\"/>\n  <text x=\"356\" y=\"260\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">A3</text>\n\n  <!-- Right-2 -->\n  <polygon points=\"356,311 404,339 404,395 356,423 308,395 308,339\" fill=\"none\" stroke=\"#44ff88\" stroke-width=\"1.5\" opacity=\"0.7\"/>\n  <text x=\"356\" y=\"372\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">A4</text>\n\n  <!-- Bottom-right-1 -->\n  <polygon points=\"308,395 356,423 356,479 308,479 260,451 260,395\" fill=\"none\" stroke=\"#44ff88\" stroke-width=\"1.5\" opacity=\"0.7\"/>\n  <text x=\"308\" y=\"444\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">A5</text>\n\n  <!-- Bottom-left-1 -->\n  <polygon points=\"212,395 260,423 260,479 212,479 164,451 164,423\" fill=\"none\" stroke=\"#44ff88\" stroke-width=\"1.5\" opacity=\"0.7\"/>\n  <text x=\"212\" y=\"447\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">A6</text>\n\n  <!-- Left-2 -->\n  <polygon points=\"164,311 212,339 212,395 164,423 116,395 116,339\" fill=\"none\" stroke=\"#44ff88\" stroke-width=\"1.5\" opacity=\"0.7\"/>\n  <text x=\"164\" y=\"372\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">B5</text>\n\n  <!-- Left-1 -->\n  <polygon points=\"164,199 212,227 212,283 164,311 116,283 116,227\" fill=\"none\" stroke=\"#44ff88\" stroke-width=\"1.5\" opacity=\"0.7\"/>\n  <text x=\"164\" y=\"260\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">B6</text>\n\n  <!-- Top-left-1 -->\n  <polygon points=\"164,87 212,115 212,171 164,199 116,171 116,115\" fill=\"none\" stroke=\"#44ff88\" stroke-width=\"1.5\" opacity=\"0.7\"/>\n  <text x=\"164\" y=\"148\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">C4</text>\n\n  <!-- Top-left-2 -->\n  <polygon points=\"116,115 164,143 164,199 116,227 68,199 68,143\" fill=\"none\" stroke=\"#ff8844\" stroke-width=\"1.5\" opacity=\"0.7\"/>\n  <text x=\"116\" y=\"176\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">C5</text>\n\n  <!-- Right-outer -->\n  <polygon points=\"404,143 452,171 452,227 404,255 356,227 356,171\" fill=\"none\" stroke=\"#ff8844\" stroke-width=\"1.5\" opacity=\"0.7\"/>\n  <text x=\"404\" y=\"204\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">C6</text>\n\n  <text x=\"260\" y=\"460\" fill=\"#667788\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">18 beryllium hexagons with gold coating, total diameter 6.5 m</text>\n\n  <!-- Legend -->\n  <rect x=\"18\" y=\"36\" width=\"12\" height=\"8\" fill=\"none\" stroke=\"#7bb8ff\" stroke-width=\"1.5\" opacity=\"0.85\"/>\n  <text x=\"35\" y=\"44\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">Center row (C1-C3)</text>\n  <rect x=\"18\" y=\"52\" width=\"12\" height=\"8\" fill=\"none\" stroke=\"#44ff88\" stroke-width=\"1.5\" opacity=\"0.7\"/>\n  <text x=\"35\" y=\"60\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">Middle ring (A1-A6, B1-B6)</text>\n  <rect x=\"18\" y=\"68\" width=\"12\" height=\"8\" fill=\"none\" stroke=\"#ff8844\" stroke-width=\"1.5\" opacity=\"0.7\"/>\n  <text x=\"35\" y=\"76\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\">Outer edge segments (C4-C6)</text>\n</svg>",
+        "caption": "18 hexagonal segments form a single optical surface aligned to within approximately 20 nanometers. Before launch, the segments fold against side brackets to fit within the Ariane 5 fairing. Deployment and alignment in space took several months after launch."
+      }
+    },
+    {
+      "heading": "Four instruments: what they measure",
+      "level": 2,
+      "paragraphs": [
+        "The Webb telescope carries four scientific instruments, each optimized for a distinct scientific objective.",
+        "The **Near-Infrared Camera** is the primary imaging instrument. The stunning images of galaxies, stellar nebulae, and clusters that circulated worldwide in 2022 were taken by this camera. It sees from 0.6 to 5 micrometers and is the most sensitive camera at those wavelengths ever placed in orbit.",
+        "The **Near-Infrared Spectrograph** is the chemical analysis instrument. It disperses light into a spectrum and can simultaneously analyze up to 100 objects within a single field of view — a capability that allowed the atmospheric composition of the exoplanet WASP-39b to be measured in a single telescope pass.",
+        "The **Mid-Infrared Instrument** is the coldest and most unique of the four. It observes the longest wavelengths (from 5 to 28 micrometers) and requires active cryogenic cooling. It enables the study of protoplanetary disks, cold dust clouds, and cool brown dwarfs. The cryocooler for this instrument is a separate engineering machine the size of a refrigerator.",
+        "The **Fine Guidance Sensor and Near Infrared Imager and Slitless Spectrograph** is a combined instrument that simultaneously stabilizes the telescope's pointing and captures images and spectra without a slit aperture. The Canadian Space Agency contributed this instrument as its share of the mission in exchange for guaranteed science time for Canadian astronomers."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "jwst-mission-instruments-layout",
+        "prompt": "Photorealistic scientific illustration for a science encyclopedia: cutaway diagram of the James Webb Space Telescope instrument module, showing four science instruments arranged in the focal plane: NIRCam, NIRSpec, MIRI, FGS/NIRISS. Each instrument highlighted in a distinct color, beam paths from the primary mirror shown as thin light rays converging. Hard sci-fi style, dark background, labeled components, precise engineering aesthetic. Add the following text labels on the image: \"NIRCam\", \"NIRSpec\", \"MIRI\", \"FGS/NIRISS\", \"focal plane\".",
+        "alt": "Cutaway of the Webb telescope instrument module — four science instruments in the focal plane: Near-Infrared Camera, Near-Infrared Spectrograph, Mid-Infrared Instrument, Fine Guidance Sensor and Near Infrared Imager and Slitless Spectrograph",
+        "caption": "The four science instruments on the Webb telescope cover the range from visible light (0.6 micrometers) to mid-infrared (28 micrometers). Together they span the entire spectral window inaccessible to Hubble.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "Thirty days of terror: deployment",
+      "level": 2,
+      "paragraphs": [
+        "On December 25, 2021, an Ariane 5 rocket lifted the telescope from the Kourou launch site in French Guiana. But that was only the start of the most nerve-wracking month in the history of space science.",
+        "The Webb telescope had to execute approximately 300 separate mechanical deployment operations — not one of which could fail, because repair at 1.5 million kilometers from Earth is impossible. The engineering teams at the National Aeronautics and Space Administration called this period \"thirty days of terror.\" First came the solar panels and antenna. Then the five layers of the sunshield, each tensioned like a sail by its own system of cables. Finally, the two wings of the primary mirror, three segments each.",
+        "At every step the ground team held its breath. And every time, the telescope did exactly what was asked of it. All 300 operations succeeded — an unprecedented result for a mission of such complexity. By early 2022, the telescope had settled into its halo orbit around the Lagrange L2 point and begun the long process of cooling down and aligning the mirror."
+      ]
+    },
+    {
+      "diagram": {
+        "title": "Webb telescope deployment sequence",
+        "svg": "<svg viewBox=\"0 0 680 300\" xmlns=\"http://www.w3.org/2000/svg\">\n  <rect width=\"680\" height=\"300\" fill=\"rgba(10,15,25,0.5)\"/>\n\n  <!-- Title -->\n  <text x=\"340\" y=\"22\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"12\" text-anchor=\"middle\">Webb Deployment — Key Stages</text>\n\n  <!-- Timeline horizontal line -->\n  <line x1=\"40\" y1=\"150\" x2=\"640\" y2=\"150\" stroke=\"#334455\" stroke-width=\"1.5\"/>\n\n  <!-- Step 1: Launch -->\n  <circle cx=\"80\" cy=\"150\" r=\"8\" fill=\"#44ff88\" opacity=\"0.85\"/>\n  <line x1=\"80\" y1=\"142\" x2=\"80\" y2=\"80\" stroke=\"#334455\" stroke-width=\"1\" stroke-dasharray=\"3,4\"/>\n  <text x=\"80\" y=\"72\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Launch</text>\n  <text x=\"80\" y=\"83\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">Dec 25</text>\n  <text x=\"80\" y=\"93\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">2021</text>\n  <text x=\"80\" y=\"170\" fill=\"#667788\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">Day 0</text>\n\n  <!-- Step 2: Solar array + antenna -->\n  <circle cx=\"175\" cy=\"150\" r=\"8\" fill=\"#7bb8ff\" opacity=\"0.85\"/>\n  <line x1=\"175\" y1=\"158\" x2=\"175\" y2=\"220\" stroke=\"#334455\" stroke-width=\"1\" stroke-dasharray=\"3,4\"/>\n  <text x=\"175\" y=\"230\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Solar</text>\n  <text x=\"175\" y=\"241\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">arrays</text>\n  <text x=\"175\" y=\"255\" fill=\"#667788\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">Day 1</text>\n\n  <!-- Step 3: Sunshield pallets -->\n  <circle cx=\"270\" cy=\"150\" r=\"8\" fill=\"#ff8844\" opacity=\"0.85\"/>\n  <line x1=\"270\" y1=\"142\" x2=\"270\" y2=\"80\" stroke=\"#334455\" stroke-width=\"1\" stroke-dasharray=\"3,4\"/>\n  <text x=\"270\" y=\"72\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Shield</text>\n  <text x=\"270\" y=\"83\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">pallets</text>\n  <text x=\"270\" y=\"170\" fill=\"#667788\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">Days 3-5</text>\n\n  <!-- Step 4: Sunshield membranes -->\n  <circle cx=\"365\" cy=\"150\" r=\"8\" fill=\"#ff8844\" opacity=\"0.85\"/>\n  <line x1=\"365\" y1=\"158\" x2=\"365\" y2=\"220\" stroke=\"#334455\" stroke-width=\"1\" stroke-dasharray=\"3,4\"/>\n  <text x=\"365\" y=\"230\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">5-layer</text>\n  <text x=\"365\" y=\"241\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">tensioning</text>\n  <text x=\"365\" y=\"255\" fill=\"#667788\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">Days 6-8</text>\n\n  <!-- Step 5: Secondary mirror -->\n  <circle cx=\"460\" cy=\"150\" r=\"8\" fill=\"#7bb8ff\" opacity=\"0.85\"/>\n  <line x1=\"460\" y1=\"142\" x2=\"460\" y2=\"80\" stroke=\"#334455\" stroke-width=\"1\" stroke-dasharray=\"3,4\"/>\n  <text x=\"460\" y=\"72\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Secondary</text>\n  <text x=\"460\" y=\"83\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">mirror</text>\n  <text x=\"460\" y=\"170\" fill=\"#667788\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">Day 10</text>\n\n  <!-- Step 6: Primary mirror wings -->\n  <circle cx=\"555\" cy=\"150\" r=\"8\" fill=\"#44ff88\" opacity=\"0.85\"/>\n  <line x1=\"555\" y1=\"158\" x2=\"555\" y2=\"220\" stroke=\"#334455\" stroke-width=\"1\" stroke-dasharray=\"3,4\"/>\n  <text x=\"555\" y=\"230\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Mirror</text>\n  <text x=\"555\" y=\"241\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">wings</text>\n  <text x=\"555\" y=\"255\" fill=\"#667788\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">Days 12-13</text>\n\n  <!-- Step 7: L2 orbit -->\n  <circle cx=\"630\" cy=\"150\" r=\"8\" fill=\"#aabbcc\" opacity=\"0.9\"/>\n  <line x1=\"630\" y1=\"142\" x2=\"630\" y2=\"80\" stroke=\"#334455\" stroke-width=\"1\" stroke-dasharray=\"3,4\"/>\n  <text x=\"630\" y=\"72\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">L2</text>\n  <text x=\"630\" y=\"83\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">orbit</text>\n  <text x=\"630\" y=\"170\" fill=\"#667788\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">Day 29</text>\n\n  <text x=\"340\" y=\"285\" fill=\"#667788\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">~300 individual mechanical operations — all successful</text>\n</svg>",
+        "caption": "From launch to settling into halo orbit around the Lagrange L2 point — 29 days of continuous deployment operations. The most hazardous phase was tensioning the five sunshield membranes: each of 107 membrane fastening pins had to release in precise sequence."
+      }
+    },
+    {
+      "heading": "First images and discoveries",
+      "level": 2,
+      "paragraphs": [
+        "The first Webb science images were released in July 2022. The reaction from the scientific community and the broader public converged: even experienced astronomers described it as an emotional moment. The \"Cosmic Cliffs\" image of the Carina Nebula revealed stellar nurseries in finer detail than Hubble had ever been able to show. A new view of the Pillars of Creation in the Eagle Nebula exposed dust structures that had previously appeared only as dark, featureless patches.",
+        "But the most consequential science came not from landscapes but from data. Spectroscopic analysis of the exoplanet WASP-39b detected carbon dioxide, water vapor, sulfur dioxide, and other molecules — including what appears to be the product of photochemical reactions in the atmosphere, observed for the first time beyond the Solar System. This demonstrated that detailed atmospheric chemistry of exoplanets is accessible to study right now.",
+        "The TRAPPIST-1 system — seven Earth-sized planets around a cool red dwarf — became one of the primary targets. Early data cast doubt on the presence of thick atmospheres on the innermost planets, but the question remains open and actively investigated. More controversial was a possible detection of dimethyl sulfide in the atmosphere of K2-18b — a molecule produced on Earth almost exclusively by living organisms. The scientific community is treating this with appropriate caution: additional observations and verification of non-biological production pathways are required."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "jwst-mission-deep-field",
+        "prompt": "Photorealistic illustration for a science encyclopedia: James Webb Space Telescope deep field image showing thousands of galaxies at various distances, from nearby spiral and elliptical galaxies to tiny reddish smudges representing the earliest most distant galaxies at high redshift. Some galaxies show gravitational lensing arcs. Hard sci-fi style, extremely detailed, dark space background, rich color palette from blue nearby to red distant. Add the following text labels on the image: \"nearby galaxies\", \"gravitational lensing arcs\", \"z>10 distant galaxies\".",
+        "alt": "Webb deep field image — thousands of galaxies from nearby spirals to the most distant high-redshift objects at the edge of the observable universe",
+        "caption": "Even a small patch of sky — the apparent size of a grain of sand held at arm's length — contains thousands of galaxies. Some of the farthest objects in the Webb deep field existed only a few hundred million years after the Big Bang.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "The earliest galaxies and the edge of the known",
+      "level": 2,
+      "paragraphs": [
+        "The most disruptive finding for existing theory has been the discovery of massive galaxies at extraordinarily early cosmic epochs. According to the standard cosmological model, only small proto-galaxies could exist in the first few hundred million years after the Big Bang — massive structures simply would not have had time to assemble. Webb has shown that large, already-formed galaxies existed far earlier than predicted.",
+        "The galaxy JADES-GS-z14-0, identified in 2024 as part of the JADES program (JWST Advanced Deep Extragalactic Survey), set a new distance record: its redshift exceeds 14. That means we are seeing this galaxy as it was just over 290 million years after the Big Bang — less than two percent of the current age of the universe. The galaxy proved remarkably luminous and showed clear signs of active star formation.",
+        "Another landmark discovery was a supermassive black hole in a galaxy at redshift 11 (UHZ1), announced in 2023. This black hole — with a mass tens of millions of times that of the Sun — should not have had enough time to grow that large through normal matter accretion. It may have formed through the direct collapse of a giant gas cloud, bypassing the stellar stage entirely — a so-called \"seed\" black hole scenario. These findings are forcing a revision of the models describing how the first large structures in the universe formed."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "jwst-mission-carina-nebula",
+        "prompt": "Photorealistic illustration for a science encyclopedia: James Webb Space Telescope view of the Cosmic Cliffs in the Carina Nebula, showing towering pillars of gas and dust with hundreds of newly forming protostars visible in infrared, glowing edges where stellar radiation erodes the nebula boundary, deep cosmic background with distant stars and nebular wisps. Hard sci-fi style, rich infrared color palette, dark space background, photorealistic detail. Add the following text labels on the image: \"stellar nursery\", \"dust pillars\", \"protostar jets\", \"Carina Nebula\".",
+        "alt": "The Cosmic Cliffs in the Carina Nebula as seen by the Webb telescope — pillars of gas and dust with hundreds of protostars forming inside",
+        "caption": "The Carina Nebula in near-infrared light. What Hubble saw as dark, opaque clouds, Webb penetrates entirely, revealing whole nurseries of young protostars hidden from visible light by layers of dust.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "Resources and outlook",
+      "level": 2,
+      "paragraphs": [
+        "The Ariane 5 rocket delivered the telescope to its target trajectory with such precision that less propellant was needed than planned to achieve the Lagrange L2 halo orbit. That fuel reserve translates directly into extended mission life: the telescope was originally designed for ten years of operation, but current estimates project at least twenty years of active work — possibly into the mid-2040s.",
+        "This detail is an elegant illustration of the difference between missions with and without servicing capability. Webb is unreachable for repair: L2 lies beyond the range of any existing crewed vehicle. But since the launch was nearly perfect, the telescope will spend its reserve propellant on science observations rather than orbit corrections.",
+        "A successor is already on the horizon: the Habitable Worlds Observatory — a concept being developed by the National Aeronautics and Space Administration for the next generation — is targeted for the 2040s. It will feature an even larger mirror and will be specifically designed to search for biosignatures in the atmospheres of Earth-like planets. What Webb has identified as a possibility, the next generation of telescopes will make its primary scientific objective."
+      ]
+    }
+  ],
+  "glossary": [
+    {
+      "term": "Segmented primary mirror",
+      "definition": "A mirror composed of individual segments that fold for launch and unfurl in space. Allows building optical systems larger than any rocket fairing diameter. Each segment is independently actuated for nanometer-scale alignment into a single coherent optical surface."
+    },
+    {
+      "term": "Sunshield",
+      "definition": "A multi-layer thermal barrier made of an ultra-thin polymer film (Kapton) protecting the telescope's cryogenic instruments from the thermal radiation of the Sun, Earth, and Moon. Five layers reduce thermal power by a factor of tens of thousands across the two faces of the shield."
+    },
+    {
+      "term": "Lagrange point L2",
+      "definition": "One of five equilibrium points in the Earth-Sun system where gravitational forces and centrifugal force balance. L2 lies behind Earth relative to the Sun, approximately 1.5 million kilometers away. A telescope in a halo orbit around L2 can always keep the Sun behind its sunshield."
+    },
+    {
+      "term": "Infrared radiation",
+      "definition": "Electromagnetic radiation with wavelengths longer than visible light (from 0.7 to over 1000 micrometers). Emitted by warm bodies and produced by the cosmological redshifting of ultraviolet and visible light from the most distant galaxies. Invisible to the human eye but detectable by cooled sensors."
+    },
+    {
+      "term": "Cryogenic cooling",
+      "definition": "Cooling to temperatures near absolute zero (minus 273.15 degrees Celsius). Required for infrared detectors so that the telescope's own thermal emission does not drown out the faint signals from distant sources. The Mid-Infrared Instrument on Webb is cooled to minus 266 degrees Celsius."
+    },
+    {
+      "term": "Redshift",
+      "definition": "The increase in wavelength of light caused by the expansion of the universe or by the recession of the source. The farther a galaxy, the greater its redshift. A redshift above 10 corresponds to galaxies that existed within the first few hundred million years after the Big Bang."
+    },
+    {
+      "term": "Beryllium",
+      "definition": "A light, rigid, and chemically stable metal used in the mirror segments of the Webb telescope. It maintains its shape at extreme cryogenic temperatures and has an exceptionally high stiffness-to-mass ratio — critical for a telescope where every kilogram carries a large cost."
+    },
+    {
+      "term": "Kapton",
+      "definition": "A synthetic polymer (polyimide) with an extraordinary operating temperature range: from minus 269 to plus 400 degrees Celsius. Used as the material for the five sunshield layers on the Webb telescope. Each layer is thinner than a human hair."
+    },
+    {
+      "term": "Halo orbit",
+      "definition": "The Webb telescope does not sit precisely at L2 (an unstable equilibrium), but orbits around it on a so-called halo orbit. This allows the telescope to maintain a constant orientation relative to the Sun and avoid being shadowed by Earth, while consuming minimal correction propellant."
+    },
+    {
+      "term": "Protostar",
+      "definition": "An object that has accumulated enough mass to begin gravitational contraction but has not yet ignited nuclear fusion in its core. The Webb telescope can observe protostars embedded deep inside dust clouds that were completely opaque to Hubble, thanks to the penetrating power of infrared light."
+    }
+  ],
+  "quiz": [
+    {
+      "question": "Why does the Webb telescope observe in infrared light rather than visible wavelengths?",
+      "options": [
+        "Because infrared is brighter and easier to detect",
+        "Because visible light from distant galaxies is redshifted into infrared, and the earliest stars and planets are best seen at those wavelengths",
+        "Because Hubble already covers the entire visible spectrum and duplication was unnecessary",
+        "Because infrared detectors are cheaper and simpler to manufacture"
+      ],
+      "correctIndex": 1,
+      "explanation": "The universe is expanding, and ultraviolet and visible light from the most ancient galaxies arrives redshifted into the infrared by the time it reaches us. Additionally, dust clouds are opaque at visible wavelengths but transparent in the infrared, allowing Webb to see young stars and protoplanetary disks hidden inside stellar nurseries."
+    },
+    {
+      "question": "What orbit does the Webb telescope occupy, and why was that location chosen?",
+      "options": [
+        "Low Earth orbit, like Hubble, to allow astronaut servicing",
+        "Around the Moon, to be as far as possible from Earth's thermal radiation",
+        "A halo orbit around the Lagrange L2 point, 1.5 million kilometers from Earth, to keep the Sun, Earth, and Moon to one side and cool the instruments",
+        "Geostationary orbit at 36 thousand kilometers altitude for stable communications"
+      ],
+      "correctIndex": 2,
+      "explanation": "The Lagrange L2 point allows the telescope to always hold the Sun, Earth, and Moon behind its sunshield. This provides a stable thermal environment and makes it possible to cool the instruments to cryogenic temperatures. The trade-off is that servicing is impossible, but the precision of the launch gave a propellant reserve that extends the mission well beyond the original ten-year design life."
+    },
+    {
+      "question": "What were the \"thirty days of terror\" in the Webb mission?",
+      "options": [
+        "The first thirty days of science observations while the mirror was still being calibrated",
+        "The month during which the telescope had to execute approximately 300 mechanical deployment operations with no possibility of repair",
+        "The delay between launch and the release of the first public image",
+        "The name for the most difficult phase of cooling the Mid-Infrared Instrument"
+      ],
+      "correctIndex": 1,
+      "explanation": "The telescope had to complete approximately 300 individual deployment steps — from unfolding the solar arrays to locking the primary mirror wings into place. Not one could fail, because repair at 1.5 million kilometers is impossible. All operations succeeded, an unprecedented outcome for a mission of this complexity."
+    },
+    {
+      "question": "Which Webb discovery has most challenged the standard cosmological model?",
+      "options": [
+        "Detection of rings around Neptune",
+        "The first image of the black hole at the center of the Milky Way",
+        "The existence of very massive and luminous galaxies in the very early universe, far earlier than theoretical predictions allowed",
+        "Discovery of water ice on the surface of Europa"
+      ],
+      "correctIndex": 2,
+      "explanation": "According to the standard model, large galaxies need billions of years to assemble. But Webb found massive, bright, mature galaxies existing only a few hundred million years after the Big Bang — far earlier than theory permitted. This requires either revising galaxy formation theory or introducing new mechanisms for accelerated early structure growth."
+    },
+    {
+      "question": "How many segments make up the Webb primary mirror, and why was that design chosen?",
+      "options": [
+        "One solid mirror 6.5 meters across — for the best optical quality",
+        "Six segments, like a honeycomb, for symmetry and simplicity",
+        "18 hexagonal segments — because a solid mirror of that diameter cannot fit inside any rocket fairing",
+        "12 segments — one for each month of the science program"
+      ],
+      "correctIndex": 2,
+      "explanation": "The Webb primary mirror consists of 18 hexagonal beryllium segments, each coated with gold. This design was dictated by the physical constraints of the Ariane 5 launch vehicle: a solid 6.5-meter mirror would not fit inside any existing fairing. The segments fold flat for launch, travel to orbit, and are then aligned with nanometer precision in space."
+    }
+  ],
+  "sources": [
+    {
+      "title": "NASA — James Webb Space Telescope: Mission Overview",
+      "url": "https://jwst.nasa.gov/",
+      "meta": "NASA, open access, updated 2024"
+    },
+    {
+      "title": "ESA — James Webb Space Telescope",
+      "url": "https://www.esa.int/Science_Exploration/Space_Science/Webb",
+      "meta": "ESA, open access, 2024"
+    },
+    {
+      "title": "Gardner J. et al. — The James Webb Space Telescope (2006)",
+      "url": "https://link.springer.com/article/10.1007/s11214-006-8315-7",
+      "meta": "Space Science Reviews, 2006 — baseline technical description of the mission"
+    },
+    {
+      "title": "Pontoppidan K. et al. — The James Webb Space Telescope Mission (2022)",
+      "url": "https://iopscience.iop.org/article/10.3847/1538-4357/ac8da4",
+      "meta": "ApJ, 2022, open access — first-year science overview"
+    },
+    {
+      "title": "Carniani S. et al. — JADES-GS-z14-0: Record-breaking galaxy at z>14 (2024)",
+      "url": "https://arxiv.org/abs/2405.05111",
+      "meta": "arXiv, 2024, open preprint"
+    },
+    {
+      "title": "JWST NIRSpec Collaboration — WASP-39b atmospheric composition (2022)",
+      "url": "https://www.nature.com/articles/s41586-022-05269-w",
+      "meta": "Nature, 2022, open access"
+    },
+    {
+      "title": "Bogdan A. et al. — Evidence for heavy-seed origin of early supermassive black hole UHZ1 (2024)",
+      "url": "https://www.nature.com/articles/s41550-023-02111-9",
+      "meta": "Nature Astronomy, 2024"
+    },
+    {
+      "title": "Madden J. et al. — TRAPPIST-1 observations with JWST (2024)",
+      "url": "https://arxiv.org/abs/2312.09301",
+      "meta": "arXiv, 2024, open preprint"
+    },
+    {
+      "title": "NASA — James Webb Space Telescope First Images (2022)",
+      "url": "https://www.nasa.gov/webbfirstimages",
+      "meta": "NASA, July 2022, open access"
+    },
+    {
+      "title": "Space Telescope Science Institute — Webb Science Program",
+      "url": "https://www.stsci.edu/jwst/science-planning",
+      "meta": "STScI, open access, updated 2025"
+    }
+  ],
+  "lastVerified": "2026-05-06"
+}

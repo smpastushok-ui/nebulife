@@ -1,0 +1,618 @@
+import type { Lesson } from '../../types.js';
+
+const lesson: Lesson = {
+  slug: 'seti',
+  language: 'en',
+  section: 'astrobiology',
+  order: 8,
+  difficulty: 'beginner',
+  readingTimeMin: 11,
+  title: 'Search for Extraterrestrial Intelligence',
+  subtitle:
+    'Eighty lines per second, thousands of stars in the antenna\'s sight — and no reply. How humanity listens to the universe, and what exactly it is listening for.',
+
+  hero: {
+    cacheKey: 'seti-hero',
+    prompt:
+      'Photorealistic scientific illustration of a large radio telescope dish array pointed at a star-filled night sky: ' +
+      'foreground shows a massive parabolic dish antenna with structural steel framework, ' +
+      'background shows the Milky Way galaxy arc stretching across the sky, ' +
+      'subtle radio wave ripples emanating from the dish toward the stars, ' +
+      'blue and teal technical color palette, hard sci-fi style, dark atmosphere. ' +
+      'Add the following text labels on the image: "1420 MHz", "hydrogen line", "listening".',
+    alt: 'A large parabolic radio telescope dish pointed at the starry sky — searching for extraterrestrial intelligence',
+    caption:
+      'The search for extraterrestrial intelligence begins with listening. Radio telescopes scan the sky at frequencies considered natural for interstellar communication — in particular at 1420 megahertz, where neutral hydrogen radiates.',
+    aspectRatio: '16:9',
+  },
+
+  body: [
+    {
+      paragraphs: [
+        'In the middle of the twentieth century, humanity paused and asked a serious question: ' +
+        'is it worth listening at all? Could there be civilizations in our galaxy advanced enough ' +
+        'to be transmitting signals — and patient enough to await a reply? ' +
+        'From that moment, the search for extraterrestrial intelligence grew into a scientific discipline ' +
+        'with its own methodology, instruments, and, most importantly, an honest acknowledgment: ' +
+        'after decades of systematic searching, we have not found anything yet.',
+
+        'That does not mean no one is there. It means only that the task is far harder ' +
+        'than it seemed at the outset. The galaxy contains more than two hundred billion stars, ' +
+        'and even our most powerful antennas cover only a tiny fraction of it. ' +
+        'The search continues — and each new generation of instruments expands the listening range ' +
+        'faster than ever before.',
+      ],
+    },
+
+    {
+      heading: 'The Radio Strategy: the Hydrogen Line Frequency and the Water Hole',
+      level: 2,
+      paragraphs: [
+        'If you want to transmit a signal across the greatest possible distance with the least energy, ' +
+        'the choice of frequency is critical. Radio waves pass through the dust and gas of the interstellar medium ' +
+        'without significant absorption — unlike visible or infrared light. ' +
+        'But which frequency to choose?',
+
+        'In 1959, physicists Giuseppe Cocconi and Philip Morrison offered a simple and elegant answer: ' +
+        '1420 megahertz. This is the frequency of the natural radio emission of neutral hydrogen — ' +
+        'the most abundant element in the universe. Any technological civilization ' +
+        'that studies radio astronomy will inevitably know this frequency. ' +
+        'It serves as a kind of _common denominator_ for anyone who looks at the sky.',
+
+        'Nearby sits the emission frequency of hydroxyl molecules — 1720 megahertz. ' +
+        'Hydrogen and hydroxyl together form water, and the gap between their frequencies ' +
+        'was named the **water hole** — the range from 1420 to 1720 megahertz. ' +
+        'This interval is a natural "quiet region" of the radio sky: ' +
+        'few natural interference sources exist here and Earth\'s atmosphere is relatively transparent. ' +
+        'This is precisely where **narrowband signals** are most worth seeking — ' +
+        'signals with an extremely narrow frequency spectrum that do not arise in known natural ' +
+        'astrophysical processes and could therefore betray an artificial origin.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'seti-water-hole-spectrum',
+        prompt:
+          'Scientific diagram of the radio frequency spectrum around the water hole: ' +
+          'horizontal axis showing frequency from 1.0 to 2.0 GHz, ' +
+          'vertical axis showing galactic background noise level, ' +
+          'the water hole region between 1.42 and 1.72 GHz highlighted as a shaded quiet zone in blue-green, ' +
+          'hydrogen line peak labeled at 1420 MHz in cyan, hydroxyl line peak labeled at 1720 MHz in green, ' +
+          'background noise curve shown in orange dropping to minimum in the water hole region, ' +
+          'hard sci-fi style dark background diagram with monospace font labels. ' +
+          'Add the following text labels on the image: "H 1420 MHz", "OH 1720 MHz", "water hole", "quiet zone".',
+        alt: 'Radio spectrum diagram showing the water hole between neutral hydrogen and hydroxyl frequencies',
+        caption:
+          'The gap between the neutral hydrogen frequency (1420 megahertz) and the hydroxyl frequency (1720 megahertz) — the water hole — is the quietest part of the radio sky. Minimal background noise makes this range ideal for interstellar communication.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'Project Ozma and the First Systematic Search',
+      level: 2,
+      paragraphs: [
+        'In 1960, a young astronomer named Frank Drake pointed the 26-meter antenna ' +
+        'of the Green Bank radio observatory at two nearby Sun-like stars — ' +
+        'Tau Ceti and Epsilon Eridani. For several months he listened at the neutral hydrogen frequency. ' +
+        'The project was named **Ozma** — after the queen of the fairy-tale land of Oz. ' +
+        'No suspicious signals were detected, but the experiment itself transformed scientific culture: ' +
+        'the search for extraterrestrial intelligence ceased to be a topic reserved for science fiction ' +
+        'and began to be discussed at scientific conferences.',
+
+        'That same year Drake formulated his famous equation — an attempt to estimate ' +
+        'the number of communicating civilizations in our galaxy. ' +
+        'The equation consists of seven factors: the rate of star formation, the fraction of stars with planets, ' +
+        'the number of habitable planets per system, the fraction of those where life arises, ' +
+        'where intelligence arises, where technology arises, and finally — ' +
+        'the average lifetime of a technological civilization. ' +
+        'Most of these parameters remain unknown to this day. ' +
+        'The Drake equation does not give an answer — it structures the question.',
+      ],
+    },
+
+    {
+      heading: 'The Arecibo Message and the Attempt to Speak',
+      level: 3,
+      paragraphs: [
+        'In 1974, after a major upgrade of the Arecibo radio telescope in Puerto Rico, ' +
+        'a decision was made not only to listen but also to transmit. ' +
+        'The first intentional interstellar radio message in history was beamed ' +
+        'toward the globular cluster Hercules — at a distance of roughly ' +
+        'twenty-five thousand light-years. ' +
+        'It carried 1679 bits — a number that is the product of two primes (23 and 73), ' +
+        'which a recipient could factor and arrange into a two-dimensional grid.',
+
+        'That grid encodes the numbers one through ten, chemical formulas of DNA bases, ' +
+        'the double helix, a schematic human figure, ' +
+        'a diagram of the solar system, and a drawing of the telescope itself. ' +
+        'No reply should be expected: even if someone in the Hercules cluster ' +
+        'received the message and responded instantly, that reply would arrive in fifty thousand years. ' +
+        'But the gesture carried symbolic weight — and it sparked a long-running scientific debate ' +
+        'about whether sending such messages is wise at all.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'seti-arecibo-message',
+        prompt:
+          'Scientific illustration of the Arecibo message binary grid decoded: ' +
+          'a 23x73 pixel black and white pixel grid showing the encoded message content, ' +
+          'sections labeled showing numbers 1-10, DNA bases, double helix, human figure, solar system, telescope, ' +
+          'displayed on a dark background with a faint radio wave pattern behind it, ' +
+          'hard sci-fi technical style, monospace labels. ' +
+          'Add the following text labels on the image: "numbers 1-10", "DNA bases", "human figure", "solar system", "Arecibo 1974".',
+        alt: 'The Arecibo message — a 23 by 73 binary matrix transmitted toward the Hercules globular cluster in 1974',
+        caption:
+          'The Arecibo message was transmitted for three minutes at approximately 2380 megahertz. It contained encoded DNA sequences, a human figure, and a diagram of the solar system. A reply from M13 would take tens of thousands of years to arrive.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'The Wow! Signal and the Silence That Followed',
+      level: 2,
+      paragraphs: [
+        'In 1977, astronomer Jerry Ehman was reviewing a printout of data from the Big Ear radio telescope ' +
+        'at Ohio State University when he noticed a sequence of characters that stood sharply apart from the background. ' +
+        'The signal lasted exactly 72 seconds — precisely as long as a source remains in the antenna\'s beam ' +
+        'as Earth rotates — and closely matched the expected profile of an extraterrestrial narrowband signal ' +
+        'near the neutral hydrogen frequency. Ehman circled the numbers and wrote a single word in the margin: ' +
+        '"Wow!" — and the name stuck forever.',
+
+        'Over the following decades astronomers repeatedly turned antennas back to the same patch of sky. ' +
+        'The signal never repeated. Not once. ' +
+        'All natural explanations — comets, terrestrial interference, a passing satellite — ' +
+        'either fail to match the signal\'s characteristics or were ruled out in later analyses. ' +
+        'The Wow! signal remains the only candidate for extraterrestrial origin ' +
+        'in the entire fifty-year history of systematic radio searching — ' +
+        'and precisely for that reason it is simultaneously the most exciting ' +
+        'and the most frustrating result in the field.',
+      ],
+    },
+
+    {
+      heading: 'Optical Search: Laser Pulses and Fast Transients',
+      level: 2,
+      paragraphs: [
+        'Radio is not the only possible channel. Since the late twentieth century, ' +
+        '**optical search for extraterrestrial intelligence** has developed — ' +
+        'the hunt for brief laser pulses in the visible or near-infrared range. ' +
+        'The logic is straightforward: a powerful laser pulse lasting a nanosecond ' +
+        'can briefly outshine the very star next to which the transmitter is located. ' +
+        'Such a signal differs fundamentally from all known natural astrophysical sources.',
+
+        'Optical search programs operate at observatories at Harvard and Berkeley. ' +
+        'They are capable of detecting flashes lasting billionths of a second — ' +
+        'and have found nothing suspicious so far. ' +
+        'But the advantage of the optical approach is that it allows a far higher ' +
+        '_information transfer rate_ compared to radio: ' +
+        'a single laser beam can carry billions of bits per second. ' +
+        'If someone out there wants to transmit not merely a presence signal but a library — ' +
+        'optics might be the better choice.',
+      ],
+    },
+
+    {
+      heading: 'Technosignatures: When You Search for a Trace, Not a Signal',
+      level: 2,
+      paragraphs: [
+        'Alongside passive listening, a fundamentally different idea has emerged: ' +
+        'searching not for intentional messages but for **technosignatures** — ' +
+        'involuntary traces of technological activity that might be detectable across vast distances.',
+
+        'The most spectacular theoretical candidate is the _Dyson sphere_. ' +
+        'In 1960, physicist Freeman Dyson proposed that a sufficiently advanced civilization ' +
+        'might surround its star with a sphere or swarm of structures to capture all of its energy. ' +
+        'Such an object would appear in the optical range as a star with an unusually large ' +
+        '**infrared excess**: heat that cannot dissipate fast enough would be re-radiated ' +
+        'by the megastructure in the infrared. ' +
+        'Astronomers have already scanned infrared source catalogs in search of such anomalies — ' +
+        'so far without convincing results.',
+
+        'Another category of technosignatures involves **atmospheric pollutants**. ' +
+        'Chlorofluorocarbons — synthetic molecules produced on Earth exclusively through industrial processes — ' +
+        'could in principle be detected by transit spectroscopy if present in an exoplanet\'s atmosphere ' +
+        'at concentrations many orders of magnitude above natural levels. ' +
+        'This is a specific and potentially unambiguous technosignature: ' +
+        'nature does not produce chlorofluorocarbons in significant quantities. ' +
+        'Finally, **beacon lidar pulses** — regular laser flashes directed in different directions ' +
+        'across the galaxy to attract attention — would appear as strictly rhythmic optical anomalies.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Technosignature Taxonomy',
+        svg: `<svg viewBox="0 0 700 340" xmlns="http://www.w3.org/2000/svg">
+  <rect width="700" height="340" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Title -->
+  <text x="350" y="22" fill="#aabbcc" font-family="monospace" font-size="12" text-anchor="middle">Technosignatures — types and detection methods</text>
+
+  <!-- Root node -->
+  <rect x="270" y="38" width="160" height="30" rx="3" fill="rgba(68,136,170,0.2)" stroke="#4488aa" stroke-width="1.5"/>
+  <text x="350" y="58" fill="#7bb8ff" font-family="monospace" font-size="11" text-anchor="middle">Technosignatures</text>
+
+  <!-- Branch lines from root -->
+  <line x1="350" y1="68" x2="350" y2="88" stroke="#334455" stroke-width="1.2"/>
+  <line x1="100" y1="88" x2="600" y2="88" stroke="#334455" stroke-width="1.2"/>
+  <line x1="100" y1="88" x2="100" y2="108" stroke="#334455" stroke-width="1.2"/>
+  <line x1="350" y1="88" x2="350" y2="108" stroke="#334455" stroke-width="1.2"/>
+  <line x1="600" y1="88" x2="600" y2="108" stroke="#334455" stroke-width="1.2"/>
+
+  <!-- Category 1: Radio -->
+  <rect x="30" y="108" width="140" height="30" rx="3" fill="rgba(68,255,136,0.15)" stroke="#44ff88" stroke-width="1.2"/>
+  <text x="100" y="128" fill="#44ff88" font-family="monospace" font-size="10" text-anchor="middle">Radio / optical</text>
+
+  <!-- Category 2: Megastructures -->
+  <rect x="270" y="108" width="160" height="30" rx="3" fill="rgba(255,136,68,0.15)" stroke="#ff8844" stroke-width="1.2"/>
+  <text x="350" y="128" fill="#ff8844" font-family="monospace" font-size="10" text-anchor="middle">Megastructures</text>
+
+  <!-- Category 3: Atmospheric -->
+  <rect x="525" y="108" width="150" height="30" rx="3" fill="rgba(204,68,68,0.15)" stroke="#cc4444" stroke-width="1.2"/>
+  <text x="600" y="128" fill="#cc4444" font-family="monospace" font-size="10" text-anchor="middle">Atmospheric</text>
+
+  <!-- Sub-items Cat 1 -->
+  <line x1="100" y1="138" x2="100" y2="158" stroke="#334455" stroke-width="1"/>
+  <line x1="60" y1="158" x2="140" y2="158" stroke="#334455" stroke-width="1"/>
+  <line x1="60" y1="158" x2="60" y2="173" stroke="#334455" stroke-width="1"/>
+  <line x1="140" y1="158" x2="140" y2="173" stroke="#334455" stroke-width="1"/>
+  <rect x="20" y="173" width="80" height="25" rx="2" fill="rgba(10,15,25,0.7)" stroke="#334455" stroke-width="1"/>
+  <text x="60" y="190" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">narrowband</text>
+  <rect x="105" y="173" width="70" height="25" rx="2" fill="rgba(10,15,25,0.7)" stroke="#334455" stroke-width="1"/>
+  <text x="140" y="190" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">laser pulse</text>
+
+  <!-- Sub-items Cat 2 -->
+  <line x1="350" y1="138" x2="350" y2="158" stroke="#334455" stroke-width="1"/>
+  <line x1="295" y1="158" x2="405" y2="158" stroke="#334455" stroke-width="1"/>
+  <line x1="295" y1="158" x2="295" y2="173" stroke="#334455" stroke-width="1"/>
+  <line x1="405" y1="158" x2="405" y2="173" stroke="#334455" stroke-width="1"/>
+  <rect x="248" y="173" width="94" height="25" rx="2" fill="rgba(10,15,25,0.7)" stroke="#334455" stroke-width="1"/>
+  <text x="295" y="190" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">Dyson sphere</text>
+  <rect x="360" y="173" width="90" height="25" rx="2" fill="rgba(10,15,25,0.7)" stroke="#334455" stroke-width="1"/>
+  <text x="405" y="190" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">IR excess</text>
+
+  <!-- Sub-items Cat 3 -->
+  <line x1="600" y1="138" x2="600" y2="158" stroke="#334455" stroke-width="1"/>
+  <line x1="555" y1="158" x2="645" y2="158" stroke="#334455" stroke-width="1"/>
+  <line x1="555" y1="158" x2="555" y2="173" stroke="#334455" stroke-width="1"/>
+  <line x1="645" y1="158" x2="645" y2="173" stroke="#334455" stroke-width="1"/>
+  <rect x="510" y="173" width="90" height="25" rx="2" fill="rgba(10,15,25,0.7)" stroke="#334455" stroke-width="1"/>
+  <text x="555" y="190" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">CFCs</text>
+  <rect x="608" y="173" width="74" height="25" rx="2" fill="rgba(10,15,25,0.7)" stroke="#334455" stroke-width="1"/>
+  <text x="645" y="190" fill="#8899aa" font-family="monospace" font-size="9" text-anchor="middle">beacon lidar</text>
+
+  <!-- Detection methods row -->
+  <text x="350" y="228" fill="#667788" font-family="monospace" font-size="10" text-anchor="middle">Detection methods:</text>
+
+  <rect x="20" y="238" width="160" height="26" rx="2" fill="rgba(10,15,25,0.7)" stroke="#4488aa" stroke-width="1"/>
+  <text x="100" y="255" fill="#7bb8ff" font-family="monospace" font-size="9" text-anchor="middle">radio telescope (1.42 GHz)</text>
+
+  <rect x="195" y="238" width="150" height="26" rx="2" fill="rgba(10,15,25,0.7)" stroke="#4488aa" stroke-width="1"/>
+  <text x="270" y="255" fill="#7bb8ff" font-family="monospace" font-size="9" text-anchor="middle">optical detector</text>
+
+  <rect x="360" y="238" width="155" height="26" rx="2" fill="rgba(10,15,25,0.7)" stroke="#4488aa" stroke-width="1"/>
+  <text x="437" y="255" fill="#7bb8ff" font-family="monospace" font-size="9" text-anchor="middle">IR catalog surveys</text>
+
+  <rect x="530" y="238" width="150" height="26" rx="2" fill="rgba(10,15,25,0.7)" stroke="#4488aa" stroke-width="1"/>
+  <text x="605" y="255" fill="#7bb8ff" font-family="monospace" font-size="9" text-anchor="middle">transit spectroscopy</text>
+
+  <!-- Note -->
+  <text x="350" y="300" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">* No technosignature confirmed unambiguously (as of May 2026)</text>
+</svg>`,
+        caption:
+          'Technosignatures fall into three main categories: intentional electromagnetic signals, traces of megastructures, and atmospheric anomalies. Each requires its own instrumentation and verification approach.',
+      },
+    },
+
+    {
+      heading: 'Tabby\'s Star and the Mystery of Irregular Dimming',
+      level: 2,
+      paragraphs: [
+        'In 2015, astronomers noticed an unusual star designated KIC 8462852, ' +
+        'soon nicknamed **Tabby\'s Star** after researcher Tabetha Boyajian. ' +
+        'Data from the Kepler space telescope showed that this star\'s brightness ' +
+        'drops at irregularly spaced intervals and by irregular amounts — ' +
+        'sometimes by as much as twenty-two percent, which cannot be explained by a planetary transit. ' +
+        'One of the first hypotheses proposed: a swarm of giant structures — ' +
+        'fragments of a Dyson sphere under construction.',
+
+        'Subsequent observations, however, cooled the initial excitement. ' +
+        'Multi-wavelength data showed that the dimming pattern better matches ' +
+        'an uneven dust belt than solid structures. ' +
+        'Today the most favored hypothesis is a cloud of cometary or impact debris ' +
+        'passing in front of the star. ' +
+        'Tabby\'s Star has joined the list of naturally explained objects — ' +
+        'but it forced the astrophysics community to seriously discuss ' +
+        'what a genuine megastructure would actually look like in a telescope spectrum.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'seti-tabby-star',
+        prompt:
+          'Scientific illustration of KIC 8462852 Tabby\'s Star with unusual dimming: ' +
+          'a bright yellow-white star center left with irregular asymmetric dark patches blocking different amounts of light, ' +
+          'light curve graph in the lower portion showing irregular dips of varying depth and width, ' +
+          'comparison inset showing what a planet transit would look like versus the actual irregular signal, ' +
+          'hard sci-fi scientific style, dark space background. ' +
+          'Add the following text labels on the image: "KIC 8462852", "irregular dimming", "dust cloud hypothesis", "not a planet".',
+        alt: 'KIC 8462852 Tabby\'s Star with its irregular dimming — the light curve shows unusual brightness dips',
+        caption:
+          'Tabby\'s Star showed brightness drops of up to twenty-two percent — far larger and more irregular than any planetary transit. The leading explanation today is natural dust clouds, but the object has not been fully characterized.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'Current Programs: from the Allen Telescope Array to Breakthrough Listen',
+      level: 2,
+      paragraphs: [
+        'The Search for Extraterrestrial Intelligence Institute in California operates the **Allen Telescope Array** — ' +
+        'a system of more than forty parabolic antennas in the Cascade Range mountains. ' +
+        'The Array allows simultaneous observation of millions of radio frequencies ' +
+        'and the analysis of hundreds of stars in parallel. It continues to operate ' +
+        'and regularly detects unexpected narrowband signals — which, ' +
+        'after verification, turn out to be terrestrial radio interference.',
+
+        'In 2015, entrepreneur Yuri Milner announced funding for ' +
+        '**Breakthrough Listen** — the largest and best-funded ' +
+        'initiative in the history of the field. ' +
+        'One hundred million dollars over ten years, access to the world\'s most powerful radio telescopes — ' +
+        'including the 100-meter Green Bank Telescope in the United States and the Parkes Telescope in Australia. ' +
+        'The program covers one million of the nearest stars, the center of our galaxy, ' +
+        'and one hundred neighboring galaxies.',
+
+        'Meanwhile in China, the **Five-hundred-meter Aperture Spherical Telescope** — ' +
+        'the largest single-dish radio antenna in the world — began operations. ' +
+        'And in South Africa, the **MeerKAT** array — a precursor to the future ' +
+        'Square Kilometre Array — already provides scientists with data of unprecedented sensitivity. ' +
+        'The coming decade will bring a depth and breadth of searching that surpasses ' +
+        'everything accomplished in the previous sixty years combined.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'seti-telescope-array',
+        prompt:
+          'Photorealistic aerial view of the Allen Telescope Array or similar radio telescope array: ' +
+          'dozens of white parabolic dish antennas arranged in a field, ' +
+          'mountain or hilly background, blue sky with some clouds, ' +
+          'all dishes pointed in the same direction toward the sky, ' +
+          'power cables and infrastructure visible between dishes, ' +
+          'hard sci-fi photorealistic documentary style. ' +
+          'Add the following text labels on the image: "Allen Telescope Array", "42 dishes", "SETI Institute".',
+        alt: 'The Allen Telescope Array — dozens of parabolic antennas in the Cascade Range, California',
+        caption:
+          'The Allen Telescope Array consists of more than forty antennas and operates around the clock. Unlike traditional radio telescopes, it can simultaneously observe millions of frequency channels and analyze several stars in parallel.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'The Active Search Controversy: Should We Transmit?',
+      level: 2,
+      paragraphs: [
+        'Listening is one thing. Transmitting is another. ' +
+        '**Active search for extraterrestrial intelligence** — the deliberate sending of messages from Earth — ' +
+        'is the subject of one of the sharpest scientific and philosophical debates in the field.',
+
+        'Arguments against: we know nothing of the nature and intentions of potential recipients. ' +
+        'Stephen Hawking repeatedly warned that a civilization advanced enough to receive our signal ' +
+        'might regard us the way European colonizers regarded the indigenous peoples of the Americas. ' +
+        'Arguments in favor: if all civilizations stay silent for the same security reasons, ' +
+        'the universe will remain forever quiet — the so-called silence paradox. ' +
+        'Moreover, humanity is already leaking into space: ' +
+        'television and radio signals have been spreading outward from Earth for more than a century.',
+
+        'To date, there is no universally accepted international framework governing ' +
+        'the deliberate transmission of interstellar messages. ' +
+        'Individual transmissions have taken place — from the Arecibo message to commercial initiatives ' +
+        'of the twenty-first century — but without any systematic governance. ' +
+        'The question remains open: whose responsibility is this, and who has the right ' +
+        'to speak on behalf of all humanity.',
+      ],
+    },
+
+    {
+      heading: 'The Great Silence and What It Means',
+      level: 2,
+      paragraphs: [
+        'After more than sixty years of searching, the result is one: silence. ' +
+        'No confirmed signal, no unambiguous technosignature, ' +
+        'no artifact that cannot be explained by natural processes. ' +
+        'This is the **Great Silence** — and it demands explanation.',
+
+        'Many explanations have been proposed. Perhaps advanced civilizations are rare — ' +
+        'and we are truly alone or nearly so in the galaxy. ' +
+        'Perhaps technological civilizations exist but not for long — ' +
+        'they destroy themselves through nuclear weapons, climate catastrophe, ' +
+        'or something else still unknown to us. ' +
+        'Perhaps they use communication methods we have not yet conceived — ' +
+        'neutrino beams, modulated gravitational radiation, ' +
+        'or something fundamentally outside our current physics. ' +
+        'Perhaps they are already observing us but do not consider us interesting enough to answer. ' +
+        'Perhaps the distances are simply too vast and transmission times ' +
+        'exceed the lifespan of any civilization.',
+
+        'The Great Silence is not an answer. But it is powerful scientific data. ' +
+        'Each additional year of silence with ever more sensitive instruments ' +
+        'narrows the space of possible explanations and tells us something important — ' +
+        'even if we do not yet fully understand what that something is.',
+      ],
+    },
+  ],
+
+  glossary: [
+    {
+      term: 'Search for Extraterrestrial Intelligence',
+      definition:
+        'A scientific discipline that investigates the possible existence of technological civilizations beyond Earth by systematically searching for electromagnetic signals or other technosignatures from space.',
+    },
+    {
+      term: 'Water hole (frequency range)',
+      definition:
+        'A quiet gap in the radio spectrum between the neutral hydrogen frequency (1420 megahertz) and the hydroxyl molecule frequency (1720 megahertz). Considered a natural candidate for interstellar communication because of its minimal background noise.',
+    },
+    {
+      term: 'Narrowband signal',
+      definition:
+        'A radio signal with an extremely narrow frequency spectrum that does not arise in known natural astrophysical processes. Its presence in the radio sky could potentially indicate an artificial origin.',
+    },
+    {
+      term: 'Technosignature',
+      definition:
+        'Any involuntary or deliberate trace of technological activity detectable across large distances. Examples include infrared excess from megastructures, synthetic molecules in an atmosphere, and regular laser pulses.',
+    },
+    {
+      term: 'Dyson sphere',
+      definition:
+        'A theoretical megastructure surrounding a star that captures all or most of its energy output. Proposed by physicist Freeman Dyson in the mid-twentieth century. It would produce an anomalously large infrared excess relative to the star\'s optical brightness.',
+    },
+    {
+      term: 'Active search for extraterrestrial intelligence (messaging)',
+      definition:
+        'The deliberate transmission of interstellar messages from Earth with the intent of establishing contact with potential civilizations. In contrast to passive listening, it is the subject of serious scientific and ethical debate.',
+    },
+    {
+      term: 'Drake equation',
+      definition:
+        'A formula proposed by Frank Drake in 1961 for estimating the number of communicating technological civilizations in our galaxy. It consists of seven factors, most of which remain unknown.',
+    },
+    {
+      term: 'Great Silence',
+      definition:
+        'The absence of any confirmed signals or technosignatures from extraterrestrial intelligence despite decades of systematic searching. It is the central unresolved paradox in the field.',
+    },
+    {
+      term: 'Chlorofluorocarbons as a technosignature',
+      definition:
+        'Synthetic molecules produced exclusively through industrial processes. Their presence in an exoplanet atmosphere at concentrations greatly exceeding natural levels could theoretically be detected by transit spectroscopy and might indicate an industrial civilization.',
+    },
+  ],
+
+  quiz: [
+    {
+      question: 'Why is 1420 megahertz chosen as a prime target frequency in the search for extraterrestrial signals?',
+      options: [
+        'It is the only frequency at which Earth\'s antennas can receive signals from other galaxies',
+        'This frequency has the lowest atmospheric interference and the highest transmitter power available',
+        'It is the natural emission frequency of neutral hydrogen — the most abundant element, making it a common denominator for any advanced civilization',
+        'This frequency was first identified in the Wow! signal in 1977',
+      ],
+      correctIndex: 2,
+      explanation:
+        'Neutral hydrogen — the most abundant element in the universe — emits at 1420 megahertz. Any civilization that studies radio astronomy will inevitably know this frequency. Together with the hydroxyl frequency (1720 megahertz) it forms the water hole — the quietest and therefore most suitable range for communication.',
+    },
+    {
+      question: 'What is the Wow! signal and why does it matter?',
+      options: [
+        'It is the first message deliberately sent from Earth to another star in 1977',
+        'It is a radio signal received in 1977 that matched the profile of an extraterrestrial narrowband transmission and has never repeated',
+        'It is the abbreviated name of an observation program that discovered the first exoplanets',
+        'It is a pulsar signal mistakenly interpreted as extraterrestrial intelligence',
+      ],
+      correctIndex: 1,
+      explanation:
+        'The Wow! signal was received at the Big Ear radio telescope in 1977. It lasted exactly 72 seconds, was located near the neutral hydrogen frequency, and had characteristics matching the expected profile of a signal from a distant source. Despite numerous follow-up observations, it has never recurred.',
+    },
+    {
+      question: 'What technosignature would a civilization produce by surrounding its star with a Dyson sphere megastructure?',
+      options: [
+        'Unusually bright X-ray emission',
+        'Regular gravitational waves directed away from the star',
+        'A large infrared excess relative to the star\'s optical brightness',
+        'An absence of planetary transits across the stellar disk',
+      ],
+      correctIndex: 2,
+      explanation:
+        'A sphere or swarm of megastructures would absorb starlight and re-radiate it as heat in the infrared. The star would appear optically dimmer than expected while displaying anomalously bright infrared emission. This "infrared excess" is what astronomers look for in astrophysical catalogs.',
+    },
+    {
+      question: 'What is the primary reason for controversy over actively transmitting interstellar messages?',
+      options: [
+        'The technical costs of transmission are so high that no organization can afford them',
+        'Uncertainty about the nature and intentions of potential recipients, with no way to recall a message once sent',
+        'A 1967 international treaty prohibits any transmission of signals into space',
+        'Transmitting a signal destroys the possibility of passive listening on the same frequencies',
+      ],
+      correctIndex: 1,
+      explanation:
+        'The core ethical and security concern is that we know nothing about the nature, culture, or intentions of a civilization that might receive our signal. Once transmitted, the message cannot be recalled, and the round-trip time is decades to thousands of years. The risk is asymmetric: the potential threat is not comparable to the potential benefit of contact.',
+    },
+    {
+      question: 'What is now considered the most likely explanation for the irregular dimming of KIC 8462852, Tabby\'s Star?',
+      options: [
+        'A swarm of megastructures from an extraterrestrial civilization absorbing starlight',
+        'Natural clouds of dust or debris from a disrupted body passing in front of the star',
+        'A very large ringed planet similar to Saturn but much larger',
+        'Pulsations of the star itself due to unstable nuclear reactions',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Multi-wavelength observations showed that the dimming pattern matches uneven dust rather than solid structures. The current leading hypothesis is a natural dust cloud from a disrupted comet or other body. The megastructure hypothesis was not confirmed, but the episode prompted astrophysicists to rigorously think through what a genuine technosignature would look like.',
+    },
+  ],
+
+  sources: [
+    {
+      title: 'Cocconi G., Morrison P. — Searching for Interstellar Communications',
+      url: 'https://www.nature.com/articles/184844a0',
+      meta: 'Nature, 184, 844–846, 1959 — foundational paper establishing the field',
+    },
+    {
+      title: 'Drake F. — Project Ozma: Results and Reflections',
+      url: 'https://www.seti.org/seti-institute/project/ozma',
+      meta: 'SETI Institute Archive — the first systematic search of 1960',
+    },
+    {
+      title: 'Tarter J. — The Search for Extraterrestrial Intelligence',
+      url: 'https://www.annualreviews.org/doi/10.1146/annurev.astro.39.1.511',
+      meta: 'Annual Review of Astronomy and Astrophysics, 39, 511–548, 2001',
+    },
+    {
+      title: 'Breakthrough Listen — Open Data Archive',
+      url: 'https://seti.berkeley.edu/listen/',
+      meta: 'UC Berkeley SETI Research Center — Breakthrough Listen data from 2015 onward',
+    },
+    {
+      title: 'Wright J.T. et al. — The G Infrared Search for Extraterrestrial Civilizations with Large Energy Supplies',
+      url: 'https://arxiv.org/abs/1408.1133',
+      meta: 'ApJS, 220, 2, 2015 — review of megastructure and Dyson sphere search methods',
+    },
+    {
+      title: 'Boyajian T.S. et al. — Planet Hunters: KIC 8462852',
+      url: 'https://arxiv.org/abs/1509.03622',
+      meta: 'Monthly Notices of the Royal Astronomical Society, 457, 3988–4004, 2016',
+    },
+    {
+      title: 'Haqq-Misra J. et al. — Should We Transmit? An Analysis of Active SETI',
+      url: 'https://arxiv.org/abs/2104.07975',
+      meta: 'Acta Astronautica, 2021 — analysis of arguments for and against active transmissions',
+    },
+    {
+      title: 'Kipping D. — An Objective Bayesian Analysis of the Wow! Signal',
+      url: 'https://arxiv.org/abs/2409.12211',
+      meta: 'International Journal of Astrobiology, 2024 — Bayesian analysis of the Wow! signal',
+    },
+    {
+      title: 'Five-hundred-meter Aperture Spherical Telescope — Official Overview',
+      url: 'https://fast.bao.ac.cn/',
+      meta: 'National Astronomical Observatories of China — official FAST website',
+    },
+    {
+      title: 'Schwieterman E.W. et al. — Exoplanet Biosignatures: A Review of Remotely Detectable Signs of Life',
+      url: 'https://arxiv.org/abs/1705.05791',
+      meta: 'Astrobiology, 18, 663–708, 2018 — includes analysis of technosignatures and chlorofluorocarbons',
+    },
+  ],
+
+  lastVerified: '2026-05-06',
+};
+
+export default lesson;

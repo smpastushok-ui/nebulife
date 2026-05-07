@@ -1,0 +1,658 @@
+import type { Lesson } from '../../types.js';
+
+const lesson: Lesson = {
+  slug: 'biomarkers',
+  language: 'en',
+  section: 'astrobiology',
+  order: 4,
+  difficulty: 'intermediate',
+  readingTimeMin: 12,
+  title: 'Biosignatures and Biomarkers — The Chemical Fingerprints of Life',
+  subtitle:
+    'Some molecules are nearly impossible to sustain without biology. Can we read the presence of life in the spectrum of a distant planet — and how confident can we be that we are reading it correctly?',
+
+  hero: {
+    cacheKey: 'biomarkers-hero',
+    prompt:
+      'Photorealistic scientific illustration for a science encyclopedia: a distant exoplanet transiting in front of its star, ' +
+      'starlight filtering through a thin atmospheric halo, molecular structures of O2, O3, CH4, and N2O floating as ghostly overlays around the planet, ' +
+      'transmission spectrum graph inset at bottom right corner showing multiple absorption peaks. ' +
+      'Hard sci-fi style, dark space background, cold teal and amber palette. ' +
+      'Add the following text labels on the image: "O2", "CH4", "N2O", "transmission spectrum".',
+    alt: 'An exoplanet in front of its star — starlight filtering through the atmosphere leaves a chemical fingerprint of biosignature molecules',
+    caption:
+      'When a planet passes in front of its star, starlight filters through the atmosphere. Each molecule absorbs specific wavelengths — leaving a fingerprint in the spectrum that a telescope can read from dozens of light-years away.',
+    aspectRatio: '16:9',
+  },
+
+  body: [
+    {
+      paragraphs: [
+        'Imagine someone on a distant planet looking at Earth through a telescope, trying to decide: ' +
+        'is there life here or not? They see nothing but a tiny point of light. ' +
+        'But if their instrument spreads the light reflected from our atmosphere into a spectrum, ' +
+        'they would notice something strange. Oxygen and methane at the same time. ' +
+        'These two gases react with each other and disappear within thousands of years if not continuously replenished. ' +
+        'Something — or someone — is constantly pumping them back into the atmosphere. On Earth, that is the biosphere.',
+
+        'That is the logic behind the search for **biosignatures**: not to look for life directly, ' +
+        'but to search for chemical fingerprints that are difficult to explain without living organisms. ' +
+        'This is an indirect argument and it will never constitute absolute proof. ' +
+        'But it is the only method we have for analyzing planets at the distance of light-years. ' +
+        'Most currently proposed biosignature candidates are contested — ' +
+        'and that is an honest description of where science stands in 2026.',
+      ],
+    },
+
+    {
+      heading: 'Why Individual Gases Are Not Enough — It Takes Disequilibrium',
+      level: 2,
+      paragraphs: [
+        'The central idea behind astrobiological detection is _thermodynamic disequilibrium_. ' +
+        'The atmosphere of a dead planet tends toward chemical equilibrium: reactive gases react with each other ' +
+        'and eventually disappear or convert into more stable compounds. ' +
+        'Living organisms are disequilibrium machines. They continuously consume certain substances ' +
+        'and release others, holding the atmosphere in a state that never reaches rest.',
+
+        'Oxygen is the clearest example. It is extraordinarily reactive: it oxidizes metals, ' +
+        'reacts with organic matter, and is broken down by ultraviolet radiation. ' +
+        'Without continuous replenishment, atmospheric oxygen disappears within millions of years. ' +
+        'On Earth it is maintained by photosynthesis — the chemical process that converts carbon dioxide and water ' +
+        'into organic molecules and oxygen. ' +
+        'If all plants and cyanobacteria vanished overnight, our atmospheric oxygen would be depleted within a few million years.',
+
+        'But oxygen alone is an unreliable biosignature. ' +
+        'There is an abiotic mechanism for producing it: photolysis of carbon dioxide by ultraviolet radiation. ' +
+        'Even Venus shows traces of oxygen from exactly this source today. ' +
+        'That is why astrobiologists look for **pairs of gases in disequilibrium** — combinations ' +
+        'that cannot coexist without continuous external "feeding."',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'biomarkers-gas-disequilibrium',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: two side-by-side planetary atmosphere cross-sections. ' +
+          'Left side labeled "abiotic equilibrium": sparse atmosphere with CO2 and N2 labels, muted gray tones. ' +
+          'Right side labeled "biotic disequilibrium": lush atmosphere with molecular overlays of O2, CH4, N2O coexisting, ' +
+          'green tint, arrows showing continuous biological replenishment cycles. ' +
+          'Hard sci-fi style, dark space background, monospace labels. ' +
+          'Add the following text labels on the image: "abiotic equilibrium", "biotic disequilibrium", "O2 + CH4", "constant replenishment".',
+        alt: 'Comparison of an abiotic equilibrium atmosphere and a biotic disequilibrium atmosphere with reactive gases coexisting',
+        caption:
+          'A dead atmosphere trends toward chemical equilibrium — reactive gases gradually react away. A living planet holds its atmosphere in disequilibrium: organisms continuously replenish gases that would otherwise react and disappear.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'Oxygen Plus Methane — The Strongest Candidate',
+      level: 2,
+      paragraphs: [
+        'The simultaneous presence of molecular oxygen and methane in an atmosphere ' +
+        'is the classic "strong" biosignature. Oxygen oxidizes methane: ' +
+        'methane plus oxygen yields carbon dioxide and water. ' +
+        'If both gases are present in detectable concentrations at the same time, ' +
+        'something must be continuously producing them. ' +
+        'On Earth, photosynthesis provides the oxygen while microbes, animal digestive systems, and marine sediments supply the methane.',
+
+        'Ozone is a derivative of oxygen: ultraviolet radiation splits molecular oxygen, ' +
+        'and the free oxygen atoms combine with other molecules to form the three-atom oxygen variant. ' +
+        'Ozone is easier to detect spectroscopically than molecular oxygen — ' +
+        'it has a distinctive, bright absorption peak in the ultraviolet. ' +
+        'Thus the presence of ozone serves as an indirect indicator of oxygen in the atmosphere.',
+
+        'An important caveat: scenarios exist where oxygen forms abiotically in large amounts. ' +
+        'A planet with abundant photolyzed carbon dioxide, or a world that has undergone what researchers call ' +
+        'an "oxygen false positive" event, can accumulate oxygen without any photosynthesis whatsoever. ' +
+        'This is exactly why leading researchers — including David Catling and colleagues — ' +
+        'insist that interpreting any biosignature requires contextual evaluation: ' +
+        'surface composition, the presence of liquid water, geological activity, ' +
+        'and the plausibility of every abiotic alternative explanation.',
+      ],
+    },
+
+    {
+      heading: 'Nitrous Oxide and Dimethyl Sulfide — Microbial Traces',
+      level: 2,
+      paragraphs: [
+        'Nitrous oxide is a colorless gas produced predominantly by microbial activity in soil and ocean. ' +
+        'Microorganisms performing denitrification convert nitrates to molecular nitrogen, ' +
+        'releasing nitrous oxide as a byproduct. ' +
+        'On Earth it is present in trace quantities in the atmosphere — and almost all of it is biogenic. ' +
+        'Abiotic sources such as lightning and volcanism contribute orders of magnitude less. ' +
+        'In principle, detecting nitrous oxide in an exoplanet atmosphere could indicate microbial nitrogen cycling.',
+
+        'Dimethyl sulfide is a sulfur-containing organic molecule produced by marine unicellular algae. ' +
+        'When phytoplankton die or are consumed, they release this compound, ' +
+        'which then evaporates into the atmosphere. ' +
+        'On Earth, dimethyl sulfide is responsible for the characteristic smell of the sea — ' +
+        'that distinctive scent at the coast on a calm day. ' +
+        'It breaks down rapidly under ultraviolet radiation, so its presence in an atmosphere implies ' +
+        'active and continuous production.',
+
+        'In 2023, a team led by Nikku Madhusudhan published James Webb Space Telescope data ' +
+        'for the atmosphere of the exoplanet Kei-2-18Bi — more commonly written as K2-18b. ' +
+        'The spectrum showed a possible feature attributable to dimethyl sulfide ' +
+        'or molecules with a similar absorption profile. ' +
+        'The announcement attracted enormous attention — but within the following year ' +
+        'independent teams challenged the interpretation: ' +
+        'the signal is weak, it overlaps with other molecules, ' +
+        'and non-biological explanations cannot be excluded. ' +
+        'The case of K2-18b remains open and requires further observation.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Biosignature Gas Hierarchy by Strength of Evidence',
+        svg: `<svg viewBox="0 0 680 340" xmlns="http://www.w3.org/2000/svg">
+  <rect width="680" height="340" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Title -->
+  <text x="340" y="22" fill="#aabbcc" font-family="monospace" font-size="12" text-anchor="middle">Biosignature Gas Strength of Evidence</text>
+
+  <!-- Strong tier -->
+  <rect x="60" y="42" width="560" height="68" rx="3" fill="rgba(68,255,136,0.07)" stroke="#44ff88" stroke-width="1.2"/>
+  <text x="76" y="62" fill="#44ff88" font-family="monospace" font-size="11" font-weight="bold">STRONG EVIDENCE</text>
+  <text x="76" y="82" fill="#aabbcc" font-family="monospace" font-size="11">O2 + CH4 (disequilibrium)</text>
+  <text x="310" y="82" fill="#8899aa" font-family="monospace" font-size="10">— react together, vanish without replenishment</text>
+  <text x="76" y="100" fill="#aabbcc" font-family="monospace" font-size="11">O3 + CH4</text>
+  <text x="310" y="100" fill="#8899aa" font-family="monospace" font-size="10">— ozone signals O2; still a disequilibrium pair</text>
+
+  <!-- Moderate tier -->
+  <rect x="60" y="122" width="560" height="84" rx="3" fill="rgba(255,136,68,0.07)" stroke="#ff8844" stroke-width="1.2"/>
+  <text x="76" y="142" fill="#ff8844" font-family="monospace" font-size="11" font-weight="bold">MODERATE EVIDENCE</text>
+  <text x="76" y="162" fill="#aabbcc" font-family="monospace" font-size="11">N2O (nitrous oxide)</text>
+  <text x="310" y="162" fill="#8899aa" font-family="monospace" font-size="10">— microbial denitrification; few abiotic sources</text>
+  <text x="76" y="182" fill="#aabbcc" font-family="monospace" font-size="11">DMS (dimethyl sulfide)</text>
+  <text x="310" y="182" fill="#8899aa" font-family="monospace" font-size="10">— marine algae; rapidly photodissociated</text>
+  <text x="76" y="200" fill="#aabbcc" font-family="monospace" font-size="11">CH3Cl (chloromethane)</text>
+  <text x="310" y="200" fill="#8899aa" font-family="monospace" font-size="10">— microbial; some abiotic sources exist</text>
+
+  <!-- Weak/ambiguous tier -->
+  <rect x="60" y="218" width="560" height="68" rx="3" fill="rgba(204,68,68,0.07)" stroke="#cc4444" stroke-width="1.2"/>
+  <text x="76" y="238" fill="#cc4444" font-family="monospace" font-size="11" font-weight="bold">AMBIGUOUS EVIDENCE</text>
+  <text x="76" y="258" fill="#aabbcc" font-family="monospace" font-size="11">O2 or O3 alone</text>
+  <text x="310" y="258" fill="#8899aa" font-family="monospace" font-size="10">— abiotic CO2 photolysis possible</text>
+  <text x="76" y="276" fill="#aabbcc" font-family="monospace" font-size="11">CH4 alone</text>
+  <text x="310" y="276" fill="#8899aa" font-family="monospace" font-size="10">— volcanism, hydrothermals, abiotic synthesis</text>
+
+  <!-- Note -->
+  <text x="340" y="318" fill="#667788" font-family="monospace" font-size="10" text-anchor="middle">Every signal requires context: geology, surface composition, absence of abiotic explanation</text>
+</svg>`,
+        caption:
+          'No single molecule constitutes sufficient evidence on its own. The strength of the case grows when multiple independent lines of evidence align and when abiotic explanations for each can be ruled out.',
+      },
+    },
+
+    {
+      heading: 'The Vegetation Red Edge — A Spectral Fingerprint of Photosynthesis',
+      level: 2,
+      paragraphs: [
+        'Biosignatures do not exist only in atmospheric gas composition — they also appear in how a planet reflects starlight. ' +
+        'Chlorophyll — the pigment responsible for photosynthesis in plants and cyanobacteria — ' +
+        'has a very specific spectral fingerprint: ' +
+        'it absorbs red and blue visible light but abruptly reflects near-infrared radiation ' +
+        'at a boundary near seven hundred nanometers.',
+
+        'This phenomenon is called the _vegetation red edge_. ' +
+        'Seen from space, Earth looks brighter in the near-infrared than one would expect ' +
+        'for a lifeless planet with the same visible-range reflectance. ' +
+        'Forests, grasslands, and oceanic algae all together roughly double the planet\'s infrared brightness ' +
+        'compared to what it would be without a photosynthetic biosphere.',
+
+        'In principle, if we observed a similar spectral jump in the reflected light of another planet — ' +
+        'especially alongside gas-phase biosignatures — ' +
+        'it would be a very strong argument for surface photosynthetic life. ' +
+        'In practice, measuring this signal for an exoplanet is extraordinarily difficult: ' +
+        'the faint reflected light from the planet must be separated from the overwhelming glare of the star, ' +
+        'and this lies beyond the capability of current telescopes. ' +
+        'The next generation of direct-imaging observatories — in particular the Habitable Worlds Observatory — ' +
+        'lists detection of the vegetation red edge among its scientific goals.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'biomarkers-vegetation-red-edge',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: a split-panel diagram showing vegetation red edge spectral signature. ' +
+          'Left panel: spectrum graph with wavelength axis from 400nm to 1000nm, a sharp reflectance jump near 700nm highlighted in bright green labeled "red edge", ' +
+          'visible range shown in rainbow gradient, near-infrared shown as gray zone. ' +
+          'Right panel: satellite view of Earth showing green forests and vegetation glowing brighter in near-infrared overlay. ' +
+          'Hard sci-fi style, dark background, monospace axis labels. ' +
+          'Add the following text labels on the image: "red edge ~700 nm", "visible light", "near-infrared", "vegetation reflectance".',
+        alt: 'Vegetation reflectance spectrum showing the sharp brightness jump near 700 nanometers — the vegetation red edge',
+        caption:
+          'Chlorophyll shifts behavior sharply near 700 nanometers: absorbing visible red light while strongly reflecting near-infrared. On Earth this effect produces a characteristic "red edge" in the planet\'s reflected spectrum — a potential surface biosignature to search for in exoplanet observations.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'Fossil and Isotopic Traces — Biosignatures Without an Atmosphere',
+      level: 2,
+      paragraphs: [
+        'Not all biosignatures can be read remotely from a spectrum. ' +
+        'There is a second class — _fossil_ or _geochemical_ biosignatures ' +
+        'that are preserved in rock for billions of years. ' +
+        'These can only be studied in situ — by landing on the surface.',
+
+        'Stromatolites are layered calcium carbonate structures built by microbial colonies in shallow water. ' +
+        'The oldest known stromatolites on Earth formed approximately three and a half billion years ago. ' +
+        'If similar structures were found on Mars, that would be an extraordinarily compelling argument ' +
+        'for ancient microbial life.',
+
+        'Another approach is **carbon isotope analysis**. ' +
+        'Living organisms prefer the lighter isotope of carbon ' +
+        'because it reacts slightly faster in biochemical reactions. ' +
+        'As a result, organic carbon in ancient rocks ' +
+        'shows a characteristic depletion of the heavier isotope ' +
+        'that is almost impossible to explain fully through abiotic processes. ' +
+        'The Curiosity rover in 2018 found organic molecules in sediments from the ancient Gale Crater lake — ' +
+        'but this organic matter is not necessarily biogenic. ' +
+        'Isotopic analysis of those samples is not yet possible from the rover itself.',
+
+        'The most loudly debated example of geochemical biosignature science is the meteorite known as ALH84001. ' +
+        'In 1996, a team led by David McKay announced that this piece of Martian rock contained ' +
+        'microscopic structures resembling microfossils, organic molecules, and carbonate globules ' +
+        'characteristic of bacterial activity. ' +
+        'The announcement made front pages worldwide and became a global sensation. ' +
+        'Over the following decade, however, most of the arguments were refuted: ' +
+        'the mineral structures turned out to be explainable by abiotic formation, ' +
+        'and the organic compounds were traced to contamination from Antarctic soil. ' +
+        'Today, most researchers are skeptical of the original claim — ' +
+        'but the question has never been formally closed.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'biomarkers-alh84001',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: a close-up scientific image of the ALH84001 Martian meteorite. ' +
+          'Gray-black rocky fragment with magnified electron microscope inset showing elongated tubular micro-structures, ' +
+          'scale bars on inset, a faint orange Mars visible in background. ' +
+          'Hard sci-fi style, dark space background, clinical scientific lighting. ' +
+          'Add the following text labels on the image: "ALH84001 Martian meteorite", "micro-structures (disputed)", "100 nm scale", "Mars origin".',
+        alt: 'The ALH84001 Martian meteorite and microscopic structures in its cross-section — the 1996 find that sparked a debate about ancient Martian life',
+        caption:
+          'The meteorite ALH84001 came from Mars and in 1996 was interpreted as possibly containing traces of microbial life. Most of the original arguments have since been challenged, but the sample remains under scientific study — and stands as a symbol of how difficult it is to distinguish the biotic from the abiotic in ancient rock.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Phosphine on Venus and Dimethyl Sulfide on K2-18b — Lessons from Disputed Discoveries',
+      level: 2,
+      paragraphs: [
+        'In 2020, Jane Greaves and colleagues announced the detection of phosphine in the atmosphere of Venus ' +
+        'using the James Clerk Maxwell Telescope and the Atacama Large Millimeter Array. ' +
+        'Phosphine — a molecule consisting of one phosphorus atom and three hydrogen atoms — ' +
+        'is produced on Earth primarily by microbes under anaerobic conditions. ' +
+        'If genuinely present in the Venusian atmosphere, it would have demanded an explanation, ' +
+        'because all known abiotic mechanisms produce it in far smaller quantities.',
+
+        'Within months, however, several independent teams challenged the detection. ' +
+        'Analysis showed that the reported signal partly overlaps with a sulfur dioxide absorption line, ' +
+        'and when the data were processed more conservatively, the phosphine feature either disappeared ' +
+        'or became statistically insignificant. ' +
+        'The Greaves team defended their findings, but the scientific community as a whole received the claim ' +
+        'with great restraint. ' +
+        'As of 2026, the existence of phosphine in the Venusian atmosphere remains unconfirmed.',
+
+        'A parallel story unfolded in 2023 with dimethyl sulfide on K2-18b. ' +
+        'The Madhusudhan team published James Webb Space Telescope results ' +
+        'and reported a possible feature attributable to dimethyl sulfide ' +
+        'or similar sulfur-bearing molecules in the atmosphere of this sub-Neptune planet. ' +
+        'As with the Venus case, scientific reaction was cautious. ' +
+        'The signal sits near the detection threshold, ' +
+        'and alternative non-biological molecules produce a similar spectral pattern. ' +
+        'Both cases teach the same lesson: ' +
+        'in the search for biosignatures the evidentiary standard is extraordinarily high, ' +
+        'and a single telescopic observation — even a seemingly clear one — ' +
+        'is not sufficient for scientific consensus.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'biomarkers-k2-18b-spectrum',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: JWST transmission spectrum of exoplanet K2-18b. ' +
+          'Detailed spectrum graph with wavelength on horizontal axis (1 to 5 micrometers), ' +
+          'transit depth on vertical axis, multiple labeled molecular absorption features: CO2, CH4, DMS question mark. ' +
+          'Dark background, data points with error bars, model fit lines in cyan, ' +
+          'small inset showing K2-18b as a pale blue-green sub-Neptune planet. ' +
+          'Hard sci-fi style, monospace labels. ' +
+          'Add the following text labels on the image: "CO2", "CH4", "DMS (?)", "JWST data 2023", "K2-18b".',
+        alt: 'Transmission spectrum of K2-18b from JWST 2023 data — showing carbon dioxide, methane, and the disputed dimethyl sulfide feature',
+        caption:
+          'The spectrum of K2-18b published by the Madhusudhan team in 2023 showed clear features from carbon dioxide and methane. The feature in the dimethyl sulfide region remains contested: it is weak and may be explained by other molecules.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Why Multiple Lines of Evidence Are Required — The Catling Framework',
+      level: 2,
+      paragraphs: [
+        'David Catling at the University of Washington and colleagues developed a conceptual framework ' +
+        'for assessing the credibility of any claimed biosignature. ' +
+        'It demands answers to several key questions before any signal can be taken seriously.',
+
+        'First, _has it been measured correctly_? ' +
+        'Spectroscopic measurements always carry uncertainty, and signals can overlap in wavelength with other molecules. ' +
+        'The phosphine case from Venus is a textbook example of how the same dataset ' +
+        'can be processed differently to produce opposite conclusions. ' +
+        'Second, _is contamination possible_? There is always a risk that a signal originates not from the planet ' +
+        'but from the instrument, the host star, or the interstellar medium.',
+
+        'Third, _is there an abiotic explanation_? ' +
+        'For every potential marker, all known non-biological sources must be systematically checked. ' +
+        'Oxygen can come from photolysis. Methane can come from volcanism or hydrothermal systems. ' +
+        'Dimethyl sulfide can be produced by certain photochemical reactions in the atmosphere without any organisms. ' +
+        'A genuine biosignature is one for which, after exhausting all abiotic alternatives, ' +
+        'an explanatory gap remains.',
+
+        'Finally, _convergence of independent evidence_: ' +
+        'the most compelling scenario is when several different methods point in the same direction. ' +
+        'Atmospheric gas anomalies combined with a surface reflectance spectral feature ' +
+        'combined with isotopic data from samples — such a combination would be qualitatively ' +
+        'stronger than any individual signal. ' +
+        'This is why astrobiologists insist that detecting extraterrestrial life — if it ever happens — ' +
+        'will require confirmation by multiple independent teams using different methods.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Vegetation Red Edge — Spectral Fingerprint',
+        svg: `<svg viewBox="0 0 680 300" xmlns="http://www.w3.org/2000/svg">
+  <rect width="680" height="300" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Title -->
+  <text x="340" y="22" fill="#aabbcc" font-family="monospace" font-size="12" text-anchor="middle">Chlorophyll Reflectance Spectrum — Vegetation Red Edge</text>
+
+  <!-- Axes -->
+  <line x1="70" y1="250" x2="640" y2="250" stroke="#334455" stroke-width="1.2"/>
+  <line x1="70" y1="40"  x2="70"  y2="250" stroke="#334455" stroke-width="1.2"/>
+
+  <!-- X axis label -->
+  <text x="355" y="278" fill="#8899aa" font-family="monospace" font-size="10" text-anchor="middle">Wavelength (nanometers)</text>
+
+  <!-- Y axis label -->
+  <text x="18" y="150" fill="#8899aa" font-family="monospace" font-size="10" text-anchor="middle" transform="rotate(-90 18 150)">Reflectance (%)</text>
+
+  <!-- X ticks -->
+  <text x="100" y="265" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">400</text>
+  <text x="185" y="265" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">500</text>
+  <text x="270" y="265" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">600</text>
+  <text x="355" y="265" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">700</text>
+  <text x="440" y="265" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">800</text>
+  <text x="525" y="265" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">900</text>
+  <text x="610" y="265" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">1000</text>
+
+  <!-- Y ticks -->
+  <text x="62" y="250" fill="#667788" font-family="monospace" font-size="9" text-anchor="end">0</text>
+  <text x="62" y="200" fill="#667788" font-family="monospace" font-size="9" text-anchor="end">25</text>
+  <text x="62" y="150" fill="#667788" font-family="monospace" font-size="9" text-anchor="end">50</text>
+  <text x="62" y="100" fill="#667788" font-family="monospace" font-size="9" text-anchor="end">75</text>
+  <text x="62" y="55"  fill="#667788" font-family="monospace" font-size="9" text-anchor="end">100</text>
+  <line x1="67" y1="200" x2="73" y2="200" stroke="#334455" stroke-width="1"/>
+  <line x1="67" y1="150" x2="73" y2="150" stroke="#334455" stroke-width="1"/>
+  <line x1="67" y1="100" x2="73" y2="100" stroke="#334455" stroke-width="1"/>
+  <line x1="67" y1="55"  x2="73" y2="55"  stroke="#334455" stroke-width="1"/>
+
+  <!-- Visible range background -->
+  <rect x="100" y="40" width="255" height="210" fill="rgba(123,184,255,0.04)"/>
+  <text x="227" y="55" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">visible range</text>
+
+  <!-- Near-IR background -->
+  <rect x="355" y="40" width="285" height="210" fill="rgba(255,136,68,0.04)"/>
+  <text x="497" y="55" fill="#667788" font-family="monospace" font-size="9" text-anchor="middle">near-infrared</text>
+
+  <!-- Chlorophyll reflectance curve -->
+  <polyline
+    points="100,240 143,248 185,235 227,230 270,240 313,248 355,230 379,150 421,115 525,120 610,128"
+    fill="none" stroke="#44ff88" stroke-width="2.2" stroke-linejoin="round"/>
+
+  <!-- Red edge vertical marker -->
+  <line x1="355" y1="40" x2="355" y2="250" stroke="#cc4444" stroke-width="1.2" stroke-dasharray="4,3"/>
+  <text x="357" y="75" fill="#cc4444" font-family="monospace" font-size="10">red edge</text>
+  <text x="357" y="87" fill="#cc4444" font-family="monospace" font-size="10">~700 nm</text>
+
+  <!-- Arrow showing steep rise -->
+  <line x1="355" y1="200" x2="421" y2="115" stroke="#ff8844" stroke-width="1.5" stroke-dasharray="3,2"/>
+  <text x="390" y="170" fill="#ff8844" font-family="monospace" font-size="9">sharp</text>
+  <text x="390" y="181" fill="#ff8844" font-family="monospace" font-size="9">jump</text>
+
+  <!-- Plateau label -->
+  <text x="490" y="108" fill="#44ff88" font-family="monospace" font-size="9">plateau ~50%</text>
+
+  <!-- Legend -->
+  <line x1="480" y1="232" x2="510" y2="232" stroke="#44ff88" stroke-width="2"/>
+  <text x="515" y="236" fill="#44ff88" font-family="monospace" font-size="10">vegetation reflectance</text>
+</svg>`,
+        caption:
+          'Chlorophyll absorbs blue and red light for photosynthesis but sharply reflects near-infrared radiation. This reflectance jump near 700 nanometers — the vegetation red edge — is a potential surface biosignature that future direct-imaging telescopes aim to detect in the reflected spectra of exoplanets.',
+      },
+    },
+
+    {
+      heading: 'Multiple Gases Simultaneously — The Only Reliable Path',
+      level: 2,
+      paragraphs: [
+        'If tomorrow a telescope detected oxygen in the atmosphere of some exoplanet — ' +
+        'that would be important, but insufficient. ' +
+        'If methane were added to oxygen, the situation would become significantly more interesting. ' +
+        'If nitrous oxide, a vegetation red edge in the reflectance spectrum, ' +
+        'and carbon isotope anomalies in hypothetical surface samples were also detected simultaneously — ' +
+        'that would begin to look like a very hard-to-refute convergence of evidence.',
+
+        'Future telescopes — above all the Habitable Worlds Observatory — ' +
+        'are being designed specifically with the simultaneous search for multiple molecules in mind. ' +
+        'The Large Interferometer for Exoplanets mission will focus on the infrared spectrum, ' +
+        'where molecular oxygen, carbon dioxide, methane, water vapor, and ozone are all detectable together. ' +
+        'Combining direct imaging with transit spectroscopy will allow results to be cross-confirmed ' +
+        'by independent methods.',
+
+        'The logic is simple and uncompromising: ' +
+        'if we ever announce to humanity that we have found extraterrestrial life, ' +
+        'that conclusion must withstand the most rigorous skeptical scrutiny. ' +
+        'Not one peak in a spectrum, but a system of evidence. ' +
+        'Not one team, but independent reproducibility. ' +
+        'So far, every proposed biosignature candidate — from Venus phosphine to K2-18b dimethyl sulfide — ' +
+        'has not met that standard. ' +
+        'But the instruments capable of meeting it are being built right now.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'biomarkers-multi-gas-telescope',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: a large space telescope (Habitable Worlds Observatory style) ' +
+          'pointed at a distant Earth-like exoplanet, with a spectrum panel beside the telescope showing simultaneous detections of ' +
+          'O2, O3, CH4, N2O, and H2O peaks highlighted in different colors, ' +
+          'all five colored arrows pointing from peaks to a central "CONVERGENCE" label. ' +
+          'Hard sci-fi style, dark space background, dramatic lighting. ' +
+          'Add the following text labels on the image: "O2", "O3", "CH4", "N2O", "H2O", "convergence of evidence".',
+        alt: 'A space telescope analyzing an exoplanet atmosphere — the spectrum simultaneously shows multiple biosignature molecules converging on a single conclusion',
+        caption:
+          'Next-generation telescopes are designed to detect multiple gases simultaneously. A convergence of independent evidence — oxygen plus methane plus nitrous oxide plus ozone — is far more compelling than any single molecule.',
+        aspectRatio: '16:9',
+      },
+    },
+  ],
+
+  glossary: [
+    {
+      term: 'Biosignature',
+      definition:
+        'A chemical, physical, or geological feature that is difficult to explain by abiotic processes and may indicate living organisms. Includes gas molecules in an atmosphere, surface reflectance features, and geochemical anomalies in rock.',
+    },
+    {
+      term: 'Thermodynamic disequilibrium',
+      definition:
+        'A state of the atmosphere in which reactive gases coexist without fully reacting — because they are continuously replenished by external sources. On Earth, the biosphere maintains the disequilibrium between oxygen and methane.',
+    },
+    {
+      term: 'Dimethyl sulfide',
+      definition:
+        'A sulfur-containing organic molecule (chemical formula: two carbon atoms, one sulfur atom, and six hydrogen atoms) produced by marine microalgae. One of the candidate gas biosignatures. A possible signal was detected by JWST in the atmosphere of K2-18b in 2023, but remains unconfirmed.',
+    },
+    {
+      term: 'Vegetation red edge',
+      definition:
+        'A sharp jump in the reflectance spectrum of vegetation near 700 nanometers, where chlorophyll shifts from absorbing visible red light to strongly reflecting near-infrared radiation. A potential surface biosignature for exoplanets with photosynthetic life.',
+    },
+    {
+      term: 'Nitrous oxide',
+      definition:
+        'A gas composed of two nitrogen atoms and one oxygen atom. Produced primarily by microbes in soil and ocean during denitrification. Abiotic sources such as lightning and volcanism contribute far less. Candidate microbial biosignature.',
+    },
+    {
+      term: 'Phosphine',
+      definition:
+        'A molecule of one phosphorus atom and three hydrogen atoms. On Earth produced chiefly by microbes under anaerobic conditions. In 2020 a team claimed its detection in the Venusian atmosphere, but the signal was subsequently challenged as a data-processing artifact.',
+    },
+    {
+      term: 'ALH84001',
+      definition:
+        'A piece of Martian rock found in Antarctica. In 1996, structures were found inside it interpreted as possible traces of microbial life. Most of the original arguments have since been refuted, but the sample remains under ongoing study.',
+    },
+    {
+      term: 'Transit spectroscopy',
+      definition:
+        'A method for analyzing an exoplanet\'s atmosphere: as the planet passes in front of its star, starlight is filtered through the atmosphere and absorbed by molecules. The absorption spectrum reveals the atmospheric composition.',
+    },
+    {
+      term: 'Convergence of evidence',
+      definition:
+        'A principle for assessing biosignatures: no single signal is sufficient proof. A credible conclusion requires multiple independent lines of evidence that align and share no common abiotic explanation.',
+    },
+  ],
+
+  quiz: [
+    {
+      question: 'Why is the simultaneous presence of oxygen and methane in an atmosphere considered a strong biosignature?',
+      options: [
+        'Because both gases are heavy and cannot escape into space',
+        'Because these gases react with each other and quickly disappear without continuous biological replenishment',
+        'Because oxygen and methane together give the atmosphere a green tint visible from space',
+        'Because neither gas can be produced abiotically by any known process',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Oxygen and methane are chemically incompatible: they react to produce carbon dioxide and water. If both are present in detectable concentrations, something must continuously produce them. On Earth the biosphere does this: photosynthesis supplies oxygen while microbes and animals supply methane.',
+    },
+    {
+      question: 'What is the vegetation red edge and why might it serve as a biosignature?',
+      options: [
+        'Reddening of the star caused by absorption of oxygen in large quantities',
+        'A sharp jump in reflectance near 700 nanometers due to chlorophyll absorbing visible light and reflecting near-infrared',
+        'A carbon dioxide absorption band in the infrared range',
+        'A reddish tint of the planet caused by iron oxides on the surface',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Chlorophyll absorbs blue and red light for photosynthesis but sharply reflects near-infrared. This jump near 700 nanometers makes vegetation-covered planets noticeably brighter in the infrared. Detecting a similar feature in the reflected spectrum of an exoplanet could point to surface photosynthetic life.',
+    },
+    {
+      question: 'Why did the detection of phosphine in the Venusian atmosphere in 2020 not become an established fact?',
+      options: [
+        'Because Venus is too far away for precise measurements',
+        'Because phosphine is a stable gas and cannot be a biosignature',
+        'Because independent analysis showed the signal may be a spectral overlap with sulfur dioxide and is statistically marginal',
+        'Because the Venusian atmosphere is too hot for any molecules to form',
+      ],
+      correctIndex: 2,
+      explanation:
+        'Several independent groups analyzed the same data and showed that the detected signal overlaps in wavelength with sulfur dioxide absorption. When the data were processed more conservatively, the phosphine feature disappeared or became statistically insignificant. This is a classic example of how difficult it is to interpret weak spectral signals.',
+    },
+    {
+      question: 'What does "convergence of evidence" mean in the context of biosignature searching?',
+      options: [
+        'All telescopes in the world must observe the same planet simultaneously',
+        'One very clear signal is sufficient proof if it repeats twice',
+        'A conclusion about life requires multiple independent lines of evidence, each without an abiotic explanation',
+        'The planet must be in the habitable zone of a Sun-like star',
+      ],
+      correctIndex: 2,
+      explanation:
+        'No single gas or signal is sufficient proof. Convergence means that several different types of evidence — for example, gas-phase disequilibrium plus a surface reflectance feature plus isotopic anomalies — all point in the same direction, and each cannot be individually explained by known abiotic processes.',
+    },
+    {
+      question: 'Which molecule produced by marine algae was tentatively detected by JWST in 2023 and remains a disputed biosignature candidate?',
+      options: [
+        'Nitrous oxide',
+        'Dimethyl sulfide',
+        'Phosphine',
+        'Chloromethane',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Dimethyl sulfide is produced by marine microalgae and is one of the molecules considered a potential biosignature. In 2023 the Madhusudhan team reported a possible signal from this or a similar molecule in the atmosphere of the sub-Neptune planet K2-18b. The result remains contested and requires further observations to confirm.',
+    },
+  ],
+
+  sources: [
+    {
+      title: 'Schwieterman E.W. et al. — Exoplanet Biosignatures: A Review of Remotely Detectable Signs of Life',
+      url: 'https://arxiv.org/abs/1705.05791',
+      meta: 'Astrobiology, 18, 663–708, 2018 (open access) — comprehensive review',
+    },
+    {
+      title: 'Catling D.C. et al. — Exoplanet Biosignatures: A Framework for Their Assessment',
+      url: 'https://arxiv.org/abs/1705.06381',
+      meta: 'Astrobiology, 18, 709–738, 2018 (open access)',
+    },
+    {
+      title: 'Greaves J.S. et al. — Phosphine gas in the cloud decks of Venus',
+      url: 'https://www.nature.com/articles/s41550-020-1174-4',
+      meta: 'Nature Astronomy, 4, 1136–1143, 2020 — original claim, subsequently disputed',
+    },
+    {
+      title: 'Snellen I.A.G. et al. — Re-analysis of the 267-GHz JCMT observations used to infer phosphine on Venus',
+      url: 'https://arxiv.org/abs/2010.09761',
+      meta: 'A&A, 644, L2, 2020 — independent reanalysis showing signal is marginal',
+    },
+    {
+      title: 'Madhusudhan N. et al. — Carbon-bearing Molecules in a Possible Hycean Atmosphere (K2-18b)',
+      url: 'https://arxiv.org/abs/2309.05566',
+      meta: 'ApJL, 956, L18, 2023 (open access) — dimethyl sulfide tentative detection',
+    },
+    {
+      title: 'McKay D.S. et al. — Search for Past Life on Mars: Possible Relic Biogenic Activity in Martian Meteorite ALH84001',
+      url: 'https://www.science.org/doi/10.1126/science.273.5277.924',
+      meta: 'Science, 273, 924–930, 1996 — original ALH84001 claim',
+    },
+    {
+      title: 'NASA Mars Curiosity — Organic molecules detected in ancient lake sediments',
+      url: 'https://www.nasa.gov/solar-system/nasa-finds-ancient-organic-material-mysterious-methane-on-mars/',
+      meta: 'NASA Science, 2018 — Curiosity organic compound discovery',
+    },
+    {
+      title: 'Seager S. et al. — Vegetation\'s Red Edge: A Possible Spectroscopic Biosignature of Extraterrestrial Plants',
+      url: 'https://arxiv.org/abs/astro-ph/0503302',
+      meta: 'Astrobiology, 5, 372–390, 2005',
+    },
+    {
+      title: 'Meadows V.S. — Reflections on O2 as a Biosignature in Exoplanetary Atmospheres',
+      url: 'https://arxiv.org/abs/1705.07560',
+      meta: 'Astrobiology, 17, 1022–1052, 2017 (open access)',
+    },
+    {
+      title: 'National Academies — An Astrobiology Strategy for the Search for Life in the Universe',
+      url: 'https://nap.nationalacademies.org/catalog/25252/an-astrobiology-strategy-for-the-search-for-life-in-the-universe',
+      meta: 'National Academies Press, 2019 — strategic framework for biosignature science',
+    },
+  ],
+
+  lastVerified: '2026-05-06',
+};
+
+export default lesson;

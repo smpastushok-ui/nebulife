@@ -1,0 +1,315 @@
+{
+  "slug": "weather-satellites",
+  "language": "en",
+  "section": "applied-space",
+  "order": 3,
+  "difficulty": "beginner",
+  "readingTimeMin": 11,
+  "title": "Weather Satellites",
+  "subtitle": "How orbital observatories transformed weather forecasting and gave humanity its first view of Earth as a single living system.",
+  "hero": {
+    "cacheKey": "weather-satellites-hero",
+    "prompt": "Photorealistic science encyclopedia illustration: a geostationary weather satellite in orbit above Earth, full disk of Earth visible below showing cloud systems, hurricane spiral, and ocean color. Satellite body has solar panels extended, large dish antenna, and scanning radiometer instruments. Deep black space background with stars faintly visible. Hard sci-fi style, dramatic lighting from the sun. Add the following text labels on the image: \"geostationary orbit\", \"full disk imager\", \"Earth below\".",
+    "alt": "Geostationary weather satellite in orbit above the full disk of Earth with visible cloud systems and a hurricane spiral",
+    "caption": "A geostationary weather satellite hovers approximately thirty-six thousand kilometers above the equator. From this fixed point it watches the same hemisphere continuously — imaging the full disk of Earth every minute in severe weather monitoring mode.",
+    "aspectRatio": "16:9"
+  },
+  "body": [
+    {
+      "paragraphs": [
+        "Before the mid-twentieth century, meteorologists looked at weather from below. Networks of surface stations, radiosonde balloon soundings, coastal and ship observers — all of it produced scattered data from isolated points on a map. A tropical cyclone could emerge from open ocean and strike a coastline with almost no warning. Continental storm systems developed in places where no observer existed. Weather remained fundamentally opaque.",
+        "Everything changed in 1960, when the United States placed the first weather satellite — Television Infrared Observation Satellite 1, known as TIROS-1 — into orbit. The very first images revealed spiral cloud systems as no human had ever seen them. The conclusion was immediate: Earth breathes. It functions as a single machine, and orbit is the only vantage point from which the whole picture is visible at once.",
+        "Since then, weather satellites have become an indispensable part of global survival infrastructure. Hurricane warnings that once provided a few hours of lead time now reach five days out, with track errors of approximately one hundred and fifty kilometers — compared to roughly nine hundred kilometers in the 1980s. The annual economic value of those warnings is measured in tens of billions of dollars in the United States alone. Knowing where tomorrow's storm will strike saves not just property, but human lives."
+      ]
+    },
+    {
+      "heading": "Two orbits, two philosophies of observation",
+      "level": 2,
+      "paragraphs": [
+        "The modern weather-watching system from space consists of two fundamentally different types of satellites. They do not compete — they complement each other, filling distinct spatial and temporal niches.",
+        "**Geostationary satellites** hover above a fixed point over the equator at approximately thirty-six thousand kilometers altitude. At this height the orbital speed matches Earth's rotation, so the spacecraft remains stationary relative to the surface. The advantage is obvious: a constant view of the same hemisphere. A geostationary satellite can image the full disk every ten to fifteen minutes in standard operations and every minute in mesoscale scanning mode when tracking severe weather. This allows real-time observation of tornado development, tracking of convective line speed and direction, and monitoring of tropical cyclone structure as it evolves. The limitation: at such extreme altitude the angular resolution is lower than a low-orbiting spacecraft, and polar regions near the edge of the field of view are observed at oblique angles that degrade image quality.",
+        "**Polar-orbiting satellites** fly far lower — at approximately eight hundred kilometers in sun-synchronous orbits. A sun-synchronous orbit is tilted such that the satellite always crosses every point on Earth at roughly the same local solar time. This consistency is essential for comparability: vegetation state, surface temperature, and cloud cover all depend on solar elevation angle. A polar orbit delivers global coverage: the satellite completes a full pass over the entire planet twice per day. Every point on Earth falls within view approximately every twelve hours. Spatial resolution is far higher than from geostationary altitude, and polar regions are observed with the same quality as the tropics."
+      ]
+    },
+    {
+      "diagram": {
+        "title": "Geostationary and polar orbits: coverage and altitudes",
+        "svg": "<svg viewBox=\"0 0 700 360\" xmlns=\"http://www.w3.org/2000/svg\">\n  <rect width=\"700\" height=\"360\" fill=\"rgba(10,15,25,0.5)\"/>\n\n  <!-- Earth circle -->\n  <circle cx=\"350\" cy=\"180\" r=\"60\" fill=\"#1a3a5c\" stroke=\"#446688\" stroke-width=\"1.5\"/>\n  <text x=\"350\" y=\"184\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">Earth</text>\n\n  <!-- GEO orbit ring -->\n  <ellipse cx=\"350\" cy=\"180\" rx=\"270\" ry=\"120\" fill=\"none\" stroke=\"#ff8844\" stroke-width=\"1\" stroke-dasharray=\"6,4\" opacity=\"0.7\"/>\n\n  <!-- GEO satellite dot -->\n  <circle cx=\"620\" cy=\"180\" r=\"6\" fill=\"#ff8844\" opacity=\"0.9\"/>\n  <text x=\"630\" y=\"176\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"9\">Geostationary</text>\n  <text x=\"630\" y=\"188\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"9\">~36 000 km</text>\n  <!-- GEO coverage arc -->\n  <path d=\"M 392 128 Q 620 180 392 232\" fill=\"none\" stroke=\"#ff8844\" stroke-width=\"0.8\" stroke-dasharray=\"3,3\" opacity=\"0.5\"/>\n  <line x1=\"350\" y1=\"120\" x2=\"392\" y2=\"128\" stroke=\"#ff8844\" stroke-width=\"0.6\" opacity=\"0.4\"/>\n  <line x1=\"350\" y1=\"240\" x2=\"392\" y2=\"232\" stroke=\"#ff8844\" stroke-width=\"0.6\" opacity=\"0.4\"/>\n\n  <!-- LEO / polar orbit ring -->\n  <ellipse cx=\"350\" cy=\"180\" rx=\"105\" ry=\"105\" fill=\"none\" stroke=\"#44ff88\" stroke-width=\"1\" stroke-dasharray=\"4,4\" opacity=\"0.7\"/>\n\n  <!-- Polar satellite dot (top) -->\n  <circle cx=\"350\" cy=\"75\" r=\"5\" fill=\"#44ff88\" opacity=\"0.9\"/>\n  <text x=\"360\" y=\"70\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"9\">Polar ~800 km</text>\n  <!-- Polar orbit arrow showing movement -->\n  <polygon points=\"302,138 296,128 310,130\" fill=\"#44ff88\" opacity=\"0.8\"/>\n\n  <!-- Labels -->\n  <text x=\"350\" y=\"22\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"12\" text-anchor=\"middle\">Weather Satellite Orbits</text>\n\n  <!-- GEO label line -->\n  <line x1=\"556\" y1=\"155\" x2=\"556\" y2=\"130\" stroke=\"#ff8844\" stroke-width=\"0.8\" opacity=\"0.5\"/>\n  <text x=\"556\" y=\"122\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">continuous</text>\n  <text x=\"556\" y=\"132\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">coverage</text>\n\n  <!-- LEO label -->\n  <text x=\"350\" y=\"340\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">global coverage twice per day</text>\n\n  <!-- Scale note -->\n  <text x=\"10\" y=\"350\" fill=\"#667788\" font-family=\"monospace\" font-size=\"8\">* Not to scale — GEO orbit is 45 times farther from the surface than polar orbit</text>\n</svg>",
+        "caption": "Geostationary orbit (approximately thirty-six thousand kilometers) provides continuous hemispheric coverage at lower spatial resolution. Polar orbit (approximately eight hundred kilometers) delivers global coverage twice per day at much finer spatial resolution."
+      }
+    },
+    {
+      "heading": "The world's major satellite systems",
+      "level": 2,
+      "paragraphs": [
+        "Several nations and consortia have built their own geostationary weather satellite systems, each responsible for its own sector of Earth's surface.",
+        "The American Geostationary Operational Environmental Satellite program — the oldest continuously operating geostationary meteorological program in the world — has maintained at least two operational spacecraft since the mid-1970s: one watching the Atlantic sector, one watching the Pacific. In 2016, the National Oceanic and Atmospheric Administration launched the sixteenth spacecraft in this series — the first of the new generation — which brought a revolutionary leap in capability. The time resolution improved from fifteen minutes to one minute in mesoscale scanning mode. For the first time a lightning mapper was included — an instrument detecting every lightning discharge over the Americas in real time. This capability proved critically valuable for warnings of flash floods and tornadoes.",
+        "The European Meteosat series, operated by the Organisation for the Exploitation of Meteorological Satellites, covers Europe, Africa, and the Indian Ocean sector. Meteosat Third Generation, the first spacecraft of which reached orbit in the early 2020s, achieved ten-minute full-disk cadence and sub-minute regional imaging for high-impact weather monitoring.",
+        "Japan's Himawari satellites — the name means \"sunflower\" — watch the Asia-Pacific region. Himawari-8, launched in 2014, became the first geostationary satellite to image the full Earth disk every ten minutes across sixteen spectral channels simultaneously. Its successor Himawari-9 provided full redundancy for the system.",
+        "South Korea's GEO-KOMPSAT-2 and China's fourth-generation Fengyun series complete the geostationary picture in the Asian sector. The Fengyun-4 satellite carries a hyperspectral infrared sounder — an instrument capable of measuring vertical temperature and moisture profiles from geostationary orbit, something traditionally considered the exclusive domain of polar-orbiting spacecraft."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "weather-satellites-geo-fleet",
+        "prompt": "Photorealistic science encyclopedia illustration: world map view from space showing positions of five geostationary weather satellites above the equator, each labeled with its name, coverage arc lines drawn to show which hemisphere each satellite monitors. GOES-West over Pacific, GOES-East over Atlantic, Meteosat over Europe-Africa, Himawari over Asia-Pacific, FY-4 over China. Hard sci-fi style, dark space background, Earth visible below, orbital arcs in orange and cyan. Add the following text labels on the image: \"GOES-West\", \"GOES-East\", \"Meteosat\", \"Himawari\", \"FY-4\", \"35786 km\".",
+        "alt": "World map from space showing five geostationary weather satellites above the equator with their coverage arcs",
+        "caption": "Five geostationary meteorological systems together cover nearly the entire Earth between roughly seventy degrees north and seventy degrees south latitude. Polar regions are monitored by dedicated polar-orbiting constellations.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "The polar-orbiting fleet",
+      "level": 2,
+      "paragraphs": [
+        "The American polar-orbiting satellite series operated by the National Oceanic and Atmospheric Administration is the longest continuously operating program of its kind. Since the 1960s these spacecraft have always maintained at least two active satellites: one providing morning coverage, one providing afternoon coverage for every point on the planet.",
+        "The Suomi National Polar-orbiting Partnership satellite, launched in 2011, marked the transition to a new generation. Its primary instrument — the Visible Infrared Imaging Radiometer Suite — had twice the resolution of its predecessors and for the first time produced orbital images sharp enough that cloud detail rivaled aerial photography. The subsequent Joint Polar Satellite System series continued and expanded that capability.",
+        "The European Meteorological Operational satellite series, operated by the Organisation for the Exploitation of Meteorological Satellites, specializes in atmospheric vertical sounding. The Infrared Atmospheric Sounding Interferometer aboard these spacecraft provides temperature and moisture profiles of unmatched detail among operational systems. Those data form the backbone of global numerical weather prediction."
+      ]
+    },
+    {
+      "heading": "What satellites measure and how",
+      "level": 2,
+      "paragraphs": [
+        "A weather satellite does not see what the human eye sees. Most of the critical information arrives from invisible regions of the electromagnetic spectrum."
+      ]
+    },
+    {
+      "heading": "Visible and infrared channels",
+      "level": 3,
+      "paragraphs": [
+        "Images in the **visible channel** are the most intuitive. The satellite records sunlight reflected by clouds and the Earth's surface. Such images display cloud structure with clarity: the spiral bands of cyclones, the towering anvils of thunderstorms, coastal sea fog. The limitation is obvious — they are useless at night.",
+        "The **thermal infrared channel** resolves that problem. Any object warmer than absolute zero emits thermal infrared radiation. Cloud tops at great altitude are colder than low clouds or the surface below. The thermal infrared channel translates that temperature difference into brightness contrast on the image. A tall, cold cumulonimbus cloud top appears brilliant white — a reliable indicator of intense convection and potential severe precipitation. This principle works equally well by day or night, through any amount of intervening cloud.",
+        "The **water vapor channel** is a special infrared band absorbed by water vapor in the middle and upper troposphere. Where humidity is low, the satellite sees through the atmosphere down to lower levels. Where humidity is high, the atmospheric column is opaque. Images in this channel look almost painterly: bright swirling masses and dark dry zones. Forecasters use these images to identify jet streams, frontal zones, and regions with elevated risk of convective development — invisible dynamics made suddenly tangible."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "weather-satellites-multichannel",
+        "prompt": "Scientific encyclopedia illustration: three side-by-side panels showing the same Atlantic hurricane imaged in three different spectral channels from a geostationary weather satellite. Left panel: visible light, showing white cloud spiral. Center panel: infrared thermal, cold tops glowing bright white on dark background. Right panel: water vapor channel, swirling moisture patterns in grey and dark. Each panel labeled at the top. Hard sci-fi style, dark background, monospace labels. Add the following text labels on the image: \"visible\", \"infrared\", \"water vapor\", \"hurricane eye\".",
+        "alt": "Three images of the same Atlantic hurricane in different spectral channels: visible, infrared, and water vapor",
+        "caption": "The same hurricane in three channels. The visible channel shows cloud structure. The infrared channel reveals cloud-top height via temperature. The water vapor channel maps moisture distribution in the middle troposphere — the invisible breath of the atmosphere.",
+        "aspectRatio": "16:9"
+      }
+    },
+    {
+      "heading": "Sounders and microwave instruments",
+      "level": 3,
+      "paragraphs": [
+        "**Atmospheric sounders** retrieve the vertical profile of temperature and moisture without launching a single balloon. The physical principle: the atmosphere absorbs and emits infrared radiation at precise wavelengths, and each wavelength probes its own layer of the atmosphere. By measuring brightness in several hundred channels simultaneously, a computational algorithm reconstructs a three-dimensional picture of the atmospheric state. Without these data, modern numerical weather prediction degrades within days.",
+        "**Microwave instruments** penetrate clouds — the very place where optical instruments are blind. Microwave sounders measure temperature and moisture within cloud systems and even beneath them. This allows monitoring of soil moisture, real-time estimation of precipitation rates, and tracking of sea ice extent and thickness. For precipitation forecasting and flood monitoring, microwave data are irreplaceable."
+      ]
+    },
+    {
+      "diagram": {
+        "title": "Weather satellite spectral channels and what they measure",
+        "svg": "<svg viewBox=\"0 0 700 300\" xmlns=\"http://www.w3.org/2000/svg\">\n  <rect width=\"700\" height=\"300\" fill=\"rgba(10,15,25,0.5)\"/>\n\n  <!-- Title -->\n  <text x=\"350\" y=\"22\" fill=\"#aabbcc\" font-family=\"monospace\" font-size=\"12\" text-anchor=\"middle\">Spectral channels and their purpose</text>\n\n  <!-- Wavelength axis -->\n  <line x1=\"40\" y1=\"260\" x2=\"680\" y2=\"260\" stroke=\"#334455\" stroke-width=\"1.5\"/>\n  <text x=\"360\" y=\"285\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"10\" text-anchor=\"middle\">wavelength (micrometers) →</text>\n\n  <!-- Visible band 0.4-0.7 um -->\n  <rect x=\"42\" y=\"50\" width=\"70\" height=\"200\" fill=\"#7bb8ff\" opacity=\"0.35\"/>\n  <text x=\"77\" y=\"42\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Visible</text>\n  <text x=\"77\" y=\"53\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">0.4–0.7 um</text>\n  <text x=\"77\" y=\"170\" fill=\"#7bb8ff\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\" transform=\"rotate(-90,77,170)\">cloud cover daytime</text>\n\n  <!-- Near-IR 0.7-1.0 um -->\n  <rect x=\"112\" y=\"80\" width=\"50\" height=\"170\" fill=\"#aabbcc\" opacity=\"0.2\"/>\n  <text x=\"137\" y=\"72\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">Near</text>\n  <text x=\"137\" y=\"82\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\">IR</text>\n\n  <!-- Water vapor 6.2-6.9 um -->\n  <rect x=\"260\" y=\"60\" width=\"65\" height=\"190\" fill=\"#44ff88\" opacity=\"0.3\"/>\n  <text x=\"292\" y=\"52\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Water</text>\n  <text x=\"292\" y=\"62\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">vapor 6.5</text>\n  <text x=\"292\" y=\"170\" fill=\"#44ff88\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\" transform=\"rotate(-90,292,170)\">upper-trop. moisture</text>\n\n  <!-- Thermal IR window 10.3-11.3 um -->\n  <rect x=\"360\" y=\"40\" width=\"80\" height=\"210\" fill=\"#ff8844\" opacity=\"0.35\"/>\n  <text x=\"400\" y=\"32\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Thermal IR</text>\n  <text x=\"400\" y=\"42\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">10.3–11.3 um</text>\n  <text x=\"400\" y=\"165\" fill=\"#ff8844\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\" transform=\"rotate(-90,400,165)\">cloud-top temperature</text>\n\n  <!-- CO2 sounder 13.3-15 um -->\n  <rect x=\"460\" y=\"70\" width=\"70\" height=\"180\" fill=\"#cc4444\" opacity=\"0.3\"/>\n  <text x=\"495\" y=\"62\" fill=\"#cc4444\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">CO2 sounder</text>\n  <text x=\"495\" y=\"72\" fill=\"#cc4444\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">13–15 um</text>\n  <text x=\"495\" y=\"165\" fill=\"#cc4444\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\" transform=\"rotate(-90,495,165)\">vert. temp. profile</text>\n\n  <!-- Microwave -->\n  <rect x=\"560\" y=\"90\" width=\"110\" height=\"160\" fill=\"#aabbcc\" opacity=\"0.15\"/>\n  <text x=\"615\" y=\"82\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">Microwave</text>\n  <text x=\"615\" y=\"92\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"9\" text-anchor=\"middle\">mm/cm</text>\n  <text x=\"615\" y=\"170\" fill=\"#8899aa\" font-family=\"monospace\" font-size=\"8\" text-anchor=\"middle\" transform=\"rotate(-90,615,170)\">through clouds</text>\n\n  <!-- X axis tick labels -->\n  <text x=\"42\" y=\"275\" fill=\"#667788\" font-family=\"monospace\" font-size=\"8\">0.4</text>\n  <text x=\"162\" y=\"275\" fill=\"#667788\" font-family=\"monospace\" font-size=\"8\">1</text>\n  <text x=\"260\" y=\"275\" fill=\"#667788\" font-family=\"monospace\" font-size=\"8\">6</text>\n  <text x=\"360\" y=\"275\" fill=\"#667788\" font-family=\"monospace\" font-size=\"8\">10</text>\n  <text x=\"460\" y=\"275\" fill=\"#667788\" font-family=\"monospace\" font-size=\"8\">13</text>\n  <text x=\"560\" y=\"275\" fill=\"#667788\" font-family=\"monospace\" font-size=\"8\">mm</text>\n</svg>",
+        "caption": "Each spectral channel probes its own atmospheric layer or measures a distinct physical quantity. The visible channel images cloud structure in daylight. The thermal infrared channel measures cloud-top temperature around the clock. Microwave instruments penetrate clouds and measure temperature and moisture inside storm systems."
+      }
+    },
+    {
+      "heading": "Practical applications: from hurricanes to climate",
+      "level": 2,
+      "paragraphs": [
+        "Weather satellites do not simply produce beautiful imagery. They are an operational tool on which life-or-death decisions depend."
+      ]
+    },
+    {
+      "heading": "Hurricane and tropical cyclone tracking",
+      "level": 3,
+      "paragraphs": [
+        "The accuracy of a five-day tropical cyclone track forecast in the 2020s is roughly equivalent to that of a one-day forecast in the mid-1980s. This is not hyperbole — the average five-day track error has dropped from roughly nine hundred kilometers in the 1980s to approximately one hundred and fifty kilometers today. Without continuous satellite observation of cyclone formation, movement, and structure, that level of accuracy would be physically impossible.",
+        "Intensity change is the hardest problem. Rapid intensification — when a tropical cyclone gains forty or more knots of maximum sustained wind in twenty-four hours — was traditionally among the most poorly forecast phenomena in meteorology. The lightning mapper aboard modern Geostationary Operational Environmental Satellite-R series spacecraft proved unexpectedly valuable: a sharp surge in lightning discharge frequency within convective towers turns out to be a reliable precursor of rapid intensification, providing warning hours before the change becomes apparent in any other data stream."
+      ]
+    },
+    {
+      "heading": "Early flood warning",
+      "level": 3,
+      "paragraphs": [
+        "Microwave radiometers on polar satellites measure soil moisture and snowpack water equivalent over river catchments. When that information is combined with real-time precipitation estimates from infrared and microwave channels, hydrological models can issue flash-flood guidance hours in advance. In densely populated regions of Bangladesh, India, and Pakistan — where expensive ground observation networks have insufficient coverage — satellite data are effectively the only source of operational monitoring."
+      ]
+    },
+    {
+      "heading": "El Nino and climate monitoring",
+      "level": 3,
+      "paragraphs": [
+        "The El Nino Southern Oscillation — the periodic warming of equatorial Pacific surface waters — reshapes weather patterns across the entire planet. Sea surface temperature, measured continuously by both geostationary and polar satellites at resolutions of a few kilometers, is the key input variable for seasonal forecasts. Continuous satellite observation since the early 1970s has produced a reliable quantitative record that shows how this phenomenon is shifting against the background of general planetary warming."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "weather-satellites-hurricane-track",
+        "prompt": "Photorealistic science encyclopedia illustration: geostationary satellite view of a large Atlantic hurricane showing the classic spiral cloud bands and clear eye, with a forecast track cone overlay showing 5-day projected path with uncertainty cone, colored intensity scale alongside. Hard sci-fi style, dark ocean background, white and blue cloud spiral, orange track cone. Add the following text labels on the image: \"hurricane eye\", \"spiral bands\", \"5-day track\", \"forecast cone\".",
+        "alt": "Geostationary satellite view of an Atlantic hurricane with a five-day forecast track cone overlay",
+        "caption": "The five-day tropical cyclone track forecast cone today is narrower than the one-day forecast cone was thirty years ago. That precision was achieved through continuous geostationary observation, improved numerical models, and real-time assimilation of satellite data.",
+        "aspectRatio": "4:3"
+      }
+    },
+    {
+      "heading": "The future: GeoXO and hyperspectral vision",
+      "level": 2,
+      "paragraphs": [
+        "The next generation of American geostationary satellites, known as the Geostationary Extended Observations system, is scheduled for initial operations in the early 2030s. The concept calls for not one or two spacecraft, as today, but a constellation of three or more platforms on geostationary orbit, each carrying a specialized instrument payload.",
+        "Among the planned capabilities is a hyperspectral infrared sounder with thousands of spectral channels, capable of retrieving vertical atmospheric profiles from a fixed geostationary position in near real time. Today that is only achievable from polar orbit, with a delay of several hours between measurement and model assimilation. If hyperspectral sounding from geostationary orbit can be realized, the quality of severe weather warnings may make the next step-change improvement.",
+        "In parallel, commercial small-satellite constellations on low orbits are growing — dozens of microsatellites carrying radio occultation receivers that measure atmospheric profiles by detecting the bending of navigation satellite signals as they graze the limb of the atmosphere. The company Spire Global was already delivering thousands of soundings per day to operational forecast centers by the mid-2020s. The hybrid of large traditional satellites and dense commercial constellations is shaping a fundamentally new observation architecture."
+      ]
+    },
+    {
+      "image": {
+        "cacheKey": "weather-satellites-geoXO-concept",
+        "prompt": "Photorealistic science encyclopedia concept illustration: next-generation GeoXO weather satellite constellation showing three large satellites in geostationary orbit above Earth, each with different instrument payloads highlighted, data flow lines connecting satellites to ground stations and forecast centers. Hard sci-fi style, dark space background, Earth below, satellites in foreground. Add the following text labels on the image: \"GeoXO constellation\", \"hyperspectral sounder\", \"lightning mapper\", \"2032\".",
+        "alt": "Concept illustration of the next-generation GeoXO geostationary observation constellation with three specialized satellites above Earth",
+        "caption": "The Geostationary Extended Observations system is planned for the early 2030s. Three or more platforms in geostationary orbit with hyperspectral sounders and advanced lightning mappers aim to take severe weather warning capability to a qualitatively new level.",
+        "aspectRatio": "4:3"
+      }
+    }
+  ],
+  "glossary": [
+    {
+      "term": "Geostationary orbit",
+      "definition": "A circular equatorial orbit at approximately thirty-six thousand kilometers altitude where the orbital period equals Earth's rotation period. The satellite remains stationary above a fixed point on the surface."
+    },
+    {
+      "term": "Polar (sun-synchronous) orbit",
+      "definition": "A low near-polar orbit at approximately eight hundred kilometers altitude, inclined so that the satellite always passes over any given point on Earth at the same local solar time. Provides global coverage twice per day."
+    },
+    {
+      "term": "Atmospheric sounder",
+      "definition": "A satellite instrument that retrieves vertical profiles of temperature and moisture by analyzing infrared or microwave emissions in hundreds of spectral channels simultaneously, without launching a physical probe."
+    },
+    {
+      "term": "Infrared imager",
+      "definition": "An instrument that images in the thermal infrared band. It measures cloud-top and surface temperatures. Unlike visible cameras, infrared imagers operate effectively day and night."
+    },
+    {
+      "term": "Water vapor channel",
+      "definition": "An infrared spectral band around six to seven micrometers where atmospheric water vapor absorbs and re-emits radiation. Images in this channel reveal moisture distribution in the middle and upper troposphere, making jet streams and frontal zones visible."
+    },
+    {
+      "term": "Lightning mapper",
+      "definition": "An optical sensor on a geostationary satellite that detects every lightning discharge within its coverage area. A surge in lightning activity within convective towers is an early indicator of rapidly intensifying storms and tropical cyclones."
+    },
+    {
+      "term": "Rapid intensification",
+      "definition": "A phenomenon where a tropical cyclone gains forty or more knots of maximum sustained wind speed in twenty-four hours. One of the most difficult forecasting challenges in tropical meteorology."
+    },
+    {
+      "term": "El Nino Southern Oscillation",
+      "definition": "A periodic anomalous warming of equatorial Pacific surface waters that reshapes atmospheric circulation and affects weather patterns from Australia to North America and beyond."
+    },
+    {
+      "term": "Data assimilation",
+      "definition": "The process by which observations from satellites, radiosondes, and surface stations are incorporated into a numerical weather prediction model to correct its current state estimate. The central engine of modern weather forecasting."
+    }
+  ],
+  "quiz": [
+    {
+      "question": "What is the fundamental advantage of a geostationary weather satellite over a polar-orbiting one?",
+      "options": [
+        "Higher spatial resolution of images",
+        "Better observation of the polar regions",
+        "Continuous monitoring of the same part of the planet",
+        "Lower launch and operations cost"
+      ],
+      "correctIndex": 2,
+      "explanation": "A geostationary satellite hovers fixed above one point and can image the same area every few minutes — or every minute in severe weather mode. This is critical for tracking fast-evolving phenomena such as tornadoes, convective lines, and tropical cyclones. A polar satellite provides global coverage but sees each point only twice per day."
+    },
+    {
+      "question": "What does the thermal infrared channel of a weather satellite actually measure?",
+      "options": [
+        "Sunlight reflected off cloud tops",
+        "Electrical lightning discharges inside cloud systems",
+        "Temperature of cloud tops and Earth's surface",
+        "Stratospheric ozone concentration"
+      ],
+      "correctIndex": 2,
+      "explanation": "The thermal infrared channel records the heat radiation emitted by objects themselves. Colder cloud tops are at higher altitude; warmer readings indicate lower clouds or a clear surface. This allows estimation of cloud height and convective intensity at any hour, with no dependence on solar illumination."
+    },
+    {
+      "question": "Why is TIROS-1 in 1960 considered a revolution in meteorology rather than just a technical milestone?",
+      "options": [
+        "It first measured ocean surface temperature from orbit",
+        "It first showed entire weather systems — cyclones, fronts, cloud spirals — in a single image",
+        "It discovered the Antarctic ozone hole",
+        "It transmitted the first color photographs from orbit"
+      ],
+      "correctIndex": 1,
+      "explanation": "TIROS-1 in 1960 allowed meteorologists to see atmospheric systems as coherent wholes for the first time, rather than inferring them from scattered surface data points. Images of cyclone spiral bands from orbit transformed the understanding of scale and structure in atmospheric dynamics. Before it, even major hurricanes could traverse the open ocean undetected."
+    },
+    {
+      "question": "What does the water vapor channel show, and what unique information does it provide?",
+      "options": [
+        "The amount of rainfall reaching the surface",
+        "Moisture distribution in the middle and upper troposphere, making jet streams and frontal zones visible",
+        "Ocean surface temperature for El Nino forecasting",
+        "Water vapor concentration in the stratosphere"
+      ],
+      "correctIndex": 1,
+      "explanation": "The spectral band near six to seven micrometers is absorbed by tropospheric water vapor. Where humidity is high, the atmospheric column is opaque and the satellite sees that moist layer. Where it is dry, the satellite sees lower levels. These images reveal the transport of moist and dry air masses, jet stream positions, and regions of elevated convective potential."
+    },
+    {
+      "question": "What new capability on the modern American geostationary weather satellites proved unexpectedly valuable for tropical cyclone intensity forecasting?",
+      "options": [
+        "Ultraviolet imaging of the upper atmosphere",
+        "Microwave sounder penetrating through clouds",
+        "Lightning mapper detecting a surge in discharge frequency before rapid intensification",
+        "Hyperspectral sounder with thousands of channels"
+      ],
+      "correctIndex": 2,
+      "explanation": "The lightning mapper records every discharge within its coverage in real time. Researchers found that a sharp increase in lightning activity within convective towers of a tropical cyclone is a reliable precursor of rapid intensification — providing a warning signal hours before the change becomes apparent in wind speed observations or other data streams."
+    }
+  ],
+  "sources": [
+    {
+      "title": "NOAA — GOES-R Series Mission Overview",
+      "url": "https://www.goes-r.gov/mission/mission.html",
+      "meta": "NOAA/NASA, open access, updated 2024"
+    },
+    {
+      "title": "EUMETSAT — Meteosat Third Generation",
+      "url": "https://www.eumetsat.int/meteosat-third-generation",
+      "meta": "EUMETSAT, open access, 2023"
+    },
+    {
+      "title": "JMA — Himawari-8/9 Satellite Overview",
+      "url": "https://www.jma.go.jp/jma/jma-eng/satellite/index.html",
+      "meta": "Japan Meteorological Agency, open access"
+    },
+    {
+      "title": "NOAA — JPSS Program: Joint Polar Satellite System",
+      "url": "https://www.nesdis.noaa.gov/our-satellites/currently-flying/joint-polar-satellite-system",
+      "meta": "NOAA/NASA, open access, 2024"
+    },
+    {
+      "title": "Velden C. et al. — The Dvorak Technique: 30 Years of Forecasting Tropical Cyclone Intensity",
+      "url": "https://journals.ametsoc.org/view/journals/bams/87/9/bams-87-9-1195.xml",
+      "meta": "BAMS, 2006, open access"
+    },
+    {
+      "title": "NASA — Suomi NPP Satellite Mission Page",
+      "url": "https://www.nasa.gov/mission_pages/NPP/main/index.html",
+      "meta": "NASA, open access"
+    },
+    {
+      "title": "NOAA — GeoXO Next Generation Geostationary Observing System",
+      "url": "https://www.nesdis.noaa.gov/next-generation/geo-xo",
+      "meta": "NOAA, open access, 2024"
+    },
+    {
+      "title": "Bauer P. et al. — The quiet revolution of numerical weather prediction",
+      "url": "https://www.nature.com/articles/nature14956",
+      "meta": "Nature, 2015, open access"
+    },
+    {
+      "title": "Laing A., Evans J.-L. — Introduction to Tropical Meteorology, 2nd ed. (Ch. 9 Satellites)",
+      "url": "https://www.meted.ucar.edu/tropical/textbook_2nd_edition/",
+      "meta": "COMET/MetEd UCAR, open access"
+    },
+    {
+      "title": "Kidder S., Vonder Haar T. — Satellite Meteorology: An Introduction",
+      "url": "https://www.elsevier.com/books/satellite-meteorology/kidder/978-0-12-406430-2",
+      "meta": "Elsevier/Academic Press, 1995 — standard reference"
+    }
+  ],
+  "lastVerified": "2026-05-06"
+}

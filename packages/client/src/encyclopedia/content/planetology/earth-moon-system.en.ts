@@ -1,0 +1,573 @@
+import type { Lesson } from '../../types.js';
+
+const lesson: Lesson = {
+  slug: 'earth-moon-system',
+  language: 'en',
+  section: 'planetology',
+  order: 8,
+  difficulty: 'beginner',
+  readingTimeMin: 11,
+  title: 'Earth-Moon System',
+  subtitle: 'How our Moon stabilizes Earth\'s axis, was born from catastrophe, and is slowly drifting away.',
+
+  hero: {
+    cacheKey: 'earth-moon-system-hero',
+    prompt:
+      'Photorealistic illustration for a science encyclopedia: Earth and Moon together in deep space, ' +
+      'Earth showing blue oceans, white clouds and continental landmasses, ' +
+      'Moon in full phase beside Earth, accurate relative sizes and distance relationship visible, ' +
+      'dark starfield background, scientifically accurate, cinematic lighting from the Sun off-frame. ' +
+      'Add the following text labels on the image: "Earth", "Moon", "384 400 km".',
+    alt: 'Earth and Moon in open space — a binary planetary system',
+    caption: 'Earth and Moon form a unique pair in the solar system: the Moon\'s size relative to Earth is larger than that of any other moon relative to its host planet. Distance in the illustration is approximate.',
+    aspectRatio: '16:9',
+  },
+
+  body: [
+    {
+      paragraphs: [
+        'Most planetary moons are small fragments — captured rubble or debris left by collisions. ' +
+        'The Moon is different. It is large enough relative to Earth that some planetary scientists prefer ' +
+        'to describe our system not as "planet with a moon" but as a double planet. ' +
+        'Its mass exceeds one percent of Earth\'s — disproportionately large for a satellite. ' +
+        'And that disproportionality has consequences reaching to the very foundations of our climate and biosphere.',
+
+        'Without the Moon, Earth\'s axial tilt would behave unpredictably: ' +
+        'over millions of years it could swing from near zero to more than forty degrees, ' +
+        'radically reshaping seasons and climate. ' +
+        'With the Moon, the axial tilt stays near twenty-three and a half degrees — ' +
+        'and has done so for more than three billion years. ' +
+        'A stable tilt means stable seasons. Stable seasons are one of the conditions ' +
+        'under which complex life on Earth was able to emerge and evolve.',
+      ],
+    },
+
+    {
+      heading: 'The Birth of the Moon: the Theia Hypothesis',
+      level: 2,
+      paragraphs: [
+        'The origin of the Moon was a puzzle for a long time. ' +
+        'By the middle of the twentieth century, three main theories existed: ' +
+        'the Moon split off from Earth, the Moon was gravitationally captured from elsewhere, ' +
+        'or both bodies formed simultaneously side by side. ' +
+        'Each theory had weaknesses, and none explained one crucial observation: ' +
+        'the Moon and Earth share a nearly identical oxygen isotope composition — ' +
+        'not approximately similar, but extraordinarily precise. ' +
+        'If the Moon had arrived from a different part of the solar system, no such match would exist.',
+
+        'The modern **_Theia hypothesis_** explains this. Approximately four and a half billion years ago, ' +
+        'while the planetary system was still forming, the young Earth collided with a Mars-sized protoplanet ' +
+        'informally named Theia. ' +
+        'The impact was a glancing blow rather than a head-on collision: Theia passed at an angle, ' +
+        'stripping an enormous quantity of mantle material from both bodies. ' +
+        'Theia\'s iron core merged with Earth\'s core. ' +
+        'The mantle material — predominantly from both planets, already isotopically mixed — ' +
+        'was ejected into orbit and formed a disk. ' +
+        'From that disk, the Moon assembled itself within thousands or tens of thousands of years.',
+
+        'That is why the oxygen isotopes match: the Moon is built primarily of Earth\'s own mantle. ' +
+        'The Moon\'s iron core is very small — consistent with this scenario. ' +
+        'The Theia hypothesis is not perfect: computer models are continually refined, ' +
+        'and some details of the impact geometry remain debated. ' +
+        'But no competing theory explains the isotopic match as naturally.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Stages of the Theia Impact and Moon Formation',
+        svg: `<svg viewBox="0 0 620 300" xmlns="http://www.w3.org/2000/svg" width="100%">
+  <rect width="620" height="300" fill="rgba(10,15,25,0.5)" rx="4"/>
+
+  <!-- Stage labels -->
+  <text x="62" y="22" text-anchor="middle" fill="#aabbcc" font-family="monospace" font-size="10">1. Approach</text>
+  <text x="215" y="22" text-anchor="middle" fill="#aabbcc" font-family="monospace" font-size="10">2. Impact</text>
+  <text x="390" y="22" text-anchor="middle" fill="#aabbcc" font-family="monospace" font-size="10">3. Debris disk</text>
+  <text x="547" y="22" text-anchor="middle" fill="#aabbcc" font-family="monospace" font-size="10">4. Moon forms</text>
+
+  <!-- Stage 1: approach -->
+  <circle cx="48" cy="165" r="26" fill="#4488aa" opacity="0.85"/>
+  <text x="48" y="170" text-anchor="middle" fill="#020510" font-family="monospace" font-size="9">Earth</text>
+  <circle cx="92" cy="118" r="14" fill="#7bb8ff" opacity="0.75"/>
+  <text x="92" y="122" text-anchor="middle" fill="#020510" font-family="monospace" font-size="8">Theia</text>
+  <line x1="80" y1="128" x2="62" y2="148" stroke="#ff8844" stroke-width="1.2" stroke-dasharray="4,2" opacity="0.7"/>
+
+  <!-- Divider -->
+  <line x1="140" y1="35" x2="140" y2="275" stroke="#334455" stroke-width="0.8" stroke-dasharray="3,3"/>
+
+  <!-- Stage 2: impact -->
+  <circle cx="195" cy="155" r="26" fill="#4488aa" opacity="0.85"/>
+  <circle cx="228" cy="128" r="14" fill="#7bb8ff" opacity="0.75"/>
+  <!-- impact flash -->
+  <ellipse cx="213" cy="141" rx="22" ry="14" fill="#ff8844" opacity="0.55"/>
+  <text x="213" y="197" text-anchor="middle" fill="#ff8844" font-family="monospace" font-size="9">glancing blow</text>
+
+  <!-- Divider -->
+  <line x1="298" y1="35" x2="298" y2="275" stroke="#334455" stroke-width="0.8" stroke-dasharray="3,3"/>
+
+  <!-- Stage 3: debris disk -->
+  <circle cx="375" cy="160" r="24" fill="#4488aa" opacity="0.85"/>
+  <text x="375" y="164" text-anchor="middle" fill="#020510" font-family="monospace" font-size="8">Earth</text>
+  <!-- disk particles -->
+  <ellipse cx="375" cy="160" rx="62" ry="18" fill="none" stroke="#ff8844" stroke-width="1.4" opacity="0.5"/>
+  <ellipse cx="375" cy="160" rx="55" ry="14" fill="none" stroke="#cc8844" stroke-width="0.8" opacity="0.4"/>
+  <circle cx="375" cy="105" r="4" fill="#ff8844" opacity="0.7"/>
+  <circle cx="430" cy="152" r="3" fill="#cc8844" opacity="0.7"/>
+  <circle cx="320" cy="158" r="3" fill="#cc8844" opacity="0.7"/>
+  <circle cx="385" cy="218" r="3" fill="#ff8844" opacity="0.7"/>
+  <text x="375" y="246" text-anchor="middle" fill="#ff8844" font-family="monospace" font-size="9">mantle material in orbit</text>
+
+  <!-- Divider -->
+  <line x1="466" y1="35" x2="466" y2="275" stroke="#334455" stroke-width="0.8" stroke-dasharray="3,3"/>
+
+  <!-- Stage 4: Earth + Moon -->
+  <circle cx="523" cy="165" r="24" fill="#4488aa" opacity="0.85"/>
+  <text x="523" y="169" text-anchor="middle" fill="#020510" font-family="monospace" font-size="8">Earth</text>
+  <circle cx="575" cy="140" r="12" fill="#aabbcc" opacity="0.8"/>
+  <text x="575" y="144" text-anchor="middle" fill="#020510" font-family="monospace" font-size="8">Moon</text>
+  <line x1="534" y1="157" x2="564" y2="147" stroke="#7bb8ff" stroke-width="0.8" stroke-dasharray="3,2" opacity="0.6"/>
+
+  <text x="310" y="290" text-anchor="middle" fill="#667788" font-family="monospace" font-size="9">Not to scale. Moon assembly took thousands to tens of thousands of years.</text>
+</svg>`,
+        caption: 'Four stages of the Theia hypothesis: approach of the protoplanet, glancing impact, formation of an orbital disk from the mantle material of both bodies, and finally accretion of the Moon from that disk.',
+      },
+    },
+
+    {
+      heading: 'Tidal Locking and the Recession',
+      level: 2,
+      paragraphs: [
+        'Today the Moon always presents the same face to Earth. ' +
+        'That is not coincidence — it is the result of billions of years of gravitational interaction. ' +
+        'Earth\'s gravity raised a tidal bulge on the Moon, ' +
+        'and because that bulge was continuously pulled toward Earth, the Moon\'s rotation gradually slowed ' +
+        'until it synchronized exactly with its orbital period. ' +
+        'This process is called **_tidal locking_**.',
+
+        'The result: one rotation of the Moon on its axis, lasting twenty-seven and a third Earth days, ' +
+        'equals one orbit around Earth. ' +
+        'We therefore always see the same disk. ' +
+        'But "always the same" is not quite precise. ' +
+        'Through **_libration_** — small oscillations in the Moon\'s orbital path and axial orientation — ' +
+        'we can actually observe roughly 59 percent of the surface, not exactly half. ' +
+        'The far side of the Moon remained invisible and mysterious until the middle of the twentieth century, ' +
+        'when the Soviet spacecraft Luna-3 transmitted the first photographs.',
+
+        'The same tidal mechanism continues acting — now on Earth. ' +
+        'The Moon is braking our planet\'s rotation: each century, the day lengthens by a few milliseconds. ' +
+        'At the same time, the Moon slowly recedes from Earth by approximately three and a half centimeters per year. ' +
+        'Laser reflectors left on the Moon by Apollo astronauts in the twentieth century ' +
+        'allow measuring this distance to within a few millimeters. ' +
+        'The gap is still growing.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'earth-moon-tidal-locking',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: Earth-Moon system showing tidal locking mechanism, ' +
+          'Earth at center with gravitational tidal bulge visible, Moon orbiting with the same face always pointing toward Earth, ' +
+          'diagram showing synchronous rotation arrows, dark space background with orbital path indicated. ' +
+          'Add the following text labels on the image: "Earth", "Near Side (always visible)", "Far Side (never visible)", "Tidal Bulge", "Orbital path".',
+        alt: 'Diagram of lunar tidal locking — synchronous rotation keeping the same face perpetually toward Earth',
+        caption: 'Tidal locking: the Moon completes one rotation on its axis in exactly the same time it takes to orbit Earth. As a result, one hemisphere permanently faces us, and the other never does.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'Tides: A Dance of Two Gravities',
+      level: 2,
+      paragraphs: [
+        'We feel the rise and fall of water on a sea coast — ' +
+        'and it is natural to think of water "being pulled toward the Moon." ' +
+        'That is correct, but incomplete. ' +
+        'Earth as a solid body rotates within an uneven gravitational field: ' +
+        'the side nearest the Moon is pulled more strongly than the center, ' +
+        'and the center more strongly than the far side. ' +
+        'This difference — the **_tidal force_** — deforms the hydrosphere: ' +
+        'water bulges on the side facing the Moon and, by an independent mechanism, on the opposite side as well.',
+
+        'The Sun also generates tides, but its influence is roughly three times weaker than the Moon\'s — ' +
+        'despite the Sun\'s vastly greater mass — because it is so much farther away, ' +
+        'and tidal force drops off sharply with distance. ' +
+        'When the Sun, Earth, and Moon align during a new or full Moon, ' +
+        'the lunar and solar tides add together, producing the so-called **_spring tides_** with maximum amplitudes. ' +
+        'When the Moon is at a ninety-degree angle to the Sun, the two tidal effects partially cancel — ' +
+        'and we get neap tides, considerably smaller.',
+
+        'There is another dimension: Earth and Moon do not orbit each other but rotate around a shared **_barycenter_** — ' +
+        'the system\'s center of mass. ' +
+        'Because Earth is far more massive, the barycenter lies inside Earth, ' +
+        'roughly four thousand seven hundred kilometers from its geometric center — ' +
+        'closer to the surface than to the core, but still below it. ' +
+        'Technically, Earth too "wobbles" around this point with a lunar rhythm.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Tidal Force: Why Two Bulges, Not One',
+        svg: `<svg viewBox="0 0 580 260" xmlns="http://www.w3.org/2000/svg" width="100%">
+  <rect width="580" height="260" fill="rgba(10,15,25,0.5)" rx="4"/>
+
+  <!-- Earth with tidal bulges -->
+  <ellipse cx="200" cy="130" rx="60" ry="44" fill="#4488aa" opacity="0.85"/>
+  <!-- near-side bulge -->
+  <ellipse cx="258" cy="130" rx="18" ry="14" fill="#7bb8ff" opacity="0.6"/>
+  <!-- far-side bulge -->
+  <ellipse cx="142" cy="130" rx="18" ry="14" fill="#7bb8ff" opacity="0.6"/>
+  <text x="200" y="134" text-anchor="middle" fill="#020510" font-family="monospace" font-size="10" font-weight="bold">EARTH</text>
+
+  <!-- Moon -->
+  <circle cx="460" cy="130" r="22" fill="#aabbcc" opacity="0.85"/>
+  <text x="460" y="134" text-anchor="middle" fill="#020510" font-family="monospace" font-size="9">MOON</text>
+
+  <!-- Gravity force arrows from Moon -->
+  <line x1="430" y1="130" x2="278" y2="130" stroke="#ff8844" stroke-width="1.2" opacity="0.7"/>
+  <polygon points="282,126 278,130 282,134" fill="#ff8844" opacity="0.7"/>
+  <line x1="430" y1="130" x2="210" y2="130" stroke="#cc4444" stroke-width="0.9" opacity="0.5" stroke-dasharray="4,2"/>
+  <polygon points="214,126 210,130 214,134" fill="#cc4444" opacity="0.5"/>
+  <line x1="430" y1="130" x2="160" y2="130" stroke="#cc4444" stroke-width="0.7" opacity="0.35" stroke-dasharray="4,2"/>
+
+  <!-- Labels for force arrows -->
+  <text x="355" y="118" text-anchor="middle" fill="#ff8844" font-family="monospace" font-size="9">Stronger pull</text>
+  <text x="210" y="170" text-anchor="middle" fill="#cc4444" font-family="monospace" font-size="9">Weaker pull</text>
+
+  <!-- Bulge labels -->
+  <text x="272" y="108" fill="#7bb8ff" font-family="monospace" font-size="9">Near bulge</text>
+  <text x="96" y="108" fill="#7bb8ff" font-family="monospace" font-size="9">Far bulge</text>
+
+  <!-- Net tidal force arrows on Earth sides -->
+  <line x1="258" y1="130" x2="280" y2="130" stroke="#44ff88" stroke-width="1.8"/>
+  <polygon points="276,126 280,130 276,134" fill="#44ff88"/>
+  <line x1="142" y1="130" x2="120" y2="130" stroke="#44ff88" stroke-width="1.8"/>
+  <polygon points="124,126 120,130 124,134" fill="#44ff88"/>
+  <text x="290" y="148" fill="#44ff88" font-family="monospace" font-size="9">Tidal force</text>
+  <text x="50" y="148" fill="#44ff88" font-family="monospace" font-size="9">Centrifugal effect</text>
+
+  <!-- Barycenter marker -->
+  <circle cx="200" cy="130" r="4" fill="none" stroke="#ff8844" stroke-width="1.5"/>
+  <line x1="196" y1="126" x2="204" y2="134" stroke="#ff8844" stroke-width="1"/>
+  <line x1="204" y1="126" x2="196" y2="134" stroke="#ff8844" stroke-width="1"/>
+
+  <text x="290" y="240" text-anchor="middle" fill="#667788" font-family="monospace" font-size="9">Stylized diagram. Real ocean deformation is far smaller relative to Earth\'s size.</text>
+</svg>`,
+        caption: 'Two tidal bulges arise from the difference in the Moon\'s gravitational pull across Earth. The near side is pulled more strongly — a bulge toward the Moon. The far side lags behind in rotation — a bulge in the opposite direction.',
+      },
+    },
+
+    {
+      heading: 'Lunar Phases and Eclipses',
+      level: 2,
+      paragraphs: [
+        'The phases of the Moon are not Earth\'s shadow — they are simply the angle between Earth, Moon, and Sun. ' +
+        'When the Moon stands between Earth and Sun, its illuminated side faces away from us: new Moon. ' +
+        'When Earth lies between Moon and Sun, the illuminated side faces fully toward us: full Moon. ' +
+        'The complete cycle of phases takes about twenty-nine and a half days — the synodic month, ' +
+        'slightly longer than the orbital period of twenty-seven and a third days, ' +
+        'because Earth has also moved along its orbit around the Sun in that time.',
+
+        'Eclipses are the effect of a remarkable coincidence. ' +
+        'The Moon\'s apparent angular size in the sky is almost exactly equal to the Sun\'s: ' +
+        'the Moon is about four hundred times smaller, but also about four hundred times closer. ' +
+        'This means that during a total solar eclipse, the Moon covers the solar disk almost precisely, ' +
+        'allowing observation of the solar corona — ' +
+        'the most important natural laboratory event in astrophysics. ' +
+        'A lunar eclipse occurs when the Moon enters Earth\'s shadow: ' +
+        'it takes on a characteristic reddish tint from sunlight refracted through Earth\'s atmosphere — ' +
+        'the same effect that turns sunsets red.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'earth-moon-phases-diagram',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: lunar phases diagram from space perspective, ' +
+          'Moon shown in eight positions around Earth, each position showing correct illumination from the Sun off to one side, ' +
+          'phases labeled: New Moon, Waxing Crescent, First Quarter, Waxing Gibbous, Full Moon, Waning Gibbous, Last Quarter, Waning Crescent, ' +
+          'dark space background, Earth at center, Sun direction indicated by arrows on one side. ' +
+          'Add the following text labels on the image: "Sun direction", "New Moon", "Full Moon", "First Quarter", "Last Quarter".',
+        alt: 'Lunar phases diagram — eight positions around Earth with corresponding illumination from the Sun',
+        caption: 'The eight primary phases of the Moon result from changes in the angle between Earth, Moon, and Sun. A full cycle from new Moon back to new Moon takes approximately twenty-nine and a half days.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'A Surface Without Air: Vacuum, Magnetism, and Anomalies',
+      level: 2,
+      paragraphs: [
+        'The Moon has no global magnetic field and virtually no atmosphere. ' +
+        'The pressure of gases at the surface is roughly ten trillion times lower than Earth\'s sea-level pressure — ' +
+        'this is an **_exosphere_**, where molecules are so sparse that they almost never collide. ' +
+        'Without an atmosphere there is no shield from ultraviolet and ionizing radiation, ' +
+        'no sound, no wind erosion. ' +
+        'Neil Armstrong\'s bootprints will survive for millions of years unless covered by a meteorite.',
+
+        'Despite the absence of a global field, the Moon has local **_magnetic anomalies_** — ' +
+        'patches of crust retaining residual magnetization. ' +
+        'Some of them are found on the opposite side from the largest impact basins, ' +
+        'suggesting that a powerful impact could have concentrated or redistributed magnetic material. ' +
+        'The Lunar Prospector mission in the late twentieth century mapped these anomalies from orbit.',
+
+        'Related to these anomalies are **_mascons_** — from "mass concentration." ' +
+        'These are regions of elevated density and gravity, typically beneath the large flat plains called maria — ' +
+        'where ancient lava filled impact basins and formed dense subsurface layers. ' +
+        'Mascons noticeably perturbed the orbits of spacecraft: ' +
+        'the Apollo missions accounted for them in calculating the command module orbits.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'moon-surface-craters',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: Moon surface close-up from low orbit, ' +
+          'showing rugged cratered terrain with large impact basins, smaller craters, ray ejecta patterns, ' +
+          'dark mare (basaltic plains) regions contrasting with bright highland areas, ' +
+          'no atmosphere, stark shadows, accurate geological detail, top-down orbital perspective. ' +
+          'Add the following text labels on the image: "Mare (basalt plains)", "Highland terrain", "Impact crater", "Ejecta rays", "Mascon region".',
+        alt: 'Lunar surface from orbit — craters, mare plains, impact ejecta and complex terrain',
+        caption: 'The lunar surface is an archive of impacts spanning four and a half billion years. Dark areas (lunar maria) are solidified lava that flooded ancient craters. Mascons with elevated gravity lie beneath them.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Water on the Moon: From Speculation to Confirmation',
+      level: 2,
+      paragraphs: [
+        'For decades the Moon was assumed to be completely dry. ' +
+        'Apollo samples confirmed it: lunar rock is extraordinarily desiccated. ' +
+        'But in permanently shadowed craters near the poles, where sunlight never reaches across billions of years, ' +
+        'temperatures never rise above two hundred degrees below zero. ' +
+        'Water ice could persist there — and radar observations had given ambiguous hints.',
+
+        'In 2009, NASA\'s LCROSS mission deliberately drove an upper rocket stage into the Cabeus crater ' +
+        'near the lunar south pole. ' +
+        'The plume of disturbed material was analyzed by an accompanying spacecraft and ground-based telescopes. ' +
+        'The result: water was confirmed in significant quantities — ' +
+        'approximately five to eight percent by mass in some areas. ' +
+        'Beyond water, other volatile compounds were detected — carbon dioxide, carbon monoxide, various organic molecules. ' +
+        'The Moon proved far more chemically interesting than assumed.',
+
+        'The topic gained new momentum in the mid-2020s. ' +
+        'China\'s Chang\'e-6 mission in 2024 returned samples from the far side of the Moon — ' +
+        'the first time in human history. ' +
+        'Analysis of these samples provides information about ancient geological activity ' +
+        'and the possible volatile content of a region never previously sampled directly. ' +
+        'In parallel, NASA\'s Artemis program is preparing for the first crewed flyby of the Moon ' +
+        'since the Apollo era: Artemis-2 with a crew is planned for 2026.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'moon-south-pole-lcross',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: Moon south pole region from orbit, ' +
+          'permanently shadowed craters visible as dark patches near the pole, ' +
+          'Cabeus crater highlighted, frost or ice deposits indicated in shadowed regions, ' +
+          'surrounding illuminated rugged terrain, dark space background. ' +
+          'Add the following text labels on the image: "Cabeus Crater (LCROSS impact 2009)", "Permanently shadowed region", "Ice deposits (confirmed)", "South Pole".',
+        alt: 'Lunar south pole region — permanently shadowed craters with confirmed water ice deposits',
+        caption: 'The permanently shadowed craters near the lunar south pole never see sunlight. In 2009, the LCROSS mission confirmed water ice there — the most valuable resource for future lunar bases.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'The Moon and the Future: From Apollo to Artemis',
+      level: 2,
+      paragraphs: [
+        'On the twentieth of July 1969, Neil Armstrong stepped onto the surface of the Moon. ' +
+        'The Apollo program placed twelve people on the lunar surface across six landings between 1969 and 1972. ' +
+        'They returned approximately three hundred and eighty kilograms of rock, ' +
+        'and set up seismometers, laser reflectors, and meteorological instruments. ' +
+        'More than fifty years later, the Apollo laser reflectors are still used ' +
+        'for precise measurements of the Earth-Moon distance.',
+
+        'After Apollo, the Moon spent decades in the shadow of Mars and outer solar system ambitions. ' +
+        'In the twenty-first century, interest returned — and now with a much broader coalition. ' +
+        'China has landed spacecraft on the near side, at the lunar south pole, and on the far side. ' +
+        'Chang\'e-6 in 2024 — the first successful far-side sample return in the world. ' +
+        'The Artemis program is building the foundation for sustained human presence in the lunar system, ' +
+        'centered on NASA, ESA, JAXA, and several commercial partners. ' +
+        'The confirmed water ice reserves near the poles make this goal more realistic: ' +
+        'water is drinking supply, radiation shielding, and — through electrolysis — rocket propellant.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'artemis-lunar-surface',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: astronauts on the lunar surface near the south pole, ' +
+          'two astronauts in modern spacesuit designs exploring rocky terrain, ' +
+          'Earth visible in the black sky above, lunar outpost structure visible in background, ' +
+          'scientific equipment on the surface, hard sci-fi style, no faces visible (helmets and visors), dark lunar terrain. ' +
+          'Add the following text labels on the image: "Artemis surface operations", "Earth (384 400 km)", "Lunar south pole region".',
+        alt: 'Artemis program astronauts on the lunar surface near the south pole — field science and a lunar base on the horizon',
+        caption: 'The Artemis program aims for sustained human presence near the lunar south pole, where confirmed water ice is concentrated. The first step in 2026 will be the crewed Artemis-2 flyby — the first since the Apollo era.',
+        aspectRatio: '16:9',
+      },
+    },
+  ],
+
+  glossary: [
+    {
+      term: 'Tidal locking',
+      definition: 'A state in which a satellite\'s rotation on its own axis is synchronized with its orbital period around the host planet. The result: the satellite always presents the same face to the planet. For the Moon, this process completed billions of years ago.',
+    },
+    {
+      term: 'Barycenter',
+      definition: 'The center of mass of a system of two or more bodies, around which they orbit. In the Earth-Moon system the barycenter lies inside Earth, approximately four thousand seven hundred kilometers from Earth\'s geometric center.',
+    },
+    {
+      term: 'Theia hypothesis',
+      definition: 'The most widely accepted model of the Moon\'s origin: approximately four and a half billion years ago the young Earth collided with a Mars-sized protoplanet. Mantle material from both bodies was ejected into orbit and formed the Moon. Supported by the near-identical oxygen isotope composition of Earth and Moon.',
+    },
+    {
+      term: 'Mascon',
+      definition: 'Short for mass concentration. A subsurface region of elevated density and gravity on the Moon, typically associated with solidified lava beneath the lunar maria. Mascons noticeably perturb the orbits of spacecraft flying around the Moon.',
+    },
+    {
+      term: 'Libration',
+      definition: 'Apparent oscillations of the lunar disk that allow observing slightly more than exactly half the Moon\'s surface — in total roughly 59 percent. Caused by the inclination of the Moon\'s orbital plane, the ellipticity of its orbit, and the tilt of the Moon\'s axis.',
+    },
+    {
+      term: 'Tidal force',
+      definition: 'The difference in gravitational attraction exerted on different parts of a body by an external source. It is this difference, not gravity itself, that deforms the shape of the oceans and generates tides.',
+    },
+    {
+      term: 'Spring tide',
+      definition: 'An enhanced tide that occurs during new or full Moon, when Sun, Earth, and Moon align and their tidal effects add together. The opposite — neap tides, the weakest — occurs when Moon and Sun are at a ninety-degree angle.',
+    },
+    {
+      term: 'Exosphere (lunar)',
+      definition: 'The extremely tenuous gas layer above the Moon\'s surface, with pressure roughly ten trillion times lower than Earth\'s sea-level atmosphere. Molecules in the lunar exosphere are so sparse that they almost never collide — it behaves as a near-perfect vacuum.',
+    },
+    {
+      term: 'Lunar mare',
+      definition: 'A dark, flat region of the Moon\'s surface formed by solidified basaltic lava that flooded large ancient impact basins billions of years ago. The name survives from an era when these dark patches were believed to be actual seas.',
+    },
+  ],
+
+  quiz: [
+    {
+      question: 'Why does the Moon always present the same face to Earth?',
+      options: [
+        'Because the Moon does not rotate on its own axis',
+        'Because the Moon\'s rotation is synchronized with its orbit — the result of billions of years of tidal braking',
+        'Because Earth stopped the Moon\'s rotation with its magnetic field',
+        'Because the Moon is captured in Earth\'s L2 Lagrange point',
+      ],
+      correctIndex: 1,
+      explanation: 'This is tidal locking: Earth\'s gravity gradually slowed the Moon\'s rotation until it synchronized with the orbital period. The Moon does rotate on its axis — but in exactly the same time it takes to complete one orbit around Earth.',
+    },
+    {
+      question: 'What is the primary evidence supporting the Theia hypothesis for the Moon\'s origin?',
+      options: [
+        'The Moon lacks a magnetic field, just as Theia did',
+        'The oxygen isotope composition of Earth and the Moon is nearly identical',
+        'The Moon has exactly half as much iron as Earth',
+        'The Moon\'s size matches the calculated dimensions of Theia',
+      ],
+      correctIndex: 1,
+      explanation: 'Oxygen isotope ratios are an extremely sensitive "fingerprint" of where in the solar system a body formed. Earth and Moon share a virtually identical isotopic signature — meaning they formed from the same material. The Theia hypothesis explains this: the Moon is built primarily from Earth\'s own mantle.',
+    },
+    {
+      question: 'What are mascons and where are they found?',
+      options: [
+        'Subsurface cavities beneath craters where water ice accumulates',
+        'Regions of elevated density and gravity, typically beneath the lunar maria',
+        'Magnetized mountain ranges on the Moon\'s far side',
+        'Iron-rich crystal formations on the near side',
+      ],
+      correctIndex: 1,
+      explanation: 'Mascons are mass concentrations beneath the lunar surface, most often associated with solidified basaltic lava that filled ancient large impact craters. They significantly perturbed the orbits of Apollo command modules and were mapped in detail by the Lunar Prospector mission.',
+    },
+    {
+      question: 'What did the LCROSS mission confirm in 2009?',
+      options: [
+        'A liquid magmatic ocean beneath the lunar surface',
+        'Active geological processes in Cabeus crater',
+        'Water ice in permanently shadowed craters near the lunar south pole',
+        'Remnant atmosphere in polar regions',
+      ],
+      correctIndex: 2,
+      explanation: 'LCROSS intentionally crashed a rocket stage into Cabeus crater. Analysis of the resulting dust plume confirmed water ice — five to eight percent by mass in some areas — along with other volatile compounds. This established that the Moon contains resources critical for future lunar bases.',
+    },
+    {
+      question: 'Why is a total solar eclipse only possible from Earth in our current era?',
+      options: [
+        'Because the Moon\'s orbit is perfectly circular and the Sun distance is fixed',
+        'Because the Moon is about four hundred times smaller than the Sun but also about four hundred times closer — making their apparent sizes nearly equal',
+        'Because the Moon reflects exactly as much light as the Sun emits',
+        'Because Earth lies exactly between the Moon and the Sun at every full Moon',
+      ],
+      correctIndex: 1,
+      explanation: 'This is an extraordinary coincidence of scale: the Moon is roughly four hundred times smaller than the Sun and roughly four hundred times closer to Earth, so their apparent angular sizes are nearly equal. Since the Moon is slowly receding from Earth, total solar eclipses will eventually become impossible billions of years from now.',
+    },
+  ],
+
+  sources: [
+    {
+      title: 'NASA — Moon Overview (Solar System Exploration)',
+      url: 'https://solarsystem.nasa.gov/moons/earths-moon/overview/',
+      meta: 'NASA Solar System Exploration',
+    },
+    {
+      title: 'Canup R.M. — Origin of the Moon — Annual Review of Earth and Planetary Sciences',
+      url: 'https://www.annualreviews.org/doi/10.1146/annurev-earth-050212-124203',
+      meta: 'Annual Review of Earth and Planetary Sciences, 2012',
+    },
+    {
+      title: 'LCROSS — Permanently Shadowed Regions Confirmed — NASA',
+      url: 'https://www.nasa.gov/mission_pages/LCROSS/main/prelim_water_results.html',
+      meta: 'NASA LCROSS mission results, 2009',
+    },
+    {
+      title: "Chang'e-6 farside sample return — Nature 2024",
+      url: 'https://www.nature.com/articles/s41586-024-07772-7',
+      meta: 'Nature, 2024',
+    },
+    {
+      title: 'Artemis — NASA Moon to Mars',
+      url: 'https://www.nasa.gov/humans-in-space/artemis/',
+      meta: 'NASA Artemis program overview, 2026',
+    },
+    {
+      title: 'Lunar Laser Ranging Experiment — Apache Point Observatory',
+      url: 'https://www.iers.org/IERS/EN/DataProducts/SatelliteLaserRanging/satelliteLaserRanging.html',
+      meta: 'International Earth Rotation and Reference Systems Service',
+    },
+    {
+      title: 'Laskar J. et al. — Stabilization of the Earth\'s obliquity by the Moon — Nature 1993',
+      url: 'https://www.nature.com/articles/361615a0',
+      meta: 'Nature, 361, 1993',
+    },
+    {
+      title: 'Lunar Prospector — Magnetic Anomalies and Mascons — NASA',
+      url: 'https://science.nasa.gov/mission/lunar-prospector/',
+      meta: 'NASA Lunar Prospector mission',
+    },
+    {
+      title: 'Tidal Locking and Lunar Recession — University of Colorado LASP',
+      url: 'https://lasp.colorado.edu/home/wp-content/uploads/2011/04/History_of_Earths_Rotation.pdf',
+      meta: 'LASP / University of Colorado',
+    },
+    {
+      title: 'Apollo Lunar Sample Curation — NASA Johnson Space Center',
+      url: 'https://curator.jsc.nasa.gov/lunar/',
+      meta: 'NASA JSC Curation Office, lunar sample database',
+    },
+  ],
+
+  lastVerified: '2026-05-06',
+};
+
+export default lesson;

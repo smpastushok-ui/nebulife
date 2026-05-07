@@ -1,0 +1,653 @@
+import type { Lesson } from '../../types.js';
+
+const lesson: Lesson = {
+  slug: 'cosmological-parameters',
+  language: 'en',
+  section: 'cosmology',
+  order: 10,
+  difficulty: 'advanced',
+  readingTimeMin: 12,
+  title: 'Cosmological Parameters',
+  subtitle:
+    'Six numbers that describe the universe: the Lambda-CDM standard model, the Hubble tension, and DESI hints at evolving dark energy.',
+
+  hero: {
+    cacheKey: 'cosmo-params-hero',
+    prompt:
+      'Photorealistic illustration for a science encyclopedia: the cosmic energy budget of the universe. ' +
+      'A dark deep-space panorama with three distinct glowing regions — one dense cluster of visible galaxies (ordinary matter), ' +
+      'an invisible diffuse halo of dark matter rendered as faint blue-grey luminosity, ' +
+      'and an expanding void filled with dark energy shown as a deep violet gradient. ' +
+      'Hard sci-fi style, no faces. ' +
+      'Add the following text labels on the image: "Ordinary matter 5%", "Dark matter 27%", "Dark energy 68%". ' +
+      'Aspect ratio 16:9.',
+    alt:
+      'The energy budget of the universe: 5% ordinary matter, 27% dark matter, 68% dark energy.',
+    caption:
+      'The Lambda-CDM standard model describes the universe through three components. ' +
+      'Everything ever observed through a telescope — all matter, all light — amounts to only five percent of the total.',
+    aspectRatio: '16:9',
+  },
+
+  body: [
+    {
+      paragraphs: [
+        'Physics has a tradition: if you can describe a phenomenon with six numbers, you have a theory, not a catalogue. ' +
+        'The modern standard cosmological model — Lambda-CDM, for Lambda Cold Dark Matter — ' +
+        'accounts for the structure and evolution of the universe from its first second to the present ' +
+        'using a compact set of parameters. ' +
+        'These numbers are not derived from first principles; they are measured. ' +
+        'The combined power of space missions, ground-based telescopes, and supercomputers is aimed ' +
+        'at pinning each one down to the fourth decimal place.',
+
+        'But the picture is not without tension. Two independent methods of measuring the expansion rate of the universe ' +
+        'produce results that disagree beyond their statistical uncertainties. ' +
+        'New data from the large-scale Dark Energy Spectroscopic Instrument survey, published in 2024, ' +
+        'hint that dark energy may not be a fixed constant ' +
+        'but a field that evolves with time. ' +
+        'If either of these signals is confirmed, the standard model will require revision.',
+      ],
+    },
+
+    {
+      heading: 'What the Standard Model in Cosmology Actually Is',
+      level: 2,
+      paragraphs: [
+        'Lambda-CDM is not a single unified theory but a construction assembled from several independent ideas, ' +
+        'joined by the shared mathematics of general relativity. ' +
+        'Lambda — the Greek letter — denotes the _cosmological constant_: ' +
+        'a term in Einstein\'s field equations that drives dark energy and the accelerated expansion. ' +
+        'CDM — cold dark matter — refers to uncharged, light-blind particles ' +
+        'that move far below the speed of light and form the invisible gravitational scaffold on which galaxies are built.',
+
+        'The model rests on six core parameters, best measured from the data of the Planck mission ' +
+        'of the European Space Agency (2018). ' +
+        'Each parameter is a separate measurement; each measurement represents years of work by thousands of people. ' +
+        'Together they form the most precise portrait of the universe we have.',
+      ],
+    },
+
+    {
+      heading: 'The Hubble Constant: The Rate of Cosmic Expansion',
+      level: 2,
+      paragraphs: [
+        'The Hubble constant H₀ is perhaps the most famous single number in cosmology. ' +
+        'It quantifies how fast galaxies are receding from one another: ' +
+        'every additional megaparsec of distance — roughly 3.26 million light-years — ' +
+        'adds a certain number of kilometers per second to the recession speed. ' +
+        'According to Planck 2018, that number is approximately 67.4 kilometers per second per megaparsec.',
+
+        'Here lies one of the greatest mysteries in modern physics — the so-called _Hubble tension_. ' +
+        'The SH0ES team led by Adam Riess measured H₀ by an entirely different route: ' +
+        'Cepheid variable stars and Type Ia supernovae as standard candles. ' +
+        'Their result is approximately 73 kilometers per second per megaparsec. ' +
+        'The gap between 67.4 and 73 is only eight percent. ' +
+        'Yet the statistical significance of this discrepancy exceeds five sigma — ' +
+        'the threshold at which physicists conventionally declare a discovery. ' +
+        'Both teams have verified their data dozens of times and found no fundamental error.',
+
+        'As of 2026, several hypotheses exist. The most discussed is _early dark energy_: ' +
+        'an additional component present before recombination that effectively accelerated the early universe, ' +
+        'shifting the Planck measurement. Other candidates include new neutrino species, ' +
+        'time-varying physical constants, or unresolved systematic biases in distance scales. ' +
+        'None has received independent confirmation.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Diagram: Hubble Tension — Two Methods, Two Numbers',
+        svg: `<svg viewBox="0 0 700 230" xmlns="http://www.w3.org/2000/svg">
+  <rect width="700" height="230" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Title -->
+  <text x="350" y="22" text-anchor="middle" fill="#aabbcc" font-family="monospace" font-size="11">H₀ — Hubble Constant: two methods, two results</text>
+
+  <!-- CMB / Planck box -->
+  <rect x="40" y="38" width="275" height="130" rx="3" fill="rgba(68,136,170,0.12)" stroke="#4488aa" stroke-width="1"/>
+  <text x="177" y="60" text-anchor="middle" fill="#7bb8ff" font-family="monospace" font-size="12">Planck / CMB</text>
+  <text x="177" y="78" text-anchor="middle" fill="#667788" font-family="monospace" font-size="10">early universe, acoustic peaks</text>
+  <text x="177" y="112" text-anchor="middle" fill="#44ff88" font-family="monospace" font-size="26">67.4</text>
+  <text x="177" y="134" text-anchor="middle" fill="#8899aa" font-family="monospace" font-size="11">± 0.5 km/s/Mpc</text>
+  <text x="177" y="156" text-anchor="middle" fill="#667788" font-family="monospace" font-size="9">ESA Planck 2018</text>
+
+  <!-- VS -->
+  <text x="350" y="110" text-anchor="middle" fill="#cc4444" font-family="monospace" font-size="20">VS</text>
+  <line x1="315" y1="103" x2="385" y2="103" stroke="#cc4444" stroke-width="1" stroke-dasharray="4,3"/>
+
+  <!-- SH0ES box -->
+  <rect x="385" y="38" width="275" height="130" rx="3" fill="rgba(255,136,68,0.1)" stroke="#ff8844" stroke-width="1"/>
+  <text x="522" y="60" text-anchor="middle" fill="#ff8844" font-family="monospace" font-size="12">SH0ES / Cepheids + Ia</text>
+  <text x="522" y="78" text-anchor="middle" fill="#667788" font-family="monospace" font-size="10">late universe, standard candles</text>
+  <text x="522" y="112" text-anchor="middle" fill="#44ff88" font-family="monospace" font-size="26">73.0</text>
+  <text x="522" y="134" text-anchor="middle" fill="#8899aa" font-family="monospace" font-size="11">± 1.0 km/s/Mpc</text>
+  <text x="522" y="156" text-anchor="middle" fill="#667788" font-family="monospace" font-size="9">Riess et al. 2022</text>
+
+  <!-- Sigma label -->
+  <text x="350" y="200" text-anchor="middle" fill="#cc4444" font-family="monospace" font-size="11">Discrepancy &gt; 5&#963; — cause unknown (May 2026)</text>
+</svg>`,
+        caption:
+          'Two independent methods for measuring the Hubble constant consistently produce different results. ' +
+          'This discrepancy may point to physics beyond the standard Lambda-CDM model.',
+      },
+    },
+
+    {
+      heading: 'Density Parameters: How the Universe\'s Energy Is Divided',
+      level: 2,
+      paragraphs: [
+        'Three density parameters describe what the universe is made of. ' +
+        'All are expressed as fractions of the so-called _critical density_ — ' +
+        'the exact value at which the universe is geometrically flat. ' +
+        'If the total density exceeds this value, space is closed, like the surface of a sphere. ' +
+        'If it falls short, space is open, like a saddle. ' +
+        'Measurements through acoustic oscillations in the early plasma show that ' +
+        'the universe is flat to within a few tenths of a percent. ' +
+        'This is the curvature parameter Omega-k, and it is approximately zero.',
+
+        'Omega-m — the matter density — is approximately 0.315 of the critical value. ' +
+        'This includes both ordinary baryonic matter and dark matter. ' +
+        'Of those 0.315, only approximately 0.049 is baryonic matter — Omega-b — ' +
+        'the stuff of which stars, planets, gas clouds, and people are made. ' +
+        'The rest — approximately 0.266 — is dark matter: ' +
+        'matter that feels gravity but does not interact with light and remains invisible to any telescope.',
+
+        'Omega-Lambda — the dark energy fraction — is approximately 0.685. ' +
+        'This is the larger part of everything in the universe. ' +
+        'Dark energy is neither matter nor radiation: ' +
+        'it is distributed uniformly through space and exerts a negative pressure ' +
+        'that drives the accelerating expansion. ' +
+        'In the standard model it is identified with Einstein\'s cosmological constant — ' +
+        'a fixed property of space-time itself.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'cosmo-params-energy-pie',
+        prompt:
+          'Scientific illustration for a science encyclopedia: cosmic energy budget pie chart. ' +
+          'Three clearly distinguished sections: ' +
+          'largest section 68.5% labeled Dark Energy in deep violet/purple, ' +
+          'medium section 26.6% labeled Dark Matter in blue-grey, ' +
+          'small section 4.9% labeled Ordinary Baryonic Matter in bright cyan-white. ' +
+          'Hard sci-fi style, dark background #020510, monospace font, clean lines. ' +
+          'Add the following text labels on the image: "Dark Energy 68.5%", "Dark Matter 26.6%", "Baryonic Matter 4.9%", "Planck 2018". ' +
+          'Aspect ratio 4:3.',
+        alt:
+          'Pie chart of the universe\'s energy budget: dark energy 68.5%, dark matter 26.6%, baryonic matter 4.9%.',
+        caption:
+          'The energy budget of the universe according to Planck 2018. ' +
+          'All matter humanity has ever studied — baryonic matter — accounts for less than five percent.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'The Dark Energy Equation of State: w and Quintessence',
+      level: 2,
+      paragraphs: [
+        'Dark energy in the standard model is characterized by a single number — the equation of state parameter w. ' +
+        'It relates the pressure of dark energy to its density: pressure equals w times density. ' +
+        'For Einstein\'s cosmological constant, w is exactly equal to negative one. ' +
+        'This is not a measurement — it is a mathematical identity: ' +
+        'space-time carries a fixed vacuum energy that does not change over time.',
+
+        'But what if w does not equal exactly negative one? ' +
+        'Then dark energy is not a constant but a dynamic field — _quintessence_. ' +
+        'A field slowly rolling down a potential energy landscape, like a ball on a slope. ' +
+        'In that case, w might be slightly greater or slightly less than negative one and could vary over cosmic time. ' +
+        'Testing this requires measuring the expansion rate of the universe at different cosmic epochs: ' +
+        'if the expansion curve does not match the exact formula for w equal to negative one, there is a deviation.',
+
+        'That is precisely what the Dark Energy Spectroscopic Instrument survey did in 2024. ' +
+        'The instrument — an array of five thousand fiber spectrographs on a telescope at Kitt Peak — ' +
+        'measured baryon acoustic oscillations in the distribution of galaxies at different redshifts. ' +
+        'Baryon acoustic oscillations are the frozen imprint of sound waves in the early universe\'s plasma, ' +
+        'which left a characteristic scale in the galaxy distribution — roughly 150 megaparsecs — ' +
+        'and serve as a standard ruler for measuring distances across cosmic history. ' +
+        'The Dark Energy Spectroscopic Instrument 2024 result: the best-fit value of w slightly deviates from negative one, ' +
+        'and an extended model with two parameters w₀ and wa — describing a time-varying equation of state — ' +
+        'fits the data better than a fixed cosmological constant. ' +
+        'The statistical significance of the deviation is approximately three sigma. ' +
+        'That falls short of a discovery, but it is too large to ignore.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'cosmo-params-desi-w',
+        prompt:
+          'Scientific illustration for a science encyclopedia: dark energy equation of state parameter w measured by DESI 2024. ' +
+          'A graph with w on Y axis and cosmic time or redshift on X axis. ' +
+          'A horizontal dashed reference line at w = -1 (cosmological constant). ' +
+          'A curve or error band from DESI data that slightly deviates from w = -1, with uncertainty shading. ' +
+          'Hard sci-fi style, dark background #020510, orange and cyan accents, monospace font. ' +
+          'Add the following text labels on the image: "w = -1 (Lambda)", "DESI 2024 best fit", "w0", "wa", "3-sigma hint". ' +
+          'Aspect ratio 4:3.',
+        alt:
+          'Graph of the dark energy equation of state parameter w from DESI 2024: deviation from w = -1.',
+        caption:
+          'DESI 2024 results hint that the dark energy equation of state parameter ' +
+          'may differ from negative one — in conflict with the idea of a simple cosmological constant.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Amplitude of Fluctuations: Sigma-8 and the Clumpiness of Matter',
+      level: 2,
+      paragraphs: [
+        'The parameter sigma-8 measures how "clumpy" matter is in the universe on a scale of eight megaparsecs. ' +
+        'According to Planck 2018, the expected value is approximately 0.811. ' +
+        'But direct measurements through gravitational lensing and galaxy cluster counts ' +
+        'consistently return somewhat lower values — approximately 0.76 to 0.78. ' +
+        'This is the _sigma-8 tension_: less widely discussed than the Hubble tension, but equally persistent.',
+
+        'The physical interpretation is straightforward: ' +
+        'if sigma-8 turns out to be genuinely lower than the standard model predicts, ' +
+        'matter has clumped together somewhat less efficiently than expected. ' +
+        'Possible causes include novel neutrino properties, self-interacting dark matter, ' +
+        'or systematic biases in weak gravitational lensing measurements. ' +
+        'Upcoming surveys — including Euclid and the Vera C. Rubin Observatory — ' +
+        'should resolve this question with substantially higher precision before the end of the 2020s.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'cosmo-params-sigma8-tension',
+        prompt:
+          'Scientific illustration for a science encyclopedia: sigma-8 tension comparison. ' +
+          'A horizontal bar chart with two horizontal error bars: ' +
+          'top bar labeled "Planck 2018 CMB" at sigma-8 = 0.811 in blue, ' +
+          'bottom bar labeled "Weak Lensing surveys" at sigma-8 = 0.77 in orange, ' +
+          'showing they do not overlap significantly. ' +
+          'Hard sci-fi style, dark background #020510, monospace font. ' +
+          'Add the following text labels on the image: "Planck 2018", "sigma-8 = 0.811", "Weak Lensing", "sigma-8 ~ 0.77", "S8 tension". ' +
+          'Aspect ratio 4:3.',
+        alt:
+          'Comparison of sigma-8 values from Planck and weak gravitational lensing: the sigma-8 tension.',
+        caption:
+          'The sigma-8 tension: direct measurements of matter clumpiness through gravitational lensing ' +
+          'consistently give lower values than the standard model derived from the Cosmic Microwave Background predicts.',
+        aspectRatio: '4:3',
+      },
+    },
+
+    {
+      heading: 'Spectral Tilt and the Optical Depth of Reionization',
+      level: 2,
+      paragraphs: [
+        'Two parameters that attract less public attention but are critical for understanding ' +
+        'where the structure of the universe came from: ' +
+        'the _scalar spectral index_ n_s and the _optical depth of reionization_ tau.',
+
+        'The parameter n_s describes how the amplitude of quantum fluctuations — ' +
+        'born during inflation and serving as the seeds of all future galaxies — ' +
+        'varies across spatial scales. ' +
+        'A value of n_s exactly equal to one would mean a perfectly scale-invariant spectrum: ' +
+        'equal fluctuation amplitude at all spatial scales. ' +
+        'Planck 2018 measured n_s at approximately 0.965: ' +
+        'a slightly tilted spectrum, a "red" tilt — larger scales carry somewhat higher amplitude. ' +
+        'Simple inflationary models predicted this value before the measurements were made. ' +
+        'The agreement between theory and observation is a powerful argument for the inflationary scenario.',
+
+        'The parameter tau — the optical depth of reionization — ' +
+        'is tied to the epoch when the first stars and quasars re-ionized the hydrogen ' +
+        'that filled intergalactic space after the cosmic dark ages. ' +
+        'Photons of the Cosmic Microwave Background scatter off the newly ionized gas ' +
+        'and leave a measurable imprint in the polarization signal. ' +
+        'According to Planck, tau is approximately 0.054. ' +
+        'This implies that reionization concluded when the universe was roughly ' +
+        'seven to eight percent of its current age — approximately one billion years old.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'cosmo-params-reionization',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: cosmic reionization — the end of the dark ages. ' +
+          'A vast dark space transitioning from left (dark ages: neutral hydrogen, no stars, deep black) ' +
+          'to right (reionization: first quasars and stars as bright blue-white points, ' +
+          'ionized bubbles expanding around each source, interstellar gas glowing cyan). ' +
+          'Hard sci-fi style, no faces. ' +
+          'Add the following text labels on the image: "Dark Ages", "First Stars & Quasars", "Reionization bubbles", "z ~ 6-10". ' +
+          'Aspect ratio 16:9.',
+        alt:
+          'The epoch of reionization: first stars and quasars ionize neutral hydrogen after the cosmic dark ages.',
+        caption:
+          'Reionization occurred when the universe was roughly 500 million to one billion years old. ' +
+          'The optical depth parameter tau captures its intensity and timing.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'The Age of the Universe and What It Implies',
+      level: 2,
+      paragraphs: [
+        'The age of the universe is not measured directly from the six parameters — it is calculated. ' +
+        'It emerges as the result of numerically integrating the expansion equations forward in time. ' +
+        'According to Planck 2018, the age is approximately 13.8 billion years, ' +
+        'precise to within a few tens of millions of years. ' +
+        'This is not an abstract figure — it carries observational meaning.',
+
+        'The oldest known stars in our Galaxy — those inhabiting globular clusters, ' +
+        'where active star formation ceased long ago and the stellar population is essentially unchanged ' +
+        'from the first billion years — have ages of approximately 13 to 13.5 billion years. ' +
+        'Were they found to be older than the universe itself, that would signal a catastrophic failure of the model. ' +
+        'The consistency between independently measured stellar ages and the cosmological age ' +
+        'is one of the strongest arguments in favor of the standard model.',
+
+        'But the age also depends on H₀: a higher expansion rate implies a younger universe. ' +
+        'If SH0ES is correct and H₀ is genuinely close to 73, ' +
+        'the universe is roughly one billion years younger — approximately 12.5 to 12.8 billion years old. ' +
+        'The oldest stars would then be older than the universe itself. ' +
+        'This is one more reason the Hubble tension is not merely a technical dispute between two teams — ' +
+        'it touches the fundamental self-consistency of the entire cosmological picture.',
+      ],
+    },
+
+    {
+      image: {
+        cacheKey: 'cosmo-params-oldest-stars',
+        prompt:
+          'Photorealistic illustration for a science encyclopedia: ancient globular cluster stars — the oldest stellar fossils. ' +
+          'A dense spherical star cluster against dark space, dominated by old red and orange giant stars, ' +
+          'with scattered blue stragglers. ' +
+          'Hard sci-fi style, no faces, photorealistic star colors. ' +
+          'Add the following text labels on the image: "Globular cluster", "Age: ~13 Gyr", "Metal-poor stars", "Oldest stellar fossils". ' +
+          'Aspect ratio 16:9.',
+        alt:
+          'A globular cluster of ancient stars — witnesses of the universe\'s first billion years.',
+        caption:
+          'Stars in globular clusters are approximately 13 billion years old. ' +
+          'Their independently measured ages are consistent with the standard model — a crucial cross-check.',
+        aspectRatio: '16:9',
+      },
+    },
+
+    {
+      heading: 'Baryon Acoustic Oscillations: A Ruler Across Billions of Light-Years',
+      level: 2,
+      paragraphs: [
+        'Baryon acoustic oscillations are the echo of sound waves ' +
+        'that propagated through the hot plasma of the early universe until recombination. ' +
+        'When the plasma cooled and became transparent, these waves froze in place — ' +
+        'leaving a characteristic scale imprinted in the distribution of matter: ' +
+        'approximately 150 megaparsecs. ' +
+        'That scale can be measured today by analyzing the positions of millions of galaxies.',
+
+        'Baryon acoustic oscillations serve as a _standard ruler_ across cosmic history. ' +
+        'Knowing how large this scale must be in physical units, ' +
+        'and measuring how large it appears on the sky at different distances, ' +
+        'allows astronomers to reconstruct the full geometry of the universe\'s expansion. ' +
+        'This is the method the Dark Energy Spectroscopic Instrument uses — ' +
+        'and it is why its constraints on the parameter w are so valuable: ' +
+        'baryon acoustic oscillations provide an independent check that is not tied to Planck or SH0ES.',
+      ],
+    },
+
+    {
+      diagram: {
+        title: 'Diagram: Cosmic Energy Budget — Planck 2018',
+        svg: `<svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg">
+  <rect width="700" height="280" fill="rgba(10,15,25,0.5)"/>
+
+  <!-- Title -->
+  <text x="350" y="22" text-anchor="middle" fill="#aabbcc" font-family="monospace" font-size="11">Cosmic Energy Budget — Planck 2018</text>
+
+  <!-- Pie: 360 deg total. Dark Energy 68.5% = 246.6 deg, Dark Matter 26.6% = 95.76 deg, Baryons 4.9% = 17.64 deg -->
+  <!-- Center at 220,150, r=110 -->
+
+  <!-- Dark Energy slice: 0 to 246.6 deg. Start angle -90 (top), sweep 246.6 deg -->
+  <path d="M220,150 L220,40 A110,110 0 1,1 119,194 Z" fill="rgba(100,60,180,0.7)" stroke="#4488aa" stroke-width="1"/>
+  <text x="175" y="120" text-anchor="middle" fill="#cc99ff" font-family="monospace" font-size="10">Dark Energy</text>
+  <text x="175" y="135" text-anchor="middle" fill="#cc99ff" font-family="monospace" font-size="13">68.5%</text>
+
+  <!-- Dark Matter slice -->
+  <path d="M220,150 L119,194 A110,110 0 0,1 187,45 Z" fill="rgba(60,80,160,0.7)" stroke="#4488aa" stroke-width="1"/>
+  <text x="148" y="195" text-anchor="middle" fill="#7bb8ff" font-family="monospace" font-size="10">Dark Matter</text>
+  <text x="148" y="210" text-anchor="middle" fill="#7bb8ff" font-family="monospace" font-size="13">26.6%</text>
+
+  <!-- Baryons slice -->
+  <path d="M220,150 L187,45 A110,110 0 0,1 220,40 Z" fill="rgba(68,200,136,0.7)" stroke="#44ff88" stroke-width="1"/>
+  <text x="215" y="30" text-anchor="middle" fill="#44ff88" font-family="monospace" font-size="9">Baryonic</text>
+  <text x="215" y="42" text-anchor="middle" fill="#44ff88" font-family="monospace" font-size="9">matter 4.9%</text>
+
+  <!-- Legend -->
+  <rect x="380" y="60" width="14" height="14" fill="rgba(100,60,180,0.7)" stroke="#cc99ff" stroke-width="1"/>
+  <text x="402" y="72" fill="#aabbcc" font-family="monospace" font-size="11">Dark Energy (Omega-Lambda = 0.685)</text>
+
+  <rect x="380" y="90" width="14" height="14" fill="rgba(60,80,160,0.7)" stroke="#7bb8ff" stroke-width="1"/>
+  <text x="402" y="102" fill="#aabbcc" font-family="monospace" font-size="11">Dark Matter (Omega-dm = 0.266)</text>
+
+  <rect x="380" y="120" width="14" height="14" fill="rgba(68,200,136,0.7)" stroke="#44ff88" stroke-width="1"/>
+  <text x="402" y="132" fill="#aabbcc" font-family="monospace" font-size="11">Baryonic Matter (Omega-b = 0.049)</text>
+
+  <line x1="380" y1="155" x2="660" y2="155" stroke="#334455" stroke-width="1"/>
+  <text x="380" y="175" fill="#667788" font-family="monospace" font-size="10">Total Omega-m = 0.315   Omega-k ~ 0 (flat)</text>
+  <text x="380" y="193" fill="#667788" font-family="monospace" font-size="10">Age of universe: 13.8 billion years</text>
+  <text x="380" y="211" fill="#667788" font-family="monospace" font-size="10">H₀ = 67.4 ± 0.5 km/s/Mpc</text>
+  <text x="380" y="229" fill="#667788" font-family="monospace" font-size="10">n_s = 0.965    sigma-8 = 0.811    tau = 0.054</text>
+</svg>`,
+        caption:
+          'Six parameters of the standard Lambda-CDM model from Planck 2018. ' +
+          'Ordinary matter — everything ever seen through a telescope — occupies less than five percent of the total budget.',
+      },
+    },
+
+    {
+      heading: 'Why the Parameters Matter',
+      level: 2,
+      paragraphs: [
+        'The six parameters of the standard model are not just numbers in a table. ' +
+        'Each imposes strict constraints on what the universe could have been. ' +
+        'A small change to Omega-b — the baryonic matter fraction — would alter ' +
+        'the hydrogen-to-helium ratios produced in the first minutes, ' +
+        'leaving too little carbon for organic chemistry ' +
+        'and making the next generation of stars look entirely different. ' +
+        'Shift sigma-8, and you change the mass and number of galaxy clusters, ' +
+        'and with them the probability of planetary systems forming within them.',
+
+        'This is why every refinement of the parameters is not merely a technical achievement. ' +
+        'It deepens our understanding of why the universe is this particular way and not some other. ' +
+        'And every deviation from the expected value is a potential key ' +
+        'to physics that lies beyond what we currently know.',
+
+        'The next decade will bring new data from the Dark Energy Spectroscopic Instrument, Euclid, ' +
+        'the Vera C. Rubin Observatory, and possibly from next-generation Cosmic Microwave Background experiments — ' +
+        'missions in the class of CMB-S4. ' +
+        'If the Hubble tension is confirmed with still-higher statistical weight, ' +
+        'if the deviation of w from negative one proves real — ' +
+        'the standard Lambda-CDM model will require a fundamental extension. ' +
+        'Not abolition, but expansion: just as Newtonian physics did not disappear after Einstein ' +
+        'but became a limiting case of a more general theory.',
+      ],
+    },
+  ],
+
+  glossary: [
+    {
+      term: 'Lambda-CDM (Standard Cosmological Model)',
+      definition:
+        'The standard model of cosmology, describing the universe as a spatially flat space filled with cold dark matter and dark energy in the form of a cosmological constant Lambda. It relies on six free parameters.',
+    },
+    {
+      term: 'Hubble constant (H₀)',
+      definition:
+        'The current rate of expansion of the universe, expressed in kilometers per second per megaparsec. Planck 2018 yields 67.4; SH0ES yields 73.0 — a discrepancy exceeding five sigma.',
+    },
+    {
+      term: 'Dark energy (Omega-Lambda)',
+      definition:
+        'A component with negative pressure that comprises approximately 68.5% of the total content of the universe and drives its accelerating expansion. In the standard model it is identified with Einstein\'s cosmological constant.',
+    },
+    {
+      term: 'Dark matter (Omega-dm)',
+      definition:
+        'Invisible matter with no electromagnetic interaction, comprising approximately 26.6% of the universe\'s content. Its gravitational influence is detected through galaxy rotation curves, gravitational lensing, and large-scale structure formation.',
+    },
+    {
+      term: 'Equation of state parameter w',
+      definition:
+        'A number relating the pressure of dark energy to its density. For a cosmological constant, w = -1. Any deviation from negative one implies dynamic dark energy — quintessence — that changes over time.',
+    },
+    {
+      term: 'Sigma-8',
+      definition:
+        'A parameter characterizing the amplitude of matter density fluctuations on a scale of eight megaparsecs. Planck 2018 predicts 0.811; direct measurements via gravitational lensing give lower values, constituting the sigma-8 tension.',
+    },
+    {
+      term: 'Baryon acoustic oscillations',
+      definition:
+        'The frozen imprint of sound waves in the early plasma, manifesting as a characteristic scale of approximately 150 megaparsecs in the galaxy distribution. They serve as a standard ruler for measuring cosmological distances.',
+    },
+    {
+      term: 'Scalar spectral index (n_s)',
+      definition:
+        'A parameter describing how the amplitude of primordial quantum fluctuations varies with spatial scale. A value of 0.965 (the "red tilt") was predicted by simple inflationary models before Planck confirmed it.',
+    },
+    {
+      term: 'Optical depth of reionization (tau)',
+      definition:
+        'A parameter measuring the scattering of Cosmic Microwave Background photons by re-ionized intergalactic gas. A value of approximately 0.054 corresponds to reionization completing around one billion years after the Big Bang.',
+    },
+  ],
+
+  quiz: [
+    {
+      question:
+        'What value of the Hubble constant did the Planck 2018 mission obtain from analysis of the Cosmic Microwave Background?',
+      options: [
+        'Approximately 73 kilometers per second per megaparsec',
+        'Approximately 67.4 kilometers per second per megaparsec',
+        'Approximately 50 kilometers per second per megaparsec',
+        'Approximately 100 kilometers per second per megaparsec',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Planck 2018 measured H₀ = 67.4 ± 0.5 km/s/Mpc through analysis of CMB fluctuations. ' +
+        'This value conflicts with the SH0ES result of 73.0 ± 1.0, ' +
+        'producing the Hubble tension at a statistical significance exceeding five sigma.',
+    },
+    {
+      question:
+        'What fraction of the total content of the universe does dark energy comprise according to the standard model?',
+      options: [
+        'Approximately 5%',
+        'Approximately 27%',
+        'Approximately 50%',
+        'Approximately 68%',
+      ],
+      correctIndex: 3,
+      explanation:
+        'According to Planck 2018, Omega-Lambda is approximately 0.685, meaning dark energy accounts for roughly 68.5%. ' +
+        'Dark matter is approximately 26.6% and baryonic matter is approximately 4.9%.',
+    },
+    {
+      question:
+        'What does an equation of state parameter value of w = -1 for dark energy imply?',
+      options: [
+        'Dark energy is decreasing over time',
+        'Dark energy is a dynamic field — quintessence',
+        'Dark energy is a fixed cosmological constant — an unchanging property of space itself',
+        'Dark energy corresponds to ordinary matter with negative charge',
+      ],
+      correctIndex: 2,
+      explanation:
+        'When w = -1, dark energy is a cosmological constant: fixed density and negative pressure ' +
+        'built into Einstein\'s field equations themselves. ' +
+        'Any deviation from negative one would indicate a dynamic field that evolves over time.',
+    },
+    {
+      question:
+        'What are baryon acoustic oscillations, and why are they valuable to cosmologists?',
+      options: [
+        'Radio waves from neutron stars used to measure magnetic fields',
+        'The frozen scale of sound waves in the early plasma, serving as a standard ruler for cosmic distances',
+        'Oscillations in the intensity of the Cosmic Microwave Background caused by Earth\'s atmosphere',
+        'Pulsations in dark matter observable through gravitational lensing',
+      ],
+      correctIndex: 1,
+      explanation:
+        'Baryon acoustic oscillations are the frozen imprint of sound waves in the early plasma, ' +
+        'leaving a characteristic scale of approximately 150 megaparsecs in the galaxy distribution. ' +
+        'This scale serves as a standard ruler for measuring distances and the expansion rate across cosmic history.',
+    },
+    {
+      question:
+        'What do the Dark Energy Spectroscopic Instrument 2024 data suggest about dark energy?',
+      options: [
+        'Dark energy is entirely absent; the acceleration is caused by modified gravity',
+        'Dark energy exactly matches a cosmological constant with w = -1',
+        'The parameter w may deviate from negative one, hinting at dynamic dark energy',
+        'Dark energy consists of massive neutrinos',
+      ],
+      correctIndex: 2,
+      explanation:
+        'The Dark Energy Spectroscopic Instrument 2024 measured baryon acoustic oscillations at multiple redshifts ' +
+        'and obtained a best-fit value of w that slightly departs from negative one. ' +
+        'The statistical significance — approximately three sigma — falls short of a discovery but merits close attention.',
+    },
+  ],
+
+  sources: [
+    {
+      title: 'Planck Collaboration — Planck 2018 Results VI: Cosmological Parameters',
+      url: 'https://arxiv.org/abs/1807.06209',
+      meta: 'A&A 641, A6 (2020), arXiv:1807.06209 — primary parameter table',
+    },
+    {
+      title: 'Riess A.G. et al. (SH0ES) — A Comprehensive Measurement of the Local Value of the Hubble Constant',
+      url: 'https://arxiv.org/abs/2112.04510',
+      meta: 'ApJL 934, L7 (2022), arXiv:2112.04510 — H₀ = 73.0 km/s/Mpc',
+    },
+    {
+      title: 'DESI Collaboration — DESI 2024 VI: Cosmological Constraints from the Measurements of Baryon Acoustic Oscillations',
+      url: 'https://arxiv.org/abs/2404.03002',
+      meta: 'arXiv:2404.03002 (2024) — hints at w ≠ -1',
+    },
+    {
+      title: 'Verde L., Treu T., Riess A.G. — Tensions between the Early and Late Universe',
+      url: 'https://arxiv.org/abs/1907.10625',
+      meta: 'Nature Astronomy 3, 891 (2019) — Hubble tension review',
+    },
+    {
+      title: 'Abdalla E. et al. — Cosmology Intertwined: A Review of the Particle Physics, Astrophysics, and Cosmology Associated with the Cosmological Tensions and Anomalies',
+      url: 'https://arxiv.org/abs/2203.06142',
+      meta: 'JHEAp 34, 49 (2022) — comprehensive tensions review',
+    },
+    {
+      title: 'Heymans C. et al. (KiDS-1000) — KiDS-1000 Cosmology: Multi-probe Weak Gravitational Lensing',
+      url: 'https://arxiv.org/abs/2007.15632',
+      meta: 'A&A 646, A140 (2021) — sigma-8 tension',
+    },
+    {
+      title: 'Weinberg D.H. et al. — Observational Probes of Cosmic Acceleration',
+      url: 'https://arxiv.org/abs/1201.2434',
+      meta: 'Phys. Rep. 530, 87 (2013) — review of dark energy measurement methods',
+    },
+    {
+      title: 'Peebles P.J.E., Ratra B. — The Cosmological Constant and Dark Energy',
+      url: 'https://arxiv.org/abs/astro-ph/0207347',
+      meta: 'Rev. Mod. Phys. 75, 559 (2003) — classic dark energy review',
+    },
+    {
+      title: 'Beutler F. et al. — The 6dF Galaxy Survey: Baryon Acoustic Oscillations and the Local Hubble Expansion Rate',
+      url: 'https://arxiv.org/abs/1106.3366',
+      meta: 'MNRAS 416, 3017 (2011) — first BAO measurement in 6dFGS',
+    },
+    {
+      title: 'Aghanim N. et al. — Planck 2018 Results V: CMB Power Spectra and Likelihoods',
+      url: 'https://arxiv.org/abs/1907.12875',
+      meta: 'A&A 641, A5 (2020) — CMB power spectra and parameter uncertainties',
+    },
+  ],
+
+  lastVerified: '2026-05-06',
+};
+
+export default lesson;
