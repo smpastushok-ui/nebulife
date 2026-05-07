@@ -594,18 +594,18 @@ const texturedPlanetFrag = `
 
     // Purchased/generated photo skins are final diffuse maps. Keep lighting
     // soft and directional: no black disk, no extra fake fill, no hard mask.
-    float dayFactor = smoothstep(-0.18, 0.72, daylight);
-    float nightFactor = smoothstep(-0.92, -0.08, daylight);
+    float dayFactor = smoothstep(-0.42, 0.58, daylight);
+    float nightFactor = smoothstep(-0.86, 0.12, daylight);
     vec3 starTint = mix(vec3(1.0), normalize(uStarColor + vec3(0.001)), 0.045);
-    vec3 color = base * mix(0.22, 0.96, dayFactor) * mix(vec3(0.72, 0.78, 0.90), starTint, dayFactor * 0.28);
-    color += base * 0.10 * nightFactor;
+    vec3 color = base * mix(0.35, 0.98, dayFactor) * mix(vec3(0.82, 0.87, 0.95), starTint, dayFactor * 0.22);
+    color += base * 0.06 * nightFactor;
 
     float rimFacing = max(dot(n, normalize(vViewDir)), 0.0);
     float limb = smoothstep(0.0, 0.56, rimFacing);
-    color *= 0.76 + limb * 0.24;
+    color *= 0.82 + limb * 0.18;
 
-    float atmosphereRim = pow(1.0 - rimFacing, 2.2) * smoothstep(0.0, 0.75, daylight);
-    color += vec3(0.08, 0.14, 0.24) * atmosphereRim * 0.025;
+    float atmosphereRim = pow(1.0 - rimFacing, 2.4) * smoothstep(-0.08, 0.70, daylight);
+    color += vec3(0.08, 0.14, 0.24) * atmosphereRim * 0.018;
 
     gl_FragColor = vec4(max(color, vec3(0.0)), 1.0);
   }

@@ -41,9 +41,9 @@ export class SystemPlanet3DLayer {
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
   private camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
-  private ambient = new THREE.AmbientLight(0x5a6f90, 0.42);
-  private starLight = new THREE.PointLight(0xfff1d2, 36000, 2600, 1.12);
-  private fillLight = new THREE.DirectionalLight(0x5b739d, 0.12);
+  private ambient = new THREE.AmbientLight(0x5a6f90, 0.64);
+  private starLight = new THREE.PointLight(0xfff1d2, 30000, 3200, 1.05);
+  private fillLight = new THREE.DirectionalLight(0x5b739d, 0.22);
   private starSprite: THREE.Sprite | null = null;
   private starTexture: THREE.CanvasTexture | null = null;
   private records = new Map<string, MeshRecord>();
@@ -124,7 +124,7 @@ export class SystemPlanet3DLayer {
       record.mesh.scale.setScalar(Math.max(1, node.radius));
       record.mesh.renderOrder = node.zIndex;
 
-      const lightDir = new THREE.Vector3(node.lightX, node.lightY, 0.18).normalize();
+      const lightDir = new THREE.Vector3(node.lightX, node.lightY, 0.42).normalize();
       record.mesh.rotation.y = (node.initialLongitude + record.longitude) * Math.PI * 2;
       record.mesh.rotation.x = lightDir.y * 0.12;
     }

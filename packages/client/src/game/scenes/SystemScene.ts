@@ -806,11 +806,34 @@ export class SystemScene {
         tickPlanetTexturePreview(moon.gfx, deltaMs);
       }
     }
+    if (this.use3DPlanets) this.separateOverlappingPlanets();
     this.syncPlanet3DLayer(deltaMs);
 
     // Ship flight animation
     this.updateShip(deltaMs);
     this.updateMissionVisuals();
+  }
+
+  private separateOverlappingPlanets(): void {
+    const nodes = [...this.planetNodes.values()];
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const a = nodes[i];
+        const b = nodes[j];
+        const minGap = (getPlanetSize(a.planet) * a.container.scale.x) + (getPlanetSize(b.planet) * b.container.scale.x) + 18;
+        const dx = b.container.x - a.container.x;
+        const dy = b.container.y - a.container.y;
+        const dist = Math.max(0.01, Math.hypot(dx, dy));
+        if (dist >= minGap) continue;
+        const push = (minGap - dist) * 0.5;
+        const nx = dx / dist;
+        const ny = dy / dist;
+        a.container.x -= nx * push;
+        a.container.y -= ny * push;
+        b.container.x += nx * push;
+        b.container.y += ny * push;
+      }
+    }
   }
 
   private syncPlanet3DLayer(deltaMs: number): void {

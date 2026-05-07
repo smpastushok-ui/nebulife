@@ -389,6 +389,16 @@ interface ArenaStats {
   sessions: number;
 }
 
+type UnlockPopupKind = 'combat' | 'colony' | 'buildings';
+
+interface UnlockPopupInfo {
+  id: UnlockPopupKind;
+  kicker: string;
+  title: string;
+  body: string;
+  accent: string;
+}
+
 export interface ExplorationPayloadProductionItem {
   id: string;
   type: ProducibleType;
@@ -575,6 +585,16 @@ function clearAccountScopedLocalStorage(nextUid?: string): void {
   } catch {
     // localStorage can be unavailable in private/locked-down contexts.
   }
+}
+
+function getUnlockPopupStorageKey(playerId: string, id: UnlockPopupKind): string {
+  return `nebulife_unlock_popup_${playerId || 'guest'}_${id}`;
+}
+
+function canRunCarrierRaidOnDevice(): boolean {
+  const tier = getDeviceTier();
+  const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
+  return tier === 'ultra' || !isMobile;
 }
 
 function AppInner() {
@@ -1293,6 +1313,7 @@ function AppInner() {
   const [levelUpNotification, setLevelUpNotification] = useState<number | null>(null);
   // Queue of pending level-up levels (shown one at a time, no overlap with major modals)
   const [levelUpQueue, setLevelUpQueue] = useState<number[]>([]);
+  const [unlockPopup, setUnlockPopup] = useState<UnlockPopupInfo | null>(null);
   // Exit confirmation dialog (Android back button at root level)
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const gameStateRef = useRef<Record<string, unknown>>({});
@@ -1695,6 +1716,69 @@ function AppInner() {
     }, 500);
     return () => clearTimeout(timer);
   }, [pendingResearchToasts, researchToasts, levelUpNotification, levelUpQueue, arenaPopupGate]);
+
+  const enqueueUnlockPopup = useCallback((popup: UnlockPopupInfo): boolean => {
+    const key = getUnlockPopupStorageKey(playerId.current, popup.id);
+    try {
+      if (localStorage.getItem(key) === '1') return false;
+      localStorage.setItem(key, '1');
+    } catch {
+      // If storage is unavailable, still show the unlock for this session.
+    }
+    if (unlockPopup) return false;
+    setUnlockPopup((current) => current ?? popup);
+    playSfx('level-up', 0.32);
+    return true;
+  }, [unlockPopup]);
+
+  useEffect(() => {
+    if (needsOnboarding || needsCallsign || authLoading || !serverHydrated) return;
+    if (levelUpNotification !== null || levelUpQueue.length > 0 || arenaPopupGate || unlockPopup) return;
+
+    if (playerLevel >= 10) {
+      if (enqueueUnlockPopup({
+        id: 'combat',
+        kicker: t('unlock.combat.kicker'),
+        title: t('unlock.combat.title'),
+        body: canRunCarrierRaidOnDevice() ? t('unlock.combat.body') : t('unlock.combat.body_limited'),
+        accent: '#7bb8ff',
+      })) return;
+    }
+
+    if (!isExodusPhase) {
+      if (enqueueUnlockPopup({
+        id: 'colony',
+        kicker: t('unlock.colony.kicker'),
+        title: t('unlock.colony.title'),
+        body: t('unlock.colony.body'),
+        accent: '#44ff88',
+      })) return;
+    }
+
+    if ((colonyState?.buildings?.length ?? 0) > 0 || !isExodusPhase) {
+      enqueueUnlockPopup({
+        id: 'buildings',
+        kicker: t('unlock.buildings.kicker'),
+        title: t('unlock.buildings.title'),
+        body: t('unlock.buildings.body'),
+        accent: '#ff8844',
+      });
+    }
+  }, [
+    arenaPopupGate,
+    authLoading,
+    colonyState?.buildings?.length,
+    enqueueUnlockPopup,
+    isExodusPhase,
+    levelUpNotification,
+    levelUpQueue.length,
+    needsCallsign,
+    needsOnboarding,
+    playerLevel,
+    serverHydrated,
+    t,
+    unlockPopup,
+  ]);
 
   /** Gallery: map object_type → existing DiscoveryData (with photo) for duplicate check */
   const [galleryMap, setGalleryMap] = useState<Map<string, DiscoveryData>>(new Map());
@@ -8265,6 +8349,9 @@ function AppInner() {
   const hideLeftPanel = !!(showArena || showRaid || showHangar || cinematicActive || needsOnboarding || evacuationPhase !== 'idle');
 
   const toolGroups: ToolGroup[] = [];
+  const ARENA_MIN_LEVEL = 10;
+  const arenaUnlocked = playerLevel >= ARENA_MIN_LEVEL;
+  const raidAvailable = arenaUnlocked && canRunCarrierRaidOnDevice();
 
   switch (effectiveScene) {
     case 'universe':
@@ -8363,8 +8450,6 @@ function AppInner() {
   });
 
   // Arena button. Kept open during beta testing, but release gate starts at L10.
-  const ARENA_MIN_LEVEL = 10;
-  const arenaUnlocked = playerLevel >= ARENA_MIN_LEVEL;
   toolGroups.push({
     type: 'buttons',
     items: [{
@@ -8439,7 +8524,18 @@ function AppInner() {
 
   return (
     <>
-      <style>{`@keyframes nebu-planet-spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes nebu-planet-spin { to { transform: rotate(360deg); } }
+        @keyframes unlockBackdropIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes unlockCardIn {
+          from { opacity: 0; transform: translateY(18px) scale(0.94); filter: blur(8px); }
+          to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+        }
+        @keyframes unlockCorePulse {
+          0%, 100% { transform: scale(1); opacity: 0.82; }
+          50% { transform: scale(1.08); opacity: 1; }
+        }
+      `}</style>
       <div ref={universeCanvasRef} id="universe-canvas" style={{ position: 'fixed', inset: 0, zIndex: 1, display: universeVisible ? 'block' : 'none' }} />
       <div ref={canvasRef} id="game-canvas" style={{ display: universeVisible ? 'none' : undefined }} />
 
@@ -8617,6 +8713,79 @@ function AppInner() {
                 cursor: 'pointer',
                 letterSpacing: 1,
                 fontWeight: 'bold',
+              }}
+            >
+              {t('common.understood')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {unlockPopup && !arenaPopupGate && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9820,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '24px',
+            background: 'radial-gradient(circle at 50% 45%, rgba(68,136,170,0.16), rgba(2,5,16,0.72) 52%, rgba(2,5,16,0.86))',
+            fontFamily: 'monospace',
+            pointerEvents: 'auto',
+            animation: 'unlockBackdropIn 0.36s ease-out',
+          }}
+          onClick={() => setUnlockPopup(null)}
+        >
+          <div
+            style={{
+              width: 'min(460px, calc(100vw - 32px))',
+              padding: '22px 24px 20px',
+              borderRadius: 8,
+              border: `1px solid ${unlockPopup.accent}99`,
+              background: 'linear-gradient(145deg, rgba(5,10,20,0.96), rgba(14,22,34,0.94))',
+              boxShadow: `0 0 42px ${unlockPopup.accent}33, inset 0 0 34px rgba(123,184,255,0.07)`,
+              textAlign: 'center',
+              animation: 'unlockCardIn 0.58s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                width: 72,
+                height: 72,
+                margin: '0 auto 14px',
+                borderRadius: '50%',
+                border: `1px solid ${unlockPopup.accent}aa`,
+                background: `radial-gradient(circle, ${unlockPopup.accent}44 0%, rgba(5,10,20,0.9) 62%)`,
+                boxShadow: `0 0 28px ${unlockPopup.accent}55`,
+                animation: 'unlockCorePulse 1.7s ease-in-out infinite',
+              }}
+            />
+            <div style={{ color: unlockPopup.accent, fontSize: 11, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 }}>
+              {unlockPopup.kicker}
+            </div>
+            <div style={{ color: '#dbe9ff', fontSize: 18, fontWeight: 800, letterSpacing: 1.2, marginBottom: 10 }}>
+              {unlockPopup.title}
+            </div>
+            <div style={{ color: '#aabbcc', fontSize: 12, lineHeight: 1.65, margin: '0 auto 18px', maxWidth: 380 }}>
+              {unlockPopup.body}
+            </div>
+            <button
+              onClick={() => setUnlockPopup(null)}
+              style={{
+                border: `1px solid ${unlockPopup.accent}aa`,
+                background: `${unlockPopup.accent}18`,
+                color: unlockPopup.accent,
+                borderRadius: 4,
+                padding: '9px 24px',
+                fontFamily: 'monospace',
+                fontSize: 12,
+                fontWeight: 800,
+                letterSpacing: 1,
+                cursor: 'pointer',
+                textTransform: 'uppercase',
               }}
             >
               {t('common.understood')}
@@ -10074,6 +10243,7 @@ function AppInner() {
           playerLevel={playerLevel}
           currentQuarks={quarks}
           arenaStats={arenaStats}
+          raidAvailable={raidAvailable}
           onQuarksChanged={(newBalance) => {
             setQuarks(newBalance);
             scheduleSyncToServer();
@@ -10095,6 +10265,11 @@ function AppInner() {
             setShowArena(true);
           }}
           onEnterRaid={() => {
+            if (!raidAvailable) {
+              setToastMessage(t('hangar.event.raid_stub_toast' as Parameters<typeof t>[0]));
+              window.setTimeout(() => setToastMessage(null), 2800);
+              return;
+            }
             const today = localDateKey();
             const raidDateKey = `nebulife_daily_raid_date_${playerId.current || 'guest'}`;
             let savedRaidDate = lastRaidQuestDate;

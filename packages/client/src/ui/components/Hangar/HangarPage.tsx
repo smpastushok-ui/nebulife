@@ -39,6 +39,7 @@ interface HangarPageProps {
   onEnterArena: () => void;
   onEnterTeamBattle?: () => void;
   onEnterRaid?: () => void;
+  raidAvailable?: boolean;
   onQuarksChanged?: (newBalance: number) => void;
 }
 
@@ -151,6 +152,7 @@ export const HangarPage: React.FC<HangarPageProps> = ({
   onEnterArena,
   onEnterTeamBattle,
   onEnterRaid,
+  raidAvailable: raidAvailableOverride,
   onQuarksChanged,
 }) => {
   const { t } = useT();
@@ -258,9 +260,10 @@ export const HangarPage: React.FC<HangarPageProps> = ({
 
   // Team battle level gate
   const teamBattleUnlocked = playerLevel >= 50;
-  const raidAvailable = CARRIER_RAID_ENABLED
+  const raidAvailable = raidAvailableOverride ?? (CARRIER_RAID_ENABLED
     && Boolean(onEnterRaid)
-    && (!isMobile || deviceTier === 'high' || deviceTier === 'ultra');
+    && playerLevel >= 10
+    && (!isMobile || deviceTier === 'ultra'));
 
   // Training entry (free)
   const handleEnterTraining = useCallback(() => {

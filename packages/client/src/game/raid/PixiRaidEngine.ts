@@ -400,9 +400,26 @@ export class RaidEngine {
     player.vy *= 0.91;
     player.x = clamp(player.x + player.vx * dt, -760, 760);
     player.y = clamp(player.y + player.vy * dt, -120, 590);
+    this.checkPlayerCarrierCollision();
     player.fireCooldown -= dt;
     if (this.keys.has('f') || this.keys.has('enter')) this.firePlayerBurst();
     this.regenShield(player, dt);
+  }
+
+  private checkPlayerCarrierCollision(): void {
+    const player = this.player;
+    if (!player?.alive) return;
+    const inside =
+      player.x > -390 - player.radius &&
+      player.x < 390 + player.radius &&
+      player.y > -555 - player.radius &&
+      player.y < -265 + player.radius;
+    if (!inside) return;
+    player.hp = 0;
+    player.shield = 0;
+    player.alive = false;
+    player.view.visible = false;
+    this.endRaid(false);
   }
 
   private updateWingmen(dt: number): void {

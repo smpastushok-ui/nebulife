@@ -52,6 +52,24 @@
       "unfavorite": "Remove from Favorites"
     }
   },
+  "unlock": {
+    "combat": {
+      "kicker": "Combat Protocol",
+      "title": "Arena and Raid Unlocked",
+      "body": "From level 10 you can enter Arena training and the daily carrier raid on web/ultra mode.",
+      "body_limited": "From level 10 Arena is available. Carrier Raid opens on the web version or ultra devices."
+    },
+    "colony": {
+      "kicker": "Colonization Stage",
+      "title": "Colonization Available",
+      "body": "After evacuation, the planet enters colony mode: resources, production and surface development are active."
+    },
+    "buildings": {
+      "kicker": "Engineering Access",
+      "title": "Buildings Unlocked",
+      "body": "Colony buildings are available with passive effects: faster missions, resource production and stronger research."
+    }
+  },
   "hangar": {
     "ship": {
       "custom_3d": "I WANT MY OWN SHIP DESIGN",

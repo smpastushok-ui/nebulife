@@ -57,6 +57,7 @@ const RAID_ENEMY_ACCELERATION = 760;
 const RAID_ENEMY_MAX_SPEED = 520;
 const RAID_ENEMY_ATTACK_RANGE = 1700;
 const RAID_ENEMY_FIRE_CONE_DOT = 0.42;
+const CARRIER_COLLISION_HALF = new THREE.Vector3(1120, 360, 1800);
 
 function disposeObject(root: THREE.Object3D): void {
   root.traverse((obj) => {
@@ -675,6 +676,22 @@ export class RaidEngine {
     return { id, type, label, hp, maxHp: hp, radius: type === 'reactor_core' ? 240 : 130, pos: worldPos, mesh, alive: true, fireCooldown: 1.5 };
   }
 
+  private checkPlayerCarrierCollision(): void {
+    if (!this.player?.alive || !this.carrier) return;
+    const local = this.player.pos.clone().sub(this.carrier.position);
+    const inside =
+      Math.abs(local.x) < CARRIER_COLLISION_HALF.x + this.player.radius &&
+      Math.abs(local.y) < CARRIER_COLLISION_HALF.y + this.player.radius &&
+      Math.abs(local.z) < CARRIER_COLLISION_HALF.z + this.player.radius;
+    if (!inside) return;
+    this.player.hp = 0;
+    this.player.shield = 0;
+    this.player.alive = false;
+    this.player.mesh.visible = false;
+    playSfx('arena-explosion', 0.24);
+    this.finish(false);
+  }
+
   private createProjectiles(): void {
     if (!this.scene) return;
     const geo = new THREE.CylinderGeometry(2.5, 2.5, 34, 8);
@@ -761,6 +778,7 @@ export class RaidEngine {
     this.player.pos.addScaledVector(this.player.vel, dt);
     this.player.vel.multiplyScalar(Math.pow(RAID_DRAG, dt * 60));
     this.clampToSector(this.player.pos);
+    this.checkPlayerCarrierCollision();
     this.updateShield(this.player, dt);
     this.orientShipToDirection(this.player.mesh, this.aimDir, this.shipRoll + this.currentBarrelRoll());
     const speedPct = Math.min(1, this.player.vel.length() / RAID_SPEED);
