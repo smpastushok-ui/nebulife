@@ -55,16 +55,15 @@ function starRenderColor(star: SystemStar3DNode): THREE.Color {
 }
 
 function starVisualRadius(star: SystemStar3DNode): number {
-  const radiusTerm = Math.pow(Math.max(0.08, star.radiusSolar), 0.42) * 18;
-  const luminosityTerm = Math.log10(Math.max(0.001, star.luminositySolar) + 1) * 4.5;
-  const classBoost = star.spectralClass === 'O' || star.spectralClass === 'B'
-    ? 10
+  const classScale = star.spectralClass === 'O' || star.spectralClass === 'B'
+    ? 1.18
     : star.spectralClass === 'A'
-      ? 5
+      ? 1.08
       : star.spectralClass === 'M'
-        ? -2
-        : 0;
-  return Math.max(12, Math.min(44, radiusTerm + luminosityTerm + classBoost));
+        ? 0.92
+        : 1;
+  const luminosityScale = 1 + Math.min(0.24, Math.log10(Math.max(0.001, star.luminositySolar) + 1) * 0.045);
+  return Math.max(10, star.radius * classScale * luminosityScale);
 }
 
 const PLANET_VERT = `
