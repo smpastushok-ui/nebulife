@@ -239,6 +239,8 @@ export const en: Record<TranslationKey, string> = {
   'context.actions.exosphere': 'Exosphere',
   'context.actions.surface': 'To Surface',
   'context.actions.chars':  'Characteristics',
+  'context.actions.favorite': 'Add to Favorites',
+  'context.actions.unfavorite': 'Remove from Favorites',
   'context.actions.probe':  'Send Probe',
   'context.actions.mission': 'Mission',
   'context.premium.title':  'Premium Tools',

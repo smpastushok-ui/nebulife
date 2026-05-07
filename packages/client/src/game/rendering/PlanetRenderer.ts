@@ -88,6 +88,7 @@ function seededRange(seed: number, salt: number, min: number, max: number): numb
  */
 export function renderPlanet(planet: Planet, star: Star): PlanetRenderResult {
   const container = new Container();
+  container.sortableChildren = true;
   const visuals = derivePlanetVisuals(planet, star);
   const baseColor = getPlanetDisplayColorFromVisuals(visuals);
   // Star tint modulation: lit hemisphere takes on star's color (M-dwarf=warm, O/B=cool blue).
@@ -98,6 +99,7 @@ export function renderPlanet(planet: Planet, star: Star): PlanetRenderResult {
 
   // Lighting group — rotated by SystemScene to face the star
   const lightingGroup = new Container();
+  lightingGroup.zIndex = 20;
 
   // === Multi-layer atmosphere glow ===
   if (visuals.hasAtmosphere) {
@@ -247,12 +249,14 @@ export function renderPlanet(planet: Planet, star: Star): PlanetRenderResult {
 
   // === Limb darkening (dark edge ring — thicker for more volume) ===
   const limb = new Graphics();
+  limb.zIndex = 30;
   limb.circle(0, 0, size);
   limb.stroke({ width: size * 0.25, color: 0x000000, alpha: 0.3 });
   container.addChild(limb);
 
   // === Inner limb (softer, wider) ===
   const innerLimb = new Graphics();
+  innerLimb.zIndex = 31;
   innerLimb.circle(0, 0, size * 0.92);
   innerLimb.stroke({ width: size * 0.15, color: 0x000000, alpha: 0.1 });
   container.addChild(innerLimb);
@@ -268,6 +272,7 @@ export function renderPlanet(planet: Planet, star: Star): PlanetRenderResult {
   if (wantsRings) {
     const seed = planet.seed;
     const ringGfx = new Graphics();
+    ringGfx.zIndex = 8;
     const ringletCount = 10 + Math.floor(seededUnit(seed, 610) * 7);
     const inner = size * seededRange(seed, 620, 1.42, 1.55);
     const outer = size * seededRange(seed, 630, 1.86, 2.05);
@@ -303,6 +308,7 @@ export function renderPlanet(planet: Planet, star: Star): PlanetRenderResult {
   // === Life indicator (pulsing green glow) ===
   if (planet.hasLife) {
     const lifeGfx = new Graphics();
+    lifeGfx.zIndex = 60;
     lifeGfx.circle(0, 0, size + 7);
     lifeGfx.stroke({ width: 1, color: 0x44ff88, alpha: 0.25 });
     lifeGfx.circle(0, 0, size + 5);
@@ -324,6 +330,7 @@ export function renderPlanet(planet: Planet, star: Star): PlanetRenderResult {
     resolution: 3,
   });
   label.name = 'planet-name-label';
+  label.zIndex = 100;
   label.anchor.set(0.5, 0);
   label.y = size + 8;
   container.addChild(label);
@@ -351,7 +358,7 @@ export function applyPlanetTexturePreview(
   const preview = new Container();
   preview.name = 'planet-skin-preview';
   preview.eventMode = 'none';
-  preview.zIndex = 2;
+  preview.zIndex = 10;
 
   const map = new Container();
   map.name = 'planet-skin-preview-map';

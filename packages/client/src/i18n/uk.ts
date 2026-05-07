@@ -237,6 +237,8 @@ export const uk = {
   'context.actions.exosphere': 'Екзосфера',
   'context.actions.surface': 'На поверхню',
   'context.actions.chars':  'Характеристики',
+  'context.actions.favorite': 'В обрані',
+  'context.actions.unfavorite': 'Прибрати з обраних',
   'context.actions.probe':  'Відправити зонд',
   'context.actions.mission': 'Місія',
   'context.premium.title':  'Преміум інструменти',

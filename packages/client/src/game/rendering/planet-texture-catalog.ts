@@ -61,11 +61,7 @@ function crustFraction(planet: Planet, symbol: string): number {
   return planet.resources?.crustComposition?.[symbol] ?? 0;
 }
 
-export function getSystemPlanetTextureId(planet: Planet): SystemPlanetTextureId | null {
-  // Gas/ice giants keep the procedural band shader in system view until we add
-  // dedicated banded 2:1 catalog textures for them.
-  if (planet.type === 'gas-giant' || planet.type === 'ice-giant') return null;
-
+export function getSystemPlanetTextureId(planet: Planet): SystemPlanetTextureId {
   const tempK = planet.surfaceTempK;
   const water = planet.hydrosphere?.waterCoverageFraction ?? 0;
   const ice = planet.hydrosphere?.iceCapFraction ?? 0;
@@ -76,6 +72,19 @@ export function getSystemPlanetTextureId(planet: Planet): SystemPlanetTextureId 
   const si = crustFraction(planet, 'Si');
   const c = crustFraction(planet, 'C');
   const s = crustFraction(planet, 'S');
+
+  if (planet.type === 'gas-giant') {
+    if (tempK < 140) return 'ammonia_cold';
+    if (tempK < 230 || ch4 > 0.04) return 'methane_lakes';
+    if (tempK > 520 || co2 > 0.35) return 'toxic_greenhouse';
+    return pickBySeed(planet.seed, ['acid_cloud_world_surface', 'volcanic_ash', 'toxic_greenhouse'] as const);
+  }
+
+  if (planet.type === 'ice-giant') {
+    if (tempK < 170) return pickBySeed(planet.seed, ['ammonia_cold', 'methane_lakes'] as const);
+    if (tempK < 245 || ice > 0.12) return pickBySeed(planet.seed, ['frozen_ice', 'terran_ice_ocean', 'dwarf_icy_rocky'] as const);
+    return pickBySeed(planet.seed, ['methane_lakes', 'frozen_ice', 'acid_cloud_world_surface'] as const);
+  }
 
   if (tempK > 1150) return 'lava_volcanic';
   if (tempK > 760 || s > 0.055) return pickBySeed(planet.seed, ['lava_volcanic', 'volcanic_ash'] as const);
@@ -106,7 +115,7 @@ export function getSystemPlanetTextureId(planet: Planet): SystemPlanetTextureId 
 
 export function getSystemPlanetTextureUrl(planet: Planet): string | null {
   const id = getSystemPlanetTextureId(planet);
-  return id ? SYSTEM_PLANET_TEXTURES[id] : null;
+  return SYSTEM_PLANET_TEXTURES[id];
 }
 
 export function getSystemMoonTextureUrl(composition: MoonComposition, seed: number): string {

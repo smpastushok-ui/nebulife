@@ -165,6 +165,7 @@ import { HangarPage } from './ui/components/Hangar/HangarPage.js';
 import { CarrierRaid } from './ui/components/Raid/CarrierRaid.js';
 import { ColonyCenterPage, RESOURCE_BOOST_PRICES, TIME_BOOST_PRICES, BOOST_DURATION_MS } from './ui/components/ColonyCenter/ColonyCenterPage.js';
 import type { ColonyCenterPlanet, ColonyCenterTabId } from './ui/components/ColonyCenter/ColonyCenterPage.js';
+import { applyPlanetMissionDurationMultiplier, getPlanetMissionDurationMultiplier } from './ui/components/ColonyCenter/building-detail-model.js';
 import { SpaceAmbient } from './audio/SpaceAmbient.js';
 import type { SharedLessonInfo } from './ui/components/Academy/AcademyDashboard.js';
 import { PlayerPage } from './ui/components/PlayerPage.js';
@@ -2680,6 +2681,7 @@ function AppInner() {
     const revealLevel = getEffectivePlanetRevealLevel(planet, system);
     const originPlanetId = surfaceTarget?.planet.id ?? homeInfo?.planet.id ?? colonyState?.planetId;
     if (!originPlanetId) return;
+    const explorationBuildings = getExplorationBuildings();
     const missionResearchDataCost = getPlanetMissionResearchDataCost(system);
     const resources = { researchData: Math.floor(researchData), ...totalResources() };
     const carrierInventory = getAvailableMissionCarriers(originPlanetId);
@@ -2688,7 +2690,7 @@ function AppInner() {
       planet,
       revealLevel,
       activeMissions: Object.values(planetMissions),
-      buildings: getExplorationBuildings(),
+      buildings: explorationBuildings,
       resources,
       payloadInventory: explorationPayloads,
       carrierInventory,
@@ -2732,9 +2734,16 @@ function AppInner() {
       carrierType: carrierType ?? undefined,
       researchDataCost: missionResearchDataCost,
     });
-    const queuedMission = carrierShip
-      ? { ...mission, carrierReturnAt: now + MISSION_CARRIER_RETURN_MS }
+    const durationMultiplier = getPlanetMissionDurationMultiplier(type, explorationBuildings);
+    const adjustedPhaseDurations = durationMultiplier < 0.995
+      ? applyPlanetMissionDurationMultiplier(mission.phaseDurations, durationMultiplier)
+      : null;
+    const spedMission = adjustedPhaseDurations
+      ? { ...mission, phaseDurations: adjustedPhaseDurations, durationMs: Object.values(adjustedPhaseDurations).reduce((sum, value) => sum + value, 0) }
       : mission;
+    const queuedMission = carrierShip
+      ? { ...spedMission, carrierReturnAt: now + Math.round(MISSION_CARRIER_RETURN_MS * durationMultiplier) }
+      : spedMission;
 
     const cost = mission.costPaid;
     if (cost.payload) {
@@ -3565,6 +3574,16 @@ function AppInner() {
     try { localStorage.setItem('nebulife_favorite_planets', JSON.stringify([...favoritePlanets])); }
     catch { /* ignore */ }
   }, [favoritePlanets]);
+
+  const toggleFavoritePlanet = useCallback((planetId: string) => {
+    setFavoritePlanets((prev) => {
+      const next = new Set(prev);
+      if (next.has(planetId)) next.delete(planetId);
+      else next.add(planetId);
+      return next;
+    });
+    scheduleSyncToServer();
+  }, [scheduleSyncToServer]);
 
   // Persist log entries to localStorage on every change
   useEffect(() => {
@@ -8718,16 +8737,38 @@ function AppInner() {
           backLabel={t('nav.system')}
           showZoom
           hidden={hideLeftPanel}
-          extraButtons={state.selectedPlanet && !isExodusPhase && (state.selectedPlanet.type === 'rocky' || state.selectedPlanet.type === 'terrestrial' || state.selectedPlanet.type === 'dwarf') ? (() => {
-            const check = canLandOnPlanet(state.selectedPlanet!);
-            if (check.hidden) return undefined;
-            return [{
-              title: check.allowed ? t('nav.surface_btn') : (check.reason || t('common.unavailable')),
-              icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M1 12 L4 8 L7 10 L11 5 L15 9 L15 14 L1 14Z" /><circle cx="12" cy="3" r="2" /></svg>,
-              onClick: handleOpenSurface,
-              disabled: !check.allowed,
-              pulse: check.allowed,
+          extraButtons={state.selectedPlanet ? (() => {
+            const buttons: NonNullable<React.ComponentProps<typeof SceneControlsPanel>['extraButtons']> = [{
+              title: favoritePlanets.has(state.selectedPlanet!.id)
+                ? t('context.actions.unfavorite')
+                : t('context.actions.favorite'),
+              icon: (
+                <span style={{
+                  fontSize: 15,
+                  lineHeight: '15px',
+                  transform: 'translateY(-0.5px)',
+                }}>
+                  {favoritePlanets.has(state.selectedPlanet!.id) ? '★' : '☆'}
+                </span>
+              ),
+              onClick: () => toggleFavoritePlanet(state.selectedPlanet!.id),
+              active: favoritePlanets.has(state.selectedPlanet!.id),
             }];
+
+            if (!isExodusPhase && (state.selectedPlanet.type === 'rocky' || state.selectedPlanet.type === 'terrestrial' || state.selectedPlanet.type === 'dwarf')) {
+              const check = canLandOnPlanet(state.selectedPlanet);
+              if (!check.hidden) {
+                buttons.push({
+                  title: check.allowed ? t('nav.surface_btn') : (check.reason || t('common.unavailable')),
+                  icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M1 12 L4 8 L7 10 L11 5 L15 9 L15 14 L1 14Z" /><circle cx="12" cy="3" r="2" /></svg>,
+                  onClick: handleOpenSurface,
+                  disabled: !check.allowed,
+                  pulse: check.allowed,
+                });
+              }
+            }
+
+            return buttons;
           })() : undefined}
         />
       )}
@@ -9032,6 +9073,8 @@ function AppInner() {
           onViewPlanet={handleViewPlanet}
           onClose={handleClosePlanetMenu}
           onSurface={isExodusPhase || canLandOnPlanet(state.selectedPlanet).hidden ? undefined : handleOpenSurface}
+          isFavorite={favoritePlanets.has(state.selectedPlanet.id)}
+          onToggleFavorite={toggleFavoritePlanet}
           isDestroyed={destroyedPlanetIdsSet.has(state.selectedPlanet.id)}
           surfaceDisabledReason={canLandOnPlanet(state.selectedPlanet).reason}
           onTelescopePhoto={(photoKind) => handlePlanetTelescopePhoto(photoKind)}

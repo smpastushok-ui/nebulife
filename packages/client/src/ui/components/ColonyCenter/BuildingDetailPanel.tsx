@@ -7,21 +7,16 @@ import { ResourceIcon, RESOURCE_COLORS } from '../ResourceIcon.js';
 import { watchAdsWithProgress } from '../../../services/ads-service.js';
 import {
   deriveBuildingDetailStats,
+  getBuildingPassiveEffects,
   getBuildingEconomyProfile,
   primaryOutputResource,
   type BuildingEconomyProfile,
+  type BuildingPassiveEffect,
   type ColonyResourceKey,
   type RateRow,
 } from './building-detail-model.js';
 
 type ColonyResources = Record<ColonyResourceKey, number>;
-type ActionReport = {
-  id: string;
-  title: string;
-  body: string;
-  impact: string;
-  tone: 'info' | 'success' | 'warning';
-};
 
 export interface BuildingDetailPanelProps {
   planet: Planet;
@@ -220,80 +215,30 @@ function BuildingFlowPanel({
   );
 }
 
-function ActionButton({
-  title,
-  desc,
-  disabled,
-  onClick,
-}: {
-  title: string;
-  desc: string;
-  disabled?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      style={{
-        width: '100%',
-        textAlign: 'left',
-        background: disabled ? 'rgba(10,15,25,0.35)' : 'rgba(20,30,45,0.55)',
-        border: `1px solid ${disabled ? '#223344' : ACTIVE_BORDER}`,
-        borderRadius: 4,
-        padding: '10px 12px',
-        color: disabled ? '#556677' : '#aabbcc',
-        fontFamily: 'monospace',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-      }}
-    >
-      <div style={{ fontSize: 12, color: disabled ? '#667788' : '#7bb8ff', letterSpacing: 1, textTransform: 'uppercase' }}>
-        {title}
-      </div>
-      <div style={{ marginTop: 4, fontSize: 10, color: disabled ? '#445566' : '#778899', lineHeight: 1.4 }}>
-        {desc}
-      </div>
-    </button>
-  );
-}
-
-function ActionReportCard({ report }: { report: ActionReport }) {
-  const accent = report.tone === 'success'
+function PassiveEffectCard({ effect }: { effect: BuildingPassiveEffect }) {
+  const { t } = useTranslation();
+  const accent = effect.tone === 'resource'
     ? '#88bb99'
-    : report.tone === 'warning'
-      ? '#ff8844'
-      : '#7bb8ff';
+    : effect.tone === 'safety'
+      ? '#ffcc66'
+      : effect.tone === 'energy'
+        ? '#ffaa66'
+        : effect.tone === 'logistics'
+          ? '#7bb8ff'
+          : '#aa88ff';
   return (
     <div style={{
-      background: `linear-gradient(135deg, rgba(5,10,20,0.72), ${accent}16)`,
-      border: `1px solid ${accent}66`,
+      background: `linear-gradient(135deg, rgba(5,10,20,0.64), ${accent}12)`,
+      border: `1px solid ${accent}44`,
       borderRadius: 5,
-      padding: '10px 12px',
-      display: 'grid',
-      gap: 7,
-      boxShadow: `0 0 16px ${accent}14`,
+      padding: '9px 10px',
+      minWidth: 0,
     }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
-        <div style={{ color: accent, fontSize: 11, letterSpacing: 1.3, textTransform: 'uppercase' }}>
-          {report.title}
-        </div>
-        <div style={{ color: '#556677', fontSize: 9, letterSpacing: 1 }}>
-          REPORT
-        </div>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
+        <div style={{ color: '#aabbcc', fontSize: 11, letterSpacing: 0.6 }}>{t(effect.labelKey)}</div>
+        <div style={{ color: accent, fontSize: 12, fontWeight: 700 }}>{effect.value}</div>
       </div>
-      <div style={{ color: '#aabbcc', fontSize: 11, lineHeight: 1.45 }}>
-        {report.body}
-      </div>
-      <div style={{
-        color: '#778899',
-        fontSize: 10,
-        lineHeight: 1.4,
-        borderTop: '1px solid rgba(51,68,85,0.55)',
-        paddingTop: 7,
-      }}>
-        {report.impact}
-      </div>
+      <div style={{ marginTop: 5, color: '#667788', fontSize: 9, lineHeight: 1.35 }}>{t(effect.descKey)}</div>
     </div>
   );
 }
@@ -830,7 +775,6 @@ export function BuildingDetailPanel({
   onDemolish,
 }: BuildingDetailPanelProps) {
   const { t } = useTranslation();
-  const [actionReports, setActionReports] = useState<ActionReport[]>([]);
   const [confirmDemolish, setConfirmDemolish] = useState(false);
   const [observatoryProgram, setObservatoryProgram] = useState<ObservatorySearchProgram>('routine_sky_watch');
   const [observatoryNow, setObservatoryNow] = useState(() => Date.now());
@@ -854,8 +798,6 @@ export function BuildingDetailPanel({
         : '#7bb8ff';
   const aggregateMode = !building;
   const economyProfile = getBuildingEconomyProfile(type);
-  const canScan = researchData >= 5;
-  const canChemCycle = colonyResources.volatiles >= 10;
   const compact = typeof window !== 'undefined' && window.innerWidth < 700;
   const sideControlInset = 'calc(66px + env(safe-area-inset-left, 0px))';
   const energyOutputPerHour = stats.energyOutput * 60;
@@ -883,6 +825,7 @@ export function BuildingDetailPanel({
     : type === 'spaceport'
       ? [{ title: t('building_detail.transport_heavy_units'), items: SPACEPORT_PRODUCIBLES }]
       : [];
+  const passiveEffects = getBuildingPassiveEffects(type, buildings);
   const isotopeDepositDepleted =
     stats.stock?.resource === 'isotopes' &&
     stats.stock.remaining <= 0;
@@ -911,79 +854,10 @@ export function BuildingDetailPanel({
     return () => window.clearInterval(id);
   }, [activeObservatorySessions.length]);
 
-  const pushActionReport = (report: ActionReport) => {
-    setActionReports((reports) => [report, ...reports].slice(0, 4));
-  };
-
-  const runScan = () => {
-    if (!canScan) return;
-    onResearchDataChange?.(-5);
-    const stock = stats.stock;
-    const body = stats.stock
-      ? t('building_detail.action_result_stock', { pct: stats.stock.pct })
-      : t('building_detail.action_result_signal');
-    pushActionReport({
-      id: `scan-${Date.now()}`,
-      title: t('building_detail.report_scan_title'),
-      body,
-      impact: stock
-        ? t('building_detail.report_scan_impact_stock', {
-            resource: t(`colony_center.resource.${stock.resource}`),
-            remaining: Math.floor(stock.remaining),
-            pct: stock.pct,
-          })
-        : t('building_detail.report_scan_impact_signal'),
-      tone: stock && stock.pct < 15 ? 'warning' : 'info',
-    });
-  };
-
-  const inspectDeposit = () => {
-    const id = `deposit-${Date.now()}`;
-    const stock = stats.stock;
-    if (stock) {
-      const resource = t(`colony_center.resource.${stock.resource}`);
-      pushActionReport({
-        id,
-        title: t('building_detail.report_deposit_title'),
-        body: t('building_detail.action_result_deposit', {
-          resource,
-          remaining: Math.floor(stock.remaining),
-          pct: stock.pct,
-        }),
-        impact: t('building_detail.report_deposit_impact', { resource }),
-        tone: stock.pct < 15 ? 'warning' : 'success',
-      });
-    } else {
-      pushActionReport({
-        id,
-        title: t('building_detail.report_deposit_title'),
-        body: t('building_detail.action_result_no_deposit'),
-        impact: t('building_detail.report_no_persistent_effect'),
-        tone: 'info',
-      });
-    }
-  };
-
-  const runChemCycle = () => {
-    if (!canChemCycle) return;
-    onResourceChange?.({ volatiles: -10, isotopes: 3, water: 2 });
-    pushActionReport({
-      id: `chem-${Date.now()}`,
-      title: t('building_detail.report_chemistry_title'),
-      body: t('building_detail.action_result_chemistry'),
-      impact: t('building_detail.report_chemistry_impact'),
-      tone: 'success',
-    });
-  };
-
   const addInfoReport = (title: string, body: string, impact = t('building_detail.report_no_persistent_effect')) => {
-    pushActionReport({
-      id: `info-${Date.now()}`,
-      title,
-      body,
-      impact,
-      tone: 'info',
-    });
+    void title;
+    void body;
+    void impact;
   };
 
   return (
@@ -1359,91 +1233,50 @@ export function BuildingDetailPanel({
           </Section>
         )}
 
-        <Section title={t('building_detail.actions')}>
-          <div style={{ display: 'grid', gap: 8 }}>
-            {type === 'colony_hub' && (
-              <ActionButton
-                title={t('building_detail.action_open_center')}
-                desc={t('building_detail.action_open_center_desc')}
-                onClick={() => onOpenColonyCenter?.()}
-              />
-            )}
-            {type === 'landing_pad' && (
-              <>
-                <div style={{
-                  background: 'rgba(68,136,170,0.10)',
-                  border: '1px solid rgba(68,136,170,0.28)',
-                  borderRadius: 4,
-                  padding: '9px 10px',
-                  fontSize: 11,
-                  color: '#9fc4dd',
-                  lineHeight: 1.45,
-                }}>
-                  {t('building_detail.landing_pad_dispatch_hint')}
-                </div>
-              </>
-            )}
-            {(type === 'research_lab' || type === 'deep_drill') && (
-              <ActionButton
-                title={t('building_detail.action_scan')}
-                desc={t('building_detail.action_scan_desc')}
-                disabled={!canScan}
-                onClick={runScan}
-              />
-            )}
-            {type === 'radar_tower' && (
-              <>
-                <ActionButton
-                  title={t('building_detail.action_radar_deposit_scan')}
-                  desc={t('building_detail.action_radar_deposit_scan_desc')}
-                  disabled={!canScan}
-                  onClick={runScan}
-                />
-                <ActionButton
-                  title={t('building_detail.action_radar_weather')}
-                  desc={t('building_detail.action_radar_weather_desc')}
-                  onClick={() => addInfoReport(t('building_detail.action_radar_weather'), t('building_detail.action_result_radar_weather'))}
-                />
-                <ActionButton
-                  title={t('building_detail.action_radar_mission_sync')}
-                  desc={t('building_detail.action_radar_mission_sync_desc')}
-                  onClick={() => addInfoReport(t('building_detail.action_radar_mission_sync'), t('building_detail.action_result_radar_mission_sync'))}
-                />
-              </>
-            )}
-            {(type === 'mine' || type === 'water_extractor' || type === 'atmo_extractor' || type === 'deep_drill') && (
-              <ActionButton
-                title={t('building_detail.action_inspect_deposit')}
-                desc={t('building_detail.action_inspect_deposit_desc')}
-                onClick={inspectDeposit}
-              />
-            )}
-            {(type === 'solar_plant' || type === 'battery_station') && (
-              <ActionButton
-                title={t('building_detail.action_power_check')}
-                desc={t('building_detail.action_power_check_desc', {
-                  balance: formatPerHour(energyNetPerHour),
-                  storage: stats.energyStorageAdd,
-                })}
-                onClick={() => addInfoReport(t('building_detail.action_power_check'), t('building_detail.action_result_power'))}
-              />
-            )}
-            {(type === 'quantum_separator' || type === 'gas_fractionator') && (
-              <ActionButton
-                title={t('building_detail.action_chemistry')}
-                desc={t('building_detail.action_chemistry_desc')}
-                disabled={!canChemCycle}
-                onClick={runChemCycle}
-              />
-            )}
-            {actionReports.length > 0 && (
-              <div style={{ display: 'grid', gap: 7 }}>
-                {actionReports.map((report) => (
-                  <ActionReportCard key={report.id} report={report} />
-                ))}
-              </div>
+        <Section title={t('building_detail.passive_effects')}>
+          <div style={{ display: 'grid', gridTemplateColumns: compact ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: 8 }}>
+            {passiveEffects.length > 0 ? passiveEffects.map((effect) => (
+              <PassiveEffectCard key={effect.id} effect={effect} />
+            )) : (
+              <div style={{ color: '#556677', fontSize: 11 }}>{t('building_detail.no_passive_effects')}</div>
             )}
           </div>
+          {type === 'colony_hub' && onOpenColonyCenter && (
+            <button
+              type="button"
+              onClick={() => onOpenColonyCenter('overview')}
+              style={{
+                marginTop: 8,
+                justifySelf: 'start',
+                background: 'rgba(20,30,45,0.55)',
+                border: `1px solid ${ACTIVE_BORDER}`,
+                borderRadius: 4,
+                color: '#9fd0ff',
+                fontFamily: 'monospace',
+                fontSize: 10,
+                letterSpacing: 1,
+                textTransform: 'uppercase',
+                padding: '8px 12px',
+                cursor: 'pointer',
+              }}
+            >
+              {t('building_detail.action_open_center')}
+            </button>
+          )}
+          {type === 'landing_pad' && (
+            <div style={{
+              marginTop: 8,
+              background: 'rgba(68,136,170,0.10)',
+              border: '1px solid rgba(68,136,170,0.28)',
+              borderRadius: 4,
+              padding: '9px 10px',
+              fontSize: 11,
+              color: '#9fc4dd',
+              lineHeight: 1.45,
+            }}>
+              {t('building_detail.landing_pad_dispatch_hint')}
+            </div>
+          )}
         </Section>
 
         {building && type !== 'colony_hub' && onDemolish && (

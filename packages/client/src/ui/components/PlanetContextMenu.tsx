@@ -849,6 +849,8 @@ export function PlanetContextMenu({
   missionPhotoSaved = false,
   missionPhotoUrl,
   onViewMissionPhoto,
+  isFavorite = false,
+  onToggleFavorite,
 }: {
   planet: Planet;
   star: Star;
@@ -897,6 +899,8 @@ export function PlanetContextMenu({
   missionPhotoSaved?: boolean;
   missionPhotoUrl?: string | null;
   onViewMissionPhoto?: (planet: Planet, report: PlanetReportSummary, photoUrl: string) => void;
+  isFavorite?: boolean;
+  onToggleFavorite?: (planetId: string) => void;
 }) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabId>('actions');
@@ -1088,6 +1092,14 @@ export function PlanetContextMenu({
           {activeTab === 'actions' && (
             <>
               <MenuItem icon="◎" label={t('nav.exosphere')} onClick={itemsActive ? onViewPlanet : undefined} color="#88ccaa" />
+              {onToggleFavorite && (
+                <MenuItem
+                  icon={isFavorite ? '★' : '☆'}
+                  label={isFavorite ? t('context.actions.unfavorite') : t('context.actions.favorite')}
+                  onClick={itemsActive ? () => onToggleFavorite(planet.id) : undefined}
+                  color={isFavorite ? '#7bb8ff' : '#8899aa'}
+                />
+              )}
               {isSurfacePlanet && onSurface && (
                 surfaceDisabledReason
                   ? <MenuItem icon="▲" label={t('nav.surface_btn')} disabled title={surfaceDisabledReason} right="50+" />
