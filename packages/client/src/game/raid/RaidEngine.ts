@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { playLoop, playSfx, setLoopVolume, stopLoop } from '../../audio/SfxPlayer.js';
 import { getDeviceTier } from '../../utils/device-tier.js';
+import { createBotBrain, updateBot } from '../arena/ArenaAI.js';
+import type { ShipEntity } from '../arena/ArenaTypes.js';
 import {
   RAID_ACCELERATION,
   RAID_ACTIVE_ENEMIES_HIGH,
@@ -51,10 +53,10 @@ const ENEMY_TINT = 0xff6644;
 const MISSILE_DAMAGE = 42;
 const MISSILE_SPEED = 720;
 const MISSILE_LIFETIME = 3.2;
-
-function shipUrlFromId(shipId: string): string {
-  return shipId === 'red' || shipId === 'red_ship' ? RED_SHIP : BLUE_SHIP;
-}
+const RAID_ENEMY_ACCELERATION = 760;
+const RAID_ENEMY_MAX_SPEED = 520;
+const RAID_ENEMY_ATTACK_RANGE = 1700;
+const RAID_ENEMY_FIRE_CONE_DOT = 0.42;
 
 function disposeObject(root: THREE.Object3D): void {
   root.traverse((obj) => {
@@ -192,7 +194,7 @@ export class RaidEngine {
   }
 
   private getAllyTint(): number {
-    return shipUrlFromId(this.shipId) === RED_SHIP ? ENEMY_TINT : ALLY_TINT;
+    return ALLY_TINT;
   }
 
   async init(): Promise<void> {
@@ -456,9 +458,8 @@ export class RaidEngine {
   private async loadPlayerMesh(): Promise<THREE.Object3D> {
     const loader = new GLTFLoader();
     const allyTint = this.getAllyTint();
-    const primaryUrl = this.customShipGlbUrl ?? shipUrlFromId(this.shipId);
     try {
-      const root = (await loader.loadAsync(primaryUrl)).scene;
+      const root = (await loader.loadAsync(BLUE_SHIP)).scene;
       const model = normalizeModel(root, 58, RAID_SHIP_MODEL_NOSE_OFFSET);
       tintShipMaterials(model, allyTint);
       model.traverse((obj) => { obj.frustumCulled = true; });
@@ -516,16 +517,12 @@ export class RaidEngine {
     };
 
     try {
-      this.allyTemplate = prepare((await loader.loadAsync(this.customShipGlbUrl ?? shipUrlFromId(this.shipId))).scene, 58, allyTint);
+      this.allyTemplate = prepare((await loader.loadAsync(BLUE_SHIP)).scene, 58, allyTint);
     } catch {
       try {
-        this.allyTemplate = prepare((await loader.loadAsync(shipUrlFromId(this.shipId))).scene, 58, allyTint);
+        this.allyTemplate = prepare((await loader.loadAsync(ENEMY_SWARM_SHIP)).scene, 58, allyTint);
       } catch {
-        try {
-          this.allyTemplate = prepare((await loader.loadAsync(ENEMY_SWARM_SHIP)).scene, 58, allyTint);
-        } catch {
-          this.allyTemplate = null;
-        }
+        this.allyTemplate = null;
       }
     }
 
@@ -909,6 +906,12 @@ export class RaidEngine {
       shieldDelay: 0,
       alive: true,
       mesh,
+      aiBrain: createBotBrain(this.isMobile ? 'medium' : 'hard'),
+      aiRoamY: mesh.position.y,
+      aiRoamYUntil: performance.now() + 1500 + Math.random() * 2500,
+      aiDashCooldown: 2 + Math.random() * 4,
+      aiDashTimer: 0,
+      aiLastAim: launchDir.clone(),
     });
     this.queuedEnemies--;
     this.enemySpawnTimer = this.isMobile
@@ -919,32 +922,86 @@ export class RaidEngine {
   private updateEnemies(dt: number): void {
     if (!this.player) return;
     const allies = [this.player, ...this.wingmen].filter(s => s.alive);
+    const aiShips = this.buildRaidAiEntities(allies);
     for (const enemy of this.enemies) {
       if (!enemy.alive) continue;
       const target = this.nearestShip(enemy.pos, allies);
       if (!target) continue;
-      const desired = target.pos.clone().sub(enemy.pos);
-      const dist = desired.length();
-      const toTarget = desired.lengthSq() > 0.01 ? desired.normalize() : new THREE.Vector3(0, 0, 1);
-      const orbit = new THREE.Vector3(-toTarget.z, Math.sin(performance.now() * 0.001 + enemy.id) * 0.18, toTarget.x).normalize();
-      if (dist > 420) enemy.vel.addScaledVector(toTarget, 430 * dt);
-      else if (dist < 230) enemy.vel.addScaledVector(toTarget, -280 * dt);
-      enemy.vel.addScaledVector(orbit, 160 * dt);
-      clampLength(enemy.vel, 300);
+
+      enemy.aiBrain ??= createBotBrain(this.isMobile ? 'medium' : 'hard');
+      enemy.aiDashCooldown = Math.max(0, (enemy.aiDashCooldown ?? 0) - dt);
+      enemy.aiDashTimer = Math.max(0, (enemy.aiDashTimer ?? 0) - dt);
+
+      const selfEntity = this.raidShipToArenaEntity(enemy);
+      const input = updateBot(enemy.aiBrain, selfEntity, aiShips.filter(s => s.id !== enemy.id), dt);
+      const brainTarget = enemy.aiBrain.targetId !== null
+        ? allies.find(ship => ship.id === enemy.aiBrain?.targetId)
+        : target;
+
+      const distFromCenter = Math.hypot(enemy.pos.x, enemy.pos.z);
+      let ax = input.moveDir.x;
+      let az = input.moveDir.z;
+      if (distFromCenter > RAID_SECTOR_HALF * 0.84) {
+        ax = -enemy.pos.x / Math.max(1, distFromCenter);
+        az = -enemy.pos.z / Math.max(1, distFromCenter);
+        enemy.aiBrain.state = 'patrol';
+        enemy.aiBrain.targetId = null;
+        enemy.aiBrain.decisionTimer = 0;
+      }
+
+      const now = performance.now();
+      if (now > (enemy.aiRoamYUntil ?? 0)) {
+        enemy.aiRoamY = (Math.random() * 2 - 1) * RAID_HEIGHT_HALF * 0.62;
+        enemy.aiRoamYUntil = now + 2600 + Math.random() * 4200;
+      }
+      const targetY = brainTarget?.alive
+        ? brainTarget.pos.y + Math.sin(now * 0.0012 + enemy.id) * 150
+        : enemy.aiRoamY ?? enemy.pos.y;
+      const ay = Math.abs(targetY - enemy.pos.y) > 28 ? Math.sign(targetY - enemy.pos.y) : 0;
+
+      enemy.vel.x += ax * RAID_ENEMY_ACCELERATION * dt;
+      enemy.vel.z += az * RAID_ENEMY_ACCELERATION * dt;
+      enemy.vel.y += ay * RAID_ENEMY_ACCELERATION * 0.46 * dt;
+
+      if (input.dash && (enemy.aiDashCooldown ?? 0) <= 0 && (enemy.aiDashTimer ?? 0) <= 0) {
+        enemy.aiDashTimer = 0.18;
+        enemy.aiDashCooldown = 5.5 + Math.random() * 3.5;
+      }
+      if ((enemy.aiDashTimer ?? 0) > 0) {
+        const dashDir = new THREE.Vector3(input.aimDir.x, 0, input.aimDir.z);
+        if (dashDir.lengthSq() < 0.001) dashDir.copy(enemy.vel);
+        dashDir.normalize();
+        enemy.vel.x = dashDir.x * RAID_ENEMY_MAX_SPEED * 1.75;
+        enemy.vel.z = dashDir.z * RAID_ENEMY_MAX_SPEED * 1.75;
+      }
+
+      const separation = this.computeEnemySeparation(enemy, 190);
+      enemy.vel.addScaledVector(separation, 260 * dt);
+      clampLength(enemy.vel, RAID_ENEMY_MAX_SPEED);
       enemy.pos.addScaledVector(enemy.vel, dt);
-      enemy.vel.multiplyScalar(Math.pow(0.94, dt * 60));
+      enemy.vel.multiplyScalar(Math.pow(0.965, dt * 60));
       this.clampToSector(enemy.pos);
-      this.orientShipToDirection(enemy.mesh, target.pos.clone().sub(enemy.pos).normalize());
+
+      const aimTarget = brainTarget ?? target;
+      const aimPoint = aimTarget.pos.clone().addScaledVector(aimTarget.vel, Math.min(0.42, enemy.pos.distanceTo(aimTarget.pos) / RAID_PROJECTILE_SPEED));
+      const aimDir = aimPoint.sub(enemy.pos).normalize();
+      enemy.aiLastAim?.lerp(aimDir, Math.min(1, dt * 5));
+      if (!enemy.aiLastAim) enemy.aiLastAim = aimDir.clone();
+      const visualDir = enemy.aiLastAim.lengthSq() > 0.001 ? enemy.aiLastAim : enemy.vel.clone().normalize();
+      this.orientShipToDirection(enemy.mesh, visualDir, Math.sin(now * 0.004 + enemy.id) * 0.22);
+
+      const dist = enemy.pos.distanceTo(aimTarget.pos);
+      const noseDot = visualDir.dot(aimDir);
       enemy.fireCooldown -= dt;
-      if (enemy.fireCooldown <= 0 && dist < (this.isMobile ? 1100 : 1500)) {
-        const predicted = target.pos.clone().addScaledVector(target.vel, Math.min(0.28, dist / RAID_PROJECTILE_SPEED));
+      if (input.firing && enemy.fireCooldown <= 0 && dist < RAID_ENEMY_ATTACK_RANGE && noseDot > RAID_ENEMY_FIRE_CONE_DOT) {
+        const predicted = aimTarget.pos.clone().addScaledVector(aimTarget.vel, Math.min(0.45, dist / RAID_PROJECTILE_SPEED));
         predicted.add(new THREE.Vector3(
-          (Math.random() - 0.5) * 150,
-          (Math.random() - 0.5) * 90,
-          (Math.random() - 0.5) * 150,
+          (Math.random() - 0.5) * (this.isMobile ? 180 : 110),
+          (Math.random() - 0.5) * (this.isMobile ? 110 : 70),
+          (Math.random() - 0.5) * (this.isMobile ? 180 : 110),
         ));
         this.fireProjectile('enemy', enemy.pos, predicted, RAID_ENEMY_DAMAGE);
-        enemy.fireCooldown = (this.isMobile ? 1.2 : 0.9) + Math.random() * 0.85;
+        enemy.fireCooldown = (this.isMobile ? 0.82 : 0.58) + Math.random() * 0.38;
       }
     }
   }
@@ -1142,6 +1199,62 @@ export class RaidEngine {
       if (d < bestD) { bestD = d; best = ship; }
     }
     return best;
+  }
+
+  private buildRaidAiEntities(allies: RaidShip[]): ShipEntity[] {
+    const entities: ShipEntity[] = [];
+    for (const ship of allies) {
+      if (!ship.alive) continue;
+      entities.push(this.raidShipToArenaEntity(ship));
+    }
+    for (const enemy of this.enemies) {
+      if (!enemy.alive) continue;
+      entities.push(this.raidShipToArenaEntity(enemy));
+    }
+    return entities;
+  }
+
+  private raidShipToArenaEntity(ship: RaidShip): ShipEntity {
+    return {
+      id: ship.id,
+      pos: { x: ship.pos.x, y: ship.pos.y, z: ship.pos.z },
+      vel: { x: ship.vel.x, y: ship.vel.y, z: ship.vel.z },
+      rotation: ship.mesh.rotation.y,
+      radius: ship.radius,
+      alive: ship.alive,
+      hp: ship.hp,
+      maxHp: ship.maxHp,
+      shield: ship.shield,
+      maxShield: ship.maxShield,
+      shieldRegenTimer: ship.shieldDelay,
+      isPlayer: ship.id === this.player?.id,
+      name: ship.name,
+      weaponSlots: [],
+      dashCooldown: ship.aiDashCooldown ?? 0,
+      isDashing: (ship.aiDashTimer ?? 0) > 0,
+      dashTimer: ship.aiDashTimer ?? 0,
+      modelGroup: null,
+      kills: 0,
+      deaths: 0,
+      damageDealt: 0,
+    };
+  }
+
+  private computeEnemySeparation(self: RaidShip, radius: number): THREE.Vector3 {
+    const out = new THREE.Vector3();
+    for (const other of this.enemies) {
+      if (other === self || !other.alive) continue;
+      const dx = self.pos.x - other.pos.x;
+      const dy = self.pos.y - other.pos.y;
+      const dz = self.pos.z - other.pos.z;
+      const dSq = dx * dx + dy * dy + dz * dz;
+      if (dSq < 0.01 || dSq > radius * radius) continue;
+      const d = Math.sqrt(dSq);
+      out.x += (dx / d) * (1 - d / radius);
+      out.y += (dy / d) * (1 - d / radius) * 0.45;
+      out.z += (dz / d) * (1 - d / radius);
+    }
+    return out;
   }
 
   private lookAt(obj: THREE.Object3D, target: THREE.Vector3): void {

@@ -42,6 +42,9 @@ interface PixiShip {
   shieldDelay: number;
   alive: boolean;
   view: Container;
+  aiOrbitDir?: number;
+  aiOrbitRadius?: number;
+  aiRoamUntil?: number;
 }
 
 interface PixiModule {
@@ -307,7 +310,7 @@ export class RaidEngine {
 
   private createWingmen(): void {
     for (let i = 0; i < RAID_WINGMEN; i++) {
-      const view = drawShip(0x88ccaa, 0.82);
+      const view = drawShip(0x7bb8ff, 0.82);
       const ship: PixiShip = { id: 10 + i, team: 'allied', x: (i - 1.5) * 110, y: 540 + (i % 2) * 50, vx: 0, vy: 0, hp: RAID_ALLY_HP, maxHp: RAID_ALLY_HP, shield: RAID_ALLY_SHIELD, maxShield: RAID_ALLY_SHIELD, radius: 16, fireCooldown: i * 0.25, shieldDelay: 0, alive: true, view };
       this.wingmen.push(ship);
       this.world.addChild(view);
@@ -346,6 +349,9 @@ export class RaidEngine {
         shieldDelay: 0,
         alive: true,
         view,
+        aiOrbitDir: i % 2 === 0 ? -1 : 1,
+        aiOrbitRadius: 150 + (i % 5) * 28,
+        aiRoamUntil: performance.now() + 1200 + i * 180,
       };
       this.enemies.push(ship);
       this.world.addChild(view);
@@ -424,23 +430,78 @@ export class RaidEngine {
 
   private updateEnemies(dt: number): void {
     const player = this.player;
+    const allies = [player, ...this.wingmen].filter((ship): ship is PixiShip => !!ship && ship.alive);
     for (const enemy of this.enemies) {
       if (!enemy.alive) continue;
-      const target = player?.alive ? player : this.wingmen.find((ship) => ship.alive);
+      const target = this.nearestPixiShip(enemy, allies);
       if (!target) continue;
-      const dir = normalize(target.x - enemy.x, target.y - enemy.y);
-      enemy.vx += dir.x * 160 * dt;
-      enemy.vy += dir.y * 160 * dt;
-      enemy.vx *= 0.94;
-      enemy.vy *= 0.94;
+      const dx = target.x - enemy.x;
+      const dy = target.y - enemy.y;
+      const dist = Math.max(1, Math.hypot(dx, dy));
+      const dir = { x: dx / dist, y: dy / dist };
+      const tangent = { x: -dir.y * (enemy.aiOrbitDir ?? 1), y: dir.x * (enemy.aiOrbitDir ?? 1) };
+      const orbitRadius = enemy.aiOrbitRadius ?? 190;
+      const radial = dist < orbitRadius * 0.75 ? -1 : dist > orbitRadius * 1.35 ? 1 : 0;
+      const separation = this.computePixiEnemySeparation(enemy, 95);
+      const dodgeWave = Math.sin(performance.now() * 0.003 + enemy.id) * 0.35;
+      const move = normalize(
+        tangent.x * 1.25 + dir.x * radial + separation.x * 1.6,
+        tangent.y * 1.25 + dir.y * radial + separation.y * 1.6 + dodgeWave,
+      );
+      enemy.vx += move.x * 310 * dt;
+      enemy.vy += move.y * 310 * dt;
+      enemy.vx *= 0.965;
+      enemy.vy *= 0.965;
+      const speed = Math.hypot(enemy.vx, enemy.vy);
+      if (speed > 240) {
+        enemy.vx = enemy.vx / speed * 240;
+        enemy.vy = enemy.vy / speed * 240;
+      }
       enemy.x = clamp(enemy.x + enemy.vx * dt, -880, 880);
       enemy.y = clamp(enemy.y + enemy.vy * dt, -520, 620);
       enemy.fireCooldown -= dt;
-      if (enemy.fireCooldown <= 0) {
-        this.fireProjectile(enemy.x, enemy.y + 10, dir.x, dir.y, 'enemy', RAID_ENEMY_DAMAGE);
-        enemy.fireCooldown = 1.3;
+      if (enemy.fireCooldown <= 0 && dist < 760) {
+        const lead = Math.min(0.36, dist / (RAID_PROJECTILE_SPEED * 0.55));
+        this.fireProjectile(
+          enemy.x,
+          enemy.y + 10,
+          target.x + target.vx * lead - enemy.x + (Math.random() - 0.5) * 70,
+          target.y + target.vy * lead - enemy.y + (Math.random() - 0.5) * 50,
+          'enemy',
+          RAID_ENEMY_DAMAGE,
+        );
+        enemy.fireCooldown = 0.72 + Math.random() * 0.45;
       }
     }
+  }
+
+  private nearestPixiShip(from: PixiShip, ships: PixiShip[]): PixiShip | null {
+    let best: PixiShip | null = null;
+    let bestD = Infinity;
+    for (const ship of ships) {
+      const d = (ship.x - from.x) ** 2 + (ship.y - from.y) ** 2;
+      if (d < bestD) {
+        bestD = d;
+        best = ship;
+      }
+    }
+    return best;
+  }
+
+  private computePixiEnemySeparation(self: PixiShip, radius: number): { x: number; y: number } {
+    let x = 0;
+    let y = 0;
+    for (const other of this.enemies) {
+      if (other === self || !other.alive) continue;
+      const dx = self.x - other.x;
+      const dy = self.y - other.y;
+      const d = Math.hypot(dx, dy);
+      if (d < 0.01 || d > radius) continue;
+      const w = 1 - d / radius;
+      x += (dx / d) * w;
+      y += (dy / d) * w;
+    }
+    return { x, y };
   }
 
   private updateModules(dt: number): void {

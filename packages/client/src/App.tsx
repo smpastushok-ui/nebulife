@@ -9447,7 +9447,10 @@ function AppInner() {
         <PlanetGlobeView
           key={(() => {
             const p = state.scene === 'planet-view' && state.selectedPlanet ? state.selectedPlanet : homeInfo.planet;
-            return `${p.id}-${p.type}-${p.habitability.overall.toFixed(2)}`;
+            const skinUrl = planetSkins.get(`exosphere-${p.id}`)?.texture_url
+              ?? planetSkins.get(`system-${p.id}`)?.texture_url
+              ?? '';
+            return `${p.id}-${p.type}-${p.habitability.overall.toFixed(2)}-${skinUrl}`;
           })()}
           ref={globeRef}
           planet={state.scene === 'planet-view' && state.selectedPlanet ? state.selectedPlanet : homeInfo.planet}

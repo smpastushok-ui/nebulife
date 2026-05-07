@@ -1,4 +1,5 @@
 import type * as THREE from 'three';
+import type { BotBrain } from '../arena/ArenaAI.js';
 
 export type RaidPhase = 'approach' | 'waves' | 'reactor' | 'victory' | 'defeat';
 export type RaidTeam = 'allied' | 'enemy';
@@ -59,6 +60,12 @@ export interface RaidShip {
   shieldDelay: number;
   alive: boolean;
   mesh: THREE.Object3D;
+  aiBrain?: BotBrain;
+  aiRoamY?: number;
+  aiRoamYUntil?: number;
+  aiDashCooldown?: number;
+  aiDashTimer?: number;
+  aiLastAim?: THREE.Vector3;
 }
 
 export interface RaidModule {

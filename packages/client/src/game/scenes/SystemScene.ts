@@ -260,7 +260,6 @@ export class SystemScene {
     const starResult = renderStar(system.star, this.starSize);
     makeVisualOnly(starResult.container);
     starResult.container.zIndex = this.use3DPlanets ? 10002 : 100;
-    starResult.container.visible = !this.use3DPlanets;
     this.container.addChild(starResult.container);
     this.starCorona = starResult.corona;
 
@@ -538,7 +537,6 @@ export class SystemScene {
 
     if (this.use3DPlanets) {
       hzGfx.alpha = 0.9;
-      hzRing.visible = false;
       hzLabel.alpha = 0.58;
       hzLabel.x = outer * 0.58;
       hzLabel.y = -outer * Y_COMPRESS * 0.5;
@@ -558,7 +556,6 @@ export class SystemScene {
 
     // Orbit path (projected ellipse with glow)
     const orbitPath = renderOrbitProjected(distance, planet.orbit.eccentricity, Y_COMPRESS);
-    orbitPath.visible = !this.use3DPlanets;
     this.orbitContainer.addChild(orbitPath);
 
     // Planet sprite (mini-sphere with lighting)
@@ -694,7 +691,6 @@ export class SystemScene {
     // Orbit path (dimmer, reddish)
     const orbitPath = renderOrbitProjected(distance, e, Y_COMPRESS);
     orbitPath.alpha = 0.5;
-    orbitPath.visible = !this.use3DPlanets;
     this.orbitContainer.addChild(orbitPath);
 
     // Debris particles along the orbit

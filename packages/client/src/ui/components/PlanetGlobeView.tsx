@@ -1414,14 +1414,12 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
 
     useEffect(() => {
       let cancelled = false;
-      setValidatedTextureUrl(null);
+      setValidatedTextureUrl(textureUrl ?? null);
       if (!textureUrl) return;
 
       validatePlanetTextureMap(textureUrl).then((isValid) => {
         if (cancelled) return;
-        if (isValid) {
-          setValidatedTextureUrl(textureUrl);
-        } else {
+        if (!isValid) {
           console.warn('[PlanetGlobeView] Ignoring non-equirectangular planet skin texture:', textureUrl);
         }
       });
