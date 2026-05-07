@@ -1,4 +1,4 @@
-import { Assets, Graphics, Container, Sprite, Text, Texture } from 'pixi.js';
+import { Assets, Graphics, Container, Rectangle, Sprite, Text, Texture } from 'pixi.js';
 import type { Planet, Star } from '@nebulife/core';
 
 /** Y-axis compression factor for isometric perspective */
@@ -69,6 +69,101 @@ function loadTexture(url: string): Promise<Texture> {
   return promise;
 }
 
+function wrapUnit(value: number): number {
+  const wrapped = value % 1;
+  return wrapped < 0 ? wrapped + 1 : wrapped;
+}
+
+function getWrappedFrameTexture(texture: Texture, u: number, widthU: number): Texture {
+  const sourceWidth = Math.max(1, texture.width);
+  const sourceHeight = Math.max(1, texture.height);
+  const x = Math.floor(wrapUnit(u) * sourceWidth);
+  const width = Math.max(1, Math.ceil(widthU * sourceWidth));
+  return new Texture({
+    source: texture.source,
+    frame: new Rectangle(Math.min(x, sourceWidth - width), 0, Math.min(width, sourceWidth), sourceHeight),
+  });
+}
+
+function buildSphericalTextureMap(texture: Texture, size: number, initialLongitude: number): Container {
+  const map = new Container();
+  map.name = 'planet-skin-preview-map';
+  map.eventMode = 'none';
+
+  const strips = 56;
+  const diameter = size * 2;
+  const longitudeStep = 0.62 / strips;
+
+  for (let i = 0; i < strips; i++) {
+    const t0 = i / strips;
+    const t1 = (i + 1) / strips;
+    const x0 = -size + diameter * t0;
+    const x1 = -size + diameter * t1;
+    const midT = (t0 + t1) * 0.5;
+    const sphereX = midT * 2 - 1;
+    const latitudeScale = Math.sqrt(Math.max(0, 1 - sphereX * sphereX));
+    const longitudeOffset = Math.asin(Math.max(-1, Math.min(1, sphereX))) / (Math.PI * 2);
+    const frameTexture = getWrappedFrameTexture(texture, initialLongitude + 0.5 + longitudeOffset, longitudeStep);
+    const strip = new Sprite(frameTexture);
+    strip.anchor.set(0.5);
+    strip.x = (x0 + x1) * 0.5;
+    strip.width = Math.max(1, x1 - x0 + 0.8);
+    strip.height = Math.max(1, diameter * latitudeScale);
+    strip.eventMode = 'none';
+    map.addChild(strip);
+  }
+
+  return map;
+}
+
+function createMiniGlobeOptics(size: number): Container {
+  const optics = new Container();
+  optics.name = 'planet-mini-globe-optics';
+  optics.eventMode = 'none';
+  optics.zIndex = 22;
+
+  const dayGlow = new Graphics();
+  dayGlow.name = 'planet-mini-day-glow';
+  for (let i = 0; i < 5; i++) {
+    const t = i / 4;
+    dayGlow.circle(size * (0.28 + t * 0.08), -size * (0.20 + t * 0.04), size * (0.74 - t * 0.09));
+    dayGlow.fill({ color: 0xffffff, alpha: 0.055 - t * 0.007 });
+  }
+  optics.addChild(dayGlow);
+
+  const specular = new Graphics();
+  specular.name = 'planet-mini-specular';
+  specular.ellipse(size * 0.34, -size * 0.24, size * 0.28, size * 0.15);
+  specular.fill({ color: 0xffffff, alpha: 0.18 });
+  specular.ellipse(size * 0.43, -size * 0.29, size * 0.12, size * 0.055);
+  specular.fill({ color: 0xffffff, alpha: 0.32 });
+  optics.addChild(specular);
+
+  const limbShade = new Graphics();
+  limbShade.name = 'planet-mini-limb-shade';
+  limbShade.circle(0, 0, size * 0.99);
+  limbShade.stroke({ width: Math.max(3, size * 0.18), color: 0x020510, alpha: 0.38 });
+  limbShade.circle(-size * 0.2, size * 0.1, size * 0.92);
+  limbShade.stroke({ width: Math.max(2, size * 0.12), color: 0x020510, alpha: 0.18 });
+  optics.addChild(limbShade);
+
+  const rim = new Graphics();
+  rim.name = 'planet-mini-rim';
+  rim.circle(0, 0, size * 0.995);
+  rim.stroke({ width: Math.max(1.2, size * 0.045), color: 0xb8ddff, alpha: 0.24 });
+  rim.circle(size * 0.06, -size * 0.03, size * 0.94);
+  rim.stroke({ width: Math.max(0.8, size * 0.025), color: 0xffffff, alpha: 0.12 });
+  optics.addChild(rim);
+
+  return optics;
+}
+
+function replaceSphericalTextureMap(preview: Container, texture: Texture, size: number, initialLongitude: number): void {
+  const oldMap = preview.getChildByName('planet-skin-preview-map');
+  if (oldMap) oldMap.destroy({ children: true });
+  preview.addChild(buildSphericalTextureMap(texture, size, initialLongitude));
+}
+
 /**
  * Render only the structural shell for a system-view planet.
  * The actual visible planet body is the equirectangular photo applied later
@@ -86,8 +181,10 @@ export function renderPlanet(planet: Planet, _star: Star): PlanetRenderResult {
   base.fill({ color: 0x0b1320, alpha: 1 });
   container.addChild(base);
 
-  // Kept for SystemScene's existing rotation/update path; intentionally empty.
+  // SystemScene rotates this container so the mini-globe highlight faces the star.
   const lightingGroup = new Container();
+  lightingGroup.zIndex = 30;
+  lightingGroup.addChild(createMiniGlobeOptics(size));
   container.addChild(lightingGroup);
 
   // === Label ===
@@ -123,30 +220,15 @@ export function applyPlanetTexturePreview(
   if (existing) existing.destroy();
   const existingMask = container.getChildByName('planet-skin-preview-mask');
   if (existingMask) existingMask.destroy();
-  const texture = Texture.EMPTY;
   const preview = new Container();
   preview.name = 'planet-skin-preview';
   preview.eventMode = 'none';
   preview.zIndex = 12;
 
-  const map = new Container();
-  map.name = 'planet-skin-preview-map';
-  map.eventMode = 'none';
-  const displaySize = size * 2;
-  const sprites: Sprite[] = [];
-  for (let i = -1; i <= 1; i++) {
-    const sprite = new Sprite(texture);
-    sprite.anchor.set(0.5);
-    sprite.width = displaySize;
-    sprite.height = displaySize;
-    sprite.x = i * displaySize;
-    sprite.eventMode = 'none';
-    map.addChild(sprite);
-    sprites.push(sprite);
-  }
-  map.x = -((options.initialLongitude ?? 0) % 1) * displaySize;
   (preview as any).__spinRevolutionsPerMs = options.spinRevolutionsPerMs ?? 0;
-  (preview as any).__textureCycleWidth = displaySize;
+  (preview as any).__longitude = wrapUnit(options.initialLongitude ?? 0);
+  (preview as any).__planetRadius = size;
+  (preview as any).__sourceTexture = null;
 
   const mask = new Graphics();
   mask.name = 'planet-skin-preview-mask';
@@ -156,18 +238,13 @@ export function applyPlanetTexturePreview(
   preview.mask = mask;
 
   container.sortableChildren = true;
-  preview.addChild(map);
   container.addChild(mask);
   container.addChild(preview);
 
   void loadTexture(textureUrl).then((loadedTexture) => {
     if (preview.destroyed || !loadedTexture) return;
-    for (const sprite of sprites) {
-      if (sprite.destroyed) continue;
-      sprite.texture = loadedTexture;
-      sprite.width = displaySize;
-      sprite.height = displaySize;
-    }
+    (preview as any).__sourceTexture = loadedTexture;
+    replaceSphericalTextureMap(preview, loadedTexture, size, (preview as any).__longitude ?? 0);
   }).catch((err) => {
     console.warn('[PlanetRenderer] Failed to load system planet texture:', textureUrl, err);
   });
@@ -180,12 +257,13 @@ export function tickPlanetTexturePreview(container: Container, deltaMs: number):
   const spinRevolutionsPerMs = (preview as any).__spinRevolutionsPerMs as number | undefined;
   if (!spinRevolutionsPerMs) return;
 
-  const map = preview.getChildByName('planet-skin-preview-map') as Container | null;
-  if (!map) return;
-  const cycleWidth = Math.max(1, ((preview as any).__textureCycleWidth as number | undefined) ?? map.width);
-  map.x = (map.x + cycleWidth * spinRevolutionsPerMs * deltaMs) % cycleWidth;
-  if (map.x > 0) map.x -= cycleWidth;
-  if (map.x < -cycleWidth) map.x += cycleWidth;
+  const sourceTexture = (preview as any).__sourceTexture as Texture | null | undefined;
+  const radius = (preview as any).__planetRadius as number | undefined;
+  if (!sourceTexture || !radius) return;
+
+  const longitude = wrapUnit(((preview as any).__longitude as number | undefined ?? 0) + spinRevolutionsPerMs * deltaMs);
+  (preview as any).__longitude = longitude;
+  replaceSphericalTextureMap(preview, sourceTexture, radius, longitude);
 }
 
 /** Moon composition colors for system-view scale (small dots) */

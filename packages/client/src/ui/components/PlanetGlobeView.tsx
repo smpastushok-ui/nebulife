@@ -577,21 +577,19 @@ const texturedPlanetFrag = `
     vec3 n = normalize(vWorldNormal);
     float daylight = dot(n, normalize(uStarDir));
 
-    // Very wide terminator: generated photo skins should dim naturally, not
-    // look like a hard black overlay was painted over half the sphere.
-    float dayFactor = smoothstep(-0.72, 0.88, daylight);
-    float softCore = smoothstep(-0.20, 0.72, daylight);
-    vec3 nightTint = mix(vec3(0.16, 0.20, 0.30), vec3(0.24, 0.28, 0.36), uIsGas);
-    vec3 night = base * nightTint;
-    vec3 day = base * (0.58 + softCore * 0.72) * mix(vec3(1.0), uStarColor, 0.10);
-    vec3 color = mix(night, day, dayFactor);
+    // Purchased/generated photo skins are already final art. Do not paint a
+    // hard night overlay over them; use only soft physically-readable dimming.
+    float dayFactor = smoothstep(-0.82, 0.80, daylight);
+    float softCore = smoothstep(-0.28, 0.70, daylight);
+    vec3 starTint = mix(vec3(1.0), uStarColor, 0.08);
+    vec3 color = base * mix(0.48, 1.12, dayFactor) * mix(vec3(0.82, 0.88, 1.0), starTint, softCore);
 
     float rimFacing = max(dot(n, normalize(vViewDir)), 0.0);
-    float limb = smoothstep(0.0, 0.42, rimFacing);
-    color *= 0.72 + limb * 0.28;
+    float limb = smoothstep(0.0, 0.56, rimFacing);
+    color *= 0.82 + limb * 0.18;
 
     float atmosphereRim = pow(1.0 - rimFacing, 2.2) * smoothstep(-0.25, 0.65, daylight);
-    color += vec3(0.12, 0.24, 0.42) * atmosphereRim * 0.22;
+    color += vec3(0.12, 0.24, 0.42) * atmosphereRim * 0.10;
 
     gl_FragColor = vec4(max(color, vec3(0.0)), 1.0);
   }
@@ -638,7 +636,7 @@ function createPlanetSphere(
         fragmentShader: texturedPlanetFrag,
         uniforms: {
           uMap: { value: generatedTexture },
-          uStarDir: { value: STAR_SPRITE_POSITION.clone().normalize() },
+          uStarDir: { value: STAR_SPRITE_POSITION.clone().normalize().negate() },
           uStarColor: { value: new THREE.Color(star.colorHex) },
           uIsGas: { value: isGas ? 1.0 : 0.0 },
         },
@@ -1573,11 +1571,17 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
       const { uniforms: planetUniforms } = createPlanetSphere(scene, planet, star, lod, maxAnisotropy, textureUrl);
 
-      // 4. Cloud layer (skipped on low tier)
-      const cloudResult = createCloudLayer(scene, planet, lod);
+      // 4. Cloud layer (skipped on low tier and on purchased/generated skins).
+      // Photo skins already include their cloud/surface art; procedural clouds
+      // over them read as the old non-premium shadow/art layer.
+      const cloudResult = textureUrl ? null : createCloudLayer(scene, planet, lod);
 
-      // 5. Atmosphere (front + optional back glow with Rayleigh scattering)
-      createAtmosphereShell(scene, planet, star, lod);
+      // 5. Atmosphere (front + optional back glow with Rayleigh scattering).
+      // Keep generated skins clean for now: the texture carries the planet art,
+      // while the shader adds only subtle rim light.
+      if (!textureUrl) {
+        createAtmosphereShell(scene, planet, star, lod);
+      }
 
       // 6. Ring (if applicable; skipped on low tier)
       createRing(scene, planet, lod);
