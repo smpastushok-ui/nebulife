@@ -518,6 +518,7 @@ export class SystemScene {
     // Planet sprite (mini-sphere with lighting)
     const planetResult = renderPlanet(planet, this.system.star);
     const planetSprite = planetResult.container;
+    planetSprite.zIndex = 10000;
     const defaultTextureUrl = getSystemPlanetTextureUrl(planet);
     if (defaultTextureUrl) {
       applyPlanetTexturePreview(planetSprite, defaultTextureUrl, getPlanetSize(planet), planetTextureSpinOptions(planet));
@@ -534,7 +535,7 @@ export class SystemScene {
     // Interactivity
     planetSprite.eventMode = 'static';
     planetSprite.cursor = 'pointer';
-    const hitSize = Math.max(22, planet.radiusEarth * 10);
+    const hitSize = Math.max(22, getPlanetSize(planet) * 1.25);
     planetSprite.hitArea = { contains: (px: number, py: number) => px * px + py * py < hitSize * hitSize };
 
     planetSprite.on('pointerdown', (ev) => {
@@ -702,7 +703,8 @@ export class SystemScene {
       node.container.y = Math.sin(node.angle) * b * Y_COMPRESS;
 
       // Z-ordering: planets in front when below center, behind when above
-      node.container.zIndex = Math.round(node.container.y + 10000);
+      const overlapsStar = Math.hypot(node.container.x, node.container.y) < getPlanetSize(node.planet) + 54;
+      node.container.zIndex = overlapsStar ? 90 : Math.round(node.container.y + 10000);
 
       // Subtle depth scale: slightly larger when "closer" (lower y)
       const depthScale = 1 + (node.container.y / (this.maxExtent + 1)) * 0.06;

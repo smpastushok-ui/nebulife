@@ -10,21 +10,21 @@ export function getPlanetSize(planet: Planet): number {
 
   if (planet.type === 'gas-giant') {
     const t = Math.min(1, Math.log2(1 + radius) / Math.log2(1 + 12));
-    return 30 + t * 12;
+    return 22 + t * 8;
   }
 
   if (planet.type === 'ice-giant') {
     const t = Math.min(1, Math.log2(1 + radius) / Math.log2(1 + 5));
-    return 24 + t * 8;
+    return 18 + t * 7;
   }
 
   if (planet.type === 'dwarf') {
     const t = Math.min(1, Math.log2(1 + radius) / Math.log2(1 + 0.7));
-    return 6 + t * 5;
+    return 5 + t * 4;
   }
 
   const t = Math.min(1, Math.log2(1 + radius) / Math.log2(1 + 2.5));
-  return 10 + t * 14;
+  return 9 + t * 10;
 }
 
 /** Darken a color by a factor (0..1, lower = darker) */
@@ -122,30 +122,13 @@ function createMiniGlobeOptics(size: number): Container {
   optics.eventMode = 'none';
   optics.zIndex = 22;
 
-  const dayGlow = new Graphics();
-  dayGlow.name = 'planet-mini-day-glow';
-  for (let i = 0; i < 5; i++) {
-    const t = i / 4;
-    dayGlow.circle(size * (0.28 + t * 0.08), -size * (0.20 + t * 0.04), size * (0.74 - t * 0.09));
-    dayGlow.fill({ color: 0xffffff, alpha: 0.028 - t * 0.004 });
-  }
-  optics.addChild(dayGlow);
-
   const limbShade = new Graphics();
   limbShade.name = 'planet-mini-limb-shade';
   limbShade.circle(0, 0, size * 0.99);
-  limbShade.stroke({ width: Math.max(3, size * 0.18), color: 0x020510, alpha: 0.30 });
+  limbShade.stroke({ width: Math.max(2, size * 0.14), color: 0x020510, alpha: 0.22 });
   limbShade.circle(-size * 0.2, size * 0.1, size * 0.92);
-  limbShade.stroke({ width: Math.max(2, size * 0.12), color: 0x020510, alpha: 0.14 });
+  limbShade.stroke({ width: Math.max(1.5, size * 0.09), color: 0x020510, alpha: 0.10 });
   optics.addChild(limbShade);
-
-  const rim = new Graphics();
-  rim.name = 'planet-mini-rim';
-  rim.circle(0, 0, size * 0.995);
-  rim.stroke({ width: Math.max(1.2, size * 0.045), color: 0xb8ddff, alpha: 0.14 });
-  rim.circle(size * 0.06, -size * 0.03, size * 0.94);
-  rim.stroke({ width: Math.max(0.8, size * 0.025), color: 0xffffff, alpha: 0.06 });
-  optics.addChild(rim);
 
   return optics;
 }
@@ -219,6 +202,7 @@ export function applyPlanetTexturePreview(
 
   (preview as any).__spinRevolutionsPerMs = options.spinRevolutionsPerMs ?? 0;
   (preview as any).__longitude = wrapUnit(options.initialLongitude ?? 0);
+  (preview as any).__renderedLongitude = null;
   (preview as any).__planetRadius = size;
   (preview as any).__sourceTexture = null;
 
@@ -236,7 +220,9 @@ export function applyPlanetTexturePreview(
   void loadTexture(textureUrl).then((loadedTexture) => {
     if (preview.destroyed || !loadedTexture) return;
     (preview as any).__sourceTexture = loadedTexture;
-    replaceSphericalTextureMap(preview, loadedTexture, size, (preview as any).__longitude ?? 0);
+    const longitude = (preview as any).__longitude ?? 0;
+    (preview as any).__renderedLongitude = longitude;
+    replaceSphericalTextureMap(preview, loadedTexture, size, longitude);
   }).catch((err) => {
     console.warn('[PlanetRenderer] Failed to load system planet texture:', textureUrl, err);
   });
@@ -255,6 +241,12 @@ export function tickPlanetTexturePreview(container: Container, deltaMs: number):
 
   const longitude = wrapUnit(((preview as any).__longitude as number | undefined ?? 0) + spinRevolutionsPerMs * deltaMs);
   (preview as any).__longitude = longitude;
+  const renderedLongitude = (preview as any).__renderedLongitude as number | null | undefined;
+  const deltaLongitude = renderedLongitude == null
+    ? 1
+    : Math.abs(longitude - renderedLongitude);
+  if (Math.min(deltaLongitude, 1 - deltaLongitude) < 0.003) return;
+  (preview as any).__renderedLongitude = longitude;
   replaceSphericalTextureMap(preview, sourceTexture, radius, longitude);
 }
 
