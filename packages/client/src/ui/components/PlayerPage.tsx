@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { levelProgress, MAX_PLAYER_LEVEL } from '@nebulife/core';
 import { playSfx } from '../../audio/SfxPlayer.js';
 import { getPushPermissionStatus } from '../../notifications/push-service.js';
+import { setPerfTierChoice, type PerfTierChoice } from '../../utils/device-tier.js';
 
 // ---------------------------------------------------------------------------
 // PlayerPage — Full-screen player profile overlay
@@ -133,6 +134,14 @@ export function PlayerPage({
   const [deleteTypeInput, setDeleteTypeInput] = useState('');
   const [nativeTopUpMsg, setNativeTopUpMsg] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [graphicsTier, setGraphicsTier] = useState<PerfTierChoice>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_perf_tier');
+      return saved === 'simple' || saved === 'standard' || saved === 'full' ? saved : 'standard';
+    } catch {
+      return 'standard';
+    }
+  });
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
 
   const progress = levelProgress(playerXP);
@@ -187,6 +196,15 @@ export function PlayerPage({
       return;
     }
     onStartOver();
+  };
+
+  const handleGraphicsTierChange = (tier: PerfTierChoice) => {
+    if (tier === graphicsTier) return;
+    playSfx('ui-click', 0.07);
+    setGraphicsTier(tier);
+    setPerfTierChoice(tier);
+    try { localStorage.setItem('nebulife_perf_tier_chosen', '1'); } catch { /* ignore */ }
+    window.setTimeout(() => window.location.reload(), 180);
   };
 
   const validateAvatarDimensions = (file: File): Promise<boolean> => new Promise((resolve) => {
@@ -557,6 +575,45 @@ export function PlayerPage({
         >
           {t('player.logout')}
         </button>
+
+        {/* Graphics quality */}
+        <div style={{
+          ...panelStyle,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+        }}>
+          <div style={sectionLabelStyle}>{t('player.graphics_section')}</div>
+          <div style={{ fontSize: 10, color: '#667788', lineHeight: 1.45 }}>
+            {t('player.graphics_hint')}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6 }}>
+            {(['simple', 'standard', 'full'] as const).map((tier) => {
+              const active = graphicsTier === tier;
+              return (
+                <button
+                  key={tier}
+                  type="button"
+                  onClick={() => handleGraphicsTierChange(tier)}
+                  style={{
+                    padding: '8px 4px',
+                    borderRadius: 3,
+                    border: `1px solid ${active ? '#4488aa' : 'rgba(51,68,85,0.8)'}`,
+                    background: active ? 'rgba(68,136,170,0.24)' : 'rgba(10,15,25,0.62)',
+                    color: active ? '#cfe8ff' : '#8899aa',
+                    fontFamily: 'monospace',
+                    fontSize: 9,
+                    letterSpacing: 0.4,
+                    cursor: 'pointer',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {t(`player.graphics_${tier}`)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         {/* Notification preferences */}
         {(onToggleEmailNotif || onTogglePushNotif) && (

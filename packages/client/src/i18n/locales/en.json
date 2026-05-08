@@ -842,7 +842,12 @@
     "avatar_upload_failed": "Could not update avatar",
     "level_up_system_update": "SYSTEM UPDATE",
     "level_up_reached": "LEVEL [ {{level}} ] REACHED",
-    "level_up_nodes_unlocked": "New nodes unlocked in the Research Terminal"
+    "level_up_nodes_unlocked": "New nodes unlocked in the Research Terminal",
+    "graphics_section": "GRAPHICS",
+    "graphics_hint": "Changing this restarts the game so every scene reloads with the new tier.",
+    "graphics_simple": "Simple",
+    "graphics_standard": "Standard",
+    "graphics_full": "Full"
   },
   "settings": {
     "delete_account": "Delete account",

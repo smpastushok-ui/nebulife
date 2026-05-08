@@ -42,7 +42,8 @@ export function EncyclopediaScreen({ onClose }: EncyclopediaScreenProps) {
     () => new Set(SECTIONS.slice(0, 3).map((s) => s.id)),
   );
   const [searchQuery, setSearchQuery] = useState('');
-  const isCompact = typeof window !== 'undefined' && window.innerWidth <= 720;
+  const needsTopChromeInset = typeof window !== 'undefined'
+    && (window.innerWidth <= 820 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
 
   // ── Load remote/static index on mount ────────────────────────────────────
   useEffect(() => {
@@ -142,7 +143,7 @@ export function EncyclopediaScreen({ onClose }: EncyclopediaScreenProps) {
     const next = idx >= 0 && idx < sectionLessons.length - 1 ? sectionLessons[idx + 1] : null;
 
     return (
-      <div style={{ ...overlayStyle, ...(isCompact ? mobileOverlayInsetStyle : {}) }}>
+      <div style={{ ...overlayStyle, ...(needsTopChromeInset ? mobileOverlayInsetStyle : {}) }}>
         <LessonView
           lesson={openLesson}
           lang={lang}
@@ -160,7 +161,7 @@ export function EncyclopediaScreen({ onClose }: EncyclopediaScreenProps) {
 
   // ── Render: TOC ──────────────────────────────────────────────────────────
   return (
-    <div style={{ ...overlayStyle, ...(isCompact ? mobileOverlayInsetStyle : {}) }}>
+    <div style={{ ...overlayStyle, ...(needsTopChromeInset ? mobileOverlayInsetStyle : {}) }}>
       {/* Header bar */}
       <div style={headerStyle}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
@@ -321,7 +322,7 @@ const overlayStyle: React.CSSProperties = {
 };
 
 const mobileOverlayInsetStyle: React.CSSProperties = {
-  paddingTop: 'calc(70px + env(safe-area-inset-top, 0px))',
+  paddingTop: 'calc(118px + env(safe-area-inset-top, 0px))',
   boxSizing: 'border-box',
 };
 

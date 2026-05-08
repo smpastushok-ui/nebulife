@@ -840,7 +840,12 @@
     "avatar_upload_failed": "Не вдалося оновити аватар",
     "level_up_system_update": "СИСТЕМНЕ ОНОВЛЕННЯ",
     "level_up_reached": "ДОСЯГНУТО РІВЕНЬ [ {{level}} ]",
-    "level_up_nodes_unlocked": "Відкрито нові вузли у Терміналі Досліджень"
+    "level_up_nodes_unlocked": "Відкрито нові вузли у Терміналі Досліджень",
+    "graphics_section": "ГРАФІКА",
+    "graphics_hint": "Зміна рівня перезапустить гру, щоб оновити всі сцени.",
+    "graphics_simple": "Легка",
+    "graphics_standard": "Стандарт",
+    "graphics_full": "Повна"
   },
   "settings": {
     "delete_account": "Видалити акаунт",
