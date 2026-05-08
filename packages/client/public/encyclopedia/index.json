@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-05-07T07:39:27.308Z",
+  "updatedAt": "2026-05-08T20:06:10.772Z",
   "lessons": [
     {
       "slug": "gps-gnss",
@@ -13,10 +13,12 @@
       "subtitle": "How dozens of satellites twenty thousand kilometers up know exactly where you are standing.",
       "lastVerified": "2026-05-06",
       "contentHash": "cee1958dcff60f19",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/gps-gnss.en.cee1958dcff60f19.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778095309737-c201m3.jpg",
-      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778095309737-c201m3.jpg"
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778095309737-c201m3.jpg",
+      "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/gps-gnss.en.female.mp3",
+      "durationSec": 932
     },
     {
       "slug": "gps-gnss",
@@ -29,10 +31,12 @@
       "subtitle": "Як десятки супутників на висоті двадцяти тисяч кілометрів знають, де саме ви стоїте.",
       "lastVerified": "2026-05-06",
       "contentHash": "52ee04c79d3b102f",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/gps-gnss.uk.52ee04c79d3b102f.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778095309737-c201m3.jpg",
-      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778095309737-c201m3.jpg"
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778095309737-c201m3.jpg",
+      "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/gps-gnss.uk.female.mp3",
+      "durationSec": 1036
     },
     {
       "slug": "earth-observation",
@@ -45,10 +49,12 @@
       "subtitle": "How orbital sentinels monitor our planet: from crops and floods to melting glaciers and military intelligence.",
       "lastVerified": "2026-05-06",
       "contentHash": "3f60e76651e518cb",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/earth-observation.en.3f60e76651e518cb.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778095176918-cu6u4w.jpg",
-      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778095176918-cu6u4w.jpg"
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778095176918-cu6u4w.jpg",
+      "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/earth-observation.en.female.mp3",
+      "durationSec": 940
     },
     {
       "slug": "earth-observation",
@@ -61,10 +67,12 @@
       "subtitle": "Як орбітальні супутники стежать за планетою: від врожаїв та повеней до танення льодовиків і воєнної розвідки.",
       "lastVerified": "2026-05-06",
       "contentHash": "31bdd840fdafbaa5",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/earth-observation.uk.31bdd840fdafbaa5.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778095176918-cu6u4w.jpg",
-      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778095176918-cu6u4w.jpg"
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778095176918-cu6u4w.jpg",
+      "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/earth-observation.uk.female.mp3",
+      "durationSec": 993
     },
     {
       "slug": "weather-satellites",
@@ -77,10 +85,12 @@
       "subtitle": "How orbital observatories transformed weather forecasting and gave humanity its first view of Earth as a single living system.",
       "lastVerified": "2026-05-06",
       "contentHash": "e4ffb102c7e403ff",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/weather-satellites.en.e4ffb102c7e403ff.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778096651934-yzh985.jpg",
-      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778096651934-yzh985.jpg"
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778096651934-yzh985.jpg",
+      "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/weather-satellites.en.female.mp3",
+      "durationSec": 976
     },
     {
       "slug": "weather-satellites",
@@ -93,10 +103,12 @@
       "subtitle": "Як орбітальні апарати змінили прогнозування погоди і вперше дали людству погляд на Землю як на єдиний живий організм.",
       "lastVerified": "2026-05-06",
       "contentHash": "9fd51e00221fa223",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/weather-satellites.uk.9fd51e00221fa223.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778096651934-yzh985.jpg",
-      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778096651934-yzh985.jpg"
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778096651934-yzh985.jpg",
+      "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/weather-satellites.uk.female.mp3",
+      "durationSec": 1087
     },
     {
       "slug": "communication-satellites",
@@ -109,10 +121,12 @@
       "subtitle": "From a single geostationary relay to seven thousand satellites in low orbit — how the architecture of global communications has been rewritten.",
       "lastVerified": "2026-05-06",
       "contentHash": "dd31a03a63d7066b",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/communication-satellites.en.dd31a03a63d7066b.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778095009440-8bjxds.jpg",
-      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778095009440-8bjxds.jpg"
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778095009440-8bjxds.jpg",
+      "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/communication-satellites.en.female.mp3",
+      "durationSec": 1200
     },
     {
       "slug": "communication-satellites",
@@ -125,10 +139,12 @@
       "subtitle": "Від одинокого геостаціонарного ретранслятора до семи тисяч апаратів на низькій орбіті — як змінилась архітектура глобального зв'язку.",
       "lastVerified": "2026-05-06",
       "contentHash": "d77446b83beb7c68",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/communication-satellites.uk.d77446b83beb7c68.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778095009440-8bjxds.jpg",
-      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778095009440-8bjxds.jpg"
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778095009440-8bjxds.jpg",
+      "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/communication-satellites.uk.female.mp3",
+      "durationSec": 1307
     },
     {
       "slug": "space-weather",
@@ -141,10 +157,12 @@
       "subtitle": "How the Sun can disable satellites, black out cities, and set telegraph wires on fire — in a matter of minutes.",
       "lastVerified": "2026-05-06",
       "contentHash": "75777e2486c44ac0",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/space-weather.en.75777e2486c44ac0.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778096530762-wfstf9.jpg",
-      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778096530762-wfstf9.jpg"
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778096530762-wfstf9.jpg",
+      "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/space-weather.en.female.mp3",
+      "durationSec": 935
     },
     {
       "slug": "space-weather",
@@ -157,10 +175,12 @@
       "subtitle": "Як Сонце у кілька хвилин може вивести з ладу супутники, знеструмити міста і підпалити телеграфні дроти.",
       "lastVerified": "2026-05-06",
       "contentHash": "e986a471ff366421",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/space-weather.uk.e986a471ff366421.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778096530762-wfstf9.jpg",
-      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778096530762-wfstf9.jpg"
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778096530762-wfstf9.jpg",
+      "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/space-weather.uk.female.mp3",
+      "durationSec": 1041
     },
     {
       "slug": "space-economy",
@@ -173,10 +193,12 @@
       "subtitle": "From government programs to market-driven space: how a half-trillion-dollar industry rewrote the rules of orbital access.",
       "lastVerified": "2026-05-06",
       "contentHash": "f7911f229948addb",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/space-economy.en.f7911f229948addb.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778096374901-yle61c.jpg",
-      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778096374901-yle61c.jpg"
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778096374901-yle61c.jpg",
+      "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/space-economy.en.female.mp3",
+      "durationSec": 861
     },
     {
       "slug": "space-economy",
@@ -189,10 +211,12 @@
       "subtitle": "Від державних програм до ринкового космосу: як індустрія обсягом понад 500 мільярдів доларів переписує правила доступу до орбіти.",
       "lastVerified": "2026-05-06",
       "contentHash": "7fd2d8cb9e33e312",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/space-economy.uk.7fd2d8cb9e33e312.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778096374901-yle61c.jpg",
-      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778096374901-yle61c.jpg"
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778096374901-yle61c.jpg",
+      "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/space-economy.uk.female.mp3",
+      "durationSec": 963
     },
     {
       "slug": "planetary-defense",
@@ -205,10 +229,12 @@
       "subtitle": "From the Tunguska explosion to the first real deflection of a celestial body: how humanity is learning to protect itself from cosmic impacts.",
       "lastVerified": "2026-05-06",
       "contentHash": "4bdd7efd455156f9",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/planetary-defense.en.4bdd7efd455156f9.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778095433204-xp4t6h.jpg",
-      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778095433204-xp4t6h.jpg"
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778095433204-xp4t6h.jpg",
+      "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/planetary-defense.en.female.mp3",
+      "durationSec": 1072
     },
     {
       "slug": "planetary-defense",
@@ -221,10 +247,12 @@
       "subtitle": "Від Тунгуського вибуху до першого реального відхилення небесного тіла: як людство вчиться захищати себе від космічних ударів.",
       "lastVerified": "2026-05-06",
       "contentHash": "16acc44621de0d4d",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/planetary-defense.uk.16acc44621de0d4d.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778095433204-xp4t6h.jpg",
-      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778095433204-xp4t6h.jpg"
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778095433204-xp4t6h.jpg",
+      "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/planetary-defense.uk.female.mp3",
+      "durationSec": 1143
     },
     {
       "slug": "drake-fermi",
@@ -237,10 +265,12 @@
       "subtitle": "A formula for estimating the number of civilizations in the galaxy, and astrophysics's most uncomfortable question: if they exist — where are they?",
       "lastVerified": "2026-05-06",
       "contentHash": "34475a58eccf9186",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/drake-fermi.en.34475a58eccf9186.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778096954914-jomq5n.jpg",
-      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778096954914-jomq5n.jpg"
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778096954914-jomq5n.jpg",
+      "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/drake-fermi.en.female.mp3",
+      "durationSec": 978
     },
     {
       "slug": "drake-fermi",
@@ -253,7 +283,7 @@
       "subtitle": "Формула, що оцінює кількість цивілізацій у галактиці, і найбільш незручне питання астрофізики: якщо вони існують — де вони?",
       "lastVerified": "2026-05-06",
       "contentHash": "098239cbdac7d3a5",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/drake-fermi.uk.098239cbdac7d3a5.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778096954914-jomq5n.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778096954914-jomq5n.jpg"
@@ -269,10 +299,12 @@
       "subtitle": "How starlight filtered through a distant atmosphere tells us what it is made of — and what we have already learned.",
       "lastVerified": "2026-05-06",
       "contentHash": "d04182e28b1d65c8",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/exoplanet-atmospheres.en.d04182e28b1d65c8.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778097075690-xut278.jpg",
-      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778097075690-xut278.jpg"
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778097075690-xut278.jpg",
+      "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/exoplanet-atmospheres.en.female.mp3",
+      "durationSec": 965
     },
     {
       "slug": "exoplanet-atmospheres",
@@ -285,10 +317,12 @@
       "subtitle": "Як зіркове світло, що пройшло крізь чужу атмосферу, розповідає нам про її хімічний склад — і що ми вже встигли дізнатись.",
       "lastVerified": "2026-05-06",
       "contentHash": "9ce636038dadcee2",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/exoplanet-atmospheres.uk.9ce636038dadcee2.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778097075690-xut278.jpg",
-      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778097075690-xut278.jpg"
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778097075690-xut278.jpg",
+      "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/exoplanet-atmospheres.uk.female.mp3",
+      "durationSec": 1052
     },
     {
       "slug": "habitable-zones",
@@ -301,7 +335,7 @@
       "subtitle": "Not too hot, not too cold. Where in the universe can liquid water exist on a surface — and is water always the prerequisite?",
       "lastVerified": "2026-05-03",
       "contentHash": "0c048d40a8d57d61",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/habitable-zones.en.0c048d40a8d57d61.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063158392-qpdzwx.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063158392-qpdzwx.jpg",
@@ -319,7 +353,7 @@
       "subtitle": "Не занадто гаряча, не занадто холодна. Де у Всесвіті може існувати рідка вода — і чи завжди вода є обов'язковою умовою?",
       "lastVerified": "2026-05-03",
       "contentHash": "e02254c3eae25fa1",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/habitable-zones.uk.e02254c3eae25fa1.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063158392-qpdzwx.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063158392-qpdzwx.jpg",
@@ -337,10 +371,12 @@
       "subtitle": "Some molecules are nearly impossible to sustain without biology. Can we read the presence of life in the spectrum of a distant planet — and how confident can we be that we are reading it correctly?",
       "lastVerified": "2026-05-06",
       "contentHash": "19a01f743da3219e",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/biomarkers.en.19a01f743da3219e.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778096777659-rzdr0a.jpg",
-      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778096777659-rzdr0a.jpg"
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778096777659-rzdr0a.jpg",
+      "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/biomarkers.en.female.mp3",
+      "durationSec": 1107
     },
     {
       "slug": "biomarkers",
@@ -353,10 +389,12 @@
       "subtitle": "Деякі молекули майже неможливо підтримувати абіотично. Чи можна прочитати присутність живого у спектрі чужої планети — і наскільки ми впевнені, що читаємо правильно?",
       "lastVerified": "2026-05-06",
       "contentHash": "472b8504fd69d4c0",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/biomarkers.uk.472b8504fd69d4c0.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778096777659-rzdr0a.jpg",
-      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778096777659-rzdr0a.jpg"
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778096777659-rzdr0a.jpg",
+      "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/biomarkers.uk.female.mp3",
+      "durationSec": 1117
     },
     {
       "slug": "extremophiles",
@@ -369,10 +407,12 @@
       "subtitle": "Organisms that thrive in boiling water, concentrated acid, arctic darkness, and deep-ocean trenches are rewriting our understanding of where life can exist in the universe.",
       "lastVerified": "2026-05-06",
       "contentHash": "b0e89486f4db9180",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/extremophiles.en.b0e89486f4db9180.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778097208996-33yfrq.jpg",
-      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778097208996-33yfrq.jpg"
+      "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778097208996-33yfrq.jpg",
+      "audioUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/extremophiles.en.female.mp3",
+      "durationSec": 1079
     },
     {
       "slug": "extremophiles",
@@ -385,7 +425,7 @@
       "subtitle": "Організми, що процвітають у киплячій воді, концентрованій кислоті, арктичній темряві й глибоководних траншеях, переписують наші уявлення про те, де у Всесвіті може існувати життя.",
       "lastVerified": "2026-05-06",
       "contentHash": "2246e4d51a51badf",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/extremophiles.uk.2246e4d51a51badf.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778097208996-33yfrq.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778097208996-33yfrq.jpg"
@@ -401,7 +441,7 @@
       "subtitle": "Mars, Europa, Enceladus, Titan — our own stellar system contains at least six worlds where conditions for the origin of life look plausible. Life has not been found yet. But the search is underway.",
       "lastVerified": "2026-05-06",
       "contentHash": "b2d216d0a899d522",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/life-in-solar-system.en.b2d216d0a899d522.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778097389696-b5trcz.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778097389696-b5trcz.jpg"
@@ -417,7 +457,7 @@
       "subtitle": "Марс, Європа, Енцелад, Титан — у нашій власній зоряній системі є щонайменше шість світів, де умови для виникнення життя виглядають правдоподібно. Його ще не знайшли. Але шукають.",
       "lastVerified": "2026-05-06",
       "contentHash": "5eeef87968c8ef62",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/life-in-solar-system.uk.5eeef87968c8ef62.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778097389696-b5trcz.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778097389696-b5trcz.jpg"
@@ -433,7 +473,7 @@
       "subtitle": "From dead molecules to the first cell. How chemistry crossed a threshold we still do not fully understand.",
       "lastVerified": "2026-05-06",
       "contentHash": "eaf02a6ed0872382",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/origin-of-life.en.eaf02a6ed0872382.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778097584268-2t2c9z.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778097584268-2t2c9z.jpg"
@@ -449,7 +489,7 @@
       "subtitle": "Від мертвих молекул до першої клітини. Як хімія переступила межу, яку ми досі не розуміємо повністю.",
       "lastVerified": "2026-05-06",
       "contentHash": "4dc3d9316fcd1217",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/origin-of-life.uk.4dc3d9316fcd1217.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778097584268-2t2c9z.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778097584268-2t2c9z.jpg"
@@ -465,7 +505,7 @@
       "subtitle": "Eighty lines per second, thousands of stars in the antenna's sight — and no reply. How humanity listens to the universe, and what exactly it is listening for.",
       "lastVerified": "2026-05-06",
       "contentHash": "655ec8f10617dc6c",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/seti.en.655ec8f10617dc6c.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778097853135-afj2qy.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778097853135-afj2qy.jpg"
@@ -481,7 +521,7 @@
       "subtitle": "Вісімдесят рядків на секунду, тисячі зір у прицілі антени — і жодної відповіді. Як людство прислухається до Всесвіту і що саме шукає.",
       "lastVerified": "2026-05-06",
       "contentHash": "6c873f34253833f7",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/seti.uk.6c873f34253833f7.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778097853135-afj2qy.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778097853135-afj2qy.jpg"
@@ -497,7 +537,7 @@
       "subtitle": "Could life have arrived on Earth from elsewhere — and can living organisms cross the distances between stars?",
       "lastVerified": "2026-05-06",
       "contentHash": "69606dc9e7d24162",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/panspermia.en.69606dc9e7d24162.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778097733967-i9z2l4.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778097733967-i9z2l4.jpg"
@@ -513,7 +553,7 @@
       "subtitle": "Чи могло життя прийти на Землю ззовні — і чи могли живі організми долати відстані між зорями?",
       "lastVerified": "2026-05-06",
       "contentHash": "01766af986af28ed",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/panspermia.uk.01766af986af28ed.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778097733967-i9z2l4.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778097733967-i9z2l4.jpg"
@@ -529,7 +569,7 @@
       "subtitle": "From Babylonian priests to gravitational waves — how humanity learned to read the sky.",
       "lastVerified": "2026-05-03",
       "contentHash": "d14aeee47347a957",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/what-is-astronomy.en.d14aeee47347a957.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830820957-d4xr8g.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830820957-d4xr8g.jpg",
@@ -547,7 +587,7 @@
       "subtitle": "Від вавилонських жерців до гравітаційних хвиль — як людство навчилося читати небо.",
       "lastVerified": "2026-05-03",
       "contentHash": "b6cca2a8c2a439f7",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/what-is-astronomy.uk.b6cca2a8c2a439f7.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830820957-d4xr8g.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830820957-d4xr8g.jpg",
@@ -565,7 +605,7 @@
       "subtitle": "Eight planets, trillions of smaller bodies, and one star. What we know about our cosmic address.",
       "lastVerified": "2026-05-03",
       "contentHash": "ba80a775a71f89ca",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/solar-system-overview.en.ba80a775a71f89ca.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830650154-g8x4d4.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830650154-g8x4d4.jpg",
@@ -583,7 +623,7 @@
       "subtitle": "Вісім планет, трильйони малих тіл і одна зоря. Що ми знаємо про нашу космічну адресу.",
       "lastVerified": "2026-05-03",
       "contentHash": "7e64cbf2ba801df6",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/solar-system-overview.uk.7e64cbf2ba801df6.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830650154-g8x4d4.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830650154-g8x4d4.jpg",
@@ -601,7 +641,7 @@
       "subtitle": "From clouds that birth stars to the wreckage of explosions and the final sighs of dying suns.",
       "lastVerified": "2026-05-06",
       "contentHash": "16dc45258bef5cd4",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/nebulae-types.en.16dc45258bef5cd4.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778098959786-jh5emz.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778098959786-jh5emz.jpg"
@@ -617,7 +657,7 @@
       "subtitle": "Від хмар, що народжують зорі, до решток вибухів і прощальних вздихів вмираючих світил.",
       "lastVerified": "2026-05-06",
       "contentHash": "98b0868de55e218a",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/nebulae-types.uk.98b0868de55e218a.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778098959786-jh5emz.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778098959786-jh5emz.jpg"
@@ -633,7 +673,7 @@
       "subtitle": "From a collapsing gas cloud to a white dwarf or black hole — how a star's mass decides its entire fate.",
       "lastVerified": "2026-05-03",
       "contentHash": "bcfdb0d07afd6679",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/stars-classification.en.bcfdb0d07afd6679.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063489689-b925tp.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063489689-b925tp.jpg",
@@ -651,7 +691,7 @@
       "subtitle": "Від протозоряної хмари до білого карлика або чорної діри — як маса зорі визначає весь її шлях.",
       "lastVerified": "2026-05-03",
       "contentHash": "ecd818e2d2832348",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/stars-classification.uk.ecd818e2d2832348.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063489689-b925tp.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063489689-b925tp.jpg"
@@ -667,7 +707,7 @@
       "subtitle": "From the first gas giant around an ordinary star to thousands of worlds beyond our Solar System — the methods, logic, and limits of planetary detection.",
       "lastVerified": "2026-05-06",
       "contentHash": "190ec23b919c8f45",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/exoplanets-discovery.en.190ec23b919c8f45.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778098640163-uurslb.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778098640163-uurslb.jpg"
@@ -683,7 +723,7 @@
       "subtitle": "Від першого газового гіганта навколо звичайної зорі до тисяч світів за горизонтом Сонячної системи — методи, логіка і межі планетарної детективістики.",
       "lastVerified": "2026-05-06",
       "contentHash": "a99c13428c4f5cca",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/exoplanets-discovery.uk.a99c13428c4f5cca.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778098640163-uurslb.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778098640163-uurslb.jpg"
@@ -699,7 +739,7 @@
       "subtitle": "From Galileo's glass to orbital observatories and segmented mirrors — how humanity learned to see the universe.",
       "lastVerified": "2026-05-06",
       "contentHash": "2f13a4427e532417",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/telescopes-evolution.en.2f13a4427e532417.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778099304858-0iposl.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778099304858-0iposl.jpg"
@@ -715,7 +755,7 @@
       "subtitle": "Від шматка скла в руках Галілея до орбітальних обсерваторій і сегментованих дзеркал — як людство навчилось бачити Всесвіт.",
       "lastVerified": "2026-05-06",
       "contentHash": "2337ba895029fb2b",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/telescopes-evolution.uk.2337ba895029fb2b.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778099304858-0iposl.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778099304858-0iposl.jpg"
@@ -731,7 +771,7 @@
       "subtitle": "An island of two hundred billion stars we call home. What it is, how we study it from the inside, and what awaits it in the distant future.",
       "lastVerified": "2026-05-03",
       "contentHash": "801b2ed2d57866fa",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/milky-way.en.801b2ed2d57866fa.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063329948-pu9awk.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063329948-pu9awk.jpg",
@@ -749,7 +789,7 @@
       "subtitle": "Острів із двохсот мільярдів зір, в якому ми живемо. Що він собою являє, як ми його вивчаємо зсередини і що чекає на нього у далекому майбутньому.",
       "lastVerified": "2026-05-03",
       "contentHash": "8f947c254fa93aad",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/milky-way.uk.8f947c254fa93aad.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063329948-pu9awk.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063329948-pu9awk.jpg",
@@ -767,7 +807,7 @@
       "subtitle": "From radar echoes to gravitational waves — the chain of methods that lets humanity reach beyond any telescope.",
       "lastVerified": "2026-05-06",
       "contentHash": "ce27226a751dd8c2",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/distance-measurement.en.ce27226a751dd8c2.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778098339666-w0g0qd.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778098339666-w0g0qd.jpg"
@@ -783,7 +823,7 @@
       "subtitle": "Від радарного луна до гравітаційних хвиль — сходи методів, що дозволяють людству простягнутися за межі будь-якого телескопа.",
       "lastVerified": "2026-05-06",
       "contentHash": "b179af5364f6af86",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/distance-measurement.uk.b179af5364f6af86.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778098339666-w0g0qd.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778098339666-w0g0qd.jpg"
@@ -799,7 +839,7 @@
       "subtitle": "The Solar System's small bodies — witnesses to its formation, harbingers of collisions, and sources of Earth's own materials.",
       "lastVerified": "2026-05-06",
       "contentHash": "d650aa3fbc6d4868",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/comets-asteroids-meteors.en.d650aa3fbc6d4868.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778098138898-47gtnj.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778098138898-47gtnj.jpg"
@@ -815,7 +855,7 @@
       "subtitle": "Малі тіла Сонячної системи — свідки її формування, вісники зіткнень і джерела земних речовин.",
       "lastVerified": "2026-05-06",
       "contentHash": "1957dbea427387c5",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/comets-asteroids-meteors.uk.1957dbea427387c5.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778098138898-47gtnj.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778098138898-47gtnj.jpg"
@@ -831,7 +871,7 @@
       "subtitle": "From spiral arms to elliptical giants — how the universe organizes stars into island cities.",
       "lastVerified": "2026-05-06",
       "contentHash": "f0d7ff48541de0c5",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/galaxy-types.en.f0d7ff48541de0c5.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778098808034-651pdr.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778098808034-651pdr.jpg"
@@ -847,7 +887,7 @@
       "subtitle": "Від спіральних рукавів до еліптичних велетнів — як Всесвіт організує зорі в острівні міста.",
       "lastVerified": "2026-05-06",
       "contentHash": "66b571bbfde17156",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/galaxy-types.uk.66b571bbfde17156.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778098808034-651pdr.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778098808034-651pdr.jpg"
@@ -863,7 +903,7 @@
       "subtitle": "From molecular cloud to stellar nursery — the physics of gravitational collapse, accretion disks, and the first stellar ignitions.",
       "lastVerified": "2026-05-06",
       "contentHash": "f6f04103de797007",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/star-formation.en.f6f04103de797007.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778099122703-xa5dll.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778099122703-xa5dll.jpg"
@@ -879,7 +919,7 @@
       "subtitle": "Від молекулярної хмари до зоряних ясел — фізика гравітаційного колапсу, акреційних дисків і перших зоряних спалахів.",
       "lastVerified": "2026-05-06",
       "contentHash": "428afaf86265439e",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/star-formation.uk.428afaf86265439e.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778099122703-xa5dll.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778099122703-xa5dll.jpg"
@@ -895,7 +935,7 @@
       "subtitle": "Stars whose brightness is not constant — from pulsating Cepheids to cataclysmic novae — became one of astronomy's most powerful tools for measuring the universe.",
       "lastVerified": "2026-05-06",
       "contentHash": "c5d732d38f177aa1",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/variable-stars.en.c5d732d38f177aa1.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778099436527-ucg6j9.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778099436527-ucg6j9.jpg"
@@ -911,7 +951,7 @@
       "subtitle": "Зорі, яскравість яких не постійна — від пульсуючих цефеїд до катаклізмічних нових — стали одним з головних інструментів вимірювання Всесвіту.",
       "lastVerified": "2026-05-06",
       "contentHash": "f51f6dde6bbca1ff",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/variable-stars.uk.f51f6dde6bbca1ff.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778099436527-ucg6j9.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778099436527-ucg6j9.jpg"
@@ -927,7 +967,7 @@
       "subtitle": "When one celestial body blocks another — from total solar eclipses to Venus transits and stellar occultations.",
       "lastVerified": "2026-05-06",
       "contentHash": "7d0dc55f6cbf1bac",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/eclipses-occultations.en.7d0dc55f6cbf1bac.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778098475776-8id4zj.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778098475776-8id4zj.jpg"
@@ -943,7 +983,7 @@
       "subtitle": "Коли одне небесне тіло заступає інше — від повного сонячного затемнення до транзиту Венери і зоряних покриттів.",
       "lastVerified": "2026-05-06",
       "contentHash": "ff20eae56ef5ae84",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/eclipses-occultations.uk.ff20eae56ef5ae84.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778098475776-8id4zj.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778098475776-8id4zj.jpg"
@@ -959,7 +999,7 @@
       "subtitle": "How three laws from the seventeenth century still govern everything that moves in space — from artificial satellites to comet trajectories.",
       "lastVerified": "2026-05-06",
       "contentHash": "9b2d04387f99fc47",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/celestial-mechanics-orbits.en.9b2d04387f99fc47.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778097995918-4r6wow.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778097995918-4r6wow.jpg"
@@ -975,7 +1015,7 @@
       "subtitle": "Як три закони XVII століття досі керують усім, що рухається в космосі — від штучних супутників до траєкторій комет.",
       "lastVerified": "2026-05-06",
       "contentHash": "3cdfec99cb16869a",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/celestial-mechanics-orbits.uk.3cdfec99cb16869a.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778097995918-4r6wow.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778097995918-4r6wow.jpg"
@@ -991,7 +1031,7 @@
       "subtitle": "How humanity traveled from a falling apple to curved spacetime — and why that journey is still not finished.",
       "lastVerified": "2026-05-03",
       "contentHash": "e1d09a1ff4cca407",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/gravity-newton-einstein.en.e1d09a1ff4cca407.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063889614-v61kbr.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063889614-v61kbr.jpg"
@@ -1007,7 +1047,7 @@
       "subtitle": "Як людство пройшло шлях від яблука, що падає, до викривленого простору-часу — і чому ця подорож ще не закінчена.",
       "lastVerified": "2026-05-03",
       "contentHash": "d2f80f15c0bd87ce",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/gravity-newton-einstein.uk.d2f80f15c0bd87ce.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063889614-v61kbr.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063889614-v61kbr.jpg"
@@ -1023,7 +1063,7 @@
       "subtitle": "From gas cloud to white dwarf, neutron star, or black hole — mass decides everything.",
       "lastVerified": "2026-05-06",
       "contentHash": "a94af004e3130895",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/stellar-evolution.en.a94af004e3130895.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778100735331-1iby79.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778100735331-1iby79.jpg"
@@ -1039,7 +1079,7 @@
       "subtitle": "Від хмари газу до білого карлика, нейтронної зорі або чорної діри — маса вирішує все.",
       "lastVerified": "2026-05-06",
       "contentHash": "f17e44755190284e",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/stellar-evolution.uk.f17e44755190284e.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778100735331-1iby79.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778100735331-1iby79.jpg"
@@ -1055,7 +1095,7 @@
       "subtitle": "The most powerful explosions in the universe. From the thermonuclear detonation of a white dwarf to the collapse of an iron core — and why this concerns every atom in your body.",
       "lastVerified": "2026-05-06",
       "contentHash": "cd8866a8135d63b7",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/supernovae-types.en.cd8866a8135d63b7.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778100917661-48e3zg.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778100917661-48e3zg.jpg"
@@ -1071,7 +1111,7 @@
       "subtitle": "Найпотужніші вибухи у Всесвіті. Від термоядерного детонатора білого карлика до колапсу залізного ядра масивної зорі — і чому це стосується кожного атома у вашому тілі.",
       "lastVerified": "2026-05-06",
       "contentHash": "71a4ad0476235b55",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/supernovae-types.uk.71a4ad0476235b55.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778100917661-48e3zg.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778100917661-48e3zg.jpg"
@@ -1087,7 +1127,7 @@
       "subtitle": "Mass does not pull — it curves space. Why the geometry of the universe turned out to matter more than force.",
       "lastVerified": "2026-05-03",
       "contentHash": "03dfc8a625432f5d",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/general-relativity.en.03dfc8a625432f5d.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063688147-9z31t0.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063688147-9z31t0.jpg"
@@ -1103,7 +1143,7 @@
       "subtitle": "Маса не притягує — вона деформує простір. Чому геометрія Всесвіту виявилась важливішою за силу.",
       "lastVerified": "2026-05-03",
       "contentHash": "c2c321275577ceee",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/general-relativity.uk.c2c321275577ceee.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063688147-9z31t0.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778063688147-9z31t0.jpg"
@@ -1119,7 +1159,7 @@
       "subtitle": "Objects you cannot escape. What we know, how we saw them, and why they are the best test of Einstein's theory.",
       "lastVerified": "2026-05-03",
       "contentHash": "ead01cdd7637fc6a",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/black-holes-intro.en.ead01cdd7637fc6a.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830394185-qanlyi.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830394185-qanlyi.jpg",
@@ -1137,7 +1177,7 @@
       "subtitle": "Об’єкти, з яких не вирвешся. Що ми знаємо, як їх побачили і чому це найкраща перевірка теорії Ейнштейна.",
       "lastVerified": "2026-05-03",
       "contentHash": "c1418fd8d8f06b8b",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/black-holes-intro.uk.c1418fd8d8f06b8b.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830394185-qanlyi.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830394185-qanlyi.jpg",
@@ -1155,7 +1195,7 @@
       "subtitle": "The mass of the Sun packed into a city-sized sphere. A teaspoon weighs a billion tonnes. The densest stable objects in the universe — and cosmic clocks more precise than atomic timekeepers.",
       "lastVerified": "2026-05-03",
       "contentHash": "e7f9d963260bd6bd",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/neutron-stars-pulsars.en.e7f9d963260bd6bd.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064044589-p37rhc.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064044589-p37rhc.jpg"
@@ -1171,7 +1211,7 @@
       "subtitle": "Маса Сонця, розмір міста, чайна ложка вагою мільярд тонн. Найщільніші стабільні об'єкти Всесвіту — і маяки, що відлічують час точніше за атомний годинник.",
       "lastVerified": "2026-05-03",
       "contentHash": "9f675a83aca7d342",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/neutron-stars-pulsars.uk.9f675a83aca7d342.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064044589-p37rhc.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064044589-p37rhc.jpg"
@@ -1187,7 +1227,7 @@
       "subtitle": "The final state of most stars. Why they resist further collapse, how they cool over billions of years, and what happens when they gain too much mass.",
       "lastVerified": "2026-05-06",
       "contentHash": "bac671372c458a3a",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/white-dwarfs.en.bac671372c458a3a.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778101102214-kkop24.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778101102214-kkop24.jpg"
@@ -1203,7 +1243,7 @@
       "subtitle": "Фінальний стан більшості зір. Чому вони не стискаються далі, як охолоджуються мільярди років і що відбувається, коли вони набирають зайву масу.",
       "lastVerified": "2026-05-06",
       "contentHash": "867b61ad6536b966",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/white-dwarfs.uk.867b61ad6536b966.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778101102214-kkop24.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778101102214-kkop24.jpg"
@@ -1219,7 +1259,7 @@
       "subtitle": "Ripples in the fabric of spacetime: how Einstein predicted them in 1916 and how we finally heard the universe in 2015.",
       "lastVerified": "2026-05-06",
       "contentHash": "bf8a7f7eb1476e37",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/gravitational-waves.en.bf8a7f7eb1476e37.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778100249034-setgv4.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778100249034-setgv4.jpg"
@@ -1235,7 +1275,7 @@
       "subtitle": "Рябь у тканині простору-часу: як Ейнштейн передбачив їх у 1916 році і як ми нарешті почули Всесвіт у 2015-му.",
       "lastVerified": "2026-05-06",
       "contentHash": "3c914c2d65ca1619",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/gravitational-waves.uk.3c914c2d65ca1619.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778100249034-setgv4.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778100249034-setgv4.jpg"
@@ -1251,7 +1291,7 @@
       "subtitle": "How matter spiraling onto a compact object becomes one of the most powerful energy sources in the universe.",
       "lastVerified": "2026-05-06",
       "contentHash": "5d82b3c754f679b9",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/accretion-disks.en.5d82b3c754f679b9.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778099597143-erfsub.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778099597143-erfsub.jpg"
@@ -1267,7 +1307,7 @@
       "subtitle": "Як матерія, що падає на компактний об'єкт, перетворюється на один з найпотужніших джерел енергії у Всесвіті.",
       "lastVerified": "2026-05-06",
       "contentHash": "6ea7e6e22f04397b",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/accretion-disks.uk.6ea7e6e22f04397b.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778099597143-erfsub.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778099597143-erfsub.jpg"
@@ -1283,7 +1323,7 @@
       "subtitle": "How stars forge elements from hydrogen to iron — and why gold is born not in stars but in colliding neutron stars.",
       "lastVerified": "2026-05-06",
       "contentHash": "10aec0116b40cc7c",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/fusion-nucleosynthesis.en.10aec0116b40cc7c.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778100068085-nk0jfx.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778100068085-nk0jfx.jpg"
@@ -1299,7 +1339,7 @@
       "subtitle": "Як зорі кують елементи з водню до заліза — і чому золото народжується не в зорях, а в зіткненні нейтронних зір.",
       "lastVerified": "2026-05-06",
       "contentHash": "24eecc2177fd819a",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/fusion-nucleosynthesis.uk.24eecc2177fd819a.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778100068085-nk0jfx.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778100068085-nk0jfx.jpg"
@@ -1315,7 +1355,7 @@
       "subtitle": "Neutron stars with a magnetic field a trillion times stronger than Earth's. The most magnetized objects in the universe — and the most dangerous.",
       "lastVerified": "2026-05-06",
       "contentHash": "e73bf6a7988a6082",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/magnetars.en.e73bf6a7988a6082.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778100405650-kc8psy.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778100405650-kc8psy.jpg"
@@ -1331,7 +1371,7 @@
       "subtitle": "Нейтронні зорі з магнітним полем у трильйон разів сильнішим за земне. Найбільш намагнічені об'єкти у Всесвіті — і найнебезпечніші.",
       "lastVerified": "2026-05-06",
       "contentHash": "cdefb2d2517e426a",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/magnetars.uk.cdefb2d2517e426a.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778100405650-kc8psy.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778100405650-kc8psy.jpg"
@@ -1347,7 +1387,7 @@
       "subtitle": "More than half of all stars in the Galaxy live in pairs. These pairs are engines of cosmic catastrophe, laboratories for weighing stars, and factories of gravitational-wave sources.",
       "lastVerified": "2026-05-06",
       "contentHash": "ea8e9d94d4cc49aa",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/binary-stars.en.ea8e9d94d4cc49aa.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778099735981-3jr1de.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778099735981-3jr1de.jpg"
@@ -1363,7 +1403,7 @@
       "subtitle": "Більше половини зір у Галактиці живуть у парах. Ці пари — двигуни космічних катастроф, лабораторії для зважування зір і джерела гравітаційних хвиль.",
       "lastVerified": "2026-05-06",
       "contentHash": "b68c8d03f4302acd",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/binary-stars.uk.b68c8d03f4302acd.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778099735981-3jr1de.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778099735981-3jr1de.jpg"
@@ -1379,7 +1419,7 @@
       "subtitle": "Charged particles from the depths of the universe — from supernova explosions to the most powerful natural accelerators in existence.",
       "lastVerified": "2026-05-06",
       "contentHash": "baee7f12b41c317a",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/cosmic-rays.en.baee7f12b41c317a.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778099922285-nwy6qj.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778099922285-nwy6qj.jpg"
@@ -1395,7 +1435,7 @@
       "subtitle": "Заряджені частинки з глибин Всесвіту — від вибухів наднових до найпотужніших прискорювачів природи.",
       "lastVerified": "2026-05-06",
       "contentHash": "9d4d96a4ac2d53cf",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/cosmic-rays.uk.9d4d96a4ac2d53cf.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778099922285-nwy6qj.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778099922285-nwy6qj.jpg"
@@ -1411,7 +1451,7 @@
       "subtitle": "The brightest objects in the universe — a view into the heart of a galaxy where a supermassive black hole converts matter into light with terrifying efficiency.",
       "lastVerified": "2026-05-06",
       "contentHash": "a7c9a931588c83f5",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/quasars-blazars.en.a7c9a931588c83f5.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778100593700-ax1zvb.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778100593700-ax1zvb.jpg"
@@ -1427,7 +1467,7 @@
       "subtitle": "Найяскравіші об'єкти у Всесвіті — погляд у саме серце галактики, де надмасивна чорна діра перетворює матерію на світло з жахливою ефективністю.",
       "lastVerified": "2026-05-06",
       "contentHash": "1888542b6581ca8f",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/quasars-blazars.uk.1888542b6581ca8f.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778100593700-ax1zvb.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778100593700-ax1zvb.jpg"
@@ -1443,7 +1483,7 @@
       "subtitle": "Not an explosion in space, but the expansion of space itself. How we know it happened — and what remains a mystery.",
       "lastVerified": "2026-05-03",
       "contentHash": "57804508013e5f09",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/big-bang-simple.en.57804508013e5f09.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830974840-64ow1h.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830974840-64ow1h.jpg",
@@ -1461,7 +1501,7 @@
       "subtitle": "Не вибух у просторі, а вибух самого простору. Звідки ми знаємо, що це сталось, і що лишається загадкою.",
       "lastVerified": "2026-05-03",
       "contentHash": "6f64f5ccd893d0ab",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/big-bang-simple.uk.6f64f5ccd893d0ab.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830974840-64ow1h.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777830974840-64ow1h.jpg",
@@ -1479,7 +1519,7 @@
       "subtitle": "Twenty-seven percent of the universe's energy density — in matter we cannot see, hear, or catch. But it is there.",
       "lastVerified": "2026-05-06",
       "contentHash": "4dde73a0918e201a",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/dark-matter.en.4dde73a0918e201a.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778132396720-2pj0h7.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778132396720-2pj0h7.jpg"
@@ -1495,7 +1535,7 @@
       "subtitle": "Двадцять сім відсотків енергії Всесвіту — у речовині, яку ми не бачимо, не чуємо і досі не зловили. Але вона там є.",
       "lastVerified": "2026-05-06",
       "contentHash": "014d779ef8bc384b",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/dark-matter.uk.014d779ef8bc384b.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778132396720-2pj0h7.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778132396720-2pj0h7.jpg"
@@ -1511,7 +1551,7 @@
       "subtitle": "In the first trillionth of a trillionth of a second, the universe expanded by a factor of a trillion trillion trillion. Why physicists consider this the only reasonable explanation for what we observe.",
       "lastVerified": "2026-05-06",
       "contentHash": "6809e0deed32fbd9",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/cosmic-inflation.en.6809e0deed32fbd9.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778132108113-ged04x.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778132108113-ged04x.jpg"
@@ -1527,7 +1567,7 @@
       "subtitle": "За першу тисячну частку мікросекунди Всесвіт розтягнувся в мільярд мільярдів мільярдів разів. Чому фізики вважають це єдиним розумним поясненням того, що ми спостерігаємо.",
       "lastVerified": "2026-05-06",
       "contentHash": "7632bc4a7ce1d937",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/cosmic-inflation.uk.7632bc4a7ce1d937.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778132108113-ged04x.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778132108113-ged04x.jpg"
@@ -1543,7 +1583,7 @@
       "subtitle": "The oldest light in the universe, permeating all of space. How it formed, why it survived, and what it tells us about the first moments after the universe was born.",
       "lastVerified": "2026-05-03",
       "contentHash": "351fd921ae5c80c7",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/cosmic-microwave-background.en.351fd921ae5c80c7.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064245782-iabdju.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064245782-iabdju.jpg"
@@ -1559,7 +1599,7 @@
       "subtitle": "Найдавніше світло у Всесвіті, що пронизує весь простір. Як воно виникло, чому вижило і що розповідає про перші миті після народження Всесвіту.",
       "lastVerified": "2026-05-03",
       "contentHash": "0986744abd10387b",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/cosmic-microwave-background.uk.0986744abd10387b.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064245782-iabdju.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064245782-iabdju.jpg"
@@ -1575,7 +1615,7 @@
       "subtitle": "The unknown force pushing the universe apart. Why 68% of reality can't be measured, touched, or explained.",
       "lastVerified": "2026-05-03",
       "contentHash": "d532ab2879107745",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/dark-energy.en.d532ab2879107745.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064433989-y4msjs.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064433989-y4msjs.jpg"
@@ -1591,7 +1631,7 @@
       "subtitle": "Невідома сила, що штовхає Всесвіт нарізно. Чому 68% реальності ми не можемо ані виміряти, ані пояснити.",
       "lastVerified": "2026-05-03",
       "contentHash": "92fe8f57a1f73cae",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/dark-energy.uk.92fe8f57a1f73cae.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064433989-y4msjs.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064433989-y4msjs.jpg"
@@ -1607,7 +1647,7 @@
       "subtitle": "How an almost perfectly smooth gas became filaments, walls, and nodes of the cosmic web — and which invisible matter made it possible.",
       "lastVerified": "2026-05-06",
       "contentHash": "cc1e3fa1a60996ca",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/structure-formation.en.cc1e3fa1a60996ca.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778132990705-cq5bc1.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778132990705-cq5bc1.jpg"
@@ -1623,7 +1663,7 @@
       "subtitle": "Як порожній однорідний газ перетворився на нитки, стіни і вузли галактичної павутини — і яка невидима матерія це зробила можливим.",
       "lastVerified": "2026-05-06",
       "contentHash": "d44677616a8a1a33",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/structure-formation.uk.d44677616a8a1a33.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778132990705-cq5bc1.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778132990705-cq5bc1.jpg"
@@ -1639,7 +1679,7 @@
       "subtitle": "Thirteen point eight billion years — and why the observable universe is far larger than that number suggests.",
       "lastVerified": "2026-05-06",
       "contentHash": "c7b682dcb326474c",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/age-and-size-universe.en.c7b682dcb326474c.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778131963972-s3zu6i.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778131963972-s3zu6i.jpg"
@@ -1655,7 +1695,7 @@
       "subtitle": "Тринадцять і вісім мільярдів років — і чому видимий Всесвіт значно більший, ніж дозволяє ця цифра.",
       "lastVerified": "2026-05-06",
       "contentHash": "caebb2be2b0b14d9",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/age-and-size-universe.uk.caebb2be2b0b14d9.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778131963972-s3zu6i.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778131963972-s3zu6i.jpg"
@@ -1671,7 +1711,7 @@
       "subtitle": "Why physics admits the possibility of infinitely many universes — and why we may never be able to prove it.",
       "lastVerified": "2026-05-06",
       "contentHash": "5718cec51453209b",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/multiverse-hypotheses.en.5718cec51453209b.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778132553265-eawy6e.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778132553265-eawy6e.jpg"
@@ -1687,7 +1727,7 @@
       "subtitle": "Чому фізика допускає існування нескінченної кількості всесвітів — і чому ми, можливо, ніколи цього не доведемо.",
       "lastVerified": "2026-05-06",
       "contentHash": "967a2c4c945a4cf6",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/multiverse-hypotheses.uk.967a2c4c945a4cf6.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778132553265-eawy6e.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778132553265-eawy6e.jpg"
@@ -1703,7 +1743,7 @@
       "subtitle": "In the first few minutes after the universe was born, all the hydrogen and helium that still exists was forged. How nuclear physics predicted the composition of the universe to within a percent — and where that precision breaks down.",
       "lastVerified": "2026-05-06",
       "contentHash": "ae85670fa5e74097",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/nucleosynthesis-bbn.en.ae85670fa5e74097.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778132689556-jfai6e.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778132689556-jfai6e.jpg"
@@ -1719,7 +1759,7 @@
       "subtitle": "За перші кілька хвилин після народження Всесвіту утворились усі водень і гелій, що існують досі. Як ядерна фізика передбачила склад Всесвіту з точністю до відсотка — і де ця точність дає збій.",
       "lastVerified": "2026-05-06",
       "contentHash": "26240057703b810f",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/nucleosynthesis-bbn.uk.26240057703b810f.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778132689556-jfai6e.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778132689556-jfai6e.jpg"
@@ -1735,7 +1775,7 @@
       "subtitle": "Six numbers that describe the universe: the Lambda-CDM standard model, the Hubble tension, and DESI hints at evolving dark energy.",
       "lastVerified": "2026-05-06",
       "contentHash": "d0a691a479460d55",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/cosmological-parameters.en.d0a691a479460d55.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778132252685-qcfqjj.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778132252685-qcfqjj.jpg"
@@ -1751,7 +1791,7 @@
       "subtitle": "Шість чисел, що описують Всесвіт: стандартна лямбда-CDM модель, напруга Хаббла і натяки DESI на мінливу темну енергію.",
       "lastVerified": "2026-05-06",
       "contentHash": "2264651574a32166",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/cosmological-parameters.uk.2264651574a32166.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778132252685-qcfqjj.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778132252685-qcfqjj.jpg"
@@ -1767,7 +1807,7 @@
       "subtitle": "How the first stars and quasars tore through the darkness of the early universe and made it transparent to ultraviolet light.",
       "lastVerified": "2026-05-06",
       "contentHash": "2595ba1736ec5003",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/reionization-epoch.en.2595ba1736ec5003.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778132803756-qq8vmd.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778132803756-qq8vmd.jpg"
@@ -1783,7 +1823,7 @@
       "subtitle": "Як перші зорі і квазари розірвали темряву раннього Всесвіту і зробили його прозорим для ультрафіолету.",
       "lastVerified": "2026-05-06",
       "contentHash": "56cca89828f30797",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/reionization-epoch.uk.56cca89828f30797.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778132803756-qq8vmd.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778132803756-qq8vmd.jpg"
@@ -1799,7 +1839,7 @@
       "subtitle": "One hundred and eight minutes of flight that redefined what humanity believed was possible.",
       "lastVerified": "2026-05-06",
       "contentHash": "7e2c9a9dc5d72d9f",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/yuri-gagarin.en.7e2c9a9dc5d72d9f.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778134224113-mayzpa.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778134224113-mayzpa.jpg"
@@ -1815,7 +1855,7 @@
       "subtitle": "Сто вісім хвилин польоту, які змінили уявлення людства про межі можливого.",
       "lastVerified": "2026-05-06",
       "contentHash": "87941d23e1ee2435",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/yuri-gagarin.uk.87941d23e1ee2435.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778134224113-mayzpa.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778134224113-mayzpa.jpg"
@@ -1831,7 +1871,7 @@
       "subtitle": "How humanity first set foot on another world — and what it cost.",
       "lastVerified": "2026-05-06",
       "contentHash": "bcf1529338955d25",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/apollo-program.en.bcf1529338955d25.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778133119424-1g7q22.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778133119424-1g7q22.jpg"
@@ -1847,7 +1887,7 @@
       "subtitle": "Як людство вперше ступило на інше небесне тіло — і що це коштувало.",
       "lastVerified": "2026-05-06",
       "contentHash": "625569a37bc5f9d5",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/apollo-program.uk.625569a37bc5f9d5.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778133119424-1g7q22.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778133119424-1g7q22.jpg"
@@ -1863,7 +1903,7 @@
       "subtitle": "The longest-running crewed spacecraft in history: from the disasters of the 1960s to the sole taxi to the orbital station.",
       "lastVerified": "2026-05-06",
       "contentHash": "c77755564d47820d",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/soyuz.en.c77755564d47820d.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778133851268-u4f0k7.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778133851268-u4f0k7.jpg"
@@ -1879,7 +1919,7 @@
       "subtitle": "Найдовша пілотована програма в історії: від катастроф 1960-х до єдиного таксі на орбітальну станцію.",
       "lastVerified": "2026-05-06",
       "contentHash": "83e124e1c58b478e",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/soyuz.uk.83e124e1c58b478e.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778133851268-u4f0k7.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778133851268-u4f0k7.jpg"
@@ -1895,7 +1935,7 @@
       "subtitle": "The largest structure ever built in space: how sixteen modules from five nations became a shared home for more than two hundred people.",
       "lastVerified": "2026-05-06",
       "contentHash": "ec425f350ddd5e47",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/iss.en.ec425f350ddd5e47.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778133458618-dthhjg.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778133458618-dthhjg.jpg"
@@ -1911,7 +1951,7 @@
       "subtitle": "Найбільший об'єкт, зведений людством у космосі: як шістнадцять модулів з п'яти країн стали спільним домом для понад двохсот людей.",
       "lastVerified": "2026-05-06",
       "contentHash": "1087f33d98d2b3a9",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/iss.uk.1087f33d98d2b3a9.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778133458618-dthhjg.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778133458618-dthhjg.jpg"
@@ -1927,7 +1967,7 @@
       "subtitle": "How humanity is returning to the Moon half a century after Apollo — with new rockets, new partners, and new goals.",
       "lastVerified": "2026-05-06",
       "contentHash": "bcae696ca64f936e",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/artemis.en.bcae696ca64f936e.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778133299902-quxoos.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778133299902-quxoos.jpg"
@@ -1943,7 +1983,7 @@
       "subtitle": "Як людство повертається до Місяця через півстоліття після \"Аполлона\" — з новими ракетами, новими партнерами і новими цілями.",
       "lastVerified": "2026-05-06",
       "contentHash": "26a63e63f203123f",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/artemis.uk.26a63e63f203123f.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778133299902-quxoos.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778133299902-quxoos.jpg"
@@ -1959,7 +1999,7 @@
       "subtitle": "The world's first reusable spacecraft: thirty years of flight, two crews who did not return, and lessons that reshaped spaceflight.",
       "lastVerified": "2026-05-06",
       "contentHash": "f9f9c02d38f38a6e",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/shuttle-program.en.f9f9c02d38f38a6e.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778133717977-d032n4.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778133717977-d032n4.jpg"
@@ -1975,7 +2015,7 @@
       "subtitle": "Перший у світі багаторазовий космічний корабель: 30 років польотів, два екіпажі що не повернулись, і уроки, які змінили космонавтику.",
       "lastVerified": "2026-05-06",
       "contentHash": "1641818d67901f5d",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/shuttle-program.uk.1641818d67901f5d.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778133717977-d032n4.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778133717977-d032n4.jpg"
@@ -1991,7 +2031,7 @@
       "subtitle": "The first modular orbital station and the foundation of international spaceflight.",
       "lastVerified": "2026-05-06",
       "contentHash": "b2998fa77dff5615",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/mir-station.en.b2998fa77dff5615.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778133626412-r05gcs.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778133626412-r05gcs.jpg"
@@ -2007,7 +2047,7 @@
       "subtitle": "Перша модульна орбітальна станція та фундамент міжнародної космонавтики.",
       "lastVerified": "2026-05-06",
       "contentHash": "2d2e2129eeb151fa",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/mir-station.uk.2d2e2129eeb151fa.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778133626412-r05gcs.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778133626412-r05gcs.jpg"
@@ -2023,7 +2063,7 @@
       "subtitle": "How China built its own home in space after being shut out of the international one.",
       "lastVerified": "2026-05-06",
       "contentHash": "b81b384e265b8ef1",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/tiangong.en.b81b384e265b8ef1.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778134089635-ykrdg1.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778134089635-ykrdg1.jpg"
@@ -2039,7 +2079,7 @@
       "subtitle": "Як Китай побудував власний космічний дім після того, як йому закрили двері в міжнародний.",
       "lastVerified": "2026-05-06",
       "contentHash": "4aff1e15d083e1cc",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/tiangong.uk.4aff1e15d083e1cc.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778134089635-ykrdg1.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778134089635-ykrdg1.jpg"
@@ -2055,7 +2095,7 @@
       "subtitle": "How a private company restored the United States' ability to launch astronauts, and what this means for the future of crewed spaceflight.",
       "lastVerified": "2026-05-06",
       "contentHash": "3809a7d2d2be74d8",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/spacex-dragon.en.3809a7d2d2be74d8.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778133959768-rfzfpm.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778133959768-rfzfpm.jpg"
@@ -2071,7 +2111,7 @@
       "subtitle": "Як приватна компанія повернула США можливість запускати астронавтів і що це означає для майбутнього пілотованої космонавтики.",
       "lastVerified": "2026-05-06",
       "contentHash": "c1b1a1d944e4ec84",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/spacex-dragon.uk.c1b1a1d944e4ec84.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778133959768-rfzfpm.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778133959768-rfzfpm.jpg"
@@ -2087,7 +2127,7 @@
       "subtitle": "A planet nearly identical to Earth in size, yet with a surface hotter than molten lead and pressure that would crush a submarine.",
       "lastVerified": "2026-05-06",
       "contentHash": "e6f6c312cce9c030",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/venus-twin.en.e6f6c312cce9c030.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778135980740-g3oul6.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778135980740-g3oul6.jpg"
@@ -2103,7 +2143,7 @@
       "subtitle": "Планета, майже ідентична Землі за розміром, але з поверхнею гарячішою за розплавлений свинець і тиском, здатним роздавити підводний човен.",
       "lastVerified": "2026-05-06",
       "contentHash": "0b4c433da06a82a8",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/venus-twin.uk.0b4c433da06a82a8.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778135980740-g3oul6.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778135980740-g3oul6.jpg"
@@ -2119,7 +2159,7 @@
       "subtitle": "The smallest planet in the solar system: where a day lasts two years, the dayside blazes and the nightside freezes — and questions remain without answers.",
       "lastVerified": "2026-05-06",
       "contentHash": "47d8b97375c69975",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/mercury-extreme.en.47d8b97375c69975.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778135287851-f84rlm.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778135287851-f84rlm.jpg"
@@ -2135,7 +2175,7 @@
       "subtitle": "Найменша планета Сонячної системи: де день триває два роки, вдень пекло, вночі крига — і досі є питання без відповіді.",
       "lastVerified": "2026-05-06",
       "contentHash": "830b00649fd24ab1",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/mercury-extreme.uk.830b00649fd24ab1.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778135287851-f84rlm.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778135287851-f84rlm.jpg"
@@ -2151,7 +2191,7 @@
       "subtitle": "A gas giant with the youngest and most spectacular ring system in the solar system, and a moon with a thick atmosphere and seas of liquid methane.",
       "lastVerified": "2026-05-06",
       "contentHash": "af9135a0f1e01a5b",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/saturn-rings-titan.en.af9135a0f1e01a5b.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778135785097-ubg5cu.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778135785097-ubg5cu.jpg"
@@ -2167,7 +2207,7 @@
       "subtitle": "Газовий гігант із наймолодшою та найвидовищнішою кільцевою системою Сонячної системи і місяцем із густою атмосферою та морями з рідкого метану.",
       "lastVerified": "2026-05-06",
       "contentHash": "8d990c7c020035ff",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/saturn-rings-titan.uk.8d990c7c020035ff.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778135785097-ubg5cu.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778135785097-ubg5cu.jpg"
@@ -2183,7 +2223,7 @@
       "subtitle": "The two outermost worlds of the solar system, where supersonic winds howl, diamonds may rain inward, and the first orbital missions are still decades away.",
       "lastVerified": "2026-05-06",
       "contentHash": "5c3f10ebbf6e5061",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/ice-giants.en.5c3f10ebbf6e5061.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778134798256-yyuxz3.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778134798256-yyuxz3.jpg"
@@ -2199,7 +2239,7 @@
       "subtitle": "Два найдальших світи Сонячної системи, де йдуть надзвукові вітри, можливо падає алмазний дощ і досі чекають своїх перших орбітальних місій.",
       "lastVerified": "2026-05-06",
       "contentHash": "7c7447437b598675",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/ice-giants.uk.7c7447437b598675.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778134798256-yyuxz3.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778134798256-yyuxz3.jpg"
@@ -2215,7 +2255,7 @@
       "subtitle": "How redefining one word reshaped the solar system — and why Pluto is no longer a planet.",
       "lastVerified": "2026-05-06",
       "contentHash": "a3cd084532ce8e2e",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/dwarf-planets.en.a3cd084532ce8e2e.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778134485407-t9wypm.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778134485407-t9wypm.jpg"
@@ -2231,7 +2271,7 @@
       "subtitle": "Як переосмислення одного слова змінило Сонячну систему — і чому Плутон більше не є планетою.",
       "lastVerified": "2026-05-06",
       "contentHash": "3dfd9ee1790f2680",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/dwarf-planets.uk.3dfd9ee1790f2680.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778134485407-t9wypm.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778134485407-t9wypm.jpg"
@@ -2247,7 +2287,7 @@
       "subtitle": "From ancient oceans to sealed sample tubes — the planet where humanity is searching for its cosmic neighbors.",
       "lastVerified": "2026-05-03",
       "contentHash": "f6a7431f05389f00",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/mars-water-perseverance.en.f6a7431f05389f00.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777831127437-3b34kg.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777831127437-3b34kg.jpg",
@@ -2265,7 +2305,7 @@
       "subtitle": "Від стародавніх океанів до зразків у пробірках — планета, де людство шукає сусідів по Всесвіту.",
       "lastVerified": "2026-05-03",
       "contentHash": "90b0a6dd1bcfc77a",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/mars-water-perseverance.uk.90b0a6dd1bcfc77a.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777831127437-3b34kg.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1777831127437-3b34kg.jpg",
@@ -2283,7 +2323,7 @@
       "subtitle": "The largest planet in the solar system and four worlds where life beyond Earth may be hiding.",
       "lastVerified": "2026-05-03",
       "contentHash": "30487fa16739bc37",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/jupiter-system.en.30487fa16739bc37.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064576408-pwaj4i.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064576408-pwaj4i.jpg"
@@ -2299,7 +2339,7 @@
       "subtitle": "Найбільша планета Сонячної системи і чотири світи, де можливо ховається позаземне життя.",
       "lastVerified": "2026-05-03",
       "contentHash": "eb7414d07ad605af",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/jupiter-system.uk.eb7414d07ad605af.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064576408-pwaj4i.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064576408-pwaj4i.jpg"
@@ -2315,7 +2355,7 @@
       "subtitle": "How our Moon stabilizes Earth's axis, was born from catastrophe, and is slowly drifting away.",
       "lastVerified": "2026-05-06",
       "contentHash": "aaec7168943f658f",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/earth-moon-system.en.aaec7168943f658f.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778134631966-deeq9g.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778134631966-deeq9g.jpg"
@@ -2331,7 +2371,7 @@
       "subtitle": "Як наш супутник стабілізує вісь Землі, народився з катастрофи і повільно від нас іде.",
       "lastVerified": "2026-05-06",
       "contentHash": "ccb8b72eeaa83514",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/earth-moon-system.uk.ccb8b72eeaa83514.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778134631966-deeq9g.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778134631966-deeq9g.jpg"
@@ -2347,7 +2387,7 @@
       "subtitle": "Between Mars and Jupiter — remnants of a planet that never was, and silent archives of the early solar system.",
       "lastVerified": "2026-05-06",
       "contentHash": "9b8fdda35bc89095",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/asteroid-belt.en.9b8fdda35bc89095.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778134369904-o1zsro.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778134369904-o1zsro.jpg"
@@ -2363,7 +2403,7 @@
       "subtitle": "Між Марсом і Юпітером — решток планети, якої ніколи не існувало, і мовчазні архіви раннього Сонячного системи.",
       "lastVerified": "2026-05-06",
       "contentHash": "44050b1458af3eb6",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/asteroid-belt.uk.44050b1458af3eb6.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778134369904-o1zsro.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778134369904-o1zsro.jpg"
@@ -2379,7 +2419,7 @@
       "subtitle": "Beyond Neptune lies an entire galaxy of small bodies — from dwarf planets to a trillion comets at the edge of the solar system.",
       "lastVerified": "2026-05-06",
       "contentHash": "3228d92dcbbf9a6a",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/kuiper-oort.en.3228d92dcbbf9a6a.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778135135059-16dttz.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778135135059-16dttz.jpg"
@@ -2395,7 +2435,7 @@
       "subtitle": "За Нептуном ховається ціла галактика малих тіл — від карликових планет до трильйона комет на краю Сонячної системи.",
       "lastVerified": "2026-05-06",
       "contentHash": "b233020a6e0888ed",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/kuiper-oort.uk.b233020a6e0888ed.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778135135059-16dttz.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778135135059-16dttz.jpg"
@@ -2411,7 +2451,7 @@
       "subtitle": "Visitors from other star systems passing through our own — and what they tell us.",
       "lastVerified": "2026-05-06",
       "contentHash": "23795c10f3cc77ef",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/interstellar-objects.en.23795c10f3cc77ef.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778134986523-fq466n.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778134986523-fq466n.jpg"
@@ -2427,7 +2467,7 @@
       "subtitle": "Прибульці з інших зоряних систем, які пролітають крізь нашу — і що вони нам розповідають.",
       "lastVerified": "2026-05-06",
       "contentHash": "701e3e7d692723a7",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/interstellar-objects.uk.701e3e7d692723a7.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778134986523-fq466n.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778134986523-fq466n.jpg"
@@ -2443,7 +2483,7 @@
       "subtitle": "From the dynamo in a liquid core to protection against stellar wind — why some planets hold a magnetic shield and others lost theirs long ago.",
       "lastVerified": "2026-05-06",
       "contentHash": "5b5fd43aa94baab8",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/planetary-magnetic-fields.en.5b5fd43aa94baab8.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778135616421-uq1be4.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778135616421-uq1be4.jpg"
@@ -2459,7 +2499,7 @@
       "subtitle": "Від динамо у рідкому ядрі до захисту від зоряного вітру — чому одні планети мають магнітний щит, а інші давно його втратили.",
       "lastVerified": "2026-05-06",
       "contentHash": "dae75d2c313fe1d8",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/planetary-magnetic-fields.uk.dae75d2c313fe1d8.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778135616421-uq1be4.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778135616421-uq1be4.jpg"
@@ -2475,7 +2515,7 @@
       "subtitle": "From a primordial hydrogen envelope to a runaway greenhouse: how atmospheric composition determines a planet's fate.",
       "lastVerified": "2026-05-06",
       "contentHash": "505beacc94847397",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/planetary-atmospheres.en.505beacc94847397.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778135446743-27qylo.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778135446743-27qylo.jpg"
@@ -2491,7 +2531,7 @@
       "subtitle": "Від первинної хмари водню до парникового пекла: як склад атмосфери визначає долю планети.",
       "lastVerified": "2026-05-06",
       "contentHash": "1bf69f716b4e251f",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/planetary-atmospheres.uk.1bf69f716b4e251f.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778135446743-27qylo.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778135446743-27qylo.jpg"
@@ -2507,7 +2547,7 @@
       "subtitle": "How four spacecraft permanently left the Solar System, and why that was only possible once every 175 years.",
       "lastVerified": "2026-05-06",
       "contentHash": "0e941acdcb7f18d3",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/voyager-pioneer.en.0e941acdcb7f18d3.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778137914644-amb7z3.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778137914644-amb7z3.jpg"
@@ -2523,7 +2563,7 @@
       "subtitle": "Як чотири апарати назавжди залишили Сонячну систему і чому це стало можливим лише один раз у 175 років.",
       "lastVerified": "2026-05-06",
       "contentHash": "75382a7f9764f6ab",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/voyager-pioneer.uk.75382a7f9764f6ab.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778137914644-amb7z3.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778137914644-amb7z3.jpg"
@@ -2539,7 +2579,7 @@
       "subtitle": "A mirror with a flaw that changed astronomy — from deep fields to the accelerating universe.",
       "lastVerified": "2026-05-06",
       "contentHash": "a9e319d1e714bcaa",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/hubble.en.a9e319d1e714bcaa.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778136685168-dvx06h.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778136685168-dvx06h.jpg"
@@ -2555,7 +2595,7 @@
       "subtitle": "Дзеркало з дефектом, яке змінило астрономію — від темних полів до прискорення Всесвіту.",
       "lastVerified": "2026-05-06",
       "contentHash": "27fcd238b05891a1",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/hubble.uk.27fcd238b05891a1.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778136685168-dvx06h.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778136685168-dvx06h.jpg"
@@ -2571,7 +2611,7 @@
       "subtitle": "How the most expensive scientific instrument in human history rewrote our understanding of the first stars, galaxies, and exoplanet atmospheres.",
       "lastVerified": "2026-05-06",
       "contentHash": "8f22d0ba8f798c70",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/jwst-mission.en.8f22d0ba8f798c70.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778136974448-ng9ml1.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778136974448-ng9ml1.jpg"
@@ -2587,7 +2627,7 @@
       "subtitle": "Як найдорожчий науковий інструмент в історії людства перевернув уявлення про перші зорі, галактики та атмосфери екзопланет.",
       "lastVerified": "2026-05-06",
       "contentHash": "aa1bd9d21171c18a",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/jwst-mission.uk.aa1bd9d21171c18a.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778136974448-ng9ml1.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778136974448-ng9ml1.jpg"
@@ -2603,7 +2643,7 @@
       "subtitle": "The first spacecraft in history to enter the solar atmosphere and survive.",
       "lastVerified": "2026-05-06",
       "contentHash": "416627c08889169e",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/parker-solar-probe.en.416627c08889169e.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778137639145-ja3uo5.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778137639145-ja3uo5.jpg"
@@ -2619,7 +2659,7 @@
       "subtitle": "Перший апарат в історії, який увійшов в атмосферу Сонця і пережив це.",
       "lastVerified": "2026-05-06",
       "contentHash": "d33f03538e82799d",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/parker-solar-probe.uk.d33f03538e82799d.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778137639145-ja3uo5.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778137639145-ja3uo5.jpg"
@@ -2635,7 +2675,7 @@
       "subtitle": "From a microwave-sized box on wheels to nuclear-powered laboratories on the surface of the Red Planet — thirty years of machine reconnaissance.",
       "lastVerified": "2026-05-06",
       "contentHash": "f5e434fa8612fb32",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/mars-rovers-history.en.f5e434fa8612fb32.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778137101750-udbcxe.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778137101750-udbcxe.jpg"
@@ -2651,7 +2691,7 @@
       "subtitle": "Від мікрохвильовки на колесах до ядерних лабораторій на поверхні Червоної планети — тридцять років машинної розвідки.",
       "lastVerified": "2026-05-06",
       "contentHash": "0bbec8810e3b666b",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/mars-rovers-history.uk.0bbec8810e3b666b.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778137101750-udbcxe.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778137101750-udbcxe.jpg"
@@ -2667,7 +2707,7 @@
       "subtitle": "Thirteen years in orbit, an ocean beneath Enceladus ice, and the only landing ever made in the outer Solar System.",
       "lastVerified": "2026-05-06",
       "contentHash": "65bb083dcbfd4ced",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/cassini-saturn.en.65bb083dcbfd4ced.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778136154251-qmakp4.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778136154251-qmakp4.jpg"
@@ -2683,7 +2723,7 @@
       "subtitle": "Тринадцять років на орбіті, океан під кригою Енцелада і єдина посадка в зовнішній Сонячній системі.",
       "lastVerified": "2026-05-06",
       "contentHash": "c14d66c63183a975",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/cassini-saturn.uk.c14d66c63183a975.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778136154251-qmakp4.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778136154251-qmakp4.jpg"
@@ -2699,7 +2739,7 @@
       "subtitle": "The fastest spacecraft ever launched from Earth, nine and a half years in the dark — and discoveries that rewrote everything we thought we knew about the edge of the Solar System.",
       "lastVerified": "2026-05-06",
       "contentHash": "3fc604ae9963d198",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/new-horizons-pluto.en.3fc604ae9963d198.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778137431702-uhvsx4.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778137431702-uhvsx4.jpg"
@@ -2715,7 +2755,7 @@
       "subtitle": "Найшвидший апарат із Землі, дев'ять з половиною років у темряві — і відкриття, що змінило уявлення про край Сонячної системи.",
       "lastVerified": "2026-05-06",
       "contentHash": "bac50a58e934f9d8",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/new-horizons-pluto.uk.bac50a58e934f9d8.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778137431702-uhvsx4.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778137431702-uhvsx4.jpg"
@@ -2731,7 +2771,7 @@
       "subtitle": "How one spacecraft rewrote our understanding of the largest planet in the solar system — from its core to its poles.",
       "lastVerified": "2026-05-06",
       "contentHash": "a1faa0176b1abea7",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/juno-jupiter.en.a1faa0176b1abea7.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778136838082-g3fa7x.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778136838082-g3fa7x.jpg"
@@ -2747,7 +2787,7 @@
       "subtitle": "Як один зонд переписав уявлення про найбільшу планету Сонячної системи — від ядра до полюсів.",
       "lastVerified": "2026-05-06",
       "contentHash": "bdc8e0c0a94d9275",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/juno-jupiter.uk.bdc8e0c0a94d9275.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778136838082-g3fa7x.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778136838082-g3fa7x.jpg"
@@ -2763,7 +2803,7 @@
       "subtitle": "Ten years in transit to land on a rock hurtling between stars. What comet 67P told us about the origins of the Solar System.",
       "lastVerified": "2026-05-06",
       "contentHash": "d4719cfb4675bd98",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/rosetta-philae.en.d4719cfb4675bd98.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778137798663-4yl508.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778137798663-4yl508.jpg"
@@ -2779,7 +2819,7 @@
       "subtitle": "Десять років у дорозі, щоб сісти на камінь, що летить між зір. Що розповіла комета 67P про походження Сонячної системи.",
       "lastVerified": "2026-05-06",
       "contentHash": "cf88514160881b6a",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/rosetta-philae.uk.cf88514160881b6a.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778137798663-4yl508.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778137798663-4yl508.jpg"
@@ -2795,7 +2835,7 @@
       "subtitle": "The only spacecraft to orbit two different solar system bodies in succession did so by rewriting what ion propulsion could achieve.",
       "lastVerified": "2026-05-06",
       "contentHash": "dce2a77fd1364da7",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/dawn-asteroids.en.dce2a77fd1364da7.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778136361892-6hto1c.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778136361892-6hto1c.jpg"
@@ -2811,7 +2851,7 @@
       "subtitle": "Єдиний космічний апарат, що вийшов на орбіту двох різних тіл Сонячної системи поспіль, зробив це завдяки іонним двигунам.",
       "lastVerified": "2026-05-06",
       "contentHash": "512ff8cfbbfd59e5",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/dawn-asteroids.uk.512ff8cfbbfd59e5.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778136361892-6hto1c.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778136361892-6hto1c.jpg"
@@ -2827,7 +2867,7 @@
       "subtitle": "The hardest orbit in the Solar System, ice in craters on a scorched planet, and two probes together rewriting what we know about the Sun's nearest neighbor.",
       "lastVerified": "2026-05-06",
       "contentHash": "64aa0e79e5753558",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/messenger-bepicolombo.en.64aa0e79e5753558.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778137280899-uuqaio.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778137280899-uuqaio.jpg"
@@ -2843,7 +2883,7 @@
       "subtitle": "Найважча орбіта в Сонячній системі, льодяні кратери на розпеченій планеті і два зонди, що разом переписують уявлення про найменшого сусіда Сонця.",
       "lastVerified": "2026-05-06",
       "contentHash": "def26e772f87576f",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/messenger-bepicolombo.uk.def26e772f87576f.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778137280899-uuqaio.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778137280899-uuqaio.jpg"
@@ -2859,7 +2899,7 @@
       "subtitle": "The first dedicated Jupiter orbiter, an atmospheric probe, and eight years of discoveries at the edge of the Solar System.",
       "lastVerified": "2026-05-06",
       "contentHash": "fccad9b181775f14",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/galileo-jupiter-mission.en.fccad9b181775f14.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778136531234-5mxnvo.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778136531234-5mxnvo.jpg"
@@ -2875,7 +2915,7 @@
       "subtitle": "Перший орбітальний апарат навколо газового гіганта, атмосферний зонд і вісім років відкриттів на краю Сонячної системи.",
       "lastVerified": "2026-05-06",
       "contentHash": "4b2e5c998a222879",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/galileo-jupiter-mission.uk.4b2e5c998a222879.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778136531234-5mxnvo.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778136531234-5mxnvo.jpg"
@@ -2891,7 +2931,7 @@
       "subtitle": "Newton's third law, the Tsiolkovsky equation, and why fire in a vacuum pushes harder than fire in air.",
       "lastVerified": "2026-05-03",
       "contentHash": "9eaf12fa5fc80bd6",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/rocket-engines.en.9eaf12fa5fc80bd6.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064760870-1f1n37.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064760870-1f1n37.jpg"
@@ -2907,7 +2947,7 @@
       "subtitle": "Третій закон Ньютона, рівняння Ціолковського та чому вогонь у вакуумі штовхає краще, ніж у повітрі.",
       "lastVerified": "2026-05-03",
       "contentHash": "bcff6763bdd12c75",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/rocket-engines.uk.bcff6763bdd12c75.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064760870-1f1n37.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778064760870-1f1n37.jpg"
@@ -2923,7 +2963,7 @@
       "subtitle": "How engineers move probes between orbits, steal velocity from planets, and overcome gravity with minimal propellant.",
       "lastVerified": "2026-05-06",
       "contentHash": "5a1c3301cdfd49a7",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/orbital-mechanics-spacecraft.en.5a1c3301cdfd49a7.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778138886109-prukst.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778138886109-prukst.jpg"
@@ -2939,7 +2979,7 @@
       "subtitle": "Як інженери переміщують зонди між орбітами, крадуть швидкість у планет і долають гравітацію з мінімальними витратами палива.",
       "lastVerified": "2026-05-06",
       "contentHash": "d19b5aa624fe08d8",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/orbital-mechanics-spacecraft.uk.d19b5aa624fe08d8.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778138886109-prukst.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778138886109-prukst.jpg"
@@ -2955,7 +2995,7 @@
       "subtitle": "How people breathe, drink, and survive inside a sealed metal can between the stars.",
       "lastVerified": "2026-05-06",
       "contentHash": "7d279e63fa209b31",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/life-support.en.7d279e63fa209b31.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778138703494-ghbr9x.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778138703494-ghbr9x.jpg"
@@ -2971,7 +3011,7 @@
       "subtitle": "Як люди дихають, п'ють і виживають у герметичній консервній банці між зорями.",
       "lastVerified": "2026-05-06",
       "contentHash": "dc7347d9fc542b7c",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/life-support.uk.dc7347d9fc542b7c.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778138703494-ghbr9x.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778138703494-ghbr9x.jpg"
@@ -2987,7 +3027,7 @@
       "subtitle": "Why the slowest engine in the Solar System travels the farthest — and what it means to thrust with the weight of a sheet of paper.",
       "lastVerified": "2026-05-06",
       "contentHash": "d676eb7425ee0839",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/ion-propulsion.en.d676eb7425ee0839.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778138359571-9n642u.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778138359571-9n642u.jpg"
@@ -3003,7 +3043,7 @@
       "subtitle": "Чому найповільніший двигун у Сонячній системі летить найдалі — і що таке тяга вагою в аркуш паперу.",
       "lastVerified": "2026-05-06",
       "contentHash": "49a940d4ae3063ce",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/ion-propulsion.uk.49a940d4ae3063ce.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778138359571-9n642u.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778138359571-9n642u.jpg"
@@ -3019,7 +3059,7 @@
       "subtitle": "Over 36,000 tracked fragments, the Kessler syndrome, and the first mission in history to clean up an orbit.",
       "lastVerified": "2026-05-06",
       "contentHash": "bfed9ae1407b5760",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/space-debris.en.bfed9ae1407b5760.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778139159972-61h2q5.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778139159972-61h2q5.jpg"
@@ -3035,7 +3075,7 @@
       "subtitle": "Понад 36 тисяч відстежених фрагментів, синдром Кесслера та перша в історії місія з прибирання орбіти.",
       "lastVerified": "2026-05-06",
       "contentHash": "4315abb78311457c",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/space-debris.uk.4315abb78311457c.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778139159972-61h2q5.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778139159972-61h2q5.jpg"
@@ -3051,7 +3091,7 @@
       "subtitle": "Solar arrays, radioisotope thermoelectric generators, and the distance at which the Sun becomes too faint to rely on.",
       "lastVerified": "2026-05-06",
       "contentHash": "35b796641023a296",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/spacecraft-power.en.35b796641023a296.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778139354974-aaf4uj.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778139354974-aaf4uj.jpg"
@@ -3067,7 +3107,7 @@
       "subtitle": "Сонячні панелі, ядерні термоелектричні генератори та межа, де Сонце стає занадто далеким.",
       "lastVerified": "2026-05-06",
       "contentHash": "be156fb923e0ec9f",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/spacecraft-power.uk.be156fb923e0ec9f.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778139354974-aaf4uj.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778139354974-aaf4uj.jpg"
@@ -3083,7 +3123,7 @@
       "subtitle": "How humanity talks to spacecraft billions of kilometers from Earth — and why a signal from Voyager is weaker than the tremor of a single atom.",
       "lastVerified": "2026-05-06",
       "contentHash": "ca9760fcffabf45c",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/deep-space-comms.en.ca9760fcffabf45c.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778138066091-xf7t0r.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778138066091-xf7t0r.jpg"
@@ -3099,7 +3139,7 @@
       "subtitle": "Як людство розмовляє з апаратами за мільярди кілометрів від Землі — і чому сигнал від Вояджера слабкіший за тремтіння одного атома.",
       "lastVerified": "2026-05-06",
       "contentHash": "f5dd5246c1c0d00d",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/deep-space-comms.uk.f5dd5246c1c0d00d.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778138066091-xf7t0r.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778138066091-xf7t0r.jpg"
@@ -3115,7 +3155,7 @@
       "subtitle": "Why stepping outside a spacecraft is harder than reaching orbit, and what stands between a human body and the vacuum of space.",
       "lastVerified": "2026-05-06",
       "contentHash": "6ce087392f945c00",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/spacesuits-eva.en.6ce087392f945c00.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778139501299-tvusa7.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778139501299-tvusa7.jpg"
@@ -3131,7 +3171,7 @@
       "subtitle": "Чому вийти у відкритий космос складніше, ніж злетіти на орбіту, і що стоїть між людиною та вакуумом.",
       "lastVerified": "2026-05-06",
       "contentHash": "f4e17fe3840d9ed0",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/spacesuits-eva.uk.f4e17fe3840d9ed0.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778139501299-tvusa7.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778139501299-tvusa7.jpg"
@@ -3147,7 +3187,7 @@
       "subtitle": "How to turn 7.8 kilometers per second into a survivable landing — using fire, ablation, and nine minutes of terror.",
       "lastVerified": "2026-05-06",
       "contentHash": "3986578f8ffeb861",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/heatshield-reentry.en.3986578f8ffeb861.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778138229321-5n9rmr.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778138229321-5n9rmr.jpg"
@@ -3163,7 +3203,7 @@
       "subtitle": "Як перетворити 7,8 кілометра на секунду на відносно м'який приземлення — за допомогою вогню, абляції та дев'яти хвилин жаху.",
       "lastVerified": "2026-05-06",
       "contentHash": "be00d843c064abcb",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/heatshield-reentry.uk.be00d843c064abcb.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778138229321-5n9rmr.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778138229321-5n9rmr.jpg"
@@ -3179,7 +3219,7 @@
       "subtitle": "How photon momentum can propel a spacecraft without a single gram of fuel — and why this is not fiction but engineered reality.",
       "lastVerified": "2026-05-06",
       "contentHash": "f3ff4422407e5dd4",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/solar-sails.en.f3ff4422407e5dd4.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778139032739-ozocm2.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778139032739-ozocm2.jpg"
@@ -3195,7 +3235,7 @@
       "subtitle": "Як тиск фотонів може рухати космічний апарат без жодного грама палива — і чому це не фантастика, а інженерна реальність.",
       "lastVerified": "2026-05-06",
       "contentHash": "7c2d0ec6288f5428",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/solar-sails.uk.7c2d0ec6288f5428.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778139032739-ozocm2.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778139032739-ozocm2.jpg"
@@ -3211,7 +3251,7 @@
       "subtitle": "From parachutes and airbags to the sky crane: how engineers deliver machines to other worlds.",
       "lastVerified": "2026-05-06",
       "contentHash": "5d723090c22fff18",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/landers-rovers.en.5d723090c22fff18.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778138540331-4hmoko.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778138540331-4hmoko.jpg"
@@ -3227,7 +3267,7 @@
       "subtitle": "Від парашутів і повітряних подушок до небесного крана: як інженери доставляють машини на інші світи.",
       "lastVerified": "2026-05-06",
       "contentHash": "56708777358d9ac2",
-      "updatedAt": "2026-05-07T07:39:27.308Z",
+      "updatedAt": "2026-05-08T20:06:10.772Z",
       "lessonUrl": "lessons/landers-rovers.uk.56708777358d9ac2.json",
       "imageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778138540331-4hmoko.jpg",
       "ogImageUrl": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/system-photos/1778138540331-4hmoko.jpg"
@@ -3580,14 +3620,14 @@
       },
       "audio": {
         "uk": {
-          "female": "",
+          "female": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/communication-satellites.uk.female.mp3",
           "male": "",
-          "durationSec": 0
+          "durationSec": 1307
         },
         "en": {
-          "female": "",
+          "female": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/communication-satellites.en.female.mp3",
           "male": "",
-          "durationSec": 0
+          "durationSec": 1200
         }
       }
     },
@@ -3601,14 +3641,14 @@
       },
       "audio": {
         "uk": {
-          "female": "",
+          "female": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/earth-observation.uk.female.mp3",
           "male": "",
-          "durationSec": 0
+          "durationSec": 993
         },
         "en": {
-          "female": "",
+          "female": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/earth-observation.en.female.mp3",
           "male": "",
-          "durationSec": 0
+          "durationSec": 940
         }
       }
     },
@@ -3622,14 +3662,14 @@
       },
       "audio": {
         "uk": {
-          "female": "",
+          "female": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/gps-gnss.uk.female.mp3",
           "male": "",
-          "durationSec": 0
+          "durationSec": 1036
         },
         "en": {
-          "female": "",
+          "female": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/gps-gnss.en.female.mp3",
           "male": "",
-          "durationSec": 0
+          "durationSec": 932
         }
       }
     },
@@ -3643,14 +3683,14 @@
       },
       "audio": {
         "uk": {
-          "female": "",
+          "female": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/planetary-defense.uk.female.mp3",
           "male": "",
-          "durationSec": 0
+          "durationSec": 1143
         },
         "en": {
-          "female": "",
+          "female": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/planetary-defense.en.female.mp3",
           "male": "",
-          "durationSec": 0
+          "durationSec": 1072
         }
       }
     },
@@ -3664,14 +3704,14 @@
       },
       "audio": {
         "uk": {
-          "female": "",
+          "female": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/space-economy.uk.female.mp3",
           "male": "",
-          "durationSec": 0
+          "durationSec": 963
         },
         "en": {
-          "female": "",
+          "female": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/space-economy.en.female.mp3",
           "male": "",
-          "durationSec": 0
+          "durationSec": 861
         }
       }
     },
@@ -3685,14 +3725,14 @@
       },
       "audio": {
         "uk": {
-          "female": "",
+          "female": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/space-weather.uk.female.mp3",
           "male": "",
-          "durationSec": 0
+          "durationSec": 1041
         },
         "en": {
-          "female": "",
+          "female": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/space-weather.en.female.mp3",
           "male": "",
-          "durationSec": 0
+          "durationSec": 935
         }
       }
     },
@@ -3706,14 +3746,14 @@
       },
       "audio": {
         "uk": {
-          "female": "",
+          "female": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/weather-satellites.uk.female.mp3",
           "male": "",
-          "durationSec": 0
+          "durationSec": 1087
         },
         "en": {
-          "female": "",
+          "female": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/weather-satellites.en.female.mp3",
           "male": "",
-          "durationSec": 0
+          "durationSec": 976
         }
       }
     },
@@ -3728,14 +3768,14 @@
       },
       "audio": {
         "uk": {
-          "female": "",
+          "female": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/biomarkers.uk.female.mp3",
           "male": "",
-          "durationSec": 0
+          "durationSec": 1117
         },
         "en": {
-          "female": "",
+          "female": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/biomarkers.en.female.mp3",
           "male": "",
-          "durationSec": 0
+          "durationSec": 1107
         }
       }
     },
@@ -3754,9 +3794,9 @@
           "durationSec": 0
         },
         "en": {
-          "female": "",
+          "female": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/drake-fermi.en.female.mp3",
           "male": "",
-          "durationSec": 0
+          "durationSec": 978
         }
       }
     },
@@ -3770,14 +3810,14 @@
       },
       "audio": {
         "uk": {
-          "female": "",
+          "female": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/exoplanet-atmospheres.uk.female.mp3",
           "male": "",
-          "durationSec": 0
+          "durationSec": 1052
         },
         "en": {
-          "female": "",
+          "female": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/exoplanet-atmospheres.en.female.mp3",
           "male": "",
-          "durationSec": 0
+          "durationSec": 965
         }
       }
     },
@@ -3797,9 +3837,9 @@
           "durationSec": 0
         },
         "en": {
-          "female": "",
+          "female": "https://ndzullsvyc6xilmx.public.blob.vercel-storage.com/academy/audio/extremophiles.en.female.mp3",
           "male": "",
-          "durationSec": 0
+          "durationSec": 1079
         }
       }
     },
