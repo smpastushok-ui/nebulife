@@ -202,6 +202,7 @@ export class SystemScene {
   private lastVisualPlanetOrbit = 0;
   private collapseAgeMs = 0;
   private collapsing = false;
+  private collapseProgress = 0;
 
   /** True while camera is zooming — orbit animations pause to prevent jitter */
   private _freezeOrbits = false;
@@ -761,9 +762,8 @@ export class SystemScene {
       this.collapseAgeMs += deltaMs;
       const t = Math.max(0, Math.min(1, this.collapseAgeMs / 1000));
       const eased = 1 - Math.pow(1 - t, 3);
-      this.container.alpha = 1 - eased * 0.82;
-      const scale = 1 - eased * 0.18;
-      this.container.scale.set(scale);
+      this.collapseProgress = eased;
+      this.orbitContainer.alpha = 1 - eased * 0.62;
       this.planet3DLayer?.setTransition(1 - eased);
     }
 
@@ -825,8 +825,10 @@ export class SystemScene {
       const revealT = Math.max(0, Math.min(1, (node.revealAgeMs - node.revealDelayMs) / 520));
       const easedReveal = 1 - Math.pow(1 - revealT, 3);
       const revealScale = 0.22 + easedReveal * 0.78;
-      node.container.alpha = easedReveal;
-      node.container.scale.set(depthScale * revealScale);
+      const collapseT = this.collapseProgress;
+      const collapseScale = 1 - collapseT * 0.92;
+      node.container.alpha = easedReveal * (1 - collapseT);
+      node.container.scale.set(depthScale * revealScale * collapseScale);
 
       // Dynamic lighting: rotate lightingGroup so highlight faces the star
       node.lightingGroup.rotation = Math.atan2(-node.container.y, -node.container.x);
@@ -837,6 +839,8 @@ export class SystemScene {
         if (!this._freezeOrbits) moon.angle += moon.angularSpeed * (deltaMs / 16.67);
         moon.gfx.x = Math.cos(moon.angle) * moon.orbitRadius;
         moon.gfx.y = Math.sin(moon.angle) * moon.orbitRadius * moon.yCompress;
+        moon.gfx.alpha = 1 - this.collapseProgress;
+        moon.gfx.scale.set(Math.max(0.04, 1 - this.collapseProgress * 0.96));
         tickPlanetTexturePreview(moon.gfx, deltaMs);
       }
     }

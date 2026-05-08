@@ -234,8 +234,8 @@ export class SystemPlanet3DLayer {
       if (record.texture) record.texture.offset.x = (node.initialLongitude + record.longitude) % 1;
 
       record.mesh.visible = node.visible && (!node.textureUrl || (!record.texturePending && !!record.texture));
-      const tx = this.width * 0.5 + (node.x - this.width * 0.5) * this.transitionScale;
-      const ty = this.height * 0.5 + (node.y - this.height * 0.5) * this.transitionScale;
+      const tx = node.x;
+      const ty = node.y;
       record.mesh.position.set(tx, ty, node.zIndex * 0.001);
       record.mesh.scale.setScalar(Math.max(1, node.radius * this.transitionScale));
       record.mesh.renderOrder = node.zIndex;
@@ -244,7 +244,7 @@ export class SystemPlanet3DLayer {
       record.glow.scale.set(node.radius * 2.38 * this.transitionScale, node.radius * 2.38 * this.transitionScale, 1);
       record.glow.renderOrder = node.zIndex - 2;
       const glowMaterial = record.glow.material as THREE.SpriteMaterial;
-      const baseGlow = node.planet.type === 'gas-giant' || node.planet.type === 'ice-giant' ? 0.10 : 0.065;
+      const baseGlow = node.planet.type === 'gas-giant' || node.planet.type === 'ice-giant' ? 0.18 : 0.12;
       glowMaterial.opacity = baseGlow * (record.mesh.visible ? 1 : 0.35) * this.transitionAlpha;
       record.material.uniforms.uAlpha.value = this.transitionAlpha;
       if (record.rings) {
@@ -407,16 +407,16 @@ export class SystemPlanet3DLayer {
     }
     const visualRadius = starVisualRadius(star);
     this.starSphere.position.set(star.x, star.y, 520);
-    this.starSphere.scale.setScalar(visualRadius);
+    this.starSphere.scale.setScalar(visualRadius * this.transitionScale);
     const sphereMaterial = this.starSphere.material as THREE.MeshStandardMaterial;
     sphereMaterial.color.copy(color);
     sphereMaterial.emissive.copy(color);
 
     this.starSprite.position.set(star.x, star.y, 510);
-    this.starSprite.scale.set(visualRadius * 2.1, visualRadius * 2.1, 1);
+    this.starSprite.scale.set(visualRadius * 2.1 * this.transitionScale, visualRadius * 2.1 * this.transitionScale, 1);
     if (this.starFlare) {
       this.starFlare.position.set(star.x, star.y, 505);
-      this.starFlare.scale.set(visualRadius * 3.2, visualRadius * 0.2, 1);
+      this.starFlare.scale.set(visualRadius * 3.2 * this.transitionScale, visualRadius * 0.2 * this.transitionScale, 1);
     }
     this.starLight.color.copy(color);
     this.starLight.intensity = 28000 + Math.min(42000, Math.sqrt(Math.max(0.001, star.luminositySolar)) * 9000);
@@ -461,9 +461,9 @@ export class SystemPlanet3DLayer {
     const center = size / 2;
     const glow = ctx.createRadialGradient(center, center, 0, center, center, center);
     glow.addColorStop(0.00, 'rgba(255,255,255,0)');
-    glow.addColorStop(0.34, 'rgba(255,255,255,0)');
-    glow.addColorStop(0.55, 'rgba(255,255,255,0.095)');
-    glow.addColorStop(0.76, 'rgba(255,255,255,0.035)');
+    glow.addColorStop(0.36, 'rgba(255,255,255,0)');
+    glow.addColorStop(0.52, 'rgba(255,255,255,0.20)');
+    glow.addColorStop(0.70, 'rgba(255,255,255,0.07)');
     glow.addColorStop(1.00, 'rgba(255,255,255,0)');
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, size, size);
@@ -476,7 +476,7 @@ export class SystemPlanet3DLayer {
       map: this.getPlanetGlowTexture(),
       color: planetGlowColor(planet),
       transparent: true,
-      opacity: planet.type === 'gas-giant' || planet.type === 'ice-giant' ? 0.16 : 0.09,
+      opacity: planet.type === 'gas-giant' || planet.type === 'ice-giant' ? 0.18 : 0.12,
       blending: THREE.AdditiveBlending,
       depthTest: false,
       depthWrite: false,
