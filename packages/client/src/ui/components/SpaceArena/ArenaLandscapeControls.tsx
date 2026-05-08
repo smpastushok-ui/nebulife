@@ -18,6 +18,7 @@ interface ArenaLandscapeControlsProps {
   warpReady?: boolean;
   loopReady?: boolean;
   isLooping?: boolean;
+  controlsLocked?: boolean;
   /** When true, container is CSS-rotated 90° CW (portrait → landscape). */
   needRotate?: boolean;
 }
@@ -39,7 +40,7 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
   onVertical: _onVertical, onSector,
   allowLoop = false,
   missileAmmo: _missileAmmo = 10, warpReady: _warpReady = true,
-  loopReady: _loopReady = true, isLooping: _isLooping = false,
+  loopReady: _loopReady = true, isLooping: _isLooping = false, controlsLocked = false,
   needRotate = false,
 }) => {
   // Convert viewport coords → container-local when CSS-rotated
@@ -68,6 +69,7 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
   const rightOrigin = useRef({ x: 0, y: 0 });
 
   const handlePointerDown = useCallback((e: React.PointerEvent, isLeft: boolean) => {
+    if (controlsLocked) return;
     const pointerIdRef = isLeft ? leftPointerId : rightPointerId;
     if (pointerIdRef.current !== null) return;
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
@@ -111,10 +113,11 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
       // exclusively by the left stick's "laser" sector now.
       onAim(0, 0, false);
     }
-  }, [onAim, toLocal]);
+  }, [controlsLocked, onAim, toLocal]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent, isLeft: boolean) => {
     const pointerIdRef = isLeft ? leftPointerId : rightPointerId;
+    if (controlsLocked) return;
     if (pointerIdRef.current !== e.pointerId) return;
 
     const local = toLocal(e.clientX, e.clientY);
@@ -177,7 +180,7 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
         else sector = 'missile';
       }
       if (sector === 'loop') {
-        if (leftLastSector.current !== 'loop') _onLoop?.();
+        if (!controlsLocked && _loopReady && leftLastSector.current !== 'loop') _onLoop?.();
         onSector?.('center');
       } else {
         onSector?.(sector);
@@ -187,7 +190,7 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
       // Right stick drives pitch/yaw only; laser fire is left-stick sector.
       onAim(nx, ny, false);
     }
-  }, [onMove, onAim, onSector, toLocal, allowLoop, _onLoop]);
+  }, [onMove, onAim, onSector, toLocal, allowLoop, _onLoop, _loopReady, controlsLocked]);
 
   const handlePointerUp = useCallback((e: React.PointerEvent, isLeft: boolean) => {
     const pointerIdRef = isLeft ? leftPointerId : rightPointerId;
@@ -216,7 +219,7 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
     <div style={{ position: 'absolute', inset: 0, zIndex: 50, pointerEvents: 'none', touchAction: 'none' }}>
       {/* Left half -- MOVE */}
       <div
-        style={{ position: 'absolute', left: 0, top: 0, width: '50%', height: '100%', pointerEvents: 'auto', touchAction: 'none' }}
+        style={{ position: 'absolute', left: 0, top: 0, width: '50%', height: '100%', pointerEvents: controlsLocked ? 'none' : 'auto', touchAction: 'none' }}
         onPointerDown={(e) => handlePointerDown(e, true)}
         onPointerMove={(e) => handlePointerMove(e, true)}
         onPointerUp={(e) => handlePointerUp(e, true)}
@@ -243,7 +246,7 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
 
       {/* Right half -- AIM */}
       <div
-        style={{ position: 'absolute', right: 0, top: 0, width: '50%', height: '100%', pointerEvents: 'auto', touchAction: 'none' }}
+        style={{ position: 'absolute', right: 0, top: 0, width: '50%', height: '100%', pointerEvents: controlsLocked ? 'none' : 'auto', touchAction: 'none' }}
         onPointerDown={(e) => handlePointerDown(e, false)}
         onPointerMove={(e) => handlePointerMove(e, false)}
         onPointerUp={(e) => handlePointerUp(e, false)}
@@ -264,50 +267,9 @@ export const ArenaLandscapeControls: React.FC<ArenaLandscapeControlsProps> = ({
         </div>
       </div>
 
-      {/* Ability buttons around the right stick removed — warp, missile and
-          gravity are now driven by the left stick sectors. Right stick is
-          aim-only. */}
-      {allowLoop && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (_loopReady) _onLoop?.();
-          }}
-          disabled={!_loopReady}
-          style={{
-            position: 'absolute',
-            left: `calc(${LEFT_HINT_LEFT + LEFT_HINT_SIZE + 22}px + ${safeLeft})`,
-            bottom: `calc(${LEFT_HINT_BOTTOM + 14}px + ${safeBottom})`,
-            width: 56,
-            height: 56,
-            borderRadius: 8,
-            pointerEvents: 'auto',
-            touchAction: 'manipulation',
-            background: _isLooping
-              ? 'radial-gradient(circle, rgba(68,221,255,0.38), rgba(5,12,24,0.90))'
-              : 'rgba(5,12,24,0.86)',
-            border: `1px solid ${_loopReady ? 'rgba(68,221,255,0.66)' : 'rgba(51,68,85,0.7)'}`,
-            color: _loopReady ? '#aaddff' : '#556677',
-            fontFamily: 'monospace',
-            fontSize: 8,
-            letterSpacing: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 2,
-            boxShadow: _loopReady ? '0 0 18px rgba(68,221,255,0.20)' : 'none',
-          }}
-        >
-          <svg width="25" height="25" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M7 18C7 10 15 6 21 10C27 14 24 24 16 24" />
-            <path d="M16 24l4-4M16 24l5 3" />
-            <path d="M9 17l-4-4M9 17l-5 2" />
-          </svg>
-          <span>{_isLooping ? 'LOOP' : _loopReady ? 'LOOP' : 'WAIT'}</span>
-        </button>
-      )}
+      {/* Ability buttons are driven by left-stick sectors. During dead loop the
+          whole touch layer is locked, so the loop trigger itself acts as the
+          disabled recovery state. */}
     </div>
   );
 };

@@ -621,6 +621,8 @@ function AppInner() {
   const warpTargetRef = useRef<'universe' | 'galaxy' | 'home-intro' | 'system'>('universe');
   const warpSystemTargetRef = useRef<StarSystem | null>(null);
   const telescopePhotoRef = useRef<(sys: StarSystem) => void>(() => {});
+  const [darkLevelTransition, setDarkLevelTransition] = useState({ visible: false, opacity: 0 });
+  const darkLevelTransitionTimersRef = useRef<number[]>([]);
 
   useEffect(() => {
     const hideBrokenImages = (event: Event) => {
@@ -632,6 +634,30 @@ function AppInner() {
     window.addEventListener('error', hideBrokenImages, true);
     return () => window.removeEventListener('error', hideBrokenImages, true);
   }, []);
+
+  const clearDarkLevelTransitionTimers = useCallback(() => {
+    for (const timer of darkLevelTransitionTimersRef.current) window.clearTimeout(timer);
+    darkLevelTransitionTimersRef.current = [];
+  }, []);
+
+  const runDarkLevelTransition = useCallback((navigate: () => void, coverMs = 210, revealMs = 460) => {
+    clearDarkLevelTransitionTimers();
+    setDarkLevelTransition({ visible: true, opacity: 0 });
+    requestAnimationFrame(() => {
+      setDarkLevelTransition({ visible: true, opacity: 1 });
+    });
+    darkLevelTransitionTimersRef.current.push(window.setTimeout(() => {
+      navigate();
+      darkLevelTransitionTimersRef.current.push(window.setTimeout(() => {
+        setDarkLevelTransition({ visible: true, opacity: 0 });
+        darkLevelTransitionTimersRef.current.push(window.setTimeout(() => {
+          setDarkLevelTransition({ visible: false, opacity: 0 });
+        }, revealMs + 80));
+      }, 90));
+    }, coverMs));
+  }, [clearDarkLevelTransitionTimers]);
+
+  useEffect(() => clearDarkLevelTransitionTimers, [clearDarkLevelTransitionTimers]);
 
   // Capture saved navigation state before any useEffect can overwrite them.
   // Engine init() calls showHomePlanetScene() which triggers onSceneChange('home-intro')
@@ -5556,24 +5582,30 @@ function AppInner() {
   }, [gameStartedAt]);
 
   const handleStartExploration = () => {
-    setShowCosmicArchive(false);
-    engineRef.current?.showGalaxyScene();
-    setState((prev) => ({ ...prev, scene: 'galaxy', selectedSystem: null, selectedPlanet: null }));
+    runDarkLevelTransition(() => {
+      setShowCosmicArchive(false);
+      engineRef.current?.showGalaxyScene();
+      setState((prev) => ({ ...prev, scene: 'galaxy', selectedSystem: null, selectedPlanet: null }));
+    });
   };
 
   const handleBackToGalaxy = () => {
-    engineRef.current?.showGalaxyScene();
-    setState((prev) => ({ ...prev, scene: 'galaxy', selectedSystem: null, selectedPlanet: null }));
+    runDarkLevelTransition(() => {
+      engineRef.current?.showGalaxyScene();
+      setState((prev) => ({ ...prev, scene: 'galaxy', selectedSystem: null, selectedPlanet: null }));
+    });
   };
 
   const handleGoToHomePlanet = () => {
     // During active evacuation cutscenes, don't navigate to (possibly destroyed) home
     if (evacuationPhase !== 'idle') return;
-    // Close surface view if open
-    setSurfaceTarget(null);
-    engineRef.current?.showHomePlanetScene(true);
-    setState((prev) => ({ ...prev, scene: 'home-intro', selectedSystem: null, selectedPlanet: null }));
-    setShowExploreBtn(true);
+    runDarkLevelTransition(() => {
+      // Close surface view if open
+      setSurfaceTarget(null);
+      engineRef.current?.showHomePlanetScene(true);
+      setState((prev) => ({ ...prev, scene: 'home-intro', selectedSystem: null, selectedPlanet: null }));
+      setShowExploreBtn(true);
+    });
   };
 
   // ── Universe (Three.js) transitions ──
@@ -5687,9 +5719,11 @@ function AppInner() {
   }, []);
 
   const handleEnterSystem = useCallback((system: StarSystem) => {
-    engineRef.current?.showSystemScene(system);
-    setState((prev) => ({ ...prev, scene: 'system', selectedSystem: system }));
-  }, []);
+    runDarkLevelTransition(() => {
+      engineRef.current?.showSystemScene(system);
+      setState((prev) => ({ ...prev, scene: 'system', selectedSystem: system }));
+    });
+  }, [runDarkLevelTransition]);
 
   const getEffectiveResearchMaxRing = useCallback((allSystems: StarSystem[], targetSystemId?: string): number => {
     const maxRingAdd = getEffectValue(techTreeStateRef.current, 'max_ring_add', 0);
@@ -5893,34 +5927,38 @@ function AppInner() {
       const planet = state.selectedPlanet; // capture before engine fires onSceneChange
       const system = state.selectedSystem;
       playSfx('go-to-exosphera', 1.0);
-      engineRef.current?.showPlanetViewScene(system, planet, true);
-      setState((prev) => ({
-        ...prev,
-        scene: 'planet-view' as const,
-        selectedPlanet: planet, // always restore — onSceneChange may have cleared it
-        showPlanetMenu: false,
-        showPlanetInfo: false,
-      }));
+      runDarkLevelTransition(() => {
+        engineRef.current?.showPlanetViewScene(system, planet, true);
+        setState((prev) => ({
+          ...prev,
+          scene: 'planet-view' as const,
+          selectedPlanet: planet, // always restore — onSceneChange may have cleared it
+          showPlanetMenu: false,
+          showPlanetInfo: false,
+        }));
+      });
     }
-  }, [state.selectedPlanet, state.selectedSystem]);
+  }, [runDarkLevelTransition, state.selectedPlanet, state.selectedSystem]);
 
   const handleViewPlanetExosphere = useCallback((system: StarSystem, planetId: string) => {
     const planet = system.planets.find((entry) => entry.id === planetId);
     if (!planet) return;
     playSfx('go-to-exosphera', 1.0);
-    setShowCosmicArchive(false);
-    setMissionPhotoViewer(null);
-    engineRef.current?.showPlanetViewScene(system, planet, true);
-    setState((prev) => ({
-      ...prev,
-      scene: 'planet-view' as const,
-      selectedSystem: system,
-      selectedPlanet: planet,
-      showPlanetMenu: false,
-      showPlanetInfo: false,
-      planetClickPos: null,
-    }));
-  }, []);
+    runDarkLevelTransition(() => {
+      setShowCosmicArchive(false);
+      setMissionPhotoViewer(null);
+      engineRef.current?.showPlanetViewScene(system, planet, true);
+      setState((prev) => ({
+        ...prev,
+        scene: 'planet-view' as const,
+        selectedSystem: system,
+        selectedPlanet: planet,
+        showPlanetMenu: false,
+        showPlanetInfo: false,
+        planetClickPos: null,
+      }));
+    });
+  }, [runDarkLevelTransition]);
 
   const handleShowCharacteristics = useCallback(() => {
     setState((prev) => ({
@@ -6703,32 +6741,37 @@ function AppInner() {
 
   const handleBackToSystem = useCallback(() => {
     if (state.selectedSystem) {
-      setTelescopeOverlay(null);
-      setMissionPhotoViewer(null);
-      setMissionPhotoReveal(null);
-      engineRef.current?.showSystemScene(state.selectedSystem);
+      const system = state.selectedSystem;
+      runDarkLevelTransition(() => {
+        setTelescopeOverlay(null);
+        setMissionPhotoViewer(null);
+        setMissionPhotoReveal(null);
+        engineRef.current?.showSystemScene(system);
+        setState((prev) => ({
+          ...prev,
+          scene: 'system' as const,
+          selectedPlanet: null,
+          showPlanetMenu: false,
+          showPlanetInfo: false,
+        }));
+      });
+    }
+  }, [runDarkLevelTransition, state.selectedSystem]);
+
+  // ── System-to-system navigation (arrows in SystemNavHeader) ─────────
+  const handleNavToSystem = useCallback((system: StarSystem) => {
+    runDarkLevelTransition(() => {
+      engineRef.current?.showSystemScene(system);
       setState((prev) => ({
         ...prev,
         scene: 'system' as const,
+        selectedSystem: system,
         selectedPlanet: null,
         showPlanetMenu: false,
         showPlanetInfo: false,
       }));
-    }
-  }, [state.selectedSystem]);
-
-  // ── System-to-system navigation (arrows in SystemNavHeader) ─────────
-  const handleNavToSystem = useCallback((system: StarSystem) => {
-    engineRef.current?.showSystemScene(system);
-    setState((prev) => ({
-      ...prev,
-      scene: 'system' as const,
-      selectedSystem: system,
-      selectedPlanet: null,
-      showPlanetMenu: false,
-      showPlanetInfo: false,
-    }));
-  }, []);
+    }, 260, 520);
+  }, [runDarkLevelTransition]);
 
   // ── Discovery handlers ───────────────────────────────────────────────
 
@@ -7951,26 +7994,35 @@ function AppInner() {
       switch (state.scene) {
         case 'planet-view':
           if (state.selectedSystem) {
-            engineRef.current?.showSystemScene(state.selectedSystem);
-            setState(prev => ({
-              ...prev,
-              scene: 'system' as const,
-              selectedPlanet: null,
-              showPlanetMenu: false,
-              showPlanetInfo: false,
-            }));
+            const system = state.selectedSystem;
+            runDarkLevelTransition(() => {
+              engineRef.current?.showSystemScene(system);
+              setState(prev => ({
+                ...prev,
+                scene: 'system' as const,
+                selectedPlanet: null,
+                showPlanetMenu: false,
+                showPlanetInfo: false,
+              }));
+            });
           } else {
-            engineRef.current?.showGalaxyScene();
-            setState(prev => ({ ...prev, scene: 'galaxy', selectedSystem: null, selectedPlanet: null }));
+            runDarkLevelTransition(() => {
+              engineRef.current?.showGalaxyScene();
+              setState(prev => ({ ...prev, scene: 'galaxy', selectedSystem: null, selectedPlanet: null }));
+            });
           }
           break;
         case 'system':
-          engineRef.current?.showGalaxyScene();
-          setState(prev => ({ ...prev, scene: 'galaxy', selectedSystem: null, selectedPlanet: null }));
+          runDarkLevelTransition(() => {
+            engineRef.current?.showGalaxyScene();
+            setState(prev => ({ ...prev, scene: 'galaxy', selectedSystem: null, selectedPlanet: null }));
+          });
           break;
         case 'galaxy':
-          engineRef.current?.showHomePlanetScene(true);
-          setState(prev => ({ ...prev, scene: 'home-intro', selectedSystem: null, selectedPlanet: null }));
+          runDarkLevelTransition(() => {
+            engineRef.current?.showHomePlanetScene(true);
+            setState(prev => ({ ...prev, scene: 'home-intro', selectedSystem: null, selectedPlanet: null }));
+          });
           break;
         case 'home-intro':
           // At root — show confirmation dialog before minimizing
@@ -7980,7 +8032,7 @@ function AppInner() {
     });
 
     return () => { handler.then(h => h.remove()); };
-  }, [state.scene, surfaceTarget, state.selectedSystem]);
+  }, [runDarkLevelTransition, state.scene, surfaceTarget, state.selectedSystem]);
 
   // ── Surface view handlers ─────────────────────────────────────────────
   const handleOpenSurface = useCallback(() => {
@@ -8012,17 +8064,19 @@ function AppInner() {
   // ── Home planet navigation handlers ─────────────────────────────────
   const handleGoToExosphere = useCallback(() => {
     if (!homeInfo) return;
-    setShowCosmicArchive(false);
-    setState(prev => ({
-      ...prev,
-      selectedSystem: homeInfo.system,
-      selectedPlanet: homeInfo.planet,
-      scene: 'planet-view' as const,
-      showPlanetMenu: false,
-      showPlanetInfo: false,
-    }));
-    engineRef.current?.showPlanetViewScene(homeInfo.system, homeInfo.planet, true);
-  }, [homeInfo]);
+    runDarkLevelTransition(() => {
+      setShowCosmicArchive(false);
+      setState(prev => ({
+        ...prev,
+        selectedSystem: homeInfo.system,
+        selectedPlanet: homeInfo.planet,
+        scene: 'planet-view' as const,
+        showPlanetMenu: false,
+        showPlanetInfo: false,
+      }));
+      engineRef.current?.showPlanetViewScene(homeInfo.system, homeInfo.planet, true);
+    });
+  }, [homeInfo, runDarkLevelTransition]);
 
   const handleGoToHomeSurface = useCallback(() => {
     // Try homeInfo first, fallback to finding home system from engine
@@ -8124,15 +8178,18 @@ function AppInner() {
             warpTargetRef.current = 'system';
             setWarpActive(true);
           } else {
-          engineRef.current?.showSystemScene(state.selectedSystem);
-          setState((prev) => ({
-            ...prev,
-            scene: 'system' as const,
-            selectedPlanet: null,
-            showPlanetMenu: false,
-            showPlanetInfo: false,
-              planetClickPos: null,
-          }));
+            const system = state.selectedSystem;
+            runDarkLevelTransition(() => {
+              engineRef.current?.showSystemScene(system);
+              setState((prev) => ({
+                ...prev,
+                scene: 'system' as const,
+                selectedPlanet: null,
+                showPlanetMenu: false,
+                showPlanetInfo: false,
+                planetClickPos: null,
+              }));
+            });
           }
         }
         break;
@@ -8148,7 +8205,7 @@ function AppInner() {
         break;
       // 'surface' — already on surface, no action
     }
-  }, [surfaceTarget, state.selectedSystem, state.scene, handleViewPlanet, universeVisible, switchToUniverse]);
+  }, [surfaceTarget, state.selectedSystem, state.scene, handleViewPlanet, universeVisible, switchToUniverse, runDarkLevelTransition]);
 
   // Hide PixiJS procedural planet on home-intro / planet-view (PlanetGlobeView renders instead)
   useEffect(() => {
@@ -10885,6 +10942,20 @@ function AppInner() {
             </div>
           </div>
         </div>
+      )}
+      {darkLevelTransition.visible && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 13000,
+            pointerEvents: 'none',
+            background: '#020510',
+            opacity: darkLevelTransition.opacity,
+            transition: `opacity ${darkLevelTransition.opacity > 0 ? 210 : 460}ms ease`,
+            willChange: 'opacity',
+          }}
+        />
       )}
     </>
   );

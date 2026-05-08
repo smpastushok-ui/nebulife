@@ -23,8 +23,9 @@ import { auth } from './firebase-config.js';
 
 const GOOGLE_WEB_CLIENT_ID = '702900049376-e7k1574lfpjri29a9j3kde7pmio68h0a.apps.googleusercontent.com';
 
-// Apple Sign-In Service ID (created in Apple Developer → Identifiers → Services IDs)
-// and registered as OAuth redirect in App Store Connect. Do NOT confuse with App ID.
+// Native iOS Sign in with Apple issues identity tokens for the app bundle id.
+// Web Apple OAuth uses the Services ID + redirect URI.
+const APPLE_NATIVE_BUNDLE_ID = 'app.nebulife.game';
 const APPLE_SERVICE_ID = 'app.nebulife.service';
 const APPLE_REDIRECT_URI = 'https://www.nebulife.space/auth/apple/callback';
 const PROD_API_BASE = 'https://www.nebulife.space';
@@ -270,7 +271,7 @@ export async function signInWithApple(): Promise<User | null> {
   console.info('[auth][apple] native authorize start');
   const res = await withTimeout<NativeAppleAuthorizeResponse>(
     SignInWithApple.authorize({
-      clientId: APPLE_SERVICE_ID,
+      clientId: APPLE_NATIVE_BUNDLE_ID,
       redirectURI: APPLE_REDIRECT_URI,
       scopes: 'email name',
       state,
@@ -308,7 +309,7 @@ export async function linkAppleToAnonymous(): Promise<User | null> {
   const rawNonce = generateNonce();
   const hashedNonce = await sha256Hex(rawNonce);
   const res = await SignInWithApple.authorize({
-    clientId: APPLE_SERVICE_ID,
+    clientId: APPLE_NATIVE_BUNDLE_ID,
     redirectURI: APPLE_REDIRECT_URI,
     scopes: 'email name',
     state: crypto.randomUUID(),

@@ -186,7 +186,7 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, onStatsCommit, teamM
   const handleVertical = useCallback((v: number) => {
     engineRef.current?.setMobileVertical(v);
   }, []);
-  const handleSector = useCallback((sector: 'center' | 'missile' | 'warp' | 'dodge' | 'gravity') => {
+  const handleSector = useCallback((sector: 'center' | 'missile' | 'warp' | 'dodge' | 'loop' | 'gravity') => {
     engineRef.current?.setMobileSector(sector);
   }, []);
 
@@ -990,6 +990,7 @@ export function SpaceArena({ onExit, onMatchEnd, onAwardXP, onStatsCommit, teamM
           warpReady={warpReady}
           loopReady={loopReady}
           isLooping={isLooping}
+          controlsLocked={isLooping}
           needRotate={needRotate}
         />
       )}

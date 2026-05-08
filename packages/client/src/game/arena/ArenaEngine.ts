@@ -294,15 +294,15 @@ export class ArenaEngine {
   private readonly WARP_COOLDOWN = 8;
   private warpCooldownTimer = 0;
 
-  // Loop maneuver — vertical Immelmann turn with warp acceleration.
-  // 1.2s animation: forward warp + nose pitches up over the top, then the
-  // ship's heading is flipped 180° on landing so the player ends up facing
-  // back the way they came — useful when someone is on your tail.
+  // Loop maneuver — scripted 270° vertical arc with warp acceleration.
+  // Controls are locked by the UI during the 2.5s maneuver; the hull stays
+  // visually level (no barrel roll), while the flight direction travels
+  // forward → up → back → down.
   // Brief invulnerability covers the whole loop.
   private loopActive = false;
   private loopTimer = 0;
   private loopCooldown = 0;
-  private readonly LOOP_DURATION = 1.2;
+  private readonly LOOP_DURATION = 2.5;
   private readonly LOOP_COOLDOWN = 14;
   private readonly LOOP_SPEED_MULT = 2.35;
   private loopStartYaw = 0;
@@ -779,14 +779,17 @@ export class ArenaEngine {
   triggerLoop(): void {
     if (this.playerDead) return;
     if (this.loopCooldown > 0 || this.loopActive) return;
-    const currentPitch = Math.asin(Math.max(-1, Math.min(1, this.aimDirY)));
     this.loopStartYaw = Math.atan2(this.aimDirX, -this.aimDirZ);
-    this.loopStartPitch = currentPitch;
+    this.loopStartPitch = Math.asin(Math.max(-1, Math.min(1, this.aimDirY)));
     this.loopActive = true;
     this.loopTimer = this.LOOP_DURATION;
     this.loopCooldown = this.LOOP_COOLDOWN;
     this.warpActive = false;
     this.warpTimer = 0;
+    this.mobileMove = { x: 0, z: 0 };
+    this.mobileAim = { x: 0, z: 0 };
+    this.mobilePitchRate = 0;
+    this._mobileSector = 'center';
     this.invulnerableUntil = Math.max(
       this.invulnerableUntil,
       performance.now() + this.LOOP_DURATION * 1000,
@@ -1915,17 +1918,14 @@ export class ArenaEngine {
     if (this.loopActive) {
       const p = 1 - this.loopTimer / this.LOOP_DURATION;
       const eased = p * p * (3 - 2 * p);
-      const yaw = this.loopStartYaw + Math.PI * eased;
-      const loopArc = Math.sin(p * Math.PI);
-      const pitch = Math.max(
-        -this.MAX_PITCH,
-        Math.min(this.MAX_PITCH, this.loopStartPitch * (1 - eased) - 0.22 * eased + loopArc * 1.05),
-      );
+      const loopAngle = eased * Math.PI * 1.5;
+      const yaw = this.loopStartYaw + (loopAngle > Math.PI / 2 ? Math.PI : 0);
+      const pitch = Math.sin(loopAngle);
       const cp = Math.cos(pitch);
       this.aimDirX = Math.sin(yaw) * cp;
       this.aimDirY = Math.sin(pitch);
       this.aimDirZ = -Math.cos(yaw) * cp;
-      this.shipRoll = Math.sin(p * Math.PI * 2) * 0.55;
+      this.shipRoll = 0;
       this.mouseTargetReady = false;
     } else if (this.isMobile || this.hasKeyboardAimInput()) {
       // Flight-sim right stick:
@@ -3491,7 +3491,7 @@ export class ArenaEngine {
       this.loopActive = false;
       this.loopTimer = 0;
       const finalYaw = this.loopStartYaw + Math.PI;
-      const finalPitch = Math.max(-this.MAX_PITCH, Math.min(this.MAX_PITCH, -0.22));
+      const finalPitch = -this.MAX_PITCH * 0.82;
       const cp = Math.cos(finalPitch);
       this.aimDirX = Math.sin(finalYaw) * cp;
       this.aimDirY = Math.sin(finalPitch);

@@ -1047,15 +1047,16 @@ export class SystemScene {
           ? 0xa8c8ff
           : 0xd7c6a0;
 
-    const outerRadius = radius * 1.9;
-    for (let i = 0; i < 9; i++) {
-      const t = i / 8;
+    const innerRadius = radius * 0.96;
+    const outerRadius = radius * 1.38;
+    for (let i = 0; i < 8; i++) {
+      const t = i / 7;
       const ring = new Graphics();
-      ring.circle(0, 0, radius + (outerRadius - radius) * t);
+      ring.circle(0, 0, innerRadius + (outerRadius - innerRadius) * t);
       ring.stroke({
-        width: Math.max(1.2, radius * (0.16 - t * 0.08)),
+        width: Math.max(0.9, radius * (0.12 - t * 0.055)),
         color,
-        alpha: 0.18 * (1 - t) * (1 - t),
+        alpha: 0.16 * Math.pow(1 - t, 2.35),
       });
       ring.blendMode = 'add';
       halo.addChild(ring);
@@ -1063,7 +1064,7 @@ export class SystemScene {
 
     const wash = new Graphics();
     wash.circle(0, 0, outerRadius);
-    wash.fill({ color, alpha: 0.035 });
+    wash.fill({ color, alpha: 0.018 });
     wash.blendMode = 'add';
     halo.addChildAt(wash, 0);
     return halo;

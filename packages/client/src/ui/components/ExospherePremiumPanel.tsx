@@ -127,8 +127,8 @@ export function ExospherePremiumPanel({
         onClick={() => setOpen((value) => !value)}
         style={{
           position: 'fixed',
-          left: 62,
-          top: 'calc(env(safe-area-inset-top, 0px) + 118px)',
+          right: 16,
+          top: 'calc(env(safe-area-inset-top, 0px) + 370px)',
           zIndex: 1200,
           width: 42,
           height: 42,
@@ -155,9 +155,9 @@ export function ExospherePremiumPanel({
       <aside
       style={{
         position: 'fixed',
-        right: isMobile ? 10 : 18,
-        top: isMobile ? 'calc(env(safe-area-inset-top, 0px) + 88px)' : 92,
-        width: isMobile ? `min(${PANEL_WIDTH}px, calc(100vw - 20px))` : PANEL_WIDTH,
+        right: isMobile ? 66 : 18,
+        top: isMobile ? 'calc(env(safe-area-inset-top, 0px) + 322px)' : 92,
+        width: isMobile ? `min(${PANEL_WIDTH}px, calc(100vw - 92px))` : PANEL_WIDTH,
         zIndex: 1100,
         pointerEvents: 'auto',
         padding: 10,

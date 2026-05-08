@@ -543,6 +543,7 @@ function ProducibleFrameCard({
   const assetPath = PRODUCIBLE_ASSET_PATHS[type];
   const title = t(`planet_missions.payload.${type}`);
   const help = t(`building_detail.transport_help.${type}`);
+  const longTitle = title.length > 18;
 
   return (
     <div style={{
@@ -552,8 +553,9 @@ function ProducibleFrameCard({
       background: CARD_BG,
       border: '1px solid rgba(68,102,136,0.55)',
       borderRadius: 6,
-      padding: 10,
-      minHeight: 254,
+      padding: 9,
+      minHeight: 0,
+      overflow: 'hidden',
     }}>
       <div style={{
         position: 'relative',
@@ -621,24 +623,35 @@ function ProducibleFrameCard({
         )}
       </div>
       <div style={{ minWidth: 0, display: 'grid', gap: 7 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'start' }}>
-          <div style={{ color: '#d8e6f2', fontSize: 13, lineHeight: 1.25 }}>{title}</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 6, alignItems: 'start' }}>
+          <div style={{
+            color: '#d8e6f2',
+            fontSize: longTitle ? 11 : 12,
+            lineHeight: 1.18,
+            overflowWrap: 'anywhere',
+            wordBreak: 'break-word',
+            hyphens: 'auto',
+            paddingTop: 1,
+          }}>
+            {title}
+          </div>
           <div style={{
             color: '#44ff88',
-            fontSize: 16,
+            fontSize: 12,
             lineHeight: 1,
             fontWeight: 700,
             flexShrink: 0,
-            padding: '3px 7px',
+            padding: '3px 5px',
             border: '1px solid rgba(68,255,136,0.45)',
             borderRadius: 4,
             background: 'rgba(68,255,136,0.09)',
             boxShadow: '0 0 10px rgba(68,255,136,0.12)',
+            whiteSpace: 'nowrap',
           }}>
             {t('building_detail.transport_count', { count })}
           </div>
         </div>
-        <div style={{ color: '#667788', fontSize: 10, lineHeight: 1.35 }}>{payloadCostSummary(type, t)}</div>
+        <div style={{ color: '#667788', fontSize: 9, lineHeight: 1.32, overflowWrap: 'anywhere' }}>{payloadCostSummary(type, t)}</div>
         {activeQueue.length > 0 && (
           <div style={{ color: '#ddaa44', fontSize: 10 }}>
             +{activeQueue.length} / {formatQueueTime((nextDone ?? Date.now()) - Date.now())}
@@ -657,7 +670,7 @@ function ProducibleFrameCard({
             {help}
           </div>
         )}
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginTop: 2 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '26px minmax(0, 1fr)', gap: 6, alignItems: 'center', marginTop: 2 }}>
           <button
             type="button"
             onClick={() => setHelpOpen((prev) => !prev)}
@@ -687,8 +700,9 @@ function ProducibleFrameCard({
             color: canBuild ? '#7bb8ff' : '#445566',
             fontFamily: 'monospace',
             fontSize: 11,
-            padding: '7px 10px',
+            padding: '7px 8px',
             cursor: canBuild ? 'pointer' : 'not-allowed',
+            minWidth: 0,
           }}
         >
           {t('colony_center.production.build_payload')}
@@ -1034,7 +1048,7 @@ export function BuildingDetailPanel({
                   </div>
                   <div style={{
                     display: 'grid',
-                    gridTemplateColumns: compact ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+                    gridTemplateColumns: compact ? 'repeat(auto-fit, minmax(148px, 1fr))' : 'repeat(4, minmax(0, 1fr))',
                     gap: compact ? 8 : 10,
                     alignItems: 'stretch',
                   }}>
@@ -1341,7 +1355,7 @@ export function BuildingDetailPanel({
                       cursor: 'pointer',
                     }}
                   >
-                    {t('common.cancel')}
+                    {t('common.exit')}
                   </button>
                 </div>
               )}
