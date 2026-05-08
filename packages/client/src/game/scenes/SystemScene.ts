@@ -106,7 +106,6 @@ interface MoonNode {
 
 interface PlanetNode {
   container: Container;
-  arrivalPulse: Graphics;
   lightingGroup: Container;
   planet: Planet;
   angle: number;
@@ -589,11 +588,7 @@ export class SystemScene {
     const cFocal = distance * e;
     planetSprite.x = -cFocal + Math.cos(startAngle) * distance;
     planetSprite.y = Math.sin(startAngle) * b * Y_COMPRESS;
-    const arrivalPulse = new Graphics();
-    arrivalPulse.eventMode = 'none';
-    arrivalPulse.zIndex = 9999;
     this.container.addChild(planetSprite);
-    this.container.addChild(arrivalPulse);
 
     // Interactivity
     planetSprite.eventMode = 'static';
@@ -657,7 +652,6 @@ export class SystemScene {
 
     this.planetNodes.set(planet.id, {
       container: planetSprite,
-      arrivalPulse,
       lightingGroup: planetResult.lightingGroup,
       planet,
       angle: startAngle,
@@ -820,8 +814,6 @@ export class SystemScene {
       const cFocal = a * e;
       node.container.x = -cFocal + Math.cos(node.angle) * a;
       node.container.y = Math.sin(node.angle) * b * Y_COMPRESS;
-      node.arrivalPulse.x = node.container.x;
-      node.arrivalPulse.y = node.container.y + getPlanetSize(node.planet) * 0.58;
 
       // Z-ordering: planets in front when below center, behind when above
       const overlapsStar = Math.hypot(node.container.x, node.container.y) < getPlanetSize(node.planet) + 54;
@@ -835,7 +827,6 @@ export class SystemScene {
       const revealScale = 0.22 + easedReveal * 0.78;
       node.container.alpha = easedReveal;
       node.container.scale.set(depthScale * revealScale);
-      this.drawArrivalPulse(node, revealT, depthScale);
 
       // Dynamic lighting: rotate lightingGroup so highlight faces the star
       node.lightingGroup.rotation = Math.atan2(-node.container.y, -node.container.x);
@@ -855,30 +846,6 @@ export class SystemScene {
     // Ship flight animation
     this.updateShip(deltaMs);
     this.updateMissionVisuals();
-  }
-
-  private drawArrivalPulse(node: PlanetNode, revealT: number, depthScale: number): void {
-    const pulse = node.arrivalPulse;
-    if (revealT >= 1) {
-      if (!pulse.destroyed) {
-        pulse.parent?.removeChild(pulse);
-        pulse.destroy();
-      }
-      return;
-    }
-    if (pulse.destroyed) return;
-    const size = getPlanetSize(node.planet);
-    const ringT = Math.max(0, Math.min(1, revealT));
-    const flash = Math.sin(ringT * Math.PI);
-    const radiusX = (size * (1.45 + ringT * 2.15) + 8) * depthScale;
-    const radiusY = Math.max(2, radiusX * 0.24);
-    pulse.clear();
-    if (ringT <= 0) return;
-    pulse.ellipse(0, 0, radiusX, radiusY);
-    pulse.stroke({ color: 0x7bb8ff, width: 1, alpha: 0.16 * flash });
-    pulse.ellipse(0, 0, radiusX * 0.62, radiusY * 0.48);
-    pulse.fill({ color: 0x7bb8ff, alpha: 0.035 * flash });
-    pulse.alpha = Math.min(1, node.container.alpha);
   }
 
   private separateOverlappingPlanets(): void {

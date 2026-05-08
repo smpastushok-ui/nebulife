@@ -240,11 +240,11 @@ export class SystemPlanet3DLayer {
       record.mesh.scale.setScalar(Math.max(1, node.radius * this.transitionScale));
       record.mesh.renderOrder = node.zIndex;
       record.glow.visible = node.visible;
-      record.glow.position.set(tx, ty + node.radius * 0.05 * this.transitionScale, node.zIndex * 0.001 - 0.05);
-      record.glow.scale.set(node.radius * 2.15 * this.transitionScale, node.radius * 2.0 * this.transitionScale, 1);
+      record.glow.position.set(tx, ty, node.zIndex * 0.001 - 0.05);
+      record.glow.scale.set(node.radius * 2.38 * this.transitionScale, node.radius * 2.38 * this.transitionScale, 1);
       record.glow.renderOrder = node.zIndex - 2;
       const glowMaterial = record.glow.material as THREE.SpriteMaterial;
-      const baseGlow = node.planet.type === 'gas-giant' || node.planet.type === 'ice-giant' ? 0.14 : 0.08;
+      const baseGlow = node.planet.type === 'gas-giant' || node.planet.type === 'ice-giant' ? 0.10 : 0.065;
       glowMaterial.opacity = baseGlow * (record.mesh.visible ? 1 : 0.35) * this.transitionAlpha;
       record.material.uniforms.uAlpha.value = this.transitionAlpha;
       if (record.rings) {
@@ -460,9 +460,10 @@ export class SystemPlanet3DLayer {
     const ctx = canvas.getContext('2d')!;
     const center = size / 2;
     const glow = ctx.createRadialGradient(center, center, 0, center, center, center);
-    glow.addColorStop(0.00, 'rgba(255,255,255,0.30)');
-    glow.addColorStop(0.18, 'rgba(255,255,255,0.18)');
-    glow.addColorStop(0.46, 'rgba(255,255,255,0.055)');
+    glow.addColorStop(0.00, 'rgba(255,255,255,0)');
+    glow.addColorStop(0.34, 'rgba(255,255,255,0)');
+    glow.addColorStop(0.55, 'rgba(255,255,255,0.095)');
+    glow.addColorStop(0.76, 'rgba(255,255,255,0.035)');
     glow.addColorStop(1.00, 'rgba(255,255,255,0)');
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, size, size);
