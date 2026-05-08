@@ -8,6 +8,7 @@ import {
   deductQuarks,
   getPlanetSkin,
   savePlanetSkin,
+  updatePlanetSkin,
 } from '../../packages/server/src/db.js';
 import { generateImageWithGemini } from '../../packages/server/src/gemini-client.js';
 import {
@@ -22,6 +23,16 @@ export const config = {
 
 function parseKind(value: unknown): PlanetSkinKind {
   return value === 'exosphere' ? 'exosphere' : 'system';
+}
+
+function isTextureMapUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  try {
+    const { pathname } = new URL(url);
+    return pathname.endsWith('.webp') && pathname.includes('/planet-skins/textures/');
+  } catch {
+    return url.endsWith('.webp') && url.includes('/planet-skins/textures/');
+  }
 }
 
 async function convertGeneratedSkinToTextureMap(imageUrl: string, skinId: string): Promise<string> {
@@ -106,7 +117,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let charged = false;
   try {
     const existing = await getPlanetSkin(planetId, kind);
-    if (existing) {
+    if (existing && existing.status === 'succeed' && isTextureMapUrl(existing.texture_url)) {
       return res.status(200).json({
         skinId: existing.id,
         status: existing.status,
@@ -119,7 +130,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const cost = kind === 'exosphere' ? PLANET_SKIN_EXOSPHERE_COST_QUARKS : 0;
     let player: { quarks: number } | null = null;
-    if (cost > 0) {
+    const repairingLegacySkin = Boolean(existing && !isTextureMapUrl(existing.texture_url));
+    if (cost > 0 && !repairingLegacySkin) {
       player = await deductQuarks(playerId, cost);
       if (!player) {
         return res.status(402).json({ error: 'Insufficient quarks', required: cost });
@@ -127,7 +139,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       charged = true;
     }
 
-    const skinId = `ps_${kind}_${planetId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const skinId = existing?.id ?? `ps_${kind}_${planetId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const prompt = buildPlanetSkinPrompt(system, planet, kind);
     const generated = await generateImageWithGemini({
       prompt,
@@ -136,18 +148,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       uploadPrefix: 'planet-skins/raw-21x9',
     });
     const textureUrl = await convertGeneratedSkinToTextureMap(generated.imageUrl, skinId);
-    const skin = await savePlanetSkin({
-      id: skinId,
-      planetId,
-      systemId,
-      kind,
-      playerId,
-      klingTaskId: null,
-      promptUsed: prompt,
-      status: 'succeed',
-      textureUrl,
-      quarksPaid: cost,
-    });
+    const skin = existing
+      ? await updatePlanetSkin(existing.id, {
+        status: 'succeed',
+        texture_url: textureUrl,
+        kling_task_id: null,
+        prompt_used: prompt,
+        quarks_paid: existing.quarks_paid ?? cost,
+      })
+      : await savePlanetSkin({
+        id: skinId,
+        planetId,
+        systemId,
+        kind,
+        playerId,
+        klingTaskId: null,
+        promptUsed: prompt,
+        status: 'succeed',
+        textureUrl,
+        quarksPaid: cost,
+      });
+    if (!skin) throw new Error('Failed to save planet skin');
 
     return res.status(200).json({
       skinId: skin.id,
@@ -157,6 +178,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       quarksPaid: cost,
       quarksRemaining: player?.quarks ?? null,
       prompt,
+      existing: repairingLegacySkin || undefined,
     });
   } catch (err) {
     console.error('[planet-skin/generate] Error:', err);

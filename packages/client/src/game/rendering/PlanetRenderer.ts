@@ -40,6 +40,11 @@ export interface PlanetRenderResult {
   lightingGroup: Container;
 }
 
+export interface SystemMoonRenderResult {
+  container: Container;
+  body: Graphics;
+}
+
 export interface PlanetTexturePreviewOptions {
   /** Horizontal texture speed in full map rotations per millisecond. */
   spinRevolutionsPerMs?: number;
@@ -264,8 +269,12 @@ const MOON_COLORS: Record<string, number> = {
  * Composition-driven color with volumetric shading + crater hint for solid bodies.
  * Optional seed enables deterministic crater placement & color variation per moon.
  */
-export function renderSystemMoon(compositionType: string, radius: number, seed: number = 0): Graphics {
+export function renderSystemMoon(compositionType: string, radius: number, seed: number = 0): SystemMoonRenderResult {
+  const container = new Container();
+  container.sortableChildren = true;
   const gfx = new Graphics();
+  gfx.label = 'moon-matte-body';
+  container.addChild(gfx);
   const baseColor = MOON_COLORS[compositionType] ?? 0x888899;
   // Per-seed color variation: ±10% brightness shift for diversity
   const variation = ((seed % 100) / 100 - 0.5) * 0.2; // -0.1..+0.1
@@ -310,7 +319,7 @@ export function renderSystemMoon(compositionType: string, radius: number, seed: 
     gfx.circle(0, 0, radius);
     gfx.stroke({ width: radius * 0.3, color: 0x000000, alpha: 0.2 });
   }
-  return gfx;
+  return { container, body: gfx };
 }
 
 /**

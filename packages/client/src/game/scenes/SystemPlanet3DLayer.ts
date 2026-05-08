@@ -133,6 +133,7 @@ export class SystemPlanet3DLayer {
   private textureCache = new Map<string, THREE.Texture>();
   private prevPosition: string;
   private prevOverflow: string;
+  private prevBackground: string;
   private width = 1;
   private height = 1;
   private destroyed = false;
@@ -145,9 +146,11 @@ export class SystemPlanet3DLayer {
 
     this.prevPosition = host.style.position;
     this.prevOverflow = host.style.overflow;
+    this.prevBackground = host.style.background;
     const computed = window.getComputedStyle(host);
     if (computed.position === 'static') host.style.position = 'relative';
     host.style.overflow = 'hidden';
+    host.style.background = '#020510';
 
     this.renderer = new THREE.WebGLRenderer({
       alpha: true,
@@ -275,6 +278,7 @@ export class SystemPlanet3DLayer {
     this.renderer.domElement.remove();
     this.host.style.position = this.prevPosition;
     this.host.style.overflow = this.prevOverflow;
+    this.host.style.background = this.prevBackground;
   }
 
   private syncStar(star: SystemStar3DNode): void {

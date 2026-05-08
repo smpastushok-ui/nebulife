@@ -597,6 +597,16 @@ function canRunCarrierRaidOnDevice(): boolean {
   return tier === 'ultra' || !isMobile;
 }
 
+function isPlanetTextureMapUrl(url: string | null | undefined): url is string {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url, window.location.origin);
+    return parsed.pathname.endsWith('.webp') && parsed.pathname.includes('/planet-skins/textures/');
+  } catch {
+    return url.endsWith('.webp') && url.includes('/planet-skins/textures/');
+  }
+}
+
 function AppInner() {
   const { t, lang, setLanguage } = useT();
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -4948,7 +4958,7 @@ function AppInner() {
     const textures: Record<string, string> = {};
     for (const planet of state.selectedSystem.planets) {
       const skin = planetSkins.get(`system-${planet.id}`);
-      if (skin?.status === 'succeed' && skin.texture_url) {
+      if (skin?.status === 'succeed' && isPlanetTextureMapUrl(skin.texture_url)) {
         textures[planet.id] = skin.texture_url;
       }
     }
@@ -8536,8 +8546,19 @@ function AppInner() {
           50% { transform: scale(1.08); opacity: 1; }
         }
       `}</style>
-      <div ref={universeCanvasRef} id="universe-canvas" style={{ position: 'fixed', inset: 0, zIndex: 1, display: universeVisible ? 'block' : 'none' }} />
-      <div ref={canvasRef} id="game-canvas" style={{ display: universeVisible ? 'none' : undefined }} />
+      <div ref={universeCanvasRef} id="universe-canvas" style={{ position: 'fixed', inset: 0, zIndex: 1, display: universeVisible ? 'block' : 'none', background: '#020510' }} />
+      <div
+        ref={canvasRef}
+        id="game-canvas"
+        style={{
+          position: 'fixed',
+          inset: 0,
+          display: universeVisible ? 'none' : 'block',
+          background: '#020510',
+          overflow: 'hidden',
+          touchAction: 'none',
+        }}
+      />
 
       {/* Resource HUD — top center (hidden in arena, hangar, and during intro) */}
       {!showArena && !showRaid && !showHangar && !cinematicActive && !needsOnboarding && (<ResourceDisplay
@@ -9616,9 +9637,13 @@ function AppInner() {
         <PlanetGlobeView
           key={(() => {
             const p = state.scene === 'planet-view' && state.selectedPlanet ? state.selectedPlanet : homeInfo.planet;
-            const skinUrl = planetSkins.get(`exosphere-${p.id}`)?.texture_url
-              ?? planetSkins.get(`system-${p.id}`)?.texture_url
-              ?? '';
+            const exosphereUrl = planetSkins.get(`exosphere-${p.id}`)?.texture_url;
+            const systemUrl = planetSkins.get(`system-${p.id}`)?.texture_url;
+            const skinUrl = isPlanetTextureMapUrl(exosphereUrl)
+              ? exosphereUrl
+              : isPlanetTextureMapUrl(systemUrl)
+                ? systemUrl
+                : '';
             return `${p.id}-${p.type}-${p.habitability.overall.toFixed(2)}-${skinUrl}`;
           })()}
           ref={globeRef}
@@ -9628,9 +9653,11 @@ function AppInner() {
           mode={state.scene === 'home-intro' ? 'home' : 'planet-view'}
           textureUrl={(() => {
             const p = state.scene === 'planet-view' && state.selectedPlanet ? state.selectedPlanet : homeInfo.planet;
-            return planetSkins.get(`exosphere-${p.id}`)?.texture_url
-              ?? planetSkins.get(`system-${p.id}`)?.texture_url
-              ?? null;
+            const exosphereUrl = planetSkins.get(`exosphere-${p.id}`)?.texture_url;
+            const systemUrl = planetSkins.get(`system-${p.id}`)?.texture_url;
+            if (isPlanetTextureMapUrl(exosphereUrl)) return exosphereUrl;
+            if (isPlanetTextureMapUrl(systemUrl)) return systemUrl;
+            return null;
           })()}
           onDoubleClick={handleGlobeDoubleClick}
         />

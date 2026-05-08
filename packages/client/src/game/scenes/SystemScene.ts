@@ -97,7 +97,7 @@ const COOL_COLORS = [0xaaccff, 0x88bbff, 0x99ccff];
 const NEBULA_COLORS = [0x2244aa, 0x443388, 0x224466, 0x553366];
 
 interface MoonNode {
-  gfx: Graphics;
+  gfx: Container;
   angle: number;
   orbitRadius: number;
   angularSpeed: number;
@@ -608,7 +608,8 @@ export class SystemScene {
         const moonVariance = 0.45 + Math.pow(moonRng.next(), 1.35) * 1.1;
         const moonRadius = Math.max(0.35, Math.min(3.2, moonBase * moonVariance));
         const moonOrbitR = planetSize + 3.8 + i * (3.4 + moonRadius * 1.15);
-        const moonGfx = renderSystemMoon(moon.compositionType, moonRadius, moon.seed);
+        const moonRender = renderSystemMoon(moon.compositionType, moonRadius, moon.seed);
+        const moonGfx = moonRender.container;
         if (moonRadius >= 3.0) {
           applyPlanetTexturePreview(
             moonGfx,
@@ -957,6 +958,7 @@ export class SystemScene {
       const orbitR = getPlanetSize(node.planet) + 13;
       items.forEach((item, index) => {
         const angle = (-Math.PI / 2) + (index / items.length) * Math.PI * 2;
+        const badge = new Container();
         const g = new Graphics();
         g.circle(0, 0, 4.5);
         g.fill({ color: 0x020510, alpha: 0.88 });
@@ -968,10 +970,10 @@ export class SystemScene {
           resolution: 2,
         });
         label.anchor.set(0.5);
-        g.addChild(label);
-        g.x = Math.cos(angle) * orbitR;
-        g.y = Math.sin(angle) * orbitR;
-        group.addChild(g);
+        badge.addChild(g, label);
+        badge.x = Math.cos(angle) * orbitR;
+        badge.y = Math.sin(angle) * orbitR;
+        group.addChild(badge);
       });
       node.container.addChild(group);
     }
