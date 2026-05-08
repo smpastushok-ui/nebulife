@@ -47,6 +47,8 @@ export class GameEngine {
   private galaxyScene: GalaxyScene | null = null;
   private systemScene: SystemScene | null = null;
   private activeScene: Container | null = null;
+  private pendingSystemSwitch: StarSystem | null = null;
+  private systemSwitchTimer: number | null = null;
 
   private rings: GalaxyRing[] = [];
   private playerPos = { x: 0, y: 0 };
@@ -287,6 +289,22 @@ export class GameEngine {
   }
 
   showSystemScene(system: StarSystem) {
+    if (this.systemScene) {
+      this.pendingSystemSwitch = system;
+      if (this.systemSwitchTimer !== null) return;
+      this.systemScene.startCollapse();
+      this.systemSwitchTimer = window.setTimeout(() => {
+        const next = this.pendingSystemSwitch;
+        this.pendingSystemSwitch = null;
+        this.systemSwitchTimer = null;
+        if (next) this.mountSystemScene(next);
+      }, 1000);
+      return;
+    }
+    this.mountSystemScene(system);
+  }
+
+  private mountSystemScene(system: StarSystem) {
     this.clearScenes();
 
     // Force resize to fix stale viewport dimensions after overlay transitions.
@@ -626,6 +644,11 @@ export class GameEngine {
   }
 
   private clearScenes() {
+    if (this.systemSwitchTimer !== null) {
+      window.clearTimeout(this.systemSwitchTimer);
+      this.systemSwitchTimer = null;
+      this.pendingSystemSwitch = null;
+    }
     // Reset camera constraints (overridden in system scene)
     this.camera?.setMinScale(0.1);
     this.camera?.setPanBounds(null);

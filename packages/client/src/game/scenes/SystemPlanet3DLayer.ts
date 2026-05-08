@@ -107,6 +107,7 @@ const PLANET_FRAG = `
   uniform vec3 uStarColor;
   uniform float uHasMap;
   uniform float uLongitude;
+  uniform float uAlpha;
 
   varying vec2 vUv;
   varying vec3 vWorldNormal;
@@ -136,7 +137,7 @@ const PLANET_FRAG = `
     float rim = pow(1.0 - max(n.z, 0.0), 2.0);
     color += vec3(0.10, 0.15, 0.22) * rim * 0.075 * (0.55 + day);
 
-    gl_FragColor = vec4(max(color, vec3(0.0)), 1.0);
+    gl_FragColor = vec4(max(color, vec3(0.0)), uAlpha);
   }
 `;
 
@@ -159,6 +160,8 @@ export class SystemPlanet3DLayer {
   private prevPosition: string;
   private prevOverflow: string;
   private prevBackground: string;
+  private transitionAlpha = 1;
+  private transitionScale = 1;
   private width = 1;
   private height = 1;
   private destroyed = false;
@@ -231,18 +234,33 @@ export class SystemPlanet3DLayer {
       if (record.texture) record.texture.offset.x = (node.initialLongitude + record.longitude) % 1;
 
       record.mesh.visible = node.visible && (!node.textureUrl || (!record.texturePending && !!record.texture));
-      record.mesh.position.set(node.x, node.y, node.zIndex * 0.001);
-      record.mesh.scale.setScalar(Math.max(1, node.radius));
+      const tx = this.width * 0.5 + (node.x - this.width * 0.5) * this.transitionScale;
+      const ty = this.height * 0.5 + (node.y - this.height * 0.5) * this.transitionScale;
+      record.mesh.position.set(tx, ty, node.zIndex * 0.001);
+      record.mesh.scale.setScalar(Math.max(1, node.radius * this.transitionScale));
       record.mesh.renderOrder = node.zIndex;
       record.glow.visible = node.visible;
-      record.glow.position.set(node.x, node.y + node.radius * 0.18, node.zIndex * 0.001 - 0.05);
-      record.glow.scale.set(node.radius * 3.15, node.radius * 2.25, 1);
+      record.glow.position.set(tx, ty + node.radius * 0.05 * this.transitionScale, node.zIndex * 0.001 - 0.05);
+      record.glow.scale.set(node.radius * 2.15 * this.transitionScale, node.radius * 2.0 * this.transitionScale, 1);
       record.glow.renderOrder = node.zIndex - 2;
+      const glowMaterial = record.glow.material as THREE.SpriteMaterial;
+      const baseGlow = node.planet.type === 'gas-giant' || node.planet.type === 'ice-giant' ? 0.14 : 0.08;
+      glowMaterial.opacity = baseGlow * (record.mesh.visible ? 1 : 0.35) * this.transitionAlpha;
+      record.material.uniforms.uAlpha.value = this.transitionAlpha;
       if (record.rings) {
         record.rings.visible = node.visible && record.mesh.visible;
-        record.rings.position.set(node.x, node.y, node.zIndex * 0.001 + 0.02);
-        record.rings.scale.setScalar(Math.max(1, node.radius));
+        record.rings.position.set(tx, ty, node.zIndex * 0.001 + 0.02);
+        record.rings.scale.setScalar(Math.max(1, node.radius * this.transitionScale));
         record.rings.renderOrder = node.zIndex + 1;
+        record.rings.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            const material = child.material;
+            if (!Array.isArray(material)) {
+              const baseOpacity = typeof child.userData.baseOpacity === 'number' ? child.userData.baseOpacity : material.opacity;
+              material.opacity = baseOpacity * this.transitionAlpha;
+            }
+          }
+        });
       }
 
       const lightDir = new THREE.Vector3(star.x - node.x, star.y - node.y, 0.16).normalize();
@@ -273,6 +291,22 @@ export class SystemPlanet3DLayer {
     if (!record || record.textureUrl === textureUrl) return;
     record.textureUrl = textureUrl;
     this.applyTexture(record, textureUrl);
+  }
+
+  setTransition(progress: number): void {
+    const t = Math.max(0, Math.min(1, progress));
+    this.transitionAlpha = t;
+    this.transitionScale = 0.72 + t * 0.28;
+    if (this.starSphere) {
+      const material = this.starSphere.material as THREE.MeshStandardMaterial;
+      material.opacity = t;
+      material.transparent = t < 1;
+    }
+    for (const sprite of [this.starSprite, this.starFlare]) {
+      if (!sprite) continue;
+      const material = sprite.material as THREE.SpriteMaterial;
+      material.opacity = (sprite === this.starSprite ? 0.88 : 0.22) * t;
+    }
   }
 
   destroy(): void {
@@ -441,7 +475,7 @@ export class SystemPlanet3DLayer {
       map: this.getPlanetGlowTexture(),
       color: planetGlowColor(planet),
       transparent: true,
-      opacity: planet.type === 'gas-giant' || planet.type === 'ice-giant' ? 0.34 : 0.22,
+      opacity: planet.type === 'gas-giant' || planet.type === 'ice-giant' ? 0.16 : 0.09,
       blending: THREE.AdditiveBlending,
       depthTest: false,
       depthWrite: false,
@@ -473,6 +507,7 @@ export class SystemPlanet3DLayer {
         depthWrite: false,
       });
       const ring = new THREE.Mesh(geometry, material);
+      ring.userData.baseOpacity = material.opacity;
       ring.renderOrder = 0;
       group.add(ring);
     }
@@ -488,7 +523,9 @@ export class SystemPlanet3DLayer {
         side: THREE.DoubleSide,
         depthWrite: false,
       });
-      group.add(new THREE.Mesh(geometry, material));
+      const gap = new THREE.Mesh(geometry, material);
+      gap.userData.baseOpacity = material.opacity;
+      group.add(gap);
     }
 
     group.rotation.x = Math.PI / 2 + 0.62;
@@ -528,7 +565,9 @@ export class SystemPlanet3DLayer {
         uStarColor: { value: new THREE.Color(0xfff1d2) },
         uHasMap: { value: 0 },
         uLongitude: { value: node.initialLongitude },
+        uAlpha: { value: 1 },
       },
+      transparent: true,
     });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.frustumCulled = false;
