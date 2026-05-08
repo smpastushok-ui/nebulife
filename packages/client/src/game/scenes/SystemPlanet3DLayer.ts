@@ -241,10 +241,10 @@ export class SystemPlanet3DLayer {
       record.mesh.renderOrder = node.zIndex;
       record.glow.visible = node.visible;
       record.glow.position.set(tx, ty, node.zIndex * 0.001 - 0.05);
-      record.glow.scale.set(node.radius * 2.38 * this.transitionScale, node.radius * 2.38 * this.transitionScale, 1);
+      record.glow.scale.set(node.radius * 3.05 * this.transitionScale, node.radius * 3.05 * this.transitionScale, 1);
       record.glow.renderOrder = node.zIndex - 2;
       const glowMaterial = record.glow.material as THREE.SpriteMaterial;
-      const baseGlow = node.planet.type === 'gas-giant' || node.planet.type === 'ice-giant' ? 0.18 : 0.12;
+      const baseGlow = node.planet.type === 'gas-giant' || node.planet.type === 'ice-giant' ? 0.28 : 0.20;
       glowMaterial.opacity = baseGlow * (record.mesh.visible ? 1 : 0.35) * this.transitionAlpha;
       record.material.uniforms.uAlpha.value = this.transitionAlpha;
       if (record.rings) {
@@ -461,9 +461,9 @@ export class SystemPlanet3DLayer {
     const center = size / 2;
     const glow = ctx.createRadialGradient(center, center, 0, center, center, center);
     glow.addColorStop(0.00, 'rgba(255,255,255,0)');
-    glow.addColorStop(0.36, 'rgba(255,255,255,0)');
-    glow.addColorStop(0.52, 'rgba(255,255,255,0.20)');
-    glow.addColorStop(0.70, 'rgba(255,255,255,0.07)');
+    glow.addColorStop(0.54, 'rgba(255,255,255,0)');
+    glow.addColorStop(0.61, 'rgba(255,255,255,0.36)');
+    glow.addColorStop(0.76, 'rgba(255,255,255,0.14)');
     glow.addColorStop(1.00, 'rgba(255,255,255,0)');
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, size, size);
@@ -476,7 +476,7 @@ export class SystemPlanet3DLayer {
       map: this.getPlanetGlowTexture(),
       color: planetGlowColor(planet),
       transparent: true,
-      opacity: planet.type === 'gas-giant' || planet.type === 'ice-giant' ? 0.18 : 0.12,
+      opacity: planet.type === 'gas-giant' || planet.type === 'ice-giant' ? 0.28 : 0.20,
       blending: THREE.AdditiveBlending,
       depthTest: false,
       depthWrite: false,
