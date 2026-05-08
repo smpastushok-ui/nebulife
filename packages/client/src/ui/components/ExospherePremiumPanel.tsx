@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Planet } from '@nebulife/core';
 import { PremiumHelpButton } from './PremiumHelp.js';
@@ -114,15 +114,49 @@ export function ExospherePremiumPanel({
 }: ExospherePremiumPanelProps) {
   const { t } = useTranslation();
   const isMobile = window.innerWidth < 760;
+  const [open, setOpen] = useState(!isMobile);
   const canAffordAlpha = quarks >= 25;
   const canAffordSkin = quarks >= 50;
 
   return (
-    <aside
+    <>
+    {isMobile && (
+      <button
+        type="button"
+        aria-label={t('exosphere_premium.title')}
+        onClick={() => setOpen((value) => !value)}
+        style={{
+          position: 'fixed',
+          left: 62,
+          top: 'calc(env(safe-area-inset-top, 0px) + 118px)',
+          zIndex: 1200,
+          width: 42,
+          height: 42,
+          borderRadius: 7,
+          border: '1px solid rgba(221,170,68,0.75)',
+          background: open
+            ? 'linear-gradient(145deg, rgba(112,74,12,0.95), rgba(30,18,4,0.96))'
+            : 'linear-gradient(145deg, rgba(64,42,8,0.92), rgba(12,10,8,0.96))',
+          color: '#ffd98a',
+          fontFamily: 'monospace',
+          fontSize: 18,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 0 22px rgba(221,170,68,0.38), inset 0 0 18px rgba(255,210,120,0.10)',
+          cursor: 'pointer',
+        }}
+      >
+        ⚛
+      </button>
+    )}
+
+    {open && (
+      <aside
       style={{
         position: 'fixed',
         right: isMobile ? 10 : 18,
-        top: isMobile ? 84 : 92,
+        top: isMobile ? 'calc(env(safe-area-inset-top, 0px) + 88px)' : 92,
         width: isMobile ? `min(${PANEL_WIDTH}px, calc(100vw - 20px))` : PANEL_WIDTH,
         zIndex: 1100,
         pointerEvents: 'auto',
@@ -147,6 +181,23 @@ export function ExospherePremiumPanel({
         <div style={{ color: '#7bb8ff', fontSize: 11 }}>
           {Math.floor(quarks)} <QuarkMark />
         </div>
+        {isMobile && (
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            style={{
+              width: 24,
+              height: 24,
+              borderRadius: 4,
+              border: '1px solid #334455',
+              background: 'rgba(5,10,20,0.7)',
+              color: '#8899aa',
+              fontFamily: 'monospace',
+            }}
+          >
+            x
+          </button>
+        )}
       </div>
 
       <div style={{ display: 'grid', gap: 8 }}>
@@ -188,6 +239,8 @@ export function ExospherePremiumPanel({
           />
         )}
       </div>
-    </aside>
+      </aside>
+    )}
+    </>
   );
 }

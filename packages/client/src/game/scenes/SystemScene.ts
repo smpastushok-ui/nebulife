@@ -115,6 +115,8 @@ interface PlanetNode {
   textureUrl: string | null;
   spinRevolutionsPerMs: number;
   initialLongitude: number;
+  revealAgeMs: number;
+  revealDelayMs: number;
 }
 
 interface SysShootingStar {
@@ -563,6 +565,8 @@ export class SystemScene {
     const planetResult = renderPlanet(planet, this.system.star);
     const planetSprite = planetResult.container;
     planetSprite.zIndex = 10000;
+    planetSprite.alpha = 0;
+    planetSprite.scale.set(0.22);
     const defaultTextureUrl = getSystemPlanetTextureUrl(planet);
     const spinOptions = planetTextureSpinOptions(planet);
     if (defaultTextureUrl) {
@@ -649,6 +653,8 @@ export class SystemScene {
       textureUrl: defaultTextureUrl,
       spinRevolutionsPerMs: spinOptions.spinRevolutionsPerMs ?? 0,
       initialLongitude: spinOptions.initialLongitude ?? 0,
+      revealAgeMs: 0,
+      revealDelayMs: Math.min(760, this.planetNodes.size * 95),
     });
   }
 
@@ -798,7 +804,12 @@ export class SystemScene {
 
       // Subtle depth scale: slightly larger when "closer" (lower y)
       const depthScale = 1 + (node.container.y / (this.maxExtent + 1)) * 0.06;
-      node.container.scale.set(depthScale);
+      node.revealAgeMs += deltaMs;
+      const revealT = Math.max(0, Math.min(1, (node.revealAgeMs - node.revealDelayMs) / 520));
+      const easedReveal = 1 - Math.pow(1 - revealT, 3);
+      const revealScale = 0.22 + easedReveal * 0.78;
+      node.container.alpha = easedReveal;
+      node.container.scale.set(depthScale * revealScale);
 
       // Dynamic lighting: rotate lightingGroup so highlight faces the star
       node.lightingGroup.rotation = Math.atan2(-node.container.y, -node.container.x);
@@ -870,7 +881,7 @@ export class SystemScene {
         lightY: -node.container.y,
         spinRevolutionsPerMs: node.spinRevolutionsPerMs,
         initialLongitude: node.initialLongitude,
-        visible: node.container.visible && node.container.alpha > 0,
+        visible: node.container.visible && node.container.alpha > 0.01,
       });
     }
     this.planet3DLayer.sync(nodes, starNode, deltaMs);

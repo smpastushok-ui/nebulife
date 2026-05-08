@@ -317,6 +317,7 @@ export class GameEngine {
 
     this.app.stage.addChild(this.systemScene.container);
     this.activeScene = this.systemScene.container;
+    this.systemScene.container.alpha = 0;
     this.camera.attach(this.systemScene.container);
 
     // Set min zoom so background star field always covers the screen (no dark edges)
@@ -333,6 +334,7 @@ export class GameEngine {
     // System view has planet orbits — run at full 60 FPS
     this.app.ticker.maxFPS = 0;
     this.callbacks.onSceneChange('system');
+    this.fadeInSystemScene();
   }
 
   showPlanetViewScene(_system: StarSystem, _planet: Planet, _startHidden = false) {
@@ -640,6 +642,21 @@ export class GameEngine {
       this.systemScene.destroy();
       this.systemScene = null;
     }
+  }
+
+  private fadeInSystemScene(): void {
+    let elapsed = 0;
+    const duration = 260;
+    const tick = (ticker: { deltaMS: number }) => {
+      elapsed += ticker.deltaMS;
+      const t = Math.min(1, elapsed / duration);
+      if (this.systemScene) this.systemScene.container.alpha = Math.min(1, t * 1.15);
+      if (t >= 1) {
+        this.app.ticker.remove(tick);
+        if (this.systemScene) this.systemScene.container.alpha = 1;
+      }
+    };
+    this.app.ticker.add(tick);
   }
 
   pause() {

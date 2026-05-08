@@ -8,29 +8,38 @@ interface PremiumHelpButtonProps {
   label?: string;
 }
 
-const modalBackdrop: React.CSSProperties = {
-  position: 'fixed',
-  inset: 0,
-  zIndex: 200000,
-  display: 'flex',
-  alignItems: 'flex-start',
-  justifyContent: 'center',
-  padding: '70px 14px 18px',
-  background: 'rgba(0,0,0,0.66)',
-  pointerEvents: 'auto',
-};
+function getModalBackdropStyle(): React.CSSProperties {
+  const isNarrow = window.innerWidth < 620;
+  return {
+    position: 'fixed',
+    inset: 0,
+    zIndex: 200000,
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: isNarrow ? 'flex-start' : 'center',
+    padding: isNarrow
+      ? 'calc(env(safe-area-inset-top, 0px) + 156px) 10px 96px 64px'
+      : '70px 14px 18px',
+    background: 'rgba(0,0,0,0.66)',
+    pointerEvents: 'auto',
+  };
+}
 
-const modalCard: React.CSSProperties = {
-  width: 'min(420px, 94vw)',
-  maxHeight: 'calc(100vh - 92px)',
-  overflow: 'auto',
-  background: 'rgba(8,12,22,0.98)',
-  border: '1px solid rgba(123,184,255,0.44)',
-  borderRadius: 6,
-  boxShadow: '0 18px 54px rgba(0,0,0,0.72), inset 0 0 38px rgba(68,136,170,0.12)',
-  color: '#aabbcc',
-  fontFamily: 'monospace',
-};
+function getModalCardStyle(): React.CSSProperties {
+  const isNarrow = window.innerWidth < 620;
+  return {
+    width: isNarrow ? 'calc(100vw - 76px)' : 'min(420px, 94vw)',
+    maxWidth: 420,
+    maxHeight: isNarrow ? 'calc(100vh - 252px)' : 'calc(100vh - 92px)',
+    overflow: 'auto',
+    background: 'rgba(8,12,22,0.98)',
+    border: '1px solid rgba(123,184,255,0.44)',
+    borderRadius: 6,
+    boxShadow: '0 18px 54px rgba(0,0,0,0.72), inset 0 0 38px rgba(68,136,170,0.12)',
+    color: '#aabbcc',
+    fontFamily: 'monospace',
+  };
+}
 
 const helpButtonBase: React.CSSProperties = {
   width: 24,
@@ -140,9 +149,9 @@ export function PremiumExplainerModal({ helpId, onClose }: { helpId: PremiumHelp
   const content = PREMIUM_HELP_CONTENT[helpId];
 
   return (
-    <div style={modalBackdrop} onClick={onClose} onPointerDown={(e) => e.stopPropagation()}>
+    <div style={getModalBackdropStyle()} onClick={onClose} onPointerDown={(e) => e.stopPropagation()}>
       <div
-        style={modalCard}
+        style={getModalCardStyle()}
         role="dialog"
         aria-modal="true"
         aria-labelledby={`premium-help-${helpId}`}

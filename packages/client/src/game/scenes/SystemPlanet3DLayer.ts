@@ -30,6 +30,8 @@ export interface SystemStar3DNode {
 interface MeshRecord {
   mesh: THREE.Mesh;
   material: THREE.ShaderMaterial;
+  glow: THREE.Sprite;
+  rings: THREE.Group | null;
   texture: THREE.Texture | null;
   textureUrl: string | null;
   texturePending: boolean;
@@ -38,6 +40,28 @@ interface MeshRecord {
 }
 
 const SYSTEM_3D_SPIN_READABILITY = 6;
+
+function seededUnit(seed: number, salt: number): number {
+  let x = (seed ^ (salt * 0x9e3779b9)) >>> 0;
+  x ^= x << 13;
+  x ^= x >>> 17;
+  x ^= x << 5;
+  return ((x >>> 0) % 10000) / 10000;
+}
+
+function hasVisibleRingSystem(planet: Planet): boolean {
+  if (planet.type === 'gas-giant') return seededUnit(planet.seed, 501) > 0.34;
+  if (planet.type === 'ice-giant') return seededUnit(planet.seed, 501) > 0.76;
+  return false;
+}
+
+function planetGlowColor(planet: Planet): THREE.Color {
+  if (planet.type === 'gas-giant') return new THREE.Color(0xc8d6ff);
+  if (planet.type === 'ice-giant') return new THREE.Color(0x9fd8ff);
+  if (planet.hydrosphere && planet.hydrosphere.waterCoverageFraction > 0.2) return new THREE.Color(0x7bb8ff);
+  if (planet.atmosphere) return new THREE.Color(0xa8c8ff);
+  return new THREE.Color(0xd7c6a0);
+}
 
 function starRenderColor(star: SystemStar3DNode): THREE.Color {
   const byClass: Record<string, string> = {
@@ -129,6 +153,7 @@ export class SystemPlanet3DLayer {
   private starSprite: THREE.Sprite | null = null;
   private starFlare: THREE.Sprite | null = null;
   private starTexture: THREE.CanvasTexture | null = null;
+  private planetGlowTexture: THREE.CanvasTexture | null = null;
   private records = new Map<string, MeshRecord>();
   private textureCache = new Map<string, THREE.Texture>();
   private prevPosition: string;
@@ -209,6 +234,16 @@ export class SystemPlanet3DLayer {
       record.mesh.position.set(node.x, node.y, node.zIndex * 0.001);
       record.mesh.scale.setScalar(Math.max(1, node.radius));
       record.mesh.renderOrder = node.zIndex;
+      record.glow.visible = node.visible;
+      record.glow.position.set(node.x, node.y + node.radius * 0.18, node.zIndex * 0.001 - 0.05);
+      record.glow.scale.set(node.radius * 3.15, node.radius * 2.25, 1);
+      record.glow.renderOrder = node.zIndex - 2;
+      if (record.rings) {
+        record.rings.visible = node.visible && record.mesh.visible;
+        record.rings.position.set(node.x, node.y, node.zIndex * 0.001 + 0.02);
+        record.rings.scale.setScalar(Math.max(1, node.radius));
+        record.rings.renderOrder = node.zIndex + 1;
+      }
 
       const lightDir = new THREE.Vector3(star.x - node.x, star.y - node.y, 0.16).normalize();
       record.material.uniforms.uLightDir.value.copy(lightDir);
@@ -220,8 +255,12 @@ export class SystemPlanet3DLayer {
     for (const [planetId, record] of this.records) {
       if (live.has(planetId)) continue;
       this.scene.remove(record.mesh);
+      this.scene.remove(record.glow);
+      if (record.rings) this.scene.remove(record.rings);
       record.material.dispose();
       record.mesh.geometry.dispose();
+      this.disposeObject(record.glow);
+      if (record.rings) this.disposeObject(record.rings);
       this.records.delete(planetId);
     }
 
@@ -243,12 +282,18 @@ export class SystemPlanet3DLayer {
 
     for (const record of this.records.values()) {
       this.scene.remove(record.mesh);
+      this.scene.remove(record.glow);
+      if (record.rings) this.scene.remove(record.rings);
       record.material.dispose();
       record.mesh.geometry.dispose();
+      this.disposeObject(record.glow);
+      if (record.rings) this.disposeObject(record.rings);
     }
     this.records.clear();
     for (const texture of this.textureCache.values()) texture.dispose();
     this.textureCache.clear();
+    this.planetGlowTexture?.dispose();
+    this.planetGlowTexture = null;
     if (this.starSphere) {
       this.scene.remove(this.starSphere);
       const material = this.starSphere.material;
@@ -372,6 +417,97 @@ export class SystemPlanet3DLayer {
     return new THREE.CanvasTexture(canvas);
   }
 
+  private getPlanetGlowTexture(): THREE.CanvasTexture {
+    if (this.planetGlowTexture) return this.planetGlowTexture;
+    const size = 192;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d')!;
+    const center = size / 2;
+    const glow = ctx.createRadialGradient(center, center, 0, center, center, center);
+    glow.addColorStop(0.00, 'rgba(255,255,255,0.30)');
+    glow.addColorStop(0.18, 'rgba(255,255,255,0.18)');
+    glow.addColorStop(0.46, 'rgba(255,255,255,0.055)');
+    glow.addColorStop(1.00, 'rgba(255,255,255,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, size, size);
+    this.planetGlowTexture = new THREE.CanvasTexture(canvas);
+    return this.planetGlowTexture;
+  }
+
+  private createPlanetGlow(planet: Planet): THREE.Sprite {
+    const material = new THREE.SpriteMaterial({
+      map: this.getPlanetGlowTexture(),
+      color: planetGlowColor(planet),
+      transparent: true,
+      opacity: planet.type === 'gas-giant' || planet.type === 'ice-giant' ? 0.34 : 0.22,
+      blending: THREE.AdditiveBlending,
+      depthTest: false,
+      depthWrite: false,
+    });
+    const glow = new THREE.Sprite(material);
+    glow.frustumCulled = false;
+    return glow;
+  }
+
+  private createRingSystem(planet: Planet): THREE.Group | null {
+    if (!hasVisibleRingSystem(planet)) return null;
+    const group = new THREE.Group();
+    group.frustumCulled = false;
+    const tint = planet.type === 'ice-giant' ? 0xcceeff : 0xe8edf8;
+    const innerBase = 1.28 + seededUnit(planet.seed, 521) * 0.12;
+    const outerBase = 1.95 + seededUnit(planet.seed, 522) * 0.36;
+    const bandCount = 4 + Math.floor(seededUnit(planet.seed, 523) * 4);
+
+    for (let i = 0; i < bandCount; i++) {
+      const t = i / Math.max(1, bandCount - 1);
+      const inner = innerBase + (outerBase - innerBase) * t;
+      const outer = inner + 0.018 + seededUnit(planet.seed, 540 + i) * 0.032;
+      const geometry = new THREE.RingGeometry(inner, outer, 160);
+      const material = new THREE.MeshBasicMaterial({
+        color: tint,
+        transparent: true,
+        opacity: 0.16 + seededUnit(planet.seed, 560 + i) * 0.18,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      });
+      const ring = new THREE.Mesh(geometry, material);
+      ring.renderOrder = 0;
+      group.add(ring);
+    }
+
+    const gapCount = 2 + Math.floor(seededUnit(planet.seed, 590) * 2);
+    for (let i = 0; i < gapCount; i++) {
+      const r = innerBase + (outerBase - innerBase) * seededUnit(planet.seed, 600 + i);
+      const geometry = new THREE.RingGeometry(r, r + 0.01, 160);
+      const material = new THREE.MeshBasicMaterial({
+        color: 0x020510,
+        transparent: true,
+        opacity: 0.55,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      });
+      group.add(new THREE.Mesh(geometry, material));
+    }
+
+    group.rotation.x = Math.PI / 2 + 0.62;
+    group.rotation.y = (seededUnit(planet.seed, 615) - 0.5) * 0.38;
+    group.rotation.z = seededUnit(planet.seed, 616) * Math.PI;
+    return group;
+  }
+
+  private disposeObject(object: THREE.Object3D): void {
+    object.traverse((child) => {
+      if (child instanceof THREE.Mesh || child instanceof THREE.Sprite) {
+        const material = child.material;
+        if (Array.isArray(material)) material.forEach((m) => m.dispose());
+        else material.dispose();
+        if (child instanceof THREE.Mesh) child.geometry.dispose();
+      }
+    });
+  }
+
   private getOrCreateRecord(node: SystemPlanet3DNode): MeshRecord {
     const existing = this.records.get(node.planet.id);
     if (existing) {
@@ -397,10 +533,16 @@ export class SystemPlanet3DLayer {
     const mesh = new THREE.Mesh(geometry, material);
     mesh.frustumCulled = false;
     this.scene.add(mesh);
+    const glow = this.createPlanetGlow(node.planet);
+    this.scene.add(glow);
+    const rings = this.createRingSystem(node.planet);
+    if (rings) this.scene.add(rings);
 
     const record: MeshRecord = {
       mesh,
       material,
+      glow,
+      rings,
       texture: null,
       textureUrl: node.textureUrl,
       texturePending: false,
