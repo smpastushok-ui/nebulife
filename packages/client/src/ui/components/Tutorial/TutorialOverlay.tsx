@@ -128,7 +128,6 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
   const isInfoStep = step.type === 'info';
   const isAutoStep = step.type === 'auto';
   const isWaiting = step.waitForTarget && !targetRect;
-  const targetMustReceiveClick = step.id === 'save-gallery';
   const isCompact = typeof window !== 'undefined' && window.innerWidth < 720;
   const voiceClip = getAstraVoiceClip(step.id, subStepIndex, i18n.language);
   const voiceSrc = voiceClip
@@ -158,14 +157,17 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
   const triggerTargetAndAdvance = useCallback(() => {
     if (currentTarget) {
       const el = document.querySelector(`[data-tutorial-id="${currentTarget}"]`) as HTMLElement | null;
-      el?.click();
+      const actionable = el?.matches('button, [role="button"], a')
+        ? el
+        : el?.querySelector('button, [role="button"], a') as HTMLElement | null;
+      (actionable ?? el)?.click();
     }
     if (step.id === 'save-gallery') return;
     onAdvance();
   }, [currentTarget, onAdvance, step.id]);
 
   useEffect(() => {
-    if (!voiceSrc) return;
+    if (!voiceSrc || isWaiting) return;
     const preload = new Audio(voiceSrc);
     preload.preload = 'auto';
     preload.load();
@@ -175,7 +177,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
       voiceRef.current = null;
       setVoicePlaying(false);
     };
-  }, [playVoice, voiceSrc]);
+  }, [isWaiting, playVoice, voiceSrc]);
 
   // Track transitions between targets
   useEffect(() => {
@@ -355,7 +357,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
           color: '#aabbcc',
           boxShadow: '0 10px 30px rgba(0,0,0,0.55), inset 0 0 24px rgba(123,184,255,0.055)',
           animation: `${isCompact ? 'astra-panel-enter-mobile' : 'astra-panel-enter'} 0.48s ease-out`,
-          pointerEvents: targetMustReceiveClick ? 'none' : 'auto',
+          pointerEvents: 'auto',
           overflow: isCompact ? 'auto' : 'hidden',
         }}
         onClick={(e) => e.stopPropagation()}

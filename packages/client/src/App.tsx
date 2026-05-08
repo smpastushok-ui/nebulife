@@ -597,6 +597,24 @@ function canRunCarrierRaidOnDevice(): boolean {
   return tier === 'ultra' || !isMobile;
 }
 
+function shouldForceFirstRunPerfPicker(): boolean {
+  if (typeof window === 'undefined') return false;
+  // Mobile Safari/iOS WKWebView can lose the Capacitor bridge briefly during
+  // first boot. Treat iPhone/iPad as picker-required even if the bridge is late.
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    || Boolean((window as any).Capacitor?.isNativePlatform?.());
+}
+
+function hasValidPerfTierChoice(): boolean {
+  try {
+    const tier = localStorage.getItem('nebulife_perf_tier');
+    return tier === 'simple' || tier === 'standard' || tier === 'full';
+  } catch {
+    return false;
+  }
+}
+
 function isPlanetTextureMapUrl(url: string | null | undefined): url is string {
   if (!url) return false;
   try {
@@ -11029,7 +11047,10 @@ export function App() {
   // set yet) WILL see the picker once — considered acceptable because
   // the auto-detect was unreliable on midrange phones anyway.
   const [needsFirstRunSetup, setNeedsFirstRunSetup] = useState<boolean>(() => {
-    try { return localStorage.getItem('nebulife_perf_tier_chosen') !== '1'; }
+    try {
+      return localStorage.getItem('nebulife_perf_tier_chosen') !== '1'
+        || (shouldForceFirstRunPerfPicker() && !hasValidPerfTierChoice());
+    }
     catch { return false; }
   });
 
@@ -11055,17 +11076,14 @@ export function App() {
   // query-string escape hatch lets us preview the screen in a browser.
   const forcePicker = typeof window !== 'undefined'
     && /[?&]force_picker=1\b/.test(window.location.search);
-  const skipPicker = !forcePicker && typeof window !== 'undefined'
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    && !((window as any).Capacitor?.isNativePlatform?.());
+  const skipPicker = !forcePicker && !shouldForceFirstRunPerfPicker();
 
   if (needsFirstRunSetup && !skipPicker) {
-    // Picker always pre-selects English, even on a Ukrainian device —
-    // per business decision EN is the primary market. One tap on the
-    // UK pill is enough for Ukrainian players to override.
+    // Native first-run picker should respect the detected device language.
+    // The player can still override with the UK/EN pills before continuing.
     return (
       <PerfTierSelectScreen
-        initialLang="en"
+        initialLang={savedLang}
         onSubmit={handleFirstRunSubmit}
       />
     );

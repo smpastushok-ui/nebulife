@@ -2,6 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CLIENT_ID</key>
+	<string>702900049376-hgk67iamhrretsuauhnjb0g356k626ja.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.702900049376-hgk67iamhrretsuauhnjb0g356k626ja</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>702900049376-9abfe8lpgosqdjbnos2lcl26106fst5a.apps.googleusercontent.com</string>
 	<key>API_KEY</key>
 	<string>AIzaSyAB52D7VN75zuxhTCOH-N5Xtkxo7iFdocI</string>
 	<key>GCM_SENDER_ID</key>
@@ -9,7 +15,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>nebulife.ios</string>
+	<string>app.nebulife.game</string>
 	<key>PROJECT_ID</key>
 	<string>nebulife-403f1</string>
 	<key>STORAGE_BUCKET</key>
@@ -25,6 +31,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:702900049376:ios:c0de3e4119a163edd14785</string>
+	<string>1:702900049376:ios:6f48bc2318858a49d14785</string>
 </dict>
 </plist>

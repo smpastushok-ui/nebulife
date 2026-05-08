@@ -233,9 +233,11 @@ function preloadVideoBlob(url: string): Promise<Blob> {
 function CinematicVideoSlide({
   src,
   onPlayingChange,
+  onEnded,
 }: {
   src: string;
   onPlayingChange?: (playing: boolean) => void;
+  onEnded?: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [loaded, setLoaded] = useState(false);
@@ -318,6 +320,7 @@ function CinematicVideoSlide({
     const handleEnded = () => {
       onPlayingChangeRef.current?.(false);
       setEnded(true);
+      onEnded?.();
     };
     const handlePause = () => onPlayingChangeRef.current?.(false);
 
@@ -339,20 +342,27 @@ function CinematicVideoSlide({
       v.removeEventListener('pause', handlePause);
       onPlayingChangeRef.current?.(false);
     };
-  }, [resolvedSrc]);
+  }, [onEnded, resolvedSrc]);
 
   return (
     <div style={{
       position: 'relative',
-      width: portraitFrame ? 'min(56vh, 82vw)' : '100%',
+      width: portraitFrame ? 'min(92vw, 620px)' : '100%',
       maxWidth: portraitFrame ? 420 : 720,
-      maxHeight: portraitFrame ? '58vh' : undefined,
-      aspectRatio: portraitFrame ? '9/16' : '16/9',
+      maxHeight: portraitFrame ? '36vh' : undefined,
+      aspectRatio: '16/9',
       borderRadius: 4,
       overflow: 'hidden',
       margin: '0 auto',
-      background: '#000',
+      background: 'radial-gradient(ellipse at center, rgba(16,28,48,0.72), #020510 78%)',
+      boxShadow: '0 18px 60px rgba(0,0,0,0.45)',
     }}>
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        background: 'radial-gradient(ellipse at center, rgba(68,136,170,0.16), rgba(2,5,16,0.92) 70%)',
+        pointerEvents: 'none',
+      }} />
       <video
         ref={videoRef}
         // resolvedSrc is the blob URL once download finishes; until then
@@ -365,7 +375,7 @@ function CinematicVideoSlide({
         style={{
           width: '100%',
           height: '100%',
-          objectFit: 'contain',
+          objectFit: 'cover',
           opacity: loaded ? 1 : 0,
           filter: ended ? 'brightness(0)' : 'brightness(1)',
           transition: 'opacity 0.4s ease-out, filter 1s ease-out',
@@ -414,7 +424,7 @@ const dotStyle: React.CSSProperties = {
 // ---------------------------------------------------------------------------
 const TERMINAL_TYPE_CHARS_PER_TICK = 4;
 const TERMINAL_TYPE_TICK_MS = 18;
-const TERMINAL_TYPE_SFX_VOLUME = 0.01;
+const TERMINAL_TYPE_SFX_VOLUME = 0.1;
 const TERMINAL_LOOP_VOLUME = 0.1;
 
 function TerminalTypewriter({
@@ -505,6 +515,7 @@ function OnboardingSlides({
   const { t } = useTranslation();
   const [slide, setSlide] = useState<OnboardingSlide>(0);
   const [typewriterDone, setTypewriterDone] = useState(false);
+  const [videoEnded, setVideoEnded] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
   // Debounce flag — prevents ghost/double clicks during scene transitions on
   // low-end Androids where React event loop is blocked by video decode.
@@ -548,6 +559,7 @@ function OnboardingSlides({
       setBusy(true);
       setSlide((s) => (s + 1) as OnboardingSlide);
       setTypewriterDone(false);
+      setVideoEnded(false);
       // 600 ms lockout absorbs stray taps that queued up while the main
       // thread was blocked (video decode, scene swap, React re-render).
       setTimeout(() => setBusy(false), 600);
@@ -607,7 +619,7 @@ function OnboardingSlides({
         {/* Slide 0: Catastrophe video */}
         {slide === 0 && (
           <>
-            <CinematicVideoSlide src="/videos/catastrophe.mp4" onPlayingChange={onVideoPlayingChange} />
+            <CinematicVideoSlide src="/videos/catastrophe.mp4" onPlayingChange={onVideoPlayingChange} onEnded={() => setVideoEnded(true)} />
             <p style={{ color: '#8899aa', fontSize: 13, textAlign: 'center', lineHeight: '1.6', maxWidth: 500, margin: 0 }}>
               {t('cinematic.civilization_intro')}
             </p>
@@ -631,7 +643,7 @@ function OnboardingSlides({
         {/* Slide 2: Mission briefing + video */}
         {slide === 2 && (
           <>
-            <CinematicVideoSlide src="/videos/briefing.mp4" onPlayingChange={onVideoPlayingChange} />
+            <CinematicVideoSlide src="/videos/briefing.mp4" onPlayingChange={onVideoPlayingChange} onEnded={() => setVideoEnded(true)} />
             <div style={{ color: '#aabbcc', fontSize: 13, lineHeight: '1.8', maxWidth: 500, textAlign: 'left' }}>
               <div style={{ color: '#556677', fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 12 }}>
                 {t('cinematic.evacuation_directive')}
@@ -672,6 +684,8 @@ function OnboardingSlides({
               cursor: busy ? 'default' : 'pointer',
               opacity: busy ? 0.45 : 1,
               transition: 'background 0.2s, border-color 0.2s, opacity 0.2s',
+              animation: videoEnded && (slide === 0 || slide === 2) && !busy ? 'cin-next-nudge 1.8s ease-in-out infinite' : undefined,
+              boxShadow: videoEnded && (slide === 0 || slide === 2) && !busy ? '0 0 18px rgba(123,184,255,0.22)' : undefined,
             }}
             onMouseEnter={(e) => { if (busy) return; e.currentTarget.style.background = 'rgba(40,80,110,0.7)'; e.currentTarget.style.borderColor = '#558899'; }}
             onMouseLeave={(e) => { if (busy) return; e.currentTarget.style.background = 'rgba(30,60,80,0.6)'; e.currentTarget.style.borderColor = '#446688'; }}
@@ -836,6 +850,10 @@ export function CinematicIntro({
         @keyframes cin-pulse {
           0%, 100% { opacity: 0.4; }
           50% { opacity: 1; }
+        }
+        @keyframes cin-next-nudge {
+          0%, 100% { transform: translateY(0) scale(1); border-color: #446688; }
+          50% { transform: translateY(-2px) scale(1.025); border-color: #7bb8ff; }
         }
         @keyframes cinematicLoadPulse {
           0%, 100% { opacity: 0.3; transform: scale(0.85); }

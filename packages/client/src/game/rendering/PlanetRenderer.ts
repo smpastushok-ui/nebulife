@@ -63,6 +63,49 @@ function lightenColor(color: number, factor: number): number {
   return (lr << 16) | (lg << 8) | lb;
 }
 
+function getProceduralPlanetColor(planet: Planet): number {
+  if (planet.type === 'gas-giant') return 0xc7b08d;
+  if (planet.type === 'ice-giant') return 0x8fb9cf;
+  if (planet.type === 'dwarf') return 0x8a8176;
+  if (planet.hydrosphere?.waterCoverageFraction && planet.hydrosphere.waterCoverageFraction > 0.35) return 0x3f7195;
+  if (planet.surfaceTempK > 650) return 0xa46d42;
+  if (planet.surfaceTempK < 210) return 0xb7c9d2;
+  if (planet.atmosphere) return 0x7f8f78;
+  return 0x9a8061;
+}
+
+function addProceduralPixiBody(container: Container, planet: Planet, size: number): void {
+  const baseColor = getProceduralPlanetColor(planet);
+  const body = new Graphics();
+  body.label = 'planet-procedural-body';
+  body.zIndex = 2;
+  body.circle(0, 0, size * 0.98);
+  body.fill({ color: baseColor, alpha: 1 });
+  container.addChild(body);
+
+  const rngSeed = Math.abs(Math.floor(planet.seed || planet.radiusEarth * 1000));
+  for (let i = 0; i < 9; i++) {
+    const n = Math.sin((rngSeed + i * 37.17) * 12.9898) * 43758.5453;
+    const r = n - Math.floor(n);
+    const angle = r * Math.PI * 2;
+    const distance = size * (0.18 + ((i * 0.137 + r) % 0.55));
+    const spot = new Graphics();
+    spot.label = 'planet-procedural-body';
+    spot.zIndex = 3;
+    spot.ellipse(
+      Math.cos(angle) * distance,
+      Math.sin(angle) * distance * 0.72,
+      size * (0.08 + (r % 0.1)),
+      size * (0.025 + ((1 - r) % 0.05)),
+    );
+    spot.fill({
+      color: i % 2 === 0 ? lightenColor(baseColor, 0.18) : darkenColor(baseColor, 0.72),
+      alpha: planet.type === 'gas-giant' || planet.type === 'ice-giant' ? 0.18 : 0.14,
+    });
+    container.addChild(spot);
+  }
+}
+
 const textureLoadCache = new Map<string, Promise<Texture>>();
 
 function loadTexture(url: string): Promise<Texture> {
@@ -158,8 +201,9 @@ export function renderPlanet(planet: Planet, _star: Star): PlanetRenderResult {
   base.label = 'planet-photo-base';
   base.zIndex = 0;
   base.circle(0, 0, size);
-  base.fill({ color: 0x0b1320, alpha: 1 });
+  base.fill({ color: darkenColor(getProceduralPlanetColor(planet), 0.45), alpha: 1 });
   container.addChild(base);
+  addProceduralPixiBody(container, planet, size);
 
   // SystemScene rotates this container so the mini-globe highlight faces the star.
   const lightingGroup = new Container();
@@ -225,6 +269,9 @@ export function applyPlanetTexturePreview(
 
   void loadTexture(textureUrl).then((loadedTexture) => {
     if (preview.destroyed || !loadedTexture) return;
+    for (const child of [...container.children]) {
+      if (child.label === 'planet-procedural-body') child.visible = false;
+    }
     (preview as any).__sourceTexture = loadedTexture;
     const longitude = (preview as any).__longitude ?? 0;
     (preview as any).__renderedLongitude = longitude;

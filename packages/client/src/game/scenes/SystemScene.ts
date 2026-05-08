@@ -1026,6 +1026,7 @@ export class SystemScene {
   private hidePixiPlanetBody(container: Container): void {
     const hideNames = new Set([
       'planet-photo-base',
+      'planet-procedural-body',
       'planet-mini-lighting',
       'planet-skin-preview',
       'planet-skin-preview-mask',
