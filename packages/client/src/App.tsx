@@ -8124,15 +8124,15 @@ function AppInner() {
             warpTargetRef.current = 'system';
             setWarpActive(true);
           } else {
-            engineRef.current?.showSystemScene(state.selectedSystem);
-            setState((prev) => ({
-              ...prev,
-              scene: 'system' as const,
-              selectedPlanet: null,
-              showPlanetMenu: false,
-              showPlanetInfo: false,
+          engineRef.current?.showSystemScene(state.selectedSystem);
+          setState((prev) => ({
+            ...prev,
+            scene: 'system' as const,
+            selectedPlanet: null,
+            showPlanetMenu: false,
+            showPlanetInfo: false,
               planetClickPos: null,
-            }));
+          }));
           }
         }
         break;
@@ -8984,11 +8984,11 @@ function AppInner() {
               const check = canLandOnPlanet(state.selectedPlanet);
               if (!check.hidden) {
                 buttons.push({
-                  title: check.allowed ? t('nav.surface_btn') : (check.reason || t('common.unavailable')),
-                  icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M1 12 L4 8 L7 10 L11 5 L15 9 L15 14 L1 14Z" /><circle cx="12" cy="3" r="2" /></svg>,
-                  onClick: handleOpenSurface,
-                  disabled: !check.allowed,
-                  pulse: check.allowed,
+              title: check.allowed ? t('nav.surface_btn') : (check.reason || t('common.unavailable')),
+              icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M1 12 L4 8 L7 10 L11 5 L15 9 L15 14 L1 14Z" /><circle cx="12" cy="3" r="2" /></svg>,
+              onClick: handleOpenSurface,
+              disabled: !check.allowed,
+              pulse: check.allowed,
                 });
               }
             }

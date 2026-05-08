@@ -106,6 +106,7 @@ interface MoonNode {
 
 interface PlanetNode {
   container: Container;
+  halo: Container | null;
   lightingGroup: Container;
   planet: Planet;
   angle: number;
@@ -576,6 +577,8 @@ export class SystemScene {
     planetSprite.zIndex = 10000;
     planetSprite.alpha = 0;
     planetSprite.scale.set(0.22);
+    const planetHalo = this.use3DPlanets ? this.createPlanetHalo(getPlanetSize(planet), planet) : null;
+    if (planetHalo) planetSprite.addChildAt(planetHalo, 0);
     const defaultTextureUrl = getSystemPlanetTextureUrl(planet);
     const spinOptions = planetTextureSpinOptions(planet);
     if (defaultTextureUrl) {
@@ -653,6 +656,7 @@ export class SystemScene {
 
     this.planetNodes.set(planet.id, {
       container: planetSprite,
+      halo: planetHalo,
       lightingGroup: planetResult.lightingGroup,
       planet,
       angle: startAngle,
@@ -818,6 +822,9 @@ export class SystemScene {
       // Z-ordering: planets in front when below center, behind when above
       const overlapsStar = Math.hypot(node.container.x, node.container.y) < getPlanetSize(node.planet) + 54;
       node.container.zIndex = overlapsStar ? 90 : Math.round(node.container.y + 10000);
+      if (node.halo) {
+        node.halo.alpha = (0.55 + Math.sin(this.time * 0.0012 + node.angle) * 0.08) * (1 - this.collapseProgress);
+      }
 
       // Subtle depth scale: slightly larger when "closer" (lower y)
       const depthScale = 1 + (node.container.y / (this.maxExtent + 1)) * 0.06;
@@ -1026,6 +1033,40 @@ export class SystemScene {
     for (const child of container.children) {
       if (hideNames.has(child.label ?? '')) child.visible = false;
     }
+  }
+
+  private createPlanetHalo(radius: number, planet: Planet): Container {
+    const halo = new Container();
+    halo.label = 'system-planet-halo';
+    halo.eventMode = 'none';
+    const color = planet.type === 'gas-giant' || planet.type === 'ice-giant'
+      ? 0xbfdcff
+      : planet.hydrosphere && planet.hydrosphere.waterCoverageFraction > 0.2
+        ? 0x7bb8ff
+        : planet.atmosphere
+          ? 0xa8c8ff
+          : 0xd7c6a0;
+
+    const outerRadius = radius * 1.9;
+    for (let i = 0; i < 9; i++) {
+      const t = i / 8;
+      const ring = new Graphics();
+      ring.circle(0, 0, radius + (outerRadius - radius) * t);
+      ring.stroke({
+        width: Math.max(1.2, radius * (0.16 - t * 0.08)),
+        color,
+        alpha: 0.18 * (1 - t) * (1 - t),
+      });
+      ring.blendMode = 'add';
+      halo.addChild(ring);
+    }
+
+    const wash = new Graphics();
+    wash.circle(0, 0, outerRadius);
+    wash.fill({ color, alpha: 0.035 });
+    wash.blendMode = 'add';
+    halo.addChildAt(wash, 0);
+    return halo;
   }
 
   private drawMissionVisual(planetNode: PlanetNode, visual: MissionVisualNode) {

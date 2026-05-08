@@ -1264,19 +1264,19 @@ export function BuildingDetailPanel({
             </button>
           )}
           {type === 'landing_pad' && (
-            <div style={{
+              <div style={{
               marginTop: 8,
-              background: 'rgba(68,136,170,0.10)',
+                background: 'rgba(68,136,170,0.10)',
               border: '1px solid rgba(68,136,170,0.28)',
-              borderRadius: 4,
-              padding: '9px 10px',
-              fontSize: 11,
-              color: '#9fc4dd',
-              lineHeight: 1.45,
-            }}>
+                borderRadius: 4,
+                padding: '9px 10px',
+                fontSize: 11,
+                color: '#9fc4dd',
+                lineHeight: 1.45,
+              }}>
               {t('building_detail.landing_pad_dispatch_hint')}
-            </div>
-          )}
+              </div>
+            )}
         </Section>
 
         {building && type !== 'colony_hub' && onDemolish && (
