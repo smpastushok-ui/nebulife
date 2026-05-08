@@ -143,7 +143,7 @@ export function EncyclopediaScreen({ onClose }: EncyclopediaScreenProps) {
     const next = idx >= 0 && idx < sectionLessons.length - 1 ? sectionLessons[idx + 1] : null;
 
     return (
-      <div style={{ ...overlayStyle, ...(needsTopChromeInset ? mobileOverlayInsetStyle : {}) }}>
+      <div style={overlayStyle}>
         <LessonView
           lesson={openLesson}
           lang={lang}
@@ -322,7 +322,7 @@ const overlayStyle: React.CSSProperties = {
 };
 
 const mobileOverlayInsetStyle: React.CSSProperties = {
-  paddingTop: 'calc(118px + env(safe-area-inset-top, 0px))',
+  paddingTop: 'calc(154px + env(safe-area-inset-top, 0px))',
   boxSizing: 'border-box',
 };
 
