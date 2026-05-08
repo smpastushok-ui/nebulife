@@ -186,6 +186,7 @@ export class SystemPlanet3DLayer {
       powerPreference: 'high-performance',
     });
     this.renderer.setClearColor(0x000000, 0);
+    this.renderer.sortObjects = true;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     this.renderer.domElement.style.position = 'absolute';
     this.renderer.domElement.style.inset = '0';
@@ -240,11 +241,11 @@ export class SystemPlanet3DLayer {
       record.mesh.scale.setScalar(Math.max(1, node.radius * this.transitionScale));
       record.mesh.renderOrder = node.zIndex;
       record.glow.visible = node.visible;
-      record.glow.position.set(tx, ty, node.zIndex * 0.001 - 0.05);
-      record.glow.scale.set(node.radius * 4.25 * this.transitionScale, node.radius * 4.25 * this.transitionScale, 1);
-      record.glow.renderOrder = node.zIndex + 0.5;
+      record.glow.position.set(tx, ty, node.zIndex * 0.001 + 0.04);
+      record.glow.scale.set(node.radius * 3.45 * this.transitionScale, node.radius * 3.45 * this.transitionScale, 1);
+      record.glow.renderOrder = node.zIndex + 20;
       const glowMaterial = record.glow.material as THREE.SpriteMaterial;
-      const baseGlow = node.planet.type === 'gas-giant' || node.planet.type === 'ice-giant' ? 0.34 : 0.26;
+      const baseGlow = node.planet.type === 'gas-giant' || node.planet.type === 'ice-giant' ? 0.48 : 0.4;
       glowMaterial.opacity = baseGlow * (record.mesh.visible ? 1 : 0.35) * this.transitionAlpha;
       record.material.uniforms.uAlpha.value = this.transitionAlpha;
       if (record.rings) {
@@ -460,10 +461,10 @@ export class SystemPlanet3DLayer {
     const ctx = canvas.getContext('2d')!;
     const center = size / 2;
     const glow = ctx.createRadialGradient(center, center, 0, center, center, center);
-    glow.addColorStop(0.00, 'rgba(255,255,255,0)');
-    glow.addColorStop(0.45, 'rgba(255,255,255,0)');
-    glow.addColorStop(0.50, 'rgba(255,255,255,0.42)');
-    glow.addColorStop(0.63, 'rgba(255,255,255,0.16)');
+    glow.addColorStop(0.00, 'rgba(255,255,255,0.16)');
+    glow.addColorStop(0.30, 'rgba(255,255,255,0.12)');
+    glow.addColorStop(0.48, 'rgba(255,255,255,0.36)');
+    glow.addColorStop(0.64, 'rgba(255,255,255,0.22)');
     glow.addColorStop(1.00, 'rgba(255,255,255,0)');
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, size, size);
@@ -569,6 +570,7 @@ export class SystemPlanet3DLayer {
         uAlpha: { value: 1 },
       },
       transparent: true,
+      depthWrite: false,
     });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.frustumCulled = false;
