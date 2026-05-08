@@ -24,6 +24,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
+  // Bail out early if Resend isn't configured. Otherwise every recipient
+  // produces an "RESEND_API_KEY is not set" error in Vercel logs (was 13
+  // recipients × every cron tick = hundreds of error events per hour).
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('[digest-emails] Skipped: RESEND_API_KEY is not set');
+    return res.status(200).json({ processed: 0, reason: 'no_resend_key' });
+  }
+
   try {
     const digest = await getDigestPendingEmails();
     if (!digest || !digest.images_json) {
