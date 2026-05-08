@@ -67,6 +67,7 @@ export function TelescopeOverlay({
   const [showActions, setShowActions] = useState(false);
   const [flyAway, setFlyAway] = useState(false);
   const [initFade, setInitFade] = useState(false);
+  const [photoFailed, setPhotoFailed] = useState(false);
 
   const rafRef = useRef(0);
   const startTimeRef = useRef(performance.now());
@@ -121,6 +122,7 @@ export function TelescopeOverlay({
       setShowFlash(true);
       setGrainOpacity(0.4);
       setShowActions(false);
+      setPhotoFailed(false);
 
       const flashTimer = setTimeout(() => setShowFlash(false), 300);
       const grainStart = performance.now();
@@ -457,7 +459,7 @@ export function TelescopeOverlay({
       )}
 
       {/* ── PHASE 3: Reveal (same for both types) ── */}
-      {phase === 'reveal' && photoUrl && (
+      {phase === 'reveal' && photoUrl && !photoFailed && (
         <>
           {/* White flash */}
           {showFlash && (
@@ -485,6 +487,7 @@ export function TelescopeOverlay({
               ref={photoRef}
               src={photoUrl}
               alt={targetName}
+              onError={() => setPhotoFailed(true)}
               style={{
                 maxWidth: '90vw',
                 maxHeight: '65vh',

@@ -241,10 +241,10 @@ export class SystemPlanet3DLayer {
       record.mesh.renderOrder = node.zIndex;
       record.glow.visible = node.visible;
       record.glow.position.set(tx, ty, node.zIndex * 0.001 - 0.05);
-      record.glow.scale.set(node.radius * 3.05 * this.transitionScale, node.radius * 3.05 * this.transitionScale, 1);
-      record.glow.renderOrder = node.zIndex - 2;
+      record.glow.scale.set(node.radius * 4.25 * this.transitionScale, node.radius * 4.25 * this.transitionScale, 1);
+      record.glow.renderOrder = node.zIndex + 0.5;
       const glowMaterial = record.glow.material as THREE.SpriteMaterial;
-      const baseGlow = node.planet.type === 'gas-giant' || node.planet.type === 'ice-giant' ? 0.28 : 0.20;
+      const baseGlow = node.planet.type === 'gas-giant' || node.planet.type === 'ice-giant' ? 0.34 : 0.26;
       glowMaterial.opacity = baseGlow * (record.mesh.visible ? 1 : 0.35) * this.transitionAlpha;
       record.material.uniforms.uAlpha.value = this.transitionAlpha;
       if (record.rings) {
@@ -461,9 +461,9 @@ export class SystemPlanet3DLayer {
     const center = size / 2;
     const glow = ctx.createRadialGradient(center, center, 0, center, center, center);
     glow.addColorStop(0.00, 'rgba(255,255,255,0)');
-    glow.addColorStop(0.54, 'rgba(255,255,255,0)');
-    glow.addColorStop(0.61, 'rgba(255,255,255,0.36)');
-    glow.addColorStop(0.76, 'rgba(255,255,255,0.14)');
+    glow.addColorStop(0.45, 'rgba(255,255,255,0)');
+    glow.addColorStop(0.50, 'rgba(255,255,255,0.42)');
+    glow.addColorStop(0.63, 'rgba(255,255,255,0.16)');
     glow.addColorStop(1.00, 'rgba(255,255,255,0)');
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, size, size);
@@ -476,7 +476,7 @@ export class SystemPlanet3DLayer {
       map: this.getPlanetGlowTexture(),
       color: planetGlowColor(planet),
       transparent: true,
-      opacity: planet.type === 'gas-giant' || planet.type === 'ice-giant' ? 0.28 : 0.20,
+      opacity: planet.type === 'gas-giant' || planet.type === 'ice-giant' ? 0.34 : 0.26,
       blending: THREE.AdditiveBlending,
       depthTest: false,
       depthWrite: false,

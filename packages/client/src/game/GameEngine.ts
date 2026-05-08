@@ -49,6 +49,8 @@ export class GameEngine {
   private activeScene: Container | null = null;
   private pendingSystemSwitch: StarSystem | null = null;
   private systemSwitchTimer: number | null = null;
+  private systemFadeOverlay: HTMLDivElement | null = null;
+  private systemFadeTimer: number | null = null;
 
   private rings: GalaxyRing[] = [];
   private playerPos = { x: 0, y: 0 };
@@ -87,6 +89,7 @@ export class GameEngine {
     });
 
     this.container.appendChild(this.app.canvas);
+    this.ensureSystemFadeOverlay();
 
     this.camera = new CameraController(this.app);
 
@@ -292,6 +295,7 @@ export class GameEngine {
     if (this.systemScene) {
       this.pendingSystemSwitch = system;
       if (this.systemSwitchTimer !== null) return;
+      this.showSystemFadeOverlay(1, 820);
       this.systemScene.startCollapse();
       this.systemSwitchTimer = window.setTimeout(() => {
         const next = this.pendingSystemSwitch;
@@ -305,6 +309,7 @@ export class GameEngine {
   }
 
   private mountSystemScene(system: StarSystem) {
+    this.showSystemFadeOverlay(1, 0);
     this.clearScenes();
 
     // Force resize to fix stale viewport dimensions after overlay transitions.
@@ -335,7 +340,7 @@ export class GameEngine {
 
     this.app.stage.addChild(this.systemScene.container);
     this.activeScene = this.systemScene.container;
-    this.systemScene.container.alpha = 0;
+    this.systemScene.container.alpha = 1;
     this.camera.attach(this.systemScene.container);
 
     // Set min zoom so background star field always covers the screen (no dark edges)
@@ -352,13 +357,15 @@ export class GameEngine {
     // System view has planet orbits — run at full 60 FPS
     this.app.ticker.maxFPS = 0;
     this.callbacks.onSceneChange('system');
-    this.fadeInSystemScene();
+    this.hideSystemFadeOverlay(720);
   }
 
   showPlanetViewScene(_system: StarSystem, _planet: Planet, _startHidden = false) {
+    this.showSystemFadeOverlay(1, 360);
     this.clearScenes();
     this.camera.detach();
     this.callbacks.onSceneChange('planet-view');
+    window.setTimeout(() => this.hideSystemFadeOverlay(420), 380);
   }
 
   // Galaxy camera controls
@@ -667,19 +674,50 @@ export class GameEngine {
     }
   }
 
-  private fadeInSystemScene(): void {
-    let elapsed = 0;
-    const duration = 260;
-    const tick = (ticker: { deltaMS: number }) => {
-      elapsed += ticker.deltaMS;
-      const t = Math.min(1, elapsed / duration);
-      if (this.systemScene) this.systemScene.container.alpha = Math.min(1, t * 1.15);
-      if (t >= 1) {
-        this.app.ticker.remove(tick);
-        if (this.systemScene) this.systemScene.container.alpha = 1;
-      }
-    };
-    this.app.ticker.add(tick);
+  private ensureSystemFadeOverlay(): HTMLDivElement {
+    if (this.systemFadeOverlay && this.systemFadeOverlay.isConnected) return this.systemFadeOverlay;
+    const overlay = document.createElement('div');
+    overlay.dataset.nebulifeSystemFade = 'true';
+    overlay.style.position = 'absolute';
+    overlay.style.inset = '0';
+    overlay.style.zIndex = '6';
+    overlay.style.pointerEvents = 'none';
+    overlay.style.background = '#020510';
+    overlay.style.opacity = '0';
+    overlay.style.transition = 'opacity 0ms linear';
+    overlay.style.willChange = 'opacity';
+    this.container.appendChild(overlay);
+    this.systemFadeOverlay = overlay;
+    return overlay;
+  }
+
+  private showSystemFadeOverlay(opacity = 1, durationMs = 420): void {
+    const overlay = this.ensureSystemFadeOverlay();
+    if (this.systemFadeTimer !== null) {
+      window.clearTimeout(this.systemFadeTimer);
+      this.systemFadeTimer = null;
+    }
+    overlay.style.display = 'block';
+    overlay.style.transition = `opacity ${Math.max(0, durationMs)}ms ease`;
+    // Force the browser to commit display/transition before changing opacity.
+    void overlay.offsetHeight;
+    overlay.style.opacity = String(Math.max(0, Math.min(1, opacity)));
+  }
+
+  private hideSystemFadeOverlay(durationMs = 620): void {
+    const overlay = this.ensureSystemFadeOverlay();
+    if (this.systemFadeTimer !== null) {
+      window.clearTimeout(this.systemFadeTimer);
+      this.systemFadeTimer = null;
+    }
+    overlay.style.display = 'block';
+    overlay.style.transition = `opacity ${Math.max(0, durationMs)}ms ease`;
+    void overlay.offsetHeight;
+    overlay.style.opacity = '0';
+    this.systemFadeTimer = window.setTimeout(() => {
+      if (this.systemFadeOverlay) this.systemFadeOverlay.style.display = 'none';
+      this.systemFadeTimer = null;
+    }, durationMs + 80);
   }
 
   pause() {

@@ -622,6 +622,17 @@ function AppInner() {
   const warpSystemTargetRef = useRef<StarSystem | null>(null);
   const telescopePhotoRef = useRef<(sys: StarSystem) => void>(() => {});
 
+  useEffect(() => {
+    const hideBrokenImages = (event: Event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLImageElement)) return;
+      target.style.display = 'none';
+      target.setAttribute('data-nebulife-broken-image-hidden', 'true');
+    };
+    window.addEventListener('error', hideBrokenImages, true);
+    return () => window.removeEventListener('error', hideBrokenImages, true);
+  }, []);
+
   // Capture saved navigation state before any useEffect can overwrite them.
   // Engine init() calls showHomePlanetScene() which triggers onSceneChange('home-intro')
   // → persistence useEffect overwrites localStorage with 'home-intro' before
@@ -6692,6 +6703,9 @@ function AppInner() {
 
   const handleBackToSystem = useCallback(() => {
     if (state.selectedSystem) {
+      setTelescopeOverlay(null);
+      setMissionPhotoViewer(null);
+      setMissionPhotoReveal(null);
       engineRef.current?.showSystemScene(state.selectedSystem);
       setState((prev) => ({
         ...prev,
