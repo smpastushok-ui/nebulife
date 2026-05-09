@@ -6778,18 +6778,16 @@ function AppInner() {
 
   // ── System-to-system navigation (arrows in SystemNavHeader) ─────────
   const handleNavToSystem = useCallback((system: StarSystem) => {
-    runDarkLevelTransition(() => {
-      engineRef.current?.showSystemScene(system);
-      setState((prev) => ({
-        ...prev,
-        scene: 'system' as const,
-        selectedSystem: system,
-        selectedPlanet: null,
-        showPlanetMenu: false,
-        showPlanetInfo: false,
-      }));
-    }, 260, 520);
-  }, [runDarkLevelTransition]);
+    engineRef.current?.showSystemScene(system);
+    setState((prev) => ({
+      ...prev,
+      scene: 'system' as const,
+      selectedSystem: system,
+      selectedPlanet: null,
+      showPlanetMenu: false,
+      showPlanetInfo: false,
+    }));
+  }, []);
 
   // ── Discovery handlers ───────────────────────────────────────────────
 
