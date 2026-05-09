@@ -300,6 +300,46 @@ function computeResourceStorageCapacity(buildings: PlacedBuilding[]): number {
     .reduce((capacity, building) => capacity + (BUILDING_DEFS[building.type]?.storageCapacityAdd ?? 0), BASE_RESOURCE_STORAGE_CAPACITY);
 }
 
+function normalizeResourceBundle(value: unknown): ColonyResourceBundle {
+  const raw = value && typeof value === 'object' ? value as Partial<Record<ColonyResourceName, unknown>> : {};
+  const numberOrZero = (key: ColonyResourceName) => {
+    const entry = raw[key];
+    return typeof entry === 'number' && Number.isFinite(entry) ? Math.max(0, entry) : 0;
+  };
+  return {
+    minerals: numberOrZero('minerals'),
+    volatiles: numberOrZero('volatiles'),
+    isotopes: numberOrZero('isotopes'),
+    water: numberOrZero('water'),
+  };
+}
+
+function readHexSlotBuildingsFromStorage(playerId: string, fallbackShutdowns: PlacedBuilding[] = []): PlacedBuilding[] {
+  try {
+    const raw = localStorage.getItem('nebulife_hex_slots');
+    if (!raw) return [];
+    const slots = JSON.parse(raw) as { id: string; ring: number; index: number; state: string; buildingType?: string; buildingLevel?: number }[];
+    if (!Array.isArray(slots)) return [];
+    return slots
+      .filter((slot) => slot.state === 'building' && slot.buildingType)
+      .map((slot) => {
+        const type = slot.buildingType as BuildingType;
+        const fallback = fallbackShutdowns.find((building) => building.type === type);
+        return {
+          id: `${playerId}-${slot.id}-${type}`,
+          type,
+          x: slot.index,
+          y: slot.ring,
+          level: slot.buildingLevel ?? 1,
+          builtAt: new Date().toISOString(),
+          shutdown: fallback?.shutdown,
+        };
+      });
+  } catch {
+    return [];
+  }
+}
+
 function clampResourceBundle(resources: ColonyResourceBundle, capacity: number): ColonyResourceBundle {
   return {
     minerals: Math.min(Math.max(0, resources.minerals), capacity),
@@ -327,6 +367,7 @@ interface SyncedGameState {
   // Colony
   colony_resources: { minerals: number; volatiles: number; isotopes: number; water: number };
   colony_resources_by_planet?: Record<string, { minerals: number; volatiles: number; isotopes: number; water: number }>;
+  hex_slots?: unknown[];
   chemical_inventory: Record<string, number>;
   // Game phase
   exodus_phase: boolean;
@@ -1208,24 +1249,8 @@ function AppInner() {
   const getStorageCapacityForPlanet = useCallback((planetId: string): number => {
     const currentSurfacePlanetId = surfaceTargetRef.current?.planet.id;
     if (currentSurfacePlanetId === planetId) {
-      try {
-        const raw = localStorage.getItem('nebulife_hex_slots');
-        if (raw) {
-          const slots = JSON.parse(raw) as { id: string; ring: number; index: number; state: string; buildingType?: string; buildingLevel?: number }[];
-          const liveBuildings: PlacedBuilding[] = slots
-            .filter((slot) => slot.state === 'building' && slot.buildingType)
-            .map((slot) => ({
-              id: `${playerId.current}-${slot.id}-${slot.buildingType}`,
-              type: slot.buildingType as BuildingType,
-              x: slot.index,
-              y: slot.ring,
-              level: slot.buildingLevel ?? 1,
-              builtAt: new Date().toISOString(),
-              shutdown: colonyStateRef.current?.buildings.find((building) => building.type === slot.buildingType)?.shutdown,
-            }));
-          return computeResourceStorageCapacity(liveBuildings);
-        }
-      } catch { /* ignore malformed local surface cache */ }
+      const liveBuildings = readHexSlotBuildingsFromStorage(playerId.current, colonyStateRef.current?.buildings ?? []);
+      if (liveBuildings.length > 0) return computeResourceStorageCapacity(liveBuildings);
     }
 
     const colony = colonyStateRef.current;
@@ -1912,6 +1937,20 @@ function AppInner() {
     });
     try { localStorage.setItem(flag, '1'); } catch { /* ignore */ }
   }, [ensureHomePlanetStockFloor, homeInfo, isExodusPhase]);
+
+  useEffect(() => {
+    if (!homeInfo) return;
+    const saved = gameStateRef.current.hex_slots;
+    if (!Array.isArray(saved) || saved.length === 0) return;
+    try {
+      const localRaw = localStorage.getItem('nebulife_hex_slots');
+      const localSlots = localRaw ? JSON.parse(localRaw) as unknown[] : [];
+      if (Array.isArray(localSlots) && localSlots.length > saved.length) return;
+      localStorage.setItem('nebulife_hex_slots', JSON.stringify(saved));
+    } catch {
+      try { localStorage.setItem('nebulife_hex_slots', JSON.stringify(saved)); } catch { /* ignore */ }
+    }
+  }, [homeInfo]);
 
   // Home system is always researched by default (player's own star system).
   // This effect ensures it stays researched even after server hydration overwrites state.
@@ -4262,51 +4301,36 @@ function AppInner() {
 
     // Colony — Phase 7A: prefer per-planet map; fall back to legacy global object
     if (gs.colony_resources_by_planet && typeof gs.colony_resources_by_planet === 'object') {
-      const serverMap = gs.colony_resources_by_planet as Record<string, { minerals: number; volatiles: number; isotopes: number; water: number }>;
-      if (Object.keys(serverMap).length > 0) {
-        // Max-merge per planet with local values
-        const localMap = (() => { try { return JSON.parse(localStorage.getItem('nebulife_colony_resources_by_planet') ?? 'null') as Record<string, { minerals: number; volatiles: number; isotopes: number; water: number }> | null; } catch { return null; } })();
-        const merged: Record<string, { minerals: number; volatiles: number; isotopes: number; water: number }> = { ...(localMap ?? {}) };
-        for (const [pid, sr] of Object.entries(serverMap)) {
-          const lr = merged[pid] ?? { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
-          merged[pid] = {
-            minerals:  Math.max(sr.minerals  ?? 0, lr.minerals),
-            volatiles: Math.max(sr.volatiles ?? 0, lr.volatiles),
-            isotopes:  Math.max(sr.isotopes  ?? 0, lr.isotopes),
-            water:     Math.max(sr.water     ?? 0, lr.water),
-          };
-        }
-        setColonyResourcesByPlanet(merged);
-        try { localStorage.setItem('nebulife_colony_resources_by_planet', JSON.stringify(merged)); } catch { /* ignore */ }
+      const serverMap = gs.colony_resources_by_planet as Record<string, unknown>;
+      const nextMap: Record<string, ColonyResourceBundle> = {};
+      for (const [pid, resources] of Object.entries(serverMap)) {
+        nextMap[pid] = normalizeResourceBundle(resources);
+      }
+      if (Object.keys(nextMap).length > 0) {
+        // Server state is the cross-device truth. Max-merging with localStorage
+        // resurrected stale desktop/mobile resource counts after spending.
+        setColonyResourcesByPlanet(nextMap);
+        try { localStorage.setItem('nebulife_colony_resources_by_planet', JSON.stringify(nextMap)); } catch { /* ignore */ }
+        try {
+          const summed = Object.values(nextMap).reduce<ColonyResourceBundle>((acc, resources) => ({
+            minerals: acc.minerals + resources.minerals,
+            volatiles: acc.volatiles + resources.volatiles,
+            isotopes: acc.isotopes + resources.isotopes,
+            water: acc.water + resources.water,
+          }), { minerals: 0, volatiles: 0, isotopes: 0, water: 0 });
+          localStorage.setItem('nebulife_colony_resources', JSON.stringify(summed));
+        } catch { /* ignore */ }
       }
     } else if (gs.colony_resources && typeof gs.colony_resources === 'object') {
       // Legacy path: server only has the old global object.
-      // Merge with local and persist to the old key so the per-planet migration
+      // Persist to the old key so the per-planet migration
       // effect (triggered by homeInfo) can pick it up when the home planet is known.
-      const raw = gs.colony_resources as Record<string, number>;
-      const localCR = (() => { try { return JSON.parse(localStorage.getItem('nebulife_colony_resources') ?? 'null'); } catch { return null; } })();
-      const cr = {
-        minerals: Math.max(raw.minerals ?? 0, localCR?.minerals ?? 0),
-        volatiles: Math.max(raw.volatiles ?? 0, localCR?.volatiles ?? 0),
-        isotopes: Math.max(raw.isotopes ?? 0, localCR?.isotopes ?? 0),
-        water: Math.max(raw.water ?? 0, localCR?.water ?? 0),
-      };
+      const cr = normalizeResourceBundle(gs.colony_resources);
       try { localStorage.setItem('nebulife_colony_resources', JSON.stringify(cr)); } catch { /* ignore */ }
       // If homeInfo already known, migrate immediately; otherwise migration effect handles it
       const hpid = homeInfoRef.current?.planet.id;
       if (hpid) {
-        setColonyResourcesByPlanet(prev => {
-          const existing = prev[hpid] ?? { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
-          return {
-            ...prev,
-            [hpid]: {
-              minerals:  Math.max(cr.minerals,  existing.minerals),
-              volatiles: Math.max(cr.volatiles, existing.volatiles),
-              isotopes:  Math.max(cr.isotopes,  existing.isotopes),
-              water:     Math.max(cr.water,     existing.water),
-            },
-          };
-        });
+        setColonyResourcesByPlanet({ [hpid]: cr });
       }
     }
     if (gs.chemical_inventory && typeof gs.chemical_inventory === 'object') {
@@ -4317,6 +4341,17 @@ function AppInner() {
       }
       setChemicalInventory(merged);
       try { localStorage.setItem('nebulife_chemical_inventory', JSON.stringify(merged)); } catch { /* ignore */ }
+    }
+    if (Array.isArray(gs.hex_slots) && gs.hex_slots.length > 0) {
+      try {
+        const localRaw = localStorage.getItem('nebulife_hex_slots');
+        const localSlots = localRaw ? JSON.parse(localRaw) as unknown[] : [];
+        if (!Array.isArray(localSlots) || gs.hex_slots.length >= localSlots.length) {
+          localStorage.setItem('nebulife_hex_slots', JSON.stringify(gs.hex_slots));
+        }
+      } catch {
+        try { localStorage.setItem('nebulife_hex_slots', JSON.stringify(gs.hex_slots)); } catch { /* ignore */ }
+      }
     }
 
     // Game phase
@@ -7690,6 +7725,14 @@ function AppInner() {
       const raw = localStorage.getItem('nebulife_destroyed_planets');
       if (raw) destroyedPlanets = JSON.parse(raw);
     } catch { /* ignore */ }
+    let hexSlots: unknown[] = [];
+    try {
+      const raw = localStorage.getItem('nebulife_hex_slots');
+      if (raw) {
+        const parsed = JSON.parse(raw) as unknown;
+        if (Array.isArray(parsed)) hexSlots = parsed;
+      }
+    } catch { /* ignore */ }
 
     return {
       xp: playerXP,
@@ -7700,6 +7743,7 @@ function AppInner() {
       last_regen_time: Date.now(),
       colony_resources: colonyResources,
       colony_resources_by_planet: colonyResourcesByPlanet,
+      hex_slots: hexSlots,
       chemical_inventory: chemicalInventory,
       exodus_phase: isExodusPhase,
       destroyed_planets: destroyedPlanets,
@@ -8593,7 +8637,9 @@ function AppInner() {
 
   const surfaceStorageBlockedBuildingTypes = (() => {
     if (!surfaceTarget) return undefined;
-    const buildings = colonyState?.planetId === surfaceTarget.planet.id ? colonyState.buildings : [];
+    const colonyBuildings = colonyState?.planetId === surfaceTarget.planet.id ? colonyState.buildings : [];
+    const liveBuildings = readHexSlotBuildingsFromStorage(playerId.current, colonyBuildings);
+    const buildings = liveBuildings.length > 0 ? liveBuildings : colonyBuildings;
     const capacity = computeResourceStorageCapacity(buildings);
     const resources = getResources(surfaceTarget.planet.id);
     const fullResources = new Set<ColonyResourceName>(
