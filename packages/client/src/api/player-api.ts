@@ -36,6 +36,9 @@ export interface PlayerData {
   fcm_token: string | null;
   last_digest_seen: string | null;
   avatar_url: string | null;
+  player_xp: number;
+  player_level: number;
+  last_seen_at: string | null;
 }
 
 /**

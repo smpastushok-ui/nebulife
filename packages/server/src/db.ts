@@ -49,6 +49,9 @@ export interface PlayerRow {
   premium_source: string | null;
   premium_updated_at: string | null;
   premium_daily_quarks_claimed_on: string | null;
+  player_xp: number;
+  player_level: number;
+  last_seen_at: string | null;
 }
 
 /** Starter wallet for new players. 30⚛ — first photo is FREE (handled in
@@ -148,11 +151,22 @@ export async function updatePlayer(
     email_notifications: boolean;
     push_notifications: boolean;
     last_digest_seen: string;
+    player_xp: number;
+    player_level: number;
+    last_seen_at: string;
   }>,
 ): Promise<PlayerRow | null> {
   const sql = getSQL();
 
   if (Object.keys(updates).length === 0) return getPlayer(playerId);
+
+  const gameState = updates.game_state;
+  const snapshotXP = typeof gameState?.xp === 'number' && Number.isFinite(gameState.xp)
+    ? Math.max(0, Math.floor(gameState.xp))
+    : updates.player_xp;
+  const snapshotLevel = typeof gameState?.level === 'number' && Number.isFinite(gameState.level)
+    ? Math.max(1, Math.floor(gameState.level))
+    : updates.player_level;
 
   const rows = await sql`
     UPDATE players
@@ -171,7 +185,10 @@ export async function updatePlayer(
         preferred_language = COALESCE(${updates.preferred_language ?? null}, preferred_language),
         email_notifications = COALESCE(${updates.email_notifications !== undefined ? updates.email_notifications : null}, email_notifications),
         push_notifications = COALESCE(${updates.push_notifications !== undefined ? updates.push_notifications : null}, push_notifications),
-        last_digest_seen = COALESCE(${updates.last_digest_seen ?? null}, last_digest_seen)
+        last_digest_seen = COALESCE(${updates.last_digest_seen ?? null}, last_digest_seen),
+        player_xp = GREATEST(player_xp, COALESCE(${snapshotXP ?? null}, player_xp)),
+        player_level = GREATEST(player_level, COALESCE(${snapshotLevel ?? null}, player_level)),
+        last_seen_at = COALESCE(${updates.last_seen_at ?? null}, NOW())
     WHERE id = ${playerId}
     RETURNING *
   `;
@@ -2377,6 +2394,24 @@ export async function saveCachedLesson(
     INSERT INTO academy_lessons (lesson_date, topic_id, difficulty, language, lesson_content, lesson_image_url, quest_data, quiz_data)
     VALUES (${date}, ${topicId}, ${difficulty}, ${language}, ${lessonContent}, ${lessonImageUrl}, ${JSON.stringify(questData)}::jsonb, ${JSON.stringify(quizData)}::jsonb)
     ON CONFLICT (lesson_date, topic_id, difficulty, language) DO NOTHING
+  `;
+}
+
+export async function updateCachedLessonQuiz(
+  date: string,
+  topicId: string,
+  difficulty: string,
+  language: 'uk' | 'en',
+  quizData: unknown,
+): Promise<void> {
+  const sql = getSQL();
+  await sql`
+    UPDATE academy_lessons
+    SET quiz_data = ${JSON.stringify(quizData)}::jsonb
+    WHERE lesson_date = ${date}
+      AND topic_id = ${topicId}
+      AND difficulty = ${difficulty}
+      AND language = ${language}
   `;
 }
 
