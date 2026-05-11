@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { trackEvent } from '../../analytics/firebase-analytics.js';
 import './landing.css';
 
 const TESTER_GROUP_URL = 'https://t.me/+IT3QjV5a-tQ0ZDZi';
@@ -179,6 +180,16 @@ export function LandingPage() {
       localStorage.setItem(TESTER_LEAD_EMAIL_KEY, normalizedEmail);
       setLeadEmail(normalizedEmail);
       setIsTesterUnlocked(true);
+      void trackEvent('tester_lead_submitted', {
+        source: 'landing_mobile_test',
+        language: currentLanguage,
+      });
+      void trackEvent('generate_lead', {
+        method: 'mobile_tester_signup',
+        source: 'landing_mobile_test',
+        value: 1,
+        currency: 'USD',
+      });
       // GA4 policy does not allow sending PII, so the email stays local.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const gtag = (window as any).gtag;
@@ -475,6 +486,8 @@ export function LandingPage() {
                 <strong>{t('landing.lead.ready_title')}</strong>
                 <span>{t('landing.lead.ready_body')}</span>
                 <a className="landing-btn landing-btn-primary" href={TESTER_GROUP_URL} target="_blank" rel="noreferrer">{t('landing.lead.open_test')}</a>
+                <span>{t('landing.lead.ios_note')}</span>
+                <span>{t('landing.lead.android_note')}</span>
               </div>
             )}
           </div>

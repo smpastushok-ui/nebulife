@@ -2460,8 +2460,10 @@
       "invalid": "Enter a valid email to continue.",
       "save_error": "Could not save the lead. Check connection and try again.",
       "ready_title": "Test access unlocked",
-      "ready_body": "The mobile tester group is ready. Join it to receive Android and iOS build instructions.",
+      "ready_body": "Email saved. Join the Telegram group, and the mobile test invite will arrive separately after we add you to the tester list.",
       "open_test": "Open tester group",
+      "ios_note": "iOS: the TestFlight invitation will arrive to the email you entered.",
+      "android_note": "Android: the Google Play test invitation will also arrive to that email. Open it with the same Google account on your phone.",
       "close": "Close"
     },
     "stats": {
