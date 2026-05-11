@@ -53,11 +53,11 @@ interface ChatWidgetProps {
   systemNotifs?: SystemNotif[];
   logEntries?: LogEntry[];
   onSystemNotifRead?: (id: string) => void;
-  onNavigateToPlanet?: (systemId: string, planetId: string) => void;
-  onNavigateToSystem?: (systemId: string) => void;
-  onOpenPlanetMissionReport?: (systemId: string, planetId: string) => void;
-  onOpenSystemReport?: (systemId: string) => void;
-  onOpenLogDiscovery?: (entry: LogEntry) => void;
+  onNavigateToPlanet?: (systemId: string, planetId: string) => void | boolean | Promise<void | boolean>;
+  onNavigateToSystem?: (systemId: string) => void | boolean | Promise<void | boolean>;
+  onOpenPlanetMissionReport?: (systemId: string, planetId: string) => void | boolean | Promise<void | boolean>;
+  onOpenSystemReport?: (systemId: string) => void | boolean | Promise<void | boolean>;
+  onOpenLogDiscovery?: (entry: LogEntry) => void | boolean | Promise<void | boolean>;
   /** week_date of the most recently seen digest (from player.last_digest_seen) */
   lastDigestSeen?: string | null;
   /** week_date of the latest complete digest (fetched on app load) */
@@ -165,6 +165,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
   const [unreadSystemMessages, setUnreadSystemMessages] = useState(0);
   const [unreadDm, setUnreadDm] = useState(0);
   const [bannedError, setBannedError] = useState(false);
+  const [systemActionError, setSystemActionError] = useState<string | null>(null);
   // Track which digest the user has "seen" in the ASTRA tab
   const [seenDigestWeekDate, setSeenDigestWeekDate] = useState<string | null | undefined>(lastDigestSeen);
 
@@ -240,6 +241,14 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
     return `nebulife_chat_last_read_${channel}`;
   }, []);
 
+  const markDmChannelsRead = useCallback((channels = dmChannels) => {
+    for (const channel of channels) {
+      if (!channel.last_at) continue;
+      localStorage.setItem(readKeyForChannel(channel.channel), channel.last_at);
+    }
+    setUnreadDm(0);
+  }, [dmChannels, readKeyForChannel]);
+
   const jumpToBottom = useCallback((ref: React.RefObject<HTMLDivElement | null>) => {
     const el = ref.current;
     if (!el) return;
@@ -302,6 +311,11 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
     iv = setInterval(() => { if (!stopped) fetchDM(); }, 10000);
     return () => { if (iv) clearInterval(iv); };
   }, [collapsed, tab]);
+
+  useEffect(() => {
+    if (collapsed || tab !== 'dm-list' || dmChannels.length === 0) return;
+    markDmChannelsRead(dmChannels);
+  }, [collapsed, dmChannels, markDmChannelsRead, tab]);
 
   // Fetch system channel messages (fun facts, moderation notices)
   const [systemMessages, setSystemMessages] = useState<MessageData[]>([]);
@@ -446,6 +460,21 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
     setUnreadAstraMessages(0);
   }, [astraMessages, collapsed, playerId, readKeyForChannel, tab]);
 
+  useEffect(() => {
+    if (collapsed) return;
+    if (tab === 'system') {
+      setUnreadSystemMessages(0);
+      systemNotifs.filter(n => !n.read).forEach(n => onSystemNotifRead?.(n.id));
+    } else if (tab === 'astra') {
+      setUnreadAstraMessages(0);
+      markDigestSeen(latestDigestWeekDate);
+    } else if (tab === 'global') {
+      setUnreadGlobal(0);
+    } else if (tab === 'dm-list' || tab === 'dm-chat') {
+      setUnreadDm(0);
+    }
+  }, [collapsed, latestDigestWeekDate, markDigestSeen, onSystemNotifRead, systemNotifs, tab]);
+
   // Auto-scroll to bottom only when user is already at bottom. On first open /
   // tab switch, jump instantly so the user does not watch history scroll down.
   useEffect(() => {
@@ -477,6 +506,36 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
   }, [activeDM, collapsed, messages, readKeyForChannel, tab]);
 
   const globalLocked = tab === 'global' && playerLevel < 10;
+
+  const runSystemAction = useCallback((action: () => void | boolean | Promise<void | boolean>) => {
+    setSystemActionError(null);
+    try {
+      const result = action();
+      if (result && typeof (result as Promise<void | boolean>).then === 'function') {
+        void (result as Promise<void | boolean>)
+          .then((ok) => {
+            if (ok === false) {
+              setSystemActionError(t('chat.system_action_failed', 'Action unavailable for this system.'));
+              return;
+            }
+            setCollapsed(true);
+          })
+          .catch((err) => {
+            console.warn('[ChatWidget] system action failed:', err);
+            setSystemActionError(t('chat.system_action_failed', 'Action unavailable for this system.'));
+          });
+        return;
+      }
+      if (result === false) {
+        setSystemActionError(t('chat.system_action_failed', 'Action unavailable for this system.'));
+        return;
+      }
+      setCollapsed(true);
+    } catch (err) {
+      console.warn('[ChatWidget] system action failed:', err);
+      setSystemActionError(t('chat.system_action_failed', 'Action unavailable for this system.'));
+    }
+  }, [t]);
 
   const handleSend = async () => {
     if (!input.trim() || !activeChannel || sending || globalLocked) return;
@@ -515,6 +574,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
     setActiveDM({ channel, peerName });
     setTab('dm-chat');
     setMessages([]);
+    setUnreadDm(0);
   };
 
   const openDMWithPlayer = useCallback((peerId: string, peerName: string) => {
@@ -978,8 +1038,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
                       <button
                         onClick={() => {
                           onSystemNotifRead?.(notif.id);
-                          onOpenPlanetMissionReport(notif.systemId, notif.planetId);
-                          setCollapsed(true);
+                          runSystemAction(() => onOpenPlanetMissionReport(notif.systemId, notif.planetId));
                         }}
                         style={SYSTEM_ACTION_BUTTON_STYLE}
                       >
@@ -990,8 +1049,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
                       <button
                         onClick={() => {
                           onSystemNotifRead?.(notif.id);
-                          onNavigateToSystem(notif.systemId);
-                          setCollapsed(true);
+                          runSystemAction(() => onNavigateToSystem(notif.systemId));
                         }}
                         style={SYSTEM_ACTION_BUTTON_STYLE}
                       >
@@ -1002,6 +1060,21 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
                 </div>
               );
             })}
+
+            {systemActionError && (
+              <div style={{
+                background: 'rgba(70,35,15,0.42)',
+                border: '1px solid rgba(255,136,68,0.42)',
+                borderRadius: 4,
+                color: '#ffb07a',
+                fontSize: 10,
+                fontFamily: 'monospace',
+                lineHeight: 1.4,
+                padding: '7px 9px',
+              }}>
+                {systemActionError}
+              </div>
+            )}
 
             {visibleLogEntries.length > 0 && (
               <div style={{
@@ -1052,8 +1125,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
                           {entry.objectType === 'planet_mission_report' && entry.systemId && entry.planetId && onOpenPlanetMissionReport && (
                             <button
                               onClick={() => {
-                                onOpenPlanetMissionReport(entry.systemId!, entry.planetId!);
-                                setCollapsed(true);
+                                runSystemAction(() => onOpenPlanetMissionReport(entry.systemId!, entry.planetId!));
                               }}
                               style={SYSTEM_ACTION_BUTTON_STYLE}
                             >
@@ -1063,8 +1135,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
                           {entry.systemId && onNavigateToSystem && (
                             <button
                               onClick={() => {
-                                onNavigateToSystem(entry.systemId!);
-                                setCollapsed(true);
+                                runSystemAction(() => onNavigateToSystem(entry.systemId!));
                               }}
                               style={SYSTEM_ACTION_BUTTON_STYLE}
                             >
@@ -1074,8 +1145,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
                           {entry.objectType === 'system_research' && entry.systemId && onOpenSystemReport && (
                             <button
                               onClick={() => {
-                                onOpenSystemReport(entry.systemId!);
-                                setCollapsed(true);
+                                runSystemAction(() => onOpenSystemReport(entry.systemId!));
                               }}
                               style={SYSTEM_ACTION_BUTTON_STYLE}
                             >
@@ -1085,8 +1155,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
                           {entry.discoveryRef && onOpenLogDiscovery && (
                             <button
                               onClick={() => {
-                                onOpenLogDiscovery(entry);
-                                setCollapsed(true);
+                                runSystemAction(() => onOpenLogDiscovery(entry));
                               }}
                               style={SYSTEM_ACTION_BUTTON_STYLE}
                             >

@@ -3,13 +3,16 @@
 <head>
   <!-- Google tag (gtag.js) — web only.
        Keep this in <head> so GA4 receives landing-page hits even if the
-       React bundle is slow, cached, or fails before mounting. The Capacitor
-       native shell uses capacitor://localhost / ionic://localhost and is
-       intentionally skipped until native consent UI exists. -->
+       React bundle is slow, cached, or fails before mounting. Capacitor native
+       shells use capacitor://localhost, ionic://localhost, or https://localhost
+       on Android when androidScheme is 'https'; all are skipped until native
+       consent UI exists. -->
   <script>
     (function () {
       var GA_ID = 'G-JEELHEM0Z4';
-      var isNativeShell = location.protocol === 'capacitor:' || location.protocol === 'ionic:';
+      var isNativeShell = location.protocol === 'capacitor:'
+        || location.protocol === 'ionic:'
+        || location.hostname === 'localhost';
       if (isNativeShell) return;
 
       window.dataLayer = window.dataLayer || [];

@@ -8418,14 +8418,17 @@ function AppInner() {
 
   const handleNavigatePlanet = useCallback((planet: Planet) => {
     if (!state.selectedSystem) return;
-    engineRef.current?.showPlanetViewScene(state.selectedSystem, planet, true);
-    setState((prev) => ({
-      ...prev,
-      selectedPlanet: planet,
-      showPlanetMenu: false,
-      showPlanetInfo: false,
-    }));
-  }, [state.selectedSystem]);
+    const system = state.selectedSystem;
+    runDarkLevelTransition(() => {
+      engineRef.current?.showPlanetViewScene(system, planet, true);
+      setState((prev) => ({
+        ...prev,
+        selectedPlanet: planet,
+        showPlanetMenu: false,
+        showPlanetInfo: false,
+      }));
+    }, 170, 360);
+  }, [runDarkLevelTransition, state.selectedSystem]);
 
   // Memoized reason why research is blocked for the currently-open radial
   // menu system. Previously this was an inline IIFE in JSX that re-ran on
@@ -8469,15 +8472,17 @@ function AppInner() {
       (a, b) => a.orbit.semiMajorAxisAU - b.orbit.semiMajorAxisAU,
     )[0];
     if (!firstPlanet) return;
-    engineRef.current?.showPlanetViewScene(system, firstPlanet, true);
-    setState((prev) => ({
-      ...prev,
-      selectedSystem: system,
-      selectedPlanet: firstPlanet,
-      showPlanetMenu: false,
-      showPlanetInfo: false,
-    }));
-  }, []);
+    runDarkLevelTransition(() => {
+      engineRef.current?.showPlanetViewScene(system, firstPlanet, true);
+      setState((prev) => ({
+        ...prev,
+        selectedSystem: system,
+        selectedPlanet: firstPlanet,
+        showPlanetMenu: false,
+        showPlanetInfo: false,
+      }));
+    }, 170, 360);
+  }, [runDarkLevelTransition]);
 
   const handlePlanetInfoFromButton = useCallback(() => {
     if (!state.selectedPlanet || !state.selectedSystem) return;
@@ -11151,6 +11156,8 @@ export function App() {
   // sessions ('/play' or ?play=1 → game_loaded). Skipped on native:
   // window.gtag is not injected there (see main.tsx).
   useEffect(() => {
+    if (Capacitor.isNativePlatform()) return;
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const gtag = (window as any).gtag;
     if (typeof gtag === 'function') {

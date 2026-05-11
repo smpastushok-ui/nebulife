@@ -23,6 +23,7 @@ export interface AcademyProgress {
       correctIndex: number;
       explanation: string;
       answeredAt: string;
+      quizId?: string;
     }>;
   };
   onboarded: boolean;
@@ -49,6 +50,11 @@ export interface DailyLesson {
     xpReward: number;
   };
   quiz: {
+    id?: string;
+    source?: 'encyclopedia';
+    lessonSlug?: string;
+    lessonTitle?: string;
+    questionIndex?: number;
     question: string;
     options: string[];
     correctIndex: number;
@@ -134,6 +140,7 @@ export async function completeQuest(
 export async function answerQuiz(
   lessonId: string,
   answerIndex: number,
+  quizId?: string,
 ): Promise<{
   correct: boolean;
   correctIndex: number;
@@ -142,12 +149,13 @@ export async function answerQuiz(
   quarksAwarded: number;
   answerIndex?: number;
   answeredAt?: string;
+  quizId?: string;
   alreadyAnswered?: boolean;
 }> {
   const res = await authFetch('/api/academy/answer-quiz', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ lessonId, answerIndex }),
+    body: JSON.stringify({ lessonId, answerIndex, quizId }),
   });
   return await res.json();
 }

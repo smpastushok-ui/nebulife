@@ -1582,6 +1582,7 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       renderer.setSize(container.clientWidth, container.clientHeight);
       const pixelRatioCap = tierForCamera === 'low' ? 1 : tierForCamera === 'mid' ? 1.25 : 1.5;
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, pixelRatioCap));
+      renderer.setClearColor(DEEP_SPACE, 1);
       renderer.toneMapping = THREE.LinearToneMapping;
       // Brighter exposure on low/mid compensates for the dropped bloom pass
       // + cloud/back-atmosphere rim-glow. Without this the planet looks

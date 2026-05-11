@@ -62,7 +62,9 @@ export function QuizView({ lesson, progress, onRefresh, onAwardXP }: QuizViewPro
       return;
     }
 
-    const savedAnswer = progress?.category_progress?.__quiz_answers?.[lesson.lessonId];
+    const answerKey = lesson.quiz.id ?? lesson.lessonId;
+    const savedAnswer = progress?.category_progress?.__quiz_answers?.[answerKey]
+      ?? progress?.category_progress?.__quiz_answers?.[lesson.lessonId];
     if (savedAnswer && liveAnsweredLessonRef.current === lesson.lessonId) return;
     if (!savedAnswer) {
       setSelectedIndex(null);
@@ -93,7 +95,7 @@ export function QuizView({ lesson, progress, onRefresh, onAwardXP }: QuizViewPro
     setSelectedIndex(index);
     setSubmitting(true);
     try {
-      const res = await answerQuiz(lesson.lessonId, index);
+      const res = await answerQuiz(lesson.lessonId, index, quiz.id);
       liveAnsweredLessonRef.current = lesson.lessonId;
       const answerIndex = res.answerIndex ?? index;
       setSelectedIndex(answerIndex);

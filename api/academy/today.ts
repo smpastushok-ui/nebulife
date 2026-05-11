@@ -1,12 +1,33 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
-import { getAcademyProgress, getCachedLesson, saveCachedLesson, getPlayer } from '../../packages/server/src/db.js';
+import { getAcademyProgress, getCachedLesson, saveCachedLesson, getPlayer, updateCachedLessonQuiz } from '../../packages/server/src/db.js';
 import { generateEducationPackage, generateLessonImage } from '../../packages/server/src/education-generator.js';
+import { selectEncyclopediaQuiz } from '../../packages/server/src/encyclopedia-quiz-bank.js';
 
 // Use topic-catalog functions directly since @nebulife/core dist may not be up to date in worktree
 import { selectNextLesson, getLastCompletedLessonId } from '../../packages/core/src/education/topic-selector.js';
 import { findLesson } from '../../packages/core/src/education/topic-catalog.js';
 import type { TopicCategoryId } from '../../packages/core/src/types/education.js';
+
+type QuizAnswerRecord = {
+  answerIndex: number;
+  correct: boolean;
+  correctIndex: number;
+  explanation: string;
+  answeredAt: string;
+  quizId?: string;
+};
+
+type AcademyCategoryProgress = {
+  __quiz_answers?: Record<string, QuizAnswerRecord>;
+  [key: string]: unknown;
+};
+
+function getAnsweredQuizIds(categoryProgress: AcademyCategoryProgress): Set<string> {
+  const answers = categoryProgress.__quiz_answers ?? {};
+  const ids = Object.entries(answers).map(([lessonId, answer]) => answer.quizId ?? lessonId);
+  return new Set(ids);
+}
 
 /**
  * GET /api/academy/today
@@ -32,6 +53,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const today = new Date().toISOString().slice(0, 10);
     const selectedTopics = (progress.selected_topics ?? []) as TopicCategoryId[];
     const completedLessons = (progress.completed_lessons ?? {}) as Record<string, string>;
+    const categoryProgress = (progress.category_progress ?? {}) as AcademyCategoryProgress;
+    const answeredQuizIds = getAnsweredQuizIds(categoryProgress);
     const lastLessonId = getLastCompletedLessonId(completedLessons);
 
     // Select next lesson for this player
@@ -53,6 +76,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Try to get from cache first (lazy caching, language-scoped)
     const cached = await getCachedLesson(today, nextLesson.id, progress.difficulty, lang);
     if (cached) {
+      const cachedQuiz = cached.quiz_data as { id?: string };
+      const quiz = await selectEncyclopediaQuiz({
+        lang,
+        topicId: nextLesson.id,
+        seed: today,
+        answeredQuizIds,
+        preferredQuizId: cachedQuiz.id,
+      });
+      if (cachedQuiz.id !== quiz.id) {
+        await updateCachedLessonQuiz(today, nextLesson.id, progress.difficulty, lang, quiz);
+      }
       return res.status(200).json({
         lesson: {
           date: today,
@@ -66,7 +100,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           lessonContent: cached.lesson_content,
           lessonImageUrl: cached.lesson_image_url,
           quest: cached.quest_data,
-          quiz: cached.quiz_data,
+          quiz,
           language: lang,
         },
       });
@@ -80,6 +114,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       progress.difficulty as 'explorer' | 'scientist',
       lang,
     );
+    const quiz = await selectEncyclopediaQuiz({
+      lang,
+      topicId: nextLesson.id,
+      seed: today,
+      answeredQuizIds,
+    });
 
     // Generate lesson image via Gemini image model (non-blocking — null on failure)
     const lessonImageUrl = generated.imagePrompt
@@ -94,7 +134,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       generated.lessonContent,
       lessonImageUrl,
       generated.quest,
-      generated.quiz,
+      quiz,
       lang,
     );
 
@@ -111,7 +151,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         lessonContent: generated.lessonContent,
         lessonImageUrl,
         quest: generated.quest,
-        quiz: generated.quiz,
+        quiz,
         language: lang,
       },
     });

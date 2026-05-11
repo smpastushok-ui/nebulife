@@ -4,6 +4,7 @@ import type { AcademyProgress, DailyLesson } from '../../../api/academy-api.js';
 import { completeLesson } from '../../../api/academy-api.js';
 import { playSfx } from '../../../audio/SfxPlayer.js';
 import { interstitialManager } from '../../../services/interstitial-manager.js';
+import { trackEvent } from '../../../analytics/firebase-analytics.js';
 
 function QuarksIcon() {
   return (
@@ -62,6 +63,11 @@ export function LessonView({ lesson, progress, onRefresh, playerName }: LessonVi
     setMarking(true);
     try {
       await completeLesson(lesson.lessonId);
+      void trackEvent('academy_lesson_complete', {
+        lesson_id: lesson.lessonId,
+        category: categoryTitle,
+        difficulty: lesson.difficulty,
+      });
       onRefresh();
       interstitialManager.tryShow();
     } catch (err) {

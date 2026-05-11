@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
 import { getAcademyProgress, updateAcademyProgress, getCachedLesson, updatePlayer, getPlayer } from '../../packages/server/src/db.js';
+import { selectEncyclopediaQuiz } from '../../packages/server/src/encyclopedia-quiz-bank.js';
 
 interface QuizAnswerRecord {
   answerIndex: number;
@@ -8,6 +9,7 @@ interface QuizAnswerRecord {
   correctIndex: number;
   explanation: string;
   answeredAt: string;
+  quizId?: string;
 }
 
 interface AcademyCategoryProgress {
@@ -17,7 +19,7 @@ interface AcademyCategoryProgress {
 
 /**
  * POST /api/academy/answer-quiz
- * Body: { lessonId: string, answerIndex: number }
+ * Body: { lessonId: string, answerIndex: number, quizId?: string }
  * Validates quiz answer and awards XP.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -27,7 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!auth) return;
 
   try {
-    const { lessonId, answerIndex } = req.body ?? {};
+    const { lessonId, answerIndex, quizId } = req.body ?? {};
     if (!lessonId || typeof answerIndex !== 'number') {
       return res.status(400).json({ error: 'lessonId and answerIndex required' });
     }
@@ -37,19 +39,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const categoryProgress = (progress.category_progress ?? {}) as AcademyCategoryProgress;
     const quizAnswers = categoryProgress.__quiz_answers ?? {};
-    const existingAnswer = quizAnswers[lessonId];
-    if (existingAnswer) {
-      return res.status(200).json({
-        correct: existingAnswer.correct,
-        correctIndex: existingAnswer.correctIndex,
-        explanation: existingAnswer.explanation,
-        xpAwarded: 0,
-        quarksAwarded: 0,
-        answerIndex: existingAnswer.answerIndex,
-        answeredAt: existingAnswer.answeredAt,
-        alreadyAnswered: true,
-      });
-    }
 
     const player = await getPlayer(auth.playerId);
     const lang: 'uk' | 'en' = player?.preferred_language === 'en' ? 'en' : 'uk';
@@ -61,7 +50,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(404).json({ error: 'Lesson not found in cache' });
     }
 
-    const quizData = lesson.quiz_data as { correctIndex: number; explanation: string };
+    const cachedQuizData = lesson.quiz_data as { id?: string; correctIndex: number; explanation: string };
+    const answeredQuizIds = new Set(Object.entries(quizAnswers).map(([key, answer]) => answer.quizId ?? key));
+    const quizData = await selectEncyclopediaQuiz({
+      lang,
+      topicId: lessonId,
+      seed: today,
+      answeredQuizIds,
+      preferredQuizId: typeof quizId === 'string' ? quizId : cachedQuizData.id,
+    });
+    const answerKey = quizData.id;
+    const existingAnswer = quizAnswers[answerKey];
+    if (existingAnswer) {
+      return res.status(200).json({
+        correct: existingAnswer.correct,
+        correctIndex: existingAnswer.correctIndex,
+        explanation: existingAnswer.explanation,
+        xpAwarded: 0,
+        quarksAwarded: 0,
+        answerIndex: existingAnswer.answerIndex,
+        answeredAt: existingAnswer.answeredAt,
+        quizId: existingAnswer.quizId ?? answerKey,
+        alreadyAnswered: true,
+      });
+    }
     const isCorrect = answerIndex === quizData.correctIndex;
 
     // Update stats
@@ -73,6 +85,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       correctIndex: quizData.correctIndex,
       explanation: quizData.explanation,
       answeredAt: new Date().toISOString(),
+      quizId: quizData.id,
     };
 
     await updateAcademyProgress(auth.playerId, {
@@ -82,7 +95,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ...categoryProgress,
         __quiz_answers: {
           ...quizAnswers,
-          [lessonId]: answerRecord,
+          [answerKey]: answerRecord,
         },
       },
     });
@@ -108,6 +121,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       quarksAwarded,
       answerIndex,
       answeredAt: answerRecord.answeredAt,
+      quizId: quizData.id,
       alreadyAnswered: false,
     });
   } catch (err) {
