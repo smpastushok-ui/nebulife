@@ -8,6 +8,7 @@ import {
   isAppleSignInAvailable,
 } from '../../auth/auth-service.js';
 import type { User } from 'firebase/auth';
+import { trackLogin } from '../../analytics/firebase-analytics.js';
 
 // ---------------------------------------------------------------------------
 // AuthScreen — full-screen overlay for login/registration
@@ -34,7 +35,10 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
     try {
       const user = await authFn();
       // On native Capacitor, signInWithRedirect returns null — result handled on next load
-      if (user) onAuthenticated(user, isNew);
+      if (user) {
+        trackLogin(provider ?? 'unknown', isNew);
+        onAuthenticated(user, isNew);
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : t('errors.authError');
       const code = typeof err === 'object' && err !== null && 'code' in err ? String((err as { code?: unknown }).code) : '';

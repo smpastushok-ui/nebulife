@@ -192,7 +192,12 @@ import {
   type PlanetSkinKind,
 } from './api/planet-skin-api.js';
 import { saveMissionPhoto } from './api/mission-photo-api.js';
-import { trackPaidFeatureOrder } from './analytics/firebase-analytics.js';
+import {
+  trackEvent,
+  trackFirstValuableAction,
+  trackPaidFeatureOrder,
+  trackTutorialComplete,
+} from './analytics/firebase-analytics.js';
 
 export type SceneType = 'universe' | 'cluster' | 'galaxy' | 'system' | 'home-intro' | 'planet-view';
 
@@ -5599,6 +5604,10 @@ function AppInner() {
     setNeedsOnboarding(false);
     setCinematicActive(false);
     localStorage.setItem('nebulife_onboarding_done', '1');
+    trackTutorialComplete({
+      player_id: playerId.current,
+      language: lang,
+    });
 
     // Starter wallet toast now fires AFTER onboarding completes — previously
     // it was queued during the cinematic intro, but the CinematicIntro overlay
@@ -5775,6 +5784,10 @@ function AppInner() {
     runDarkLevelTransition(() => {
       engineRef.current?.showSystemScene(system);
       setState((prev) => ({ ...prev, scene: 'system', selectedSystem: system }));
+      trackFirstValuableAction('system_open', {
+        system_id: system.id,
+        ring_index: system.ringIndex,
+      });
     });
   }, [runDarkLevelTransition]);
 
@@ -6182,6 +6195,10 @@ function AppInner() {
             return next;
           });
           revealPhoto(photoUrl);
+          trackFirstValuableAction('system_photo_generated', {
+            system_id: sys.id,
+            paid: !adPhotoToken,
+          });
         } else {
           setSystemPhotos(prev => {
             const next = new Map(prev);
@@ -6197,6 +6214,10 @@ function AppInner() {
                 return next;
               });
               revealPhoto(result.photoUrl!);
+              trackFirstValuableAction('system_photo_generated', {
+                system_id: sys.id,
+                paid: !adPhotoToken,
+              });
             } else if (result.status === 'failed') {
               setSystemPhotos(prev => {
                 const next = new Map(prev);
@@ -6292,6 +6313,12 @@ function AppInner() {
             return next;
           });
           revealPhoto(photoUrl);
+          trackFirstValuableAction('planet_photo_generated', {
+            system_id: sys.id,
+            planet_id: planet.id,
+            photo_kind: photoKind,
+            paid: !adPhotoToken,
+          });
         } else {
           // Async — poll for completion
           setSystemPhotos(prev => {
@@ -6307,6 +6334,12 @@ function AppInner() {
                 return next;
               });
               revealPhoto(result.photoUrl!);
+              trackFirstValuableAction('planet_photo_generated', {
+                system_id: sys.id,
+                planet_id: planet.id,
+                photo_kind: photoKind,
+                paid: !adPhotoToken,
+              });
             } else if (result.status === 'failed') {
               setSystemPhotos(prev => {
                 const next = new Map(prev);
@@ -6406,6 +6439,12 @@ function AppInner() {
         if (status === 'succeed' && textureUrl) {
           setPlanetSkinReveal({ planetId: planet.id, planetName: planet.name, status: 'succeed', startedAt: Date.now() });
           setToastMessage(t('planet.skin_exosphere_ready'));
+          void trackEvent('planet_skin_generated', {
+            system_id: sys.id,
+            planet_id: planet.id,
+            skin_kind: skinKind,
+            cost_quarks: cost,
+          });
           window.setTimeout(() => setPlanetSkinReveal(null), 2600);
           window.setTimeout(() => setToastMessage(null), 3000);
           return;
@@ -6435,6 +6474,12 @@ function AppInner() {
             });
             setPlanetSkinReveal({ planetId: planet.id, planetName: planet.name, status: 'succeed', startedAt: Date.now() });
             setToastMessage(t('planet.skin_exosphere_ready'));
+            void trackEvent('planet_skin_generated', {
+              system_id: sys.id,
+              planet_id: planet.id,
+              skin_kind: skinKind,
+              cost_quarks: cost,
+            });
             window.setTimeout(() => setPlanetSkinReveal(null), 2600);
             window.setTimeout(() => setToastMessage(null), 3000);
           } else if (result.status === 'failed') {
@@ -6469,12 +6514,12 @@ function AppInner() {
     return engineRef.current?.getAllSystems().find((system) => system.id === report.systemId) ?? null;
   }, [state.selectedSystem]);
 
-  const openPlanetMissionReportByIds = useCallback((systemId: string, planetId: string): void => {
+  const openPlanetMissionReportByIds = useCallback((systemId: string, planetId: string): boolean => {
     const allSystems = engineRef.current?.getAllSystems() ?? [];
     const sys = allSystems.find((system) => system.id === systemId);
     const planet = sys?.planets.find((entry) => entry.id === planetId);
     const report = planetReports[planetId];
-    if (!sys || !planet || !report) return;
+    if (!sys || !planet || !report) return false;
     setState((prev) => ({
       ...prev,
       scene: 'system' as const,
@@ -6485,6 +6530,7 @@ function AppInner() {
     }));
     engineRef.current?.showSystemScene(sys);
     setPlanetReportTarget({ planet, report });
+    return true;
   }, [planetReports]);
 
   const handleSaveMissionProbePhoto = useCallback(async (planet: Planet, report: PlanetReportSummary): Promise<void> => {
@@ -6590,6 +6636,12 @@ function AppInner() {
             return next;
           });
           revealPhoto(photoUrl);
+          void trackEvent('mission_photo_generated', {
+            system_id: sys.id,
+            planet_id: planet.id,
+            mission_type: report.missionType,
+            photo_kind: photoKind,
+          });
         } else {
           setSystemPhotos(prev => {
             const next = new Map(prev);
@@ -6604,6 +6656,12 @@ function AppInner() {
                 return next;
               });
               revealPhoto(result.photoUrl!);
+              void trackEvent('mission_photo_generated', {
+                system_id: sys.id,
+                planet_id: planet.id,
+                mission_type: report.missionType,
+                photo_kind: photoKind,
+              });
             } else if (result.status === 'failed') {
               setSystemPhotos(prev => {
                 const next = new Map(prev);
@@ -7272,6 +7330,11 @@ function AppInner() {
     setEvacuationPhase('idle');
     setEvacuationTarget(null);
     setForcedEvacuation(false);
+    void trackEvent('colony_founded', {
+      system_id: evacuationTarget.system.id,
+      planet_id: evacuationTarget.planet.id,
+      habitability: Number(evacuationTarget.planet.habitability.overall.toFixed(3)),
+    });
 
     // Ensure tutorial is complete after colonization
     if (isTutorialActive) {
@@ -7597,6 +7660,11 @@ function AppInner() {
         setPlayerLevel(newLevel);
         setLevelUpQueue(q => [...q, newLevel]);
         addLogEntry('system', t('app.log.level_up').replace('{level}', String(newLevel)));
+        void trackEvent('level_up', {
+          level: newLevel,
+          previous_level: oldLevel,
+          xp: newXP,
+        });
 
         // Auto-research all newly available technologies (cascade — new prereqs may unlock more)
         let currentTech = techTreeStateRef.current;
@@ -10659,7 +10727,9 @@ function AppInner() {
             if (sys && planet) {
               engineRef.current?.showPlanetViewScene(sys, planet);
               setState((prev) => ({ ...prev, scene: 'planet-view' as const, selectedSystem: sys, selectedPlanet: planet }));
+              return true;
             }
+            return false;
           }}
           onNavigateToSystem={(systemId) => {
             const allSystems = engineRef.current?.getAllSystems() ?? [];
@@ -10667,7 +10737,9 @@ function AppInner() {
             if (sys) {
               engineRef.current?.showSystemScene(sys);
               setState((prev) => ({ ...prev, scene: 'system' as const, selectedSystem: sys, selectedPlanet: null }));
+              return true;
             }
+            return false;
           }}
           onOpenPlanetMissionReport={openPlanetMissionReportByIds}
           onOpenSystemReport={(systemId) => {
@@ -10676,10 +10748,14 @@ function AppInner() {
             const research = researchState.systems[systemId];
             if (sys && research) {
               setCompletedModalQueue(q => [{ system: sys, research }, ...q]);
+              return true;
             }
+            return false;
           }}
           onOpenLogDiscovery={(entry) => {
-            if (entry.discoveryRef) handleOpenDiscoveryFromLog(entry.discoveryRef);
+            if (!entry.discoveryRef) return false;
+            handleOpenDiscoveryFromLog(entry.discoveryRef);
+            return true;
           }}
           lastDigestSeen={lastDigestSeen}
           latestDigestWeekDate={latestDigestWeekDate}
