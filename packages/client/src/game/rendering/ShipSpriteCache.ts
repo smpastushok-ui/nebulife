@@ -20,6 +20,20 @@ const SPRITE_SIZE = 128;
 let _cachedCanvas: HTMLCanvasElement | null = null;
 let _loading: Promise<HTMLCanvasElement | null> | null = null;
 
+function isIosCapacitorRuntime(): boolean {
+  const cap = (window as Window & {
+    Capacitor?: { isNativePlatform?: () => boolean; platform?: string };
+  }).Capacitor;
+  return Boolean(cap?.platform === 'ios');
+}
+
+function releaseWebGLRenderer(renderer: THREE.WebGLRenderer): void {
+  if (!isIosCapacitorRuntime()) {
+    renderer.forceContextLoss();
+  }
+  renderer.dispose();
+}
+
 /**
  * Load the GLB and render it into a canvas. Cached across calls. Resolves
  * to `null` on failure (network / malformed file) — caller should fall
@@ -93,12 +107,12 @@ export function getShipSpriteCanvas(): Promise<HTMLCanvasElement | null> {
             else m?.dispose?.();
           }
         });
-        renderer.dispose();
+        releaseWebGLRenderer(renderer);
         resolve(canvas);
       },
       undefined,
       () => {
-        renderer.dispose();
+        releaseWebGLRenderer(renderer);
         resolve(null);
       },
     );

@@ -56,6 +56,20 @@ interface PlanetGlobeViewProps {
   textureUrl?: string | null;
 }
 
+function isIosCapacitorRuntime(): boolean {
+  const cap = (window as Window & {
+    Capacitor?: { isNativePlatform?: () => boolean; platform?: string };
+  }).Capacitor;
+  return Boolean(cap?.platform === 'ios');
+}
+
+function releaseWebGLRenderer(renderer: THREE.WebGLRenderer): void {
+  if (!isIosCapacitorRuntime()) {
+    renderer.forceContextLoss();
+  }
+  renderer.dispose();
+}
+
 function validatePlanetTextureMap(url: string): Promise<boolean> {
   return new Promise((resolve) => {
     const img = new Image();
@@ -1410,7 +1424,7 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
         // Do not call forceContextLoss() on normal planet switches. iOS
         // WebView treats repeated forced losses as real GPU context crashes,
         // which can white-screen the app and reload it back to Galaxy View.
-        rendererRef.current.dispose();
+        releaseWebGLRenderer(rendererRef.current);
         rendererRef.current = null;
       }
     }, []);
