@@ -1,4 +1,5 @@
 export { generateStar } from './star-generator.js';
+export { generateStarCompanions, getStellarMultiplicity } from './star-companions.js';
 export { generatePlanet } from './planet-generator.js';
 export { generateStarSystem } from './star-system-generator.js';
 export { generateHomePlanet } from './home-planet-generator.js';

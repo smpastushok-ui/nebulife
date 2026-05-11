@@ -42,6 +42,8 @@ describe('Star System Generator', () => {
     const sys1 = generateStarSystem(42);
     const sys2 = generateStarSystem(42);
     expect(sys1.star).toEqual(sys2.star);
+    expect(sys1.companions).toEqual(sys2.companions);
+    expect(sys1.multiplicity).toBe(sys2.multiplicity);
     expect(sys1.planets.length).toBe(sys2.planets.length);
     for (let i = 0; i < sys1.planets.length; i++) {
       expect(sys1.planets[i].massEarth).toBe(sys2.planets[i].massEarth);
@@ -54,6 +56,23 @@ describe('Star System Generator', () => {
       expect(sys.planets.length).toBeGreaterThanOrEqual(2);
       expect(sys.planets.length).toBeLessThanOrEqual(12);
     }
+  });
+
+  it('should generate companion metadata without changing primary-star planet model', () => {
+    let systemsWithCompanions = 0;
+    for (let seed = 0; seed < 300; seed++) {
+      const sys = generateStarSystem(seed);
+      if ((sys.companions?.length ?? 0) > 0) {
+        systemsWithCompanions++;
+        expect(sys.multiplicity).not.toBe('single');
+        for (const companion of sys.companions ?? []) {
+          expect(companion.separationAU).toBeGreaterThan(0);
+          expect(companion.luminositySolar).toBeGreaterThan(0);
+        }
+      }
+    }
+    expect(systemsWithCompanions).toBeGreaterThan(40);
+    expect(systemsWithCompanions).toBeLessThan(150);
   });
 
   it('should have planets sorted by orbital distance', () => {

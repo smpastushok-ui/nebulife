@@ -1,5 +1,5 @@
 export type { OrbitalParameters } from './orbit.js';
-export type { Star } from './star.js';
+export type { Star, StarCompanion, StellarMultiplicity } from './star.js';
 export type { Planet, PlanetType, PlanetSize, Moon, MoonComposition } from './planet.js';
 export { getPlanetSize } from './planet.js';
 export type { Universe, Galaxy, GalaxyRing, StarSystem, AsteroidBelt } from './universe.js';

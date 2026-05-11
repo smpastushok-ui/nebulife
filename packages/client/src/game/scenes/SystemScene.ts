@@ -1,5 +1,5 @@
 import { Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
-import type { StarSystem, Planet, PlanetMissionPhase, PlanetMissionType } from '@nebulife/core';
+import type { StarSystem, Planet, PlanetMissionPhase, PlanetMissionType, StarCompanion } from '@nebulife/core';
 import { SeededRNG } from '@nebulife/core';
 import { renderStar } from '../rendering/StarRenderer.js';
 import {
@@ -45,6 +45,10 @@ function seededUnit(seed: number, salt: number): number {
 
 function seededRange(seed: number, salt: number, min: number, max: number): number {
   return min + seededUnit(seed, salt) * (max - min);
+}
+
+function hexToNum(hex: string): number {
+  return parseInt(hex.replace('#', ''), 16);
 }
 
 function planetRotationPeriodHours(planet: Planet): number {
@@ -275,10 +279,14 @@ export class SystemScene {
     starResult.container.visible = !this.use3DPlanets;
     this.container.addChild(starResult.container);
     this.starCorona = starResult.corona;
+    this.addCompanionStars(system.companions ?? []);
 
     // Star label
+    const companionLabel = system.companions?.length
+      ? ` + ${system.companions.map((companion) => `${companion.spectralClass}${companion.subType}V`).join(' + ')}`
+      : '';
     const starLabel = new Text({
-      text: `${system.star.name}\n${system.star.spectralClass}${system.star.subType}V  ${system.star.temperatureK}K`,
+      text: `${system.star.name}\n${system.star.spectralClass}${system.star.subType}V${companionLabel}  ${system.star.temperatureK}K`,
       style: { fontSize: 10, fill: 0x889999, fontFamily: 'monospace', align: 'center' },
       resolution: 2,
     });
@@ -561,6 +569,50 @@ export class SystemScene {
     this.orbitContainer.addChild(hzGfx);
     this.orbitContainer.addChild(hzRing);
     this.orbitContainer.addChild(hzLabel);
+  }
+
+  private addCompanionStars(companions: StarCompanion[]) {
+    companions.forEach((companion, index) => {
+      const color = hexToNum(companion.colorHex);
+      const closeOrbit = companion.orbitType !== 'wide';
+      const distance = closeOrbit
+        ? this.starSize * (1.5 + index * 0.45)
+        : Math.min(220, Math.max(this.starSize * 2.4, auToScreen(companion.separationAU) * 0.18));
+      const angle = -0.65 + index * 1.35;
+      const x = Math.cos(angle) * distance;
+      const y = Math.sin(angle) * distance * Y_COMPRESS;
+      const size = Math.max(4, Math.min(this.starSize * 0.55, 3 + Math.log2(1 + companion.radiusSolar) * 8));
+
+      const marker = new Container();
+      marker.x = x;
+      marker.y = y;
+      marker.zIndex = this.use3DPlanets ? 10001 : 99;
+      marker.visible = !this.use3DPlanets;
+      makeVisualOnly(marker);
+
+      const glow = new Graphics();
+      glow.circle(0, 0, size * 3.2);
+      glow.fill({ color, alpha: 0.06 });
+      glow.circle(0, 0, size * 1.7);
+      glow.fill({ color, alpha: 0.2 });
+      marker.addChild(glow);
+
+      const core = new Graphics();
+      core.circle(0, 0, size);
+      core.fill({ color: 0xffffff, alpha: 0.85 });
+      core.circle(0, 0, size * 0.7);
+      core.fill({ color, alpha: 0.55 });
+      marker.addChild(core);
+
+      const orbit = new Graphics();
+      orbit.ellipse(0, 0, Math.abs(x), Math.max(6, Math.abs(y)));
+      orbit.stroke({ width: 0.5, color, alpha: 0.16 });
+      orbit.zIndex = 98;
+      orbit.visible = !this.use3DPlanets && companion.orbitType !== 'wide';
+      makeVisualOnly(orbit);
+      this.container.addChild(orbit);
+      this.container.addChild(marker);
+    });
   }
 
   private addPlanetNode(planet: Planet) {

@@ -1,6 +1,7 @@
 import { SeededRNG } from '../math/rng.js';
 import { MIN_PLANETS, MAX_PLANETS, MEAN_PLANETS } from '../constants/game.js';
 import { generateStar } from './star-generator.js';
+import { generateStarCompanions, getStellarMultiplicity } from './star-companions.js';
 import { generatePlanet } from './planet-generator.js';
 import type { StarSystem, AsteroidBelt } from '../types/universe.js';
 
@@ -95,6 +96,7 @@ export function generateStarSystem(
   // 1. Star
   const starSeed = rng.deriveSeed(0);
   const star = generateStar(starSeed);
+  const companions = generateStarCompanions(rng.deriveSeed(999), star);
 
   // 2. Planet count
   const planetCount = Math.round(
@@ -141,6 +143,8 @@ export function generateStarSystem(
     name: generateSystemName(rng),
     position,
     star,
+    companions,
+    multiplicity: getStellarMultiplicity(companions),
     planets,
     asteroidBelts,
     ringIndex,

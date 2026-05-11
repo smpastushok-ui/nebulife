@@ -3,10 +3,12 @@ import {
   STELLAR_CLASSES,
   SPECTRAL_CLASS_WEIGHTS,
   type SpectralClass,
-  type StellarClassData,
 } from '../constants/stellar.js';
+import { habitableZoneAU } from '../physics/habitable-zone.js';
+import { generateStarCompanions, getStellarMultiplicity } from './star-companions.js';
 import type { CoreSystem, GalaxyGroupCore } from '../types/galaxy-group.js';
 import { generateStarSystem } from './star-system-generator.js';
+import type { Star } from '../types/star.js';
 import type { StarSystem } from '../types/universe.js';
 import {
   hexToPixel,
@@ -64,6 +66,25 @@ function assignSpectral(rng: SeededRNG): {
   };
 }
 
+function buildCorePrimaryStar(seed: number, spec: ReturnType<typeof assignSpectral>): Star {
+  const matching = STELLAR_CLASSES.filter((s) => s.spectralClass === spec.spectralClass && s.subType === spec.subType);
+  const entry = matching[0] ?? STELLAR_CLASSES.find((s) => s.spectralClass === spec.spectralClass)!;
+  return {
+    id: `core-star-${seed}`,
+    seed,
+    name: `Core ${seed}`,
+    spectralClass: spec.spectralClass,
+    subType: spec.subType,
+    temperatureK: entry.tempK,
+    massSolar: entry.massSolar,
+    radiusSolar: entry.radiusSolar,
+    luminositySolar: spec.luminositySolar,
+    ageGyr: Math.min(13.8, entry.lifetimeGyr * 0.5),
+    colorHex: spec.colorHex,
+    habitableZone: habitableZoneAU(spec.luminositySolar, entry.tempK),
+  };
+}
+
 /** Get player home hex position (golden-angle spiral) */
 function getPlayerHomePixel(index: number): { x: number; y: number } {
   const angle = index * GOLDEN_ANGLE;
@@ -106,16 +127,20 @@ export function generateGalaxyGroupCore(galaxySeed: number): GalaxyGroupCore {
     const jx = (rng.next() - 0.5) * 8;
     const jy = (rng.next() - 0.5) * 8;
 
-    const spec = assignSpectral(rng);
     const id = nextId++;
+    const spec = assignSpectral(rng);
+    const seed = rng.deriveSeed(id);
+    const companions = generateStarCompanions(rng.deriveSeed(10_000 + id), buildCorePrimaryStar(seed, spec));
 
     systems.push({
       id,
-      seed: rng.deriveSeed(id),
+      seed,
       position: { x: pos.x + jx, y: pos.y + jy, z: 0 }, // z set later
       neighbors: [],
       depth: 0,
       entryForPlayerIndex: i,
+      companions,
+      multiplicity: getStellarMultiplicity(companions),
       ...spec,
     });
     entryIds.push(id);
@@ -143,16 +168,20 @@ export function generateGalaxyGroupCore(galaxySeed: number): GalaxyGroupCore {
       const jx = (rng.next() - 0.5) * 4;
       const jy = (rng.next() - 0.5) * 4;
 
-      const spec = assignSpectral(rng);
       const id = nextId++;
+      const spec = assignSpectral(rng);
+      const seed = rng.deriveSeed(id);
+      const companions = generateStarCompanions(rng.deriveSeed(10_000 + id), buildCorePrimaryStar(seed, spec));
 
       systems.push({
         id,
-        seed: rng.deriveSeed(id),
+        seed,
         position: { x: fx + jx, y: fy + jy, z: 0 },
         neighbors: [],
         depth: depthIndex,
         entryForPlayerIndex: -1,
+        companions,
+        multiplicity: getStellarMultiplicity(companions),
         ...spec,
       });
     }
@@ -245,5 +274,7 @@ export function generateCoreStarSystem(coreSys: CoreSystem): StarSystem {
   const ringIndex = 3 + Math.min(coreSys.depth, 9);
   const system = generateStarSystem(coreSys.seed, coreSys.position, ringIndex);
   system.id = `core-${coreSys.id}-${coreSys.seed}`;
+  system.companions = coreSys.companions;
+  system.multiplicity = coreSys.multiplicity ?? getStellarMultiplicity(coreSys.companions);
   return system;
 }

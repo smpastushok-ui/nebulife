@@ -1,4 +1,4 @@
-import type { Star } from './star.js';
+import type { Star, StarCompanion, StellarMultiplicity } from './star.js';
 import type { Planet } from './planet.js';
 
 export interface AsteroidBelt {
@@ -14,6 +14,9 @@ export interface StarSystem {
   name: string;
   position: { x: number; y: number; z: number };  // Light-years from galaxy center
   star: Star;
+  /** Optional secondary/tertiary stars. MVP metadata only; planets orbit primary. */
+  companions?: StarCompanion[];
+  multiplicity?: StellarMultiplicity;
   planets: Planet[];
   asteroidBelts: AsteroidBelt[];
   ringIndex: number;

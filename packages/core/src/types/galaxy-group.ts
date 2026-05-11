@@ -1,4 +1,5 @@
 import type { SpectralClass } from '../constants/stellar.js';
+import type { StarCompanion, StellarMultiplicity } from './star.js';
 
 // ── Galaxy Group: 50 players + 500 core systems ──────────────
 
@@ -17,6 +18,9 @@ export interface CoreSystem {
   subType: number;
   colorHex: string;
   luminositySolar: number;
+  /** Lightweight multiplicity metadata for core map rendering/research. */
+  companions?: StarCompanion[];
+  multiplicity?: StellarMultiplicity;
 }
 
 /** The 500 core systems forming a navigable mesh between all players */

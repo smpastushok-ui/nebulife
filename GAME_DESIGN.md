@@ -120,6 +120,14 @@
 
 > Source: `packages/core/src/constants/stellar.ts`
 
+**Stellar multiplicity MVP:**
+- Частина систем має `companions` metadata: secondary/tertiary зорі з класом, масою, світністю, separation AU та orbit type.
+- `StarSystem.star` лишається primary і джерелом істини для поточних планетних орбіт, температури, habitable zone та Surface energy.
+- `companions` використовуються для системного візуалу, research flavor, каталогів і майбутніх rare binary mechanics.
+- `close` / `circumbinary` у MVP не перераховують стабільність планетних орбіт; повна binary physics відкладається на окремий етап.
+
+> Source: `packages/core/src/generation/star-companions.ts`, `packages/core/src/generation/star-system-generator.ts`
+
 ### 3.3 Planet Generation
 - 2-12 планет на систему (середнє 6)
 - 4 зони: inner, habitable, outer, far
