@@ -1,6 +1,26 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
 import { updatePlayerAuth } from '../../packages/server/src/db.js';
+import { sendWelcomeEmail } from '../../packages/server/src/email-client.js';
+
+function maybeSendWelcomeEmail(player: {
+  id: string;
+  name: string;
+  email: string | null;
+  preferred_language?: string;
+  email_notifications?: boolean;
+} | null): void {
+  if (!player?.email || player.email_notifications === false || !process.env.RESEND_API_KEY) return;
+  const lang = player.preferred_language === 'en' ? 'en' : 'uk';
+  sendWelcomeEmail({
+    to: player.email,
+    playerName: player.name,
+    playerId: player.id,
+    lang,
+  }).catch((err) => {
+    console.warn('[link-account] Welcome email failed:', err);
+  });
+}
 
 /**
  * POST /api/auth/link-account
@@ -37,6 +57,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(404).json({ error: 'Player not found' });
     }
 
+    maybeSendWelcomeEmail(updated);
     return res.status(200).json(updated);
   } catch (err) {
     console.error('Link account error:', err);

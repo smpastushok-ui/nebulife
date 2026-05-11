@@ -6,6 +6,26 @@ import {
   createPlayerWithAuth,
 } from '../../packages/server/src/db.js';
 import { assignPlayerToCluster } from '@nebulife/server';
+import { sendWelcomeEmail } from '../../packages/server/src/email-client.js';
+
+function maybeSendWelcomeEmail(player: {
+  id: string;
+  name: string;
+  email: string | null;
+  preferred_language?: string;
+  email_notifications?: boolean;
+} | null): void {
+  if (!player?.email || player.email_notifications === false || !process.env.RESEND_API_KEY) return;
+  const lang = player.preferred_language === 'en' ? 'en' : 'uk';
+  sendWelcomeEmail({
+    to: player.email,
+    playerName: player.name,
+    playerId: player.id,
+    lang,
+  }).catch((err) => {
+    console.warn('[register] Welcome email failed:', err);
+  });
+}
 
 /**
  * POST /api/auth/register
@@ -58,6 +78,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             console.warn('[register] Failed to assign cluster for linked player:', clusterErr);
           }
         }
+        maybeSendWelcomeEmail(linked);
         return res.status(200).json(linked);
       }
       console.log('[register] Legacy link failed, creating fresh player');
@@ -92,6 +113,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
+    maybeSendWelcomeEmail(player);
     return res.status(201).json(player);
   } catch (err) {
     console.error('[register] FATAL ERROR:', err instanceof Error ? err.stack : err);
