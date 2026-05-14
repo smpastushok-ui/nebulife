@@ -8,7 +8,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage, isSupported } from 'firebase/messaging';
 import { Capacitor } from '@capacitor/core';
-import { FirebaseMessaging } from '@capacitor-firebase/messaging';
+import { FirebaseMessaging, Importance, Visibility } from '@capacitor-firebase/messaging';
 
 /** VAPID public key — must match FIREBASE_SERVICE_ACCOUNT_JSON project */
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY as string | undefined;
@@ -136,6 +136,17 @@ export function startForegroundListener(): (() => void) | null {
   if (Capacitor.isNativePlatform()) {
     let removeReceived: (() => void) | null = null;
     let removeAction: (() => void) | null = null;
+    if (Capacitor.getPlatform() === 'android') {
+      FirebaseMessaging.createChannel({
+        id: 'nebulife_default',
+        name: 'Nebulife',
+        description: 'Nebulife game notifications',
+        importance: Importance.High,
+        visibility: Visibility.Public,
+        lights: true,
+        vibration: true,
+      }).catch((err) => console.warn('[push] create channel failed:', err));
+    }
     FirebaseMessaging.addListener('notificationReceived', ({ notification }) => {
       const data = normalizeNotificationData(notification.data);
       const weekDate = data.weekDate ?? '';

@@ -143,6 +143,16 @@ export async function sendPush(payload: PushPayload): Promise<boolean> {
         body: payload.body,
       },
       data: payload.data ?? {},
+      android: {
+        priority: 'HIGH',
+        notification: {
+          channel_id: 'nebulife_default',
+          tag: payload.tag ?? payload.data?.action ?? 'nebulife',
+          sound: 'default',
+          default_sound: true,
+          visibility: 'PUBLIC',
+        },
+      },
       webpush: {
         fcm_options: {
           link: payload.link ?? '/',
