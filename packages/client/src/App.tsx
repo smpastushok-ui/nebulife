@@ -3121,7 +3121,8 @@ function AppInner() {
         carrier_required: 'planet_missions.reason.carrier_required',
         unknown: 'planet_missions.reason.unknown',
       } as const;
-      setState((prev) => ({ ...prev, error: t(reasonKey[check.reason ?? 'unknown']) }));
+      setToastMessage(t(reasonKey[check.reason ?? 'unknown']));
+      setTimeout(() => setToastMessage(null), 3200);
       return;
     }
 
@@ -3258,7 +3259,8 @@ function AppInner() {
   }): void => {
     const ship = shipFleetRef.current.ships.find((candidate) => candidate.id === params.shipId);
     if (!ship || ship.status !== 'docked' || ship.currentPlanetId !== params.fromPlanetId || ship.assignmentId) {
-      setState((prev) => ({ ...prev, error: t('planet_missions.reason.building_required') }));
+      setToastMessage(t('planet_missions.reason.building_required'));
+      setTimeout(() => setToastMessage(null), 3200);
       return;
     }
 
@@ -3266,7 +3268,8 @@ function AppInner() {
     const amount = Math.max(0, Math.min(Math.floor(params.amount), def.cargoCapacity));
     const donorResources = getResources(params.fromPlanetId);
     if (amount <= 0 || donorResources[params.resource] < amount) {
-      setState((prev) => ({ ...prev, error: t('planet_missions.reason.resources_required') }));
+      setToastMessage(t('planet_missions.reason.resources_required'));
+      setTimeout(() => setToastMessage(null), 3200);
       return;
     }
 
@@ -3404,13 +3407,15 @@ function AppInner() {
     if (!def || !originPlanetId) return;
 
     if (!getExplorationBuildings().some((building) => building.type === def.requiresBuilding && !building.shutdown)) {
-      setState((prev) => ({ ...prev, error: t('planet_missions.reason.building_required') }));
+      setToastMessage(t('planet_missions.reason.building_required'));
+      setTimeout(() => setToastMessage(null), 3200);
       return;
     }
 
     const queueForType = explorationProductionQueueRef.current.filter((item) => item.type === type).length;
     if (queueForType >= 3) {
-      setState((prev) => ({ ...prev, error: t('planet_missions.reason.production_queue_full') }));
+      setToastMessage(t('planet_missions.reason.production_queue_full'));
+      setTimeout(() => setToastMessage(null), 3200);
       return;
     }
 
@@ -3419,7 +3424,8 @@ function AppInner() {
     const missing = (['minerals', 'volatiles', 'isotopes', 'water'] as const)
       .some((key) => resources[key] < cost[key]);
     if (missing) {
-      setState((prev) => ({ ...prev, error: t('planet_missions.reason.resources_required') }));
+      setToastMessage(t('planet_missions.reason.resources_required'));
+      setTimeout(() => setToastMessage(null), 3200);
       return;
     }
 
