@@ -21,10 +21,13 @@ interface AdTokenPayload {
 
 function parseLegacyAdToken(token: string): AdTokenPayload | null {
   const parts = token.split(':');
-  if (parts.length !== 4) return null;
-  const [sessionId, playerId, expiresAtStr] = parts;
+  if (parts.length < 4) return null;
+  const sessionId = parts[0];
+  const sig = parts[parts.length - 1];
+  const expiresAtStr = parts[parts.length - 2];
+  const playerId = parts.slice(1, -2).join(':');
   const expiresAt = parseInt(expiresAtStr, 10);
-  if (!sessionId || !playerId || !Number.isFinite(expiresAt)) return null;
+  if (!sessionId || !playerId || !sig || !Number.isFinite(expiresAt)) return null;
   return { sessionId, playerId, expiresAt };
 }
 
@@ -61,9 +64,13 @@ function parseAdToken(token: string): AdTokenPayload | null {
 function verifyLegacyAdToken(token: string): boolean {
   const secret = process.env.CRON_SECRET || 'nebulife-ad-secret';
   const parts = token.split(':');
-  if (parts.length !== 4) return false;
+  if (parts.length < 4) return false;
 
-  const [sessionId, pid, expiresAtStr, sig] = parts;
+  const sessionId = parts[0];
+  const sig = parts[parts.length - 1];
+  const expiresAtStr = parts[parts.length - 2];
+  const pid = parts.slice(1, -2).join(':');
+  if (!sessionId || !pid || !expiresAtStr || !sig) return false;
   const payload = `${sessionId}:${pid}:${expiresAtStr}`;
   const expected = crypto.createHmac('sha256', secret).update(payload).digest('hex');
   const sigBuf = Buffer.from(sig);
