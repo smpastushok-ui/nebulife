@@ -8001,13 +8001,22 @@ function AppInner() {
   // ── SW message listener (foreground push click from background SW) ────
   useEffect(() => {
     const unsubForeground = startForegroundListener();
+    const handleForegroundPush = (event: Event) => {
+      const detail = (event as CustomEvent<{ action?: string; data?: Record<string, string> }>).detail;
+      if (detail?.data?.source === 'test-push') {
+        setToastMessage('Test push received');
+        setTimeout(() => setToastMessage(null), 2500);
+      }
+    };
     const handlePushDigest = () => {
       window.dispatchEvent(new CustomEvent('nebulife:open-digest'));
     };
+    window.addEventListener('nebulife:push-notification', handleForegroundPush);
     window.addEventListener('nebulife:push-digest', handlePushDigest);
     if (!('serviceWorker' in navigator)) {
       return () => {
         unsubForeground?.();
+        window.removeEventListener('nebulife:push-notification', handleForegroundPush);
         window.removeEventListener('nebulife:push-digest', handlePushDigest);
       };
     }
@@ -8022,6 +8031,7 @@ function AppInner() {
     return () => {
       navigator.serviceWorker.removeEventListener('message', handleSwMessage);
       unsubForeground?.();
+      window.removeEventListener('nebulife:push-notification', handleForegroundPush);
       window.removeEventListener('nebulife:push-digest', handlePushDigest);
     };
   }, []);
