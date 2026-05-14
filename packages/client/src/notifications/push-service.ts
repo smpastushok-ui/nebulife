@@ -26,6 +26,17 @@ export type PushPermissionIssue =
 export interface PushPermissionResult {
   token: string | null;
   issue?: PushPermissionIssue;
+  detail?: string;
+}
+
+function pushErrorDetail(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === 'string') return err;
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return String(err);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -73,10 +84,10 @@ export async function requestPushPermissionDetailed(): Promise<PushPermissionRes
 
       const { token } = await FirebaseMessaging.getToken();
 
-      return token ? { token } : { token: null, issue: 'native_registration_failed' };
+      return token ? { token } : { token: null, issue: 'native_registration_failed', detail: 'empty native FCM token' };
     } catch (err) {
       console.warn('[push] native registration failed:', err);
-      return { token: null, issue: 'native_registration_failed' };
+      return { token: null, issue: 'native_registration_failed', detail: pushErrorDetail(err) };
     }
   }
 

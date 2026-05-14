@@ -8270,11 +8270,11 @@ function AppInner() {
     const pid = playerId.current;
     if (!pid) return;
     if (val) {
-      const { token, issue } = await requestPushPermissionDetailed();
+      const { token, issue, detail } = await requestPushPermissionDetailed();
       if (!token) {
         setPushNotifications(false);
-        console.warn('[push] permission/token failed:', issue);
-        setToastMessage(`Push notifications unavailable: ${issue ?? 'unknown'}`);
+        console.warn('[push] permission/token failed:', issue, detail);
+        setToastMessage(`Push notifications unavailable: ${detail || issue || 'unknown'}`);
         setTimeout(() => setToastMessage(null), 3500);
         return;
       }
@@ -8294,10 +8294,11 @@ function AppInner() {
     const pid = playerId.current;
     if (!pid) return;
     try {
-      const { token, issue } = await requestPushPermissionDetailed();
+      const { token, issue, detail } = await requestPushPermissionDetailed();
       if (!token) {
         setPushNotifications(false);
-        setToastMessage(`Push notifications unavailable: ${issue ?? 'unknown'}`);
+        console.warn('[push] test registration failed:', issue, detail);
+        setToastMessage(`Push notifications unavailable: ${detail || issue || 'unknown'}`);
         setTimeout(() => setToastMessage(null), 3500);
         return;
       }
