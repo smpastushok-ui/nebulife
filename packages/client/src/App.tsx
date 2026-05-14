@@ -137,7 +137,7 @@ import type { ResearchToastItem } from './ui/components/ResearchToast.js';
 import { CutsceneVideo } from './ui/components/CutsceneVideo.js';
 import { EvacuationPrompt } from './ui/components/EvacuationPrompt.js';
 import { ColonyFoundingPrompt } from './ui/components/ColonyFoundingPrompt.js';
-import { getPlayer, createPlayer, getDiscoveries, saveDiscoveryToServer, updatePlayer, updateFcmToken, fetchUniverseInfo, uploadPlayerAvatar, removePlayerAvatar } from './api/player-api.js';
+import { getPlayer, createPlayer, getDiscoveries, saveDiscoveryToServer, updatePlayer, updateFcmToken, sendTestPush, fetchUniverseInfo, uploadPlayerAvatar, removePlayerAvatar } from './api/player-api.js';
 import type { DiscoveryData } from './api/player-api.js';
 import { requestPushPermissionDetailed, startForegroundListener } from './notifications/push-service.js';
 import { getCurrentUser, onAuthChange, signOut } from './auth/auth-service.js';
@@ -8279,6 +8279,30 @@ function AppInner() {
     }
   }, []);
 
+  const handleSendTestPush = useCallback(async () => {
+    const pid = playerId.current;
+    if (!pid) return;
+    try {
+      const { token, issue } = await requestPushPermissionDetailed();
+      if (!token) {
+        setPushNotifications(false);
+        setToastMessage(`Push notifications unavailable: ${issue ?? 'unknown'}`);
+        setTimeout(() => setToastMessage(null), 3500);
+        return;
+      }
+      await updateFcmToken(pid, token);
+      setPushNotifications(true);
+      updatePlayer(pid, { push_notifications: true }).catch(() => {});
+      await sendTestPush();
+      setToastMessage('Test push sent');
+      setTimeout(() => setToastMessage(null), 2500);
+    } catch (err) {
+      console.warn('[push] test push failed:', err);
+      setToastMessage(err instanceof Error ? `Test push failed: ${err.message}` : 'Test push failed');
+      setTimeout(() => setToastMessage(null), 3500);
+    }
+  }, []);
+
   const handleChangeAvatar = useCallback(async (file: File) => {
     setAvatarUploading(true);
     try {
@@ -10451,6 +10475,7 @@ function AppInner() {
           pushNotifications={pushNotifications}
           onToggleEmailNotif={handleToggleEmailNotif}
           onTogglePushNotif={handleTogglePushNotif}
+          onSendTestPush={handleSendTestPush}
           ambientVolume={ambientVolume}
           onChangeAmbientVolume={setAmbientVolume}
         />

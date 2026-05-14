@@ -46,7 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!auth) return;
 
     if (!await RATE_LIMITS.adReward(auth.playerId)) {
-      return res.status(429).json({ error: 'Забагато запитів. Зачекайте.' });
+      return res.status(429).json({ error: 'Too many ad reward claims. Please wait.' });
     }
 
     const { rewardType, adSessionTokens } = req.body ?? {};
@@ -59,16 +59,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Validate ad session tokens
     if (!Array.isArray(adSessionTokens) || adSessionTokens.length < config.requiredAds) {
+      console.warn('[ads/reward] insufficient tokens', {
+        playerId: auth.playerId,
+        rewardType,
+        received: Array.isArray(adSessionTokens) ? adSessionTokens.length : 0,
+        required: config.requiredAds,
+      });
       return res.status(400).json({ error: `Requires ${config.requiredAds} valid ad session tokens` });
     }
 
     const sessionIds = new Set<string>();
     for (const token of adSessionTokens.slice(0, config.requiredAds)) {
       if (typeof token !== 'string' || !verifyAdToken(token, auth.playerId)) {
+        console.warn('[ads/reward] invalid token', { playerId: auth.playerId, rewardType });
         return res.status(400).json({ error: 'Invalid or expired ad session token' });
       }
       const sid = token.split(':')[0];
       if (sessionIds.has(sid)) {
+        console.warn('[ads/reward] duplicate token', { playerId: auth.playerId, rewardType });
         return res.status(400).json({ error: 'Duplicate ad session token' });
       }
       sessionIds.add(sid);
@@ -77,6 +85,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Atomic daily limit check + increment
     const allowed = await addAdReward(auth.playerId, config.requiredAds);
     if (!allowed) {
+      console.warn('[ads/reward] daily limit reached', { playerId: auth.playerId, rewardType });
       return res.status(429).json({ error: 'Daily ad limit reached' });
     }
 

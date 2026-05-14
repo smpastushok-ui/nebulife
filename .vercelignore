@@ -17,6 +17,9 @@ coverage
 voice-samples
 voice-samples-gemini
 app-store-screenshots
+resume
+resume-photo
+resume-wow
 packages/client/build
 packages/client/ios
 packages/client/android

@@ -2,7 +2,6 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
 import { getPremiumStatus, updatePlayerPremium } from '../../packages/server/src/db.js';
 
-const PREMIUM_ENTITLEMENT_ID = 'premium';
 const PREMIUM_PRODUCT_IDS = new Set([
   'nebulife_pro_monthly',
   'nebulife_pro_yearly',
@@ -29,6 +28,16 @@ function isEntitlementActive(entitlement: RevenueCatEntitlement | undefined): bo
   return new Date(entitlement.expires_date).getTime() > Date.now();
 }
 
+function findPremiumEntitlement(
+  entitlements: Record<string, RevenueCatEntitlement | undefined> | undefined,
+): RevenueCatEntitlement | undefined {
+  if (!entitlements) return undefined;
+  return Object.values(entitlements).find((entitlement) => (
+    isEntitlementActive(entitlement)
+    && (!entitlement?.product_identifier || PREMIUM_PRODUCT_IDS.has(entitlement.product_identifier))
+  ));
+}
+
 async function fetchRevenueCatPremium(playerId: string): Promise<{
   active: boolean;
   expiresAt: string | null;
@@ -51,7 +60,7 @@ async function fetchRevenueCatPremium(playerId: string): Promise<{
   }
 
   const data = await response.json() as RevenueCatSubscriberResponse;
-  const entitlement = data.subscriber?.entitlements?.[PREMIUM_ENTITLEMENT_ID];
+  const entitlement = findPremiumEntitlement(data.subscriber?.entitlements);
   return {
     active: isEntitlementActive(entitlement),
     expiresAt: entitlement?.expires_date ?? null,

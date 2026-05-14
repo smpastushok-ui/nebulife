@@ -114,10 +114,11 @@ API ендпоінти:
 **Зараз гравець заходить без кварків. Треба дати відчути що гра "жива".**
 
 - [ ] Стартовий баланс 50⚛ при реєстрації (вистачить на ~5 фото або 2 відео)
-- [ ] Щоденний бонус 1-3⚛ за вхід у гру
+- [x] Premium: monthly/yearly/lifetime через RevenueCat (`nebulife_pro_*`)
+- [x] Premium daily quarks: +5⚛/день через `/api/player/daily-quarks`
+- [x] Rewarded ads: +5⚛ за 3 реклами, server limit 10 ad views/day
+- [ ] Перед релізом реальної реклами: `ADS_DISABLED_FOR_TESTING = false` у `ads-service.ts` і `interstitial-manager.ts`; для TestFlight/Play Beta можна лишити `true`, щоб не ловити AdMob no-fill.
 - [ ] 2⚛ за проходження денної вікторини Академії
-- [ ] Преміум-підписка 100⚛/міс (через RevenueCat)
-- [ ] "Дивитись рекламу за 5⚛" — до 5 разів на день (AdMob уже стоїть)
 
 ---
 
@@ -218,8 +219,9 @@ API ендпоінти:
 - [ ] Firebase для iOS (Bundle ID + SHA)
 - [ ] Play Store: додати SHA-1 релізного keystore у Firebase Console + Google Cloud
 - [ ] Заповнити Play Console (скріни, опис, privacy policy, data safety)
-- [ ] Нативний push: `@capacitor/push-notifications` замість Web FCM (зараз тогл прихований на Android)
-- [ ] Повернути тогл push у профілі після переходу на нативний
+- [x] Нативний push: `@capacitor/push-notifications` + `/api/player/fcm-token`
+- [x] Test push з профілю: `/api/player/test-push`
+- [ ] Перед релізом перевірити foreground/background push на iOS і Android після свіжої інсталяції
 
 ### Маркетинг до софт-лончу
 - [ ] 5 скрінів для App Store (before/after — зірка крапка → Kling фото)
@@ -268,14 +270,15 @@ API ендпоінти:
 - AI-фото першої планети (безкоштовно)
 - AI-фото наступних — 10⚛
 - Поповнення через MonoPay
+- IAP quark packs через RevenueCat (`nebulife_quarks_100`, `500`, `2000`)
+- Premium monthly/yearly/lifetime через RevenueCat
+- Premium daily bonus +5⚛
+- Rewarded ads: +5⚛ за 3 реклами, daily server limit 10 views
 - Баланс кварків у CommandBar
 
 ### Треба реалізувати ❌
 - Стартовий баланс 50⚛
-- Щоденний вхід 1-3⚛
 - Вікторина 2⚛
-- Пре-підписка 100⚛/міс
-- Reward ad +5⚛ (до 5 разів/день)
 - Відео звичайне 20⚛ / легендарне 35⚛
 - Форма життя 5/15/40⚛ за рідкісністю
 - 3D корабель 49⚛

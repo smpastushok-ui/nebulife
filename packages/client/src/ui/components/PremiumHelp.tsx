@@ -9,17 +9,14 @@ interface PremiumHelpButtonProps {
 }
 
 function getModalBackdropStyle(): React.CSSProperties {
-  const isNarrow = window.innerWidth < 620;
   return {
     position: 'fixed',
     inset: 0,
     zIndex: 200000,
     display: 'flex',
-    alignItems: 'flex-start',
-    justifyContent: isNarrow ? 'flex-start' : 'center',
-    padding: isNarrow
-      ? 'calc(env(safe-area-inset-top, 0px) + 156px) 10px 96px 64px'
-      : '70px 14px 18px',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 'calc(env(safe-area-inset-top, 0px) + 12px) 12px calc(env(safe-area-inset-bottom, 0px) + 12px)',
     background: 'rgba(0,0,0,0.66)',
     pointerEvents: 'auto',
   };
@@ -28,10 +25,12 @@ function getModalBackdropStyle(): React.CSSProperties {
 function getModalCardStyle(): React.CSSProperties {
   const isNarrow = window.innerWidth < 620;
   return {
-    width: isNarrow ? 'calc(100vw - 76px)' : 'min(420px, 94vw)',
-    maxWidth: 420,
-    maxHeight: isNarrow ? 'calc(100vh - 252px)' : 'calc(100vh - 92px)',
-    overflow: 'auto',
+    width: isNarrow ? 'min(420px, calc(100vw - 24px))' : 'min(420px, 94vw)',
+    maxWidth: 'calc(100vw - 24px)',
+    maxHeight: 'calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 24px)',
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
     background: 'rgba(8,12,22,0.98)',
     border: '1px solid rgba(123,184,255,0.44)',
     borderRadius: 6,
@@ -40,6 +39,25 @@ function getModalCardStyle(): React.CSSProperties {
     fontFamily: 'monospace',
   };
 }
+
+const modalHeaderStyle: React.CSSProperties = {
+  flexShrink: 0,
+  padding: '15px 16px 12px',
+  borderBottom: '1px solid rgba(68,102,136,0.28)',
+  background: 'rgba(8,12,22,0.98)',
+  zIndex: 1,
+};
+
+const modalBodyStyle: React.CSSProperties = {
+  minHeight: 0,
+  overflowY: 'auto',
+  WebkitOverflowScrolling: 'touch',
+  padding: 16,
+  display: 'grid',
+  gap: 11,
+  fontSize: 11,
+  lineHeight: 1.55,
+};
 
 const helpButtonBase: React.CSSProperties = {
   width: 24,
@@ -157,7 +175,7 @@ export function PremiumExplainerModal({ helpId, onClose }: { helpId: PremiumHelp
         aria-labelledby={`premium-help-${helpId}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ padding: '15px 16px 12px', borderBottom: '1px solid rgba(68,102,136,0.28)' }}>
+        <div style={modalHeaderStyle}>
           <div style={{ color: '#ddaa44', fontSize: 9, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>
             {t('premium_help.common.kicker')}
           </div>
@@ -183,7 +201,7 @@ export function PremiumExplainerModal({ helpId, onClose }: { helpId: PremiumHelp
           <div style={{ marginTop: 8, color: '#99aabb', fontSize: 11, lineHeight: 1.55 }}>{t(content.shortKey)}</div>
         </div>
 
-        <div style={{ padding: 16, display: 'grid', gap: 11, fontSize: 11, lineHeight: 1.55 }}>
+        <div style={modalBodyStyle}>
           {content.preview && <MiniPreview type={content.preview} />}
           <InfoBlock label={t('premium_help.common.gets')} text={t(content.benefitsKey)} />
           <InfoBlock label={t('premium_help.common.why_paid')} text={t(content.whyPaidKey)} />

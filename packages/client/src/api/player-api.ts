@@ -143,11 +143,27 @@ export async function spendQuarks(
  * Register or clear the player's FCM push token.
  */
 export async function updateFcmToken(playerId: string, token: string | null): Promise<void> {
-  await authFetch(`${API_BASE}/player/${playerId}/fcm-token`, {
+  void playerId;
+  const res = await authFetch(`${API_BASE}/player/fcm-token`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ fcm_token: token }),
-  }).catch(() => {});
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(err.error ?? `FCM token update failed: ${res.status}`);
+  }
+}
+
+/**
+ * Send a test push to the current authenticated player's stored FCM token.
+ */
+export async function sendTestPush(): Promise<void> {
+  const res = await authFetch(`${API_BASE}/player/test-push`, { method: 'POST' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(err.error ?? `Test push failed: ${res.status}`);
+  }
 }
 
 function fileToDataUrl(file: File): Promise<string> {

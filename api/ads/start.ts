@@ -17,7 +17,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const auth = await authenticate(req, res);
     if (!auth) return;
 
-    if (!await RATE_LIMITS.adReward(auth.playerId)) {
+    if (!await RATE_LIMITS.adStart(auth.playerId)) {
       return res.status(429).json({ error: 'Too many ad requests' });
     }
 

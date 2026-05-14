@@ -37,6 +37,7 @@ function canPlayWebmAudio(): boolean {
 
 function resolveSfxSrc(name: string): string {
   if (name.includes('.')) return `/sfx/${name}`;
+  if (name === 'ui-click') return '/sfx/ui-click.mp3';
   return `/sfx/${name}.${canPlayWebmAudio() ? 'webm' : 'mp3'}`;
 }
 

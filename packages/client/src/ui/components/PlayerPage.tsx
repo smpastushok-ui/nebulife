@@ -30,6 +30,7 @@ interface PlayerPageProps {
   pushNotifications?: boolean;
   onToggleEmailNotif?: (val: boolean) => void;
   onTogglePushNotif?: (val: boolean) => void;
+  onSendTestPush?: () => void;
   avatarUrl?: string | null;
   avatarUploading?: boolean;
   onChangeAvatar?: (file: File) => void;
@@ -121,6 +122,7 @@ export function PlayerPage({
   pushNotifications = true,
   onToggleEmailNotif,
   onTogglePushNotif,
+  onSendTestPush,
   avatarUrl = null,
   avatarUploading = false,
   onChangeAvatar,
@@ -172,6 +174,17 @@ export function PlayerPage({
     fontSize: 11,
     cursor: 'pointer',
     transition: 'background 0.15s, border-color 0.15s, color 0.15s',
+  };
+  const premiumTopUpButtonStyle: React.CSSProperties = {
+    ...actionButtonStyle,
+    padding: '11px 10px',
+    background: 'linear-gradient(135deg, rgba(92, 62, 18, 0.82), rgba(196, 138, 44, 0.34), rgba(35, 24, 10, 0.86))',
+    border: '1px solid rgba(255, 196, 88, 0.68)',
+    color: '#ffe2a0',
+    fontWeight: 700,
+    letterSpacing: 0.7,
+    textShadow: '0 0 10px rgba(255, 196, 88, 0.45)',
+    boxShadow: '0 0 18px rgba(255, 176, 64, 0.20), inset 0 1px 0 rgba(255, 236, 184, 0.18)',
   };
 
   const handleTopUp = () => {
@@ -492,16 +505,16 @@ export function PlayerPage({
 
           <button
             onClick={handleTopUp}
-            style={{
-              ...actionButtonStyle,
-            }}
+            style={premiumTopUpButtonStyle}
             onMouseEnter={(e) => {
-              (e.target as HTMLElement).style.background = 'rgba(30, 60, 88, 0.58)';
-              (e.target as HTMLElement).style.borderColor = 'rgba(120, 184, 255, 0.54)';
+              (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, rgba(126, 82, 18, 0.92), rgba(244, 178, 62, 0.45), rgba(46, 31, 10, 0.9))';
+              (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255, 218, 128, 0.92)';
+              (e.currentTarget as HTMLElement).style.color = '#fff1c9';
             }}
             onMouseLeave={(e) => {
-              (e.target as HTMLElement).style.background = actionButtonStyle.background as string;
-              (e.target as HTMLElement).style.borderColor = 'rgba(68, 136, 170, 0.42)';
+              (e.currentTarget as HTMLElement).style.background = premiumTopUpButtonStyle.background as string;
+              (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255, 196, 88, 0.68)';
+              (e.currentTarget as HTMLElement).style.color = '#ffe2a0';
             }}
           >
             {t('player.top_up_quarks')}
@@ -652,34 +665,49 @@ export function PlayerPage({
 
               {/* Push notifications toggle — hidden when platform doesn't support Web Push */}
               {onTogglePushNotif && getPushPermissionStatus() !== 'unsupported' && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 11, color: '#8899aa' }}>
-                    {i18n.language === 'en' ? 'Push notifications' : 'Push-сповіщення'}
-                  </span>
-                  <button
-                    onClick={() => { playSfx('ui-click', 0.07); onTogglePushNotif(!pushNotifications); }}
-                    style={{
-                      width: 36,
-                      height: 20,
-                      borderRadius: 10,
-                      border: 'none',
-                      background: pushNotifications ? 'rgba(68,255,136,0.3)' : 'rgba(51,68,85,0.3)',
-                      cursor: 'pointer',
-                      position: 'relative',
-                      transition: 'background 0.2s',
-                    }}
-                  >
-                    <span style={{
-                      position: 'absolute',
-                      top: 3,
-                      left: pushNotifications ? 18 : 3,
-                      width: 14,
-                      height: 14,
-                      borderRadius: '50%',
-                      background: pushNotifications ? '#44ff88' : '#667788',
-                      transition: 'left 0.2s, background 0.2s',
-                    }} />
-                  </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 11, color: '#8899aa' }}>
+                      {i18n.language === 'en' ? 'Push notifications' : 'Push-сповіщення'}
+                    </span>
+                    <button
+                      onClick={() => { playSfx('ui-click', 0.07); onTogglePushNotif(!pushNotifications); }}
+                      style={{
+                        width: 36,
+                        height: 20,
+                        borderRadius: 10,
+                        border: 'none',
+                        background: pushNotifications ? 'rgba(68,255,136,0.3)' : 'rgba(51,68,85,0.3)',
+                        cursor: 'pointer',
+                        position: 'relative',
+                        transition: 'background 0.2s',
+                      }}
+                    >
+                      <span style={{
+                        position: 'absolute',
+                        top: 3,
+                        left: pushNotifications ? 18 : 3,
+                        width: 14,
+                        height: 14,
+                        borderRadius: '50%',
+                        background: pushNotifications ? '#44ff88' : '#667788',
+                        transition: 'left 0.2s, background 0.2s',
+                      }} />
+                    </button>
+                  </div>
+                  {onSendTestPush && (
+                    <button
+                      type="button"
+                      onClick={() => { playSfx('ui-click', 0.07); onSendTestPush(); }}
+                      style={{
+                        ...actionButtonStyle,
+                        padding: '7px 0',
+                        fontSize: 10,
+                      }}
+                    >
+                      {i18n.language === 'en' ? 'Send test push' : 'Надіслати тестовий push'}
+                    </button>
+                  )}
                 </div>
               )}
             </div>

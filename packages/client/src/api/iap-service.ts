@@ -103,6 +103,10 @@ const PREMIUM_PLAN_BY_PRODUCT_ID: Record<string, PremiumPlan> = Object.fromEntri
   Object.entries(PREMIUM_PRODUCT_IDS).map(([plan, productId]) => [productId, plan]),
 ) as Record<string, PremiumPlan>;
 
+function isPremiumProductId(productId: string | null | undefined): boolean {
+  return !!productId && !!PREMIUM_PLAN_BY_PRODUCT_ID[productId];
+}
+
 let configured = false;
 let configuredUserId: string | null = null;
 let packageCache = new Map<string, RevenueCatPackage>();
@@ -125,6 +129,23 @@ function isNetworkError(err: unknown): boolean {
   if (!err || typeof err !== 'object') return false;
   const record = err as { code?: string };
   return record.code === '10' || record.code === '35';
+}
+
+function isAlreadyPurchasedError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const record = err as { code?: string | number; message?: string; underlyingErrorMessage?: string };
+  const code = String(record.code ?? '').toLowerCase();
+  const message = `${record.message ?? ''} ${record.underlyingErrorMessage ?? ''}`.toLowerCase();
+  return (
+    code === '6'
+    || code.includes('alreadypurchased')
+    || code.includes('already_purchased')
+    || message.includes('already purchased')
+    || message.includes('already subscribed')
+    || message.includes('currently subscribed')
+    || message.includes('already own')
+    || message.includes('already active')
+  );
 }
 
 function toIAPPackage(pkg: RevenueCatPackage): IAPPackage | null {
@@ -294,6 +315,26 @@ function cachePremiumStatus(active: boolean): void {
   else localStorage.removeItem('nebulife_premium');
 }
 
+function entitlementProductId(entitlement: unknown): string | null {
+  if (!entitlement || typeof entitlement !== 'object') return null;
+  const record = entitlement as {
+    productIdentifier?: string | null;
+    product_identifier?: string | null;
+  };
+  return record.productIdentifier ?? record.product_identifier ?? null;
+}
+
+function activeProductIds(customerInfo: CustomerInfo): string[] {
+  const record = customerInfo as unknown as {
+    activeSubscriptions?: string[] | null;
+    allPurchasedProductIdentifiers?: string[] | null;
+  };
+  return [
+    ...(Array.isArray(record.activeSubscriptions) ? record.activeSubscriptions : []),
+    ...(Array.isArray(record.allPurchasedProductIdentifiers) ? record.allPurchasedProductIdentifiers : []),
+  ];
+}
+
 /**
  * Check whether the player has an active premium subscription.
  * First checks RevenueCat entitlements, falls back to localStorage flag
@@ -304,11 +345,12 @@ export async function checkPremiumStatus(): Promise<PremiumStatus> {
     try {
       const { Purchases } = await import('@revenuecat/purchases-capacitor');
       const { customerInfo } = await Purchases.getCustomerInfo();
-      const active = customerInfo.entitlements.active[PREMIUM_ENTITLEMENT_ID]?.isActive === true;
+      const active = hasPremium(customerInfo);
       if (active) {
         const server = await syncServerPremiumStatus().catch(() => ({ active }) as PremiumStatus);
-        cachePremiumStatus(server.active);
-        return server;
+        const status = { ...server, active: server.active || active };
+        cachePremiumStatus(status.active);
+        return status;
       }
       const server = await syncServerPremiumStatus().catch(() => ({ active: false }) as PremiumStatus);
       cachePremiumStatus(server.active);
@@ -342,12 +384,13 @@ export async function purchasePremium(
     }
 
     const purchase = await Purchases.purchasePackage({ aPackage: nativePackage });
-    const activePremium = hasPremium(purchase.customerInfo);
+    const activePremium = hasPremium(purchase.customerInfo) || isPremiumProductId(nativePackage.product.identifier);
     if (!activePremium) {
       return { success: false, error: 'Premium entitlement was not activated' };
     }
 
-    const status = await syncServerPremiumStatus().catch(() => ({ active: activePremium }) as PremiumStatus);
+    const server = await syncServerPremiumStatus().catch(() => ({ active: activePremium }) as PremiumStatus);
+    const status = { ...server, active: server.active || activePremium };
     cachePremiumStatus(status.active);
     void trackEvent('purchase', {
       currency: 'USD',
@@ -360,6 +403,12 @@ export async function purchasePremium(
   } catch (err) {
     if (isPurchaseCancelled(err)) return { success: false, error: 'cancelled' };
     if (isNetworkError(err)) return { success: false, error: 'network' };
+    if (isAlreadyPurchasedError(err)) {
+      const status = await checkPremiumStatus().catch(() => ({ active: false }) as PremiumStatus);
+      return status.active
+        ? { success: true, status }
+        : { success: false, status, error: 'already-purchased' };
+    }
     console.warn('[IAP] Premium purchase failed:', err);
     return { success: false, error: 'Premium purchase failed' };
   }
@@ -444,8 +493,9 @@ export async function restoreIAPPurchases(): Promise<{ restored: boolean }> {
     const server = activePremium
       ? await syncServerPremiumStatus().catch(() => ({ active: activePremium }) as PremiumStatus)
       : await fetchServerPremiumStatus().catch(() => ({ active: false }) as PremiumStatus);
-    cachePremiumStatus(server.active);
-    return { restored: server.active };
+    const restored = server.active || activePremium;
+    cachePremiumStatus(restored);
+    return { restored };
   } catch (err) {
     console.warn('[IAP] Restore failed:', err);
     return { restored: false };
@@ -453,5 +503,14 @@ export async function restoreIAPPurchases(): Promise<{ restored: boolean }> {
 }
 
 function hasPremium(customerInfo: CustomerInfo): boolean {
-  return customerInfo.entitlements.active[PREMIUM_ENTITLEMENT_ID]?.isActive === true;
+  const activeEntitlements = customerInfo.entitlements.active;
+  if (activeEntitlements[PREMIUM_ENTITLEMENT_ID]?.isActive === true) return true;
+
+  const entitlementHasPremiumProduct = Object.values(activeEntitlements).some((entitlement) => {
+    const isActive = entitlement?.isActive !== false;
+    return isActive && isPremiumProductId(entitlementProductId(entitlement));
+  });
+  if (entitlementHasPremiumProduct) return true;
+
+  return activeProductIds(customerInfo).some(isPremiumProductId);
 }

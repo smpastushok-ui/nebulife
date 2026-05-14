@@ -183,7 +183,7 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted, 
   };
 
   const handleBuyPremium = async (pkg: PremiumPackage) => {
-    if (purchasing || adsRunning || isPremiumActive) return;
+    if (purchasing || adsRunning) return;
     setMessage(null);
     setPurchasing(pkg.identifier);
     try {
@@ -195,6 +195,16 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted, 
         setMessage({ text: t('premium.purchase_success'), ok: true });
       } else if (result.error === 'cancelled') {
         setMessage({ text: t('topup.iap_cancelled'), ok: false });
+      } else if (result.error === 'already-purchased') {
+        const status = await checkPremiumStatus().catch(() => ({ active: false }));
+        if (status.active) {
+          setIsPremiumActive(true);
+          interstitialManager.setPremium(true);
+          onPremiumChanged?.(true);
+          setMessage({ text: t('premium.purchase_success'), ok: true });
+        } else {
+          setMessage({ text: t('topup.restore_purchases'), ok: false });
+        }
       } else {
         setMessage({ text: t('premium.purchase_error'), ok: false });
       }
@@ -221,7 +231,11 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted, 
       setAdsProgress(0);
       setTimeout(onClose, 1800);
     } else {
-      setMessage({ text: t('topup.ads_failed'), ok: false });
+      console.warn('[topup] quark ad reward failed:', result.reason);
+      setMessage({
+        text: result.reason === 'daily_limit' ? t('ads.daily_limit') : t('topup.ads_failed'),
+        ok: false,
+      });
     }
   };
 
@@ -252,14 +266,15 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted, 
   return (
     <>
       <div style={styles.backdrop} onClick={onClose} />
-      <div style={styles.modal}>
-        <div style={styles.header}>
+      <div style={{ ...styles.modal, ...styles.nativeModal }}>
+        <div style={{ ...styles.header, ...styles.nativeHeader }}>
           <span style={styles.title}>{t('topup.iap_title')}</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <PremiumHelpButton helpId="quarks" />
             <button style={styles.closeBtn} onClick={onClose}>x</button>
           </div>
         </div>
+        <div style={styles.modalBody}>
         <div style={styles.balance}>
           {t('topup.current_balance')}: <span style={styles.balanceValue}>{currentBalance} <QuarkIcon /></span>
         </div>
@@ -295,10 +310,9 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted, 
                     style={{
                       ...styles.premiumPlanBtn,
                       ...(isBuying ? styles.premiumPlanBtnActive : {}),
-                      ...(isPremiumActive ? styles.premiumPlanBtnDisabled : {}),
                     }}
                     onClick={() => handleBuyPremium(pkg)}
-                    disabled={!!purchasing || adsRunning || isPremiumActive}
+                    disabled={!!purchasing || adsRunning}
                   >
                     <div style={styles.premiumPlanText}>
                       <div style={styles.premiumPlanName}>
@@ -439,6 +453,7 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted, 
         >
           {restoring ? '...' : t('topup.restore_purchases')}
         </button>
+        </div>
       </div>
     </>
   );
@@ -488,9 +503,35 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: 'monospace',
     color: '#aabbcc',
   },
+  nativeModal: {
+    top: 'calc(env(safe-area-inset-top, 0px) + 12px)',
+    bottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)',
+    transform: 'translateX(-50%)',
+    maxHeight: 'calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 24px)',
+    padding: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
+  },
   header: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
     marginBottom: 16,
+  },
+  nativeHeader: {
+    flexShrink: 0,
+    padding: '16px 18px 12px',
+    marginBottom: 0,
+    borderBottom: '1px solid rgba(51,68,85,0.65)',
+    background: 'rgba(10,15,25,0.98)',
+    borderTopLeftRadius: 6,
+    borderTopRightRadius: 6,
+    zIndex: 1,
+  },
+  modalBody: {
+    minHeight: 0,
+    overflowY: 'auto',
+    WebkitOverflowScrolling: 'touch',
+    padding: '16px 18px 18px',
   },
   title: { fontSize: 16, fontWeight: 700, letterSpacing: '0.3px', fontFamily: 'monospace', color: '#aabbcc' },
   closeBtn: {

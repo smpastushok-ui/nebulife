@@ -26,14 +26,23 @@ Verify these are included in the production archive:
 
 ## Neon Migrations
 
-Run all missing migrations in Neon SQL Editor, especially:
+Run all missing migrations in Neon SQL Editor. Production should include every migration through:
+
+- `packages/server/src/migrations/027-planet-object-scope.sql`
+
+Quick spot-check for recent/critical migrations:
 
 - `packages/server/src/migrations/008-weekly-digest.sql`
 - `packages/server/src/migrations/009-ad-rewards.sql`
 - `packages/server/src/migrations/010-server-hardening.sql`
+- `packages/server/src/migrations/011-clusters.sql`
 - `packages/server/src/migrations/011-player-language-and-notifications.sql`
 - `packages/server/src/migrations/020-push-queue.sql`
-- avatar migration that adds `players.avatar_url`
+- `packages/server/src/migrations/021-player-avatar.sql`
+- `packages/server/src/migrations/023-premium-entitlements.sql`
+- `packages/server/src/migrations/025-message-read-state.sql`
+- `packages/server/src/migrations/026-planet-skins-system-scope.sql`
+- `packages/server/src/migrations/027-planet-object-scope.sql`
 
 ## Vercel Environment
 
@@ -54,9 +63,17 @@ Production must have:
 
 ## Ads And Monetization
 
+- Before the real release build, re-enable real ads:
+  - In `packages/client/src/services/ads-service.ts`, set `ADS_DISABLED_FOR_TESTING = false`.
+  - In `packages/client/src/services/interstitial-manager.ts`, set `ADS_DISABLED_FOR_TESTING = false`.
+  - Keep `USE_TEST_ADS = false` for production AdMob unit IDs.
+- For TestFlight / Play Beta review builds where we do not want reviewers blocked by no-fill, keep `ADS_DISABLED_FOR_TESTING = true` and document that ads are simulated.
 - Ads must stay locked until the player settles on the new planet after evacuation.
 - Verify pre-settlement: rewarded buttons are unavailable and no interstitial preloads or shows.
-- Verify post-settlement: rewarded ads can grant tokens and interstitials respect cooldown/session caps.
+- Verify post-settlement: rewarded ads can grant tokens through `/api/ads/start` + `/api/ads/reward`, and interstitials respect cooldown/session caps.
+- Verify daily ad limit wording: server limit is 10 ad views/day; quark reward currently costs 3 ads for +5 quarks, so the 4th full quark reward attempt should show "daily limit" instead of "ad not available".
+- Verify RevenueCat products load from the `default` offering: `nebulife_pro_monthly`, `nebulife_pro_yearly`, `nebulife_pro_lifetime`, `nebulife_quarks_100`, `nebulife_quarks_500`, `nebulife_quarks_2000`.
+- Verify premium restore and upgrade/crossgrade flows: monthly active player can still open yearly/lifetime purchase flow.
 - Run `npm run release:economics` before archive and check the JSON `monetizationPlan`, `scenarios`, and `releaseRisks`.
 - Base launch target for 10k installs: D30 6%, payer conversion 8%, settled-player ad ARPDAU $0.015+, free photo cost near $0.20/install.
 

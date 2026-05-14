@@ -20,8 +20,7 @@ import { trackEvent } from '../analytics/firebase-analytics.js';
 // **TO RESTORE ADS:** set this flag to `false` (and the identical flag in
 // interstitial-manager.ts). Nothing else needs to change.
 // =============================================================================
-const ADS_DISABLED_FOR_TESTING = false;
-const ADS_DISABLED_ON_ANDROID_FOR_TESTERS = true;
+const ADS_DISABLED_FOR_TESTING = true;
 
 // Ad Unit IDs
 // TEST mode: use Google test IDs during development/testing to avoid AdMob violations
@@ -121,9 +120,6 @@ type AdResult =
 
 async function showRewardedAdWithReason(): Promise<AdResult> {
   if (!areAdsUnlockedAfterSettlement()) return { rewarded: false, reason: 'error' };
-  if (ADS_DISABLED_ON_ANDROID_FOR_TESTERS && Capacitor.getPlatform() === 'android') {
-    return { rewarded: false, reason: 'error' };
-  }
 
   // TEMP: testers — pretend the ad played successfully without showing anything.
   // Still increments the local daily counter so the existing limit logic stays honest.
@@ -227,7 +223,6 @@ export async function showMultipleRewardedAds(count: number): Promise<boolean> {
  */
 export async function checkAdAvailability(): Promise<boolean> {
   if (!areAdsUnlockedAfterSettlement()) return false;
-  if (ADS_DISABLED_ON_ANDROID_FOR_TESTERS && Capacitor.getPlatform() === 'android') return false;
 
   // TEMP: testers — always "available" so reward buttons stay enabled.
   if (ADS_DISABLED_FOR_TESTING) return true;
@@ -275,7 +270,6 @@ export function getDailyAdCount(): number {
 
 export function canShowAd(): boolean {
   if (!areAdsUnlockedAfterSettlement()) return false;
-  if (ADS_DISABLED_ON_ANDROID_FOR_TESTERS && Capacitor.getPlatform() === 'android') return false;
 
   // TEMP: testers — allow even on web build so reward flows are testable there.
   if (ADS_DISABLED_FOR_TESTING) return getDailyData().count < DAILY_LIMIT;
@@ -408,7 +402,7 @@ export function getAdProgress(rewardType: RewardType): number {
 
 export type WatchAdsResult =
   | { rewarded: true; photoToken?: string; amount?: number }
-  | { rewarded: false; reason: 'dismissed' | 'no_fill' | 'error' };
+  | { rewarded: false; reason: 'dismissed' | 'no_fill' | 'daily_limit' | 'error' };
 
 /**
  * Watch N rewarded ads with localStorage progress persistence.
@@ -461,6 +455,12 @@ export async function watchAdsWithProgress(
 
     if (!res.ok) {
       // Server error — keep progress in case of transient failure
+      const error = await res.json().catch(() => ({ error: `reward_status_${res.status}` })) as { error?: string };
+      console.warn('[ads] reward claim failed:', res.status, error.error);
+      if (res.status === 429 && error.error === 'Daily ad limit reached') {
+        clearProgress(rewardType);
+        return { rewarded: false, reason: 'daily_limit' };
+      }
       return { rewarded: false, reason: 'error' };
     }
 

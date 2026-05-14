@@ -100,8 +100,10 @@ export const RATE_LIMITS = {
   generation: (playerId: string) => checkRateLimit(`gen:${playerId}`, 3, 60_000),
   /** Payment: 5 per hour per player */
   payment: (playerId: string) => checkRateLimit(`pay:${playerId}`, 5, 3_600_000),
-  /** Ad rewards: 5 per 5 minutes per player */
-  adReward: (playerId: string) => checkRateLimit(`ad:${playerId}`, 5, 300_000),
+  /** Ad session starts: allows multi-ad rewards without blocking the final claim. */
+  adStart: (playerId: string) => checkRateLimit(`ad:start:${playerId}`, 30, 300_000),
+  /** Ad reward claims: final server-side grant after enough signed ad tokens. */
+  adReward: (playerId: string) => checkRateLimit(`ad:reward:${playerId}`, 10, 300_000),
   /** Search: 10 per minute per IP */
   search: (ip: string) => checkRateLimit(`search:${ip}`, 10, 60_000),
   /** Global: 60 requests per minute per IP */
