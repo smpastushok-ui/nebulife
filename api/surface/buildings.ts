@@ -10,8 +10,8 @@ import { authenticate } from '../../packages/server/src/auth-middleware.js';
 /**
  * /api/surface/buildings (auth required)
  *
- * GET    ?playerId=...&planetId=... → list buildings
- * POST   { playerId, planetId, id, type, x, y } → place building
+ * GET    ?playerId=...&systemId=...&planetId=... → list buildings
+ * POST   { playerId, systemId, planetId, id, type, x, y } → place building
  * PATCH  { id, playerId } → upgrade building (level +1)
  * DELETE ?id=...&playerId=... → remove building
  */
@@ -24,17 +24,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // --- GET: List buildings ---
     if (req.method === 'GET') {
       const playerId = req.query.playerId as string;
+      const systemId = req.query.systemId as string;
       const planetId = req.query.planetId as string;
 
-      if (!playerId || !planetId) {
-        return res.status(400).json({ error: 'Missing playerId or planetId' });
+      if (!playerId || !systemId || !planetId) {
+        return res.status(400).json({ error: 'Missing playerId, systemId, or planetId' });
       }
 
       if (playerId !== auth.playerId) {
         return res.status(403).json({ error: 'Forbidden: player mismatch' });
       }
 
-      const rows = await getSurfaceBuildings(playerId, planetId);
+      const rows = await getSurfaceBuildings(playerId, systemId, planetId);
 
       // Map DB rows to PlacedBuilding format
       const buildings = rows.map((r) => ({
@@ -51,9 +52,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // --- POST: Place building ---
     if (req.method === 'POST') {
-      const { playerId, planetId, id, type, x, y } = req.body;
+      const { playerId, systemId, planetId, id, type, x, y } = req.body;
 
-      if (!playerId || !planetId || !id || !type || x === undefined || y === undefined) {
+      if (!playerId || !systemId || !planetId || !id || !type || x === undefined || y === undefined) {
         return res.status(400).json({ error: 'Missing required fields' });
       }
 
@@ -64,6 +65,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const row = await saveSurfaceBuilding({
         id,
         playerId,
+        systemId,
         planetId,
         type,
         x: Number(x),

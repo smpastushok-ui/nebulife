@@ -26,15 +26,83 @@ function noise(x: number, y: number, seed: number): number {
   return n - Math.floor(n);
 }
 
+function clamp(value: number, min = 0, max = 1): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function fbm(x: number, y: number, seed: number, octaves = 5): number {
+  let value = 0;
+  let amplitude = 0.5;
+  let frequency = 1;
+  let total = 0;
+  for (let i = 0; i < octaves; i++) {
+    value += noise(x * frequency, y * frequency, seed + i * 1013) * amplitude;
+    total += amplitude;
+    amplitude *= 0.52;
+    frequency *= 2.07;
+  }
+  return total > 0 ? value / total : 0;
+}
+
+function ridge(value: number): number {
+  return 1 - Math.abs(value * 2 - 1);
+}
+
+function applyBlackWhiteFilm(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  rng: Rng,
+  seed: number,
+): void {
+  const image = ctx.getImageData(0, 0, w, h);
+  const data = image.data;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = (y * w + x) * 4;
+      const r = data[idx];
+      const g = data[idx + 1];
+      const b = data[idx + 2];
+      let luma = r * 0.299 + g * 0.587 + b * 0.114;
+      const local = fbm(x * 0.006, y * 0.006, seed + 9001, 3) - 0.5;
+      const fine = (rng() - 0.5) * 18;
+      luma = (luma - 128) * 1.22 + 128;
+      luma += local * 24 + fine;
+      luma = 255 / (1 + Math.exp(-(luma - 122) / 38));
+      const vignetteX = (x / w - 0.5) * 2;
+      const vignetteY = (y / h - 0.5) * 2;
+      const vignette = clamp(1 - Math.sqrt(vignetteX * vignetteX + vignetteY * vignetteY) * 0.34, 0.62, 1);
+      const v = Math.round(clamp(luma * vignette, 0, 255));
+      data[idx] = v;
+      data[idx + 1] = v;
+      data[idx + 2] = v;
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  for (let i = 0; i < 9; i++) {
+    const x = rng() * w;
+    ctx.strokeStyle = `rgba(255,255,255,${0.025 + rng() * 0.035})`;
+    ctx.lineWidth = 0.6 + rng() * 1.2;
+    ctx.beginPath();
+    ctx.moveTo(x, rng() * h * 0.18);
+    ctx.bezierCurveTo(x + (rng() - 0.5) * 18, h * 0.35, x + (rng() - 0.5) * 18, h * 0.7, x + (rng() - 0.5) * 10, h);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function drawScanlines(ctx: CanvasRenderingContext2D, w: number, h: number, rng: Rng): void {
   ctx.save();
-  ctx.fillStyle = 'rgba(255,255,255,0.035)';
-  for (let y = 0; y < h; y += 4) ctx.fillRect(0, y, w, 1);
-  ctx.fillStyle = 'rgba(0,0,0,0.12)';
-  for (let y = 2; y < h; y += 6) ctx.fillRect(0, y, w, 1);
-  for (let i = 0; i < 1800; i++) {
-    const a = 0.025 + rng() * 0.055;
-    const v = 120 + Math.floor(rng() * 120);
+  ctx.fillStyle = 'rgba(255,255,255,0.018)';
+  for (let y = 0; y < h; y += 5) ctx.fillRect(0, y, w, 1);
+  ctx.fillStyle = 'rgba(0,0,0,0.07)';
+  for (let y = 2; y < h; y += 9) ctx.fillRect(0, y, w, 1);
+  for (let i = 0; i < 2600; i++) {
+    const a = 0.018 + rng() * 0.052;
+    const v = 80 + Math.floor(rng() * 170);
     ctx.fillStyle = `rgba(${v},${v},${v},${a})`;
     ctx.fillRect(rng() * w, rng() * h, 1, 1);
   }
@@ -456,6 +524,128 @@ function drawRoverView(
   ctx.fillRect(0, 0, w, usableH);
 }
 
+function drawDroneTopDownView(
+  ctx: CanvasRenderingContext2D,
+  planet: Planet,
+  seed: number,
+  rng: Rng,
+  w: number,
+  h: number,
+): void {
+  const usableH = h - 42;
+  const water = planet.hydrosphere?.waterCoverageFraction ?? 0;
+  const ice = planet.hydrosphere?.iceCapFraction ?? 0;
+  const hasWaterFeatures = water > 0.08;
+  const isFrozen = planet.surfaceTempK < 250 || ice > 0.22;
+  const isHot = planet.surfaceTempK > 410;
+
+  const image = ctx.createImageData(w, usableH);
+  const data = image.data;
+  const sunX = -0.58 + rng() * 0.24;
+  const sunY = -0.72 + rng() * 0.18;
+  const terrainScale = 2.2 + rng() * 3.2;
+
+  for (let y = 0; y < usableH; y++) {
+    for (let x = 0; x < w; x++) {
+      const nx = x / w;
+      const ny = y / usableH;
+      const warpX = fbm(nx * 3.1, ny * 3.1, seed + 101, 3) - 0.5;
+      const warpY = fbm(nx * 3.1, ny * 3.1, seed + 202, 3) - 0.5;
+      const e0 = fbm((nx + warpX * 0.18) * terrainScale, (ny + warpY * 0.18) * terrainScale, seed + 303, 6);
+      const e1 = fbm(nx * terrainScale * 3.8, ny * terrainScale * 3.8, seed + 404, 4);
+      const ridges = ridge(fbm(nx * terrainScale * 5.4, ny * terrainScale * 5.4, seed + 505, 4));
+      const crack = ridge(fbm(nx * 18.0 + warpX, ny * 18.0 + warpY, seed + 606, 3));
+      const elevation = clamp(e0 * 0.62 + e1 * 0.23 + ridges * 0.15);
+      const dx = fbm((nx + 0.002) * terrainScale, ny * terrainScale, seed + 303, 5) - fbm((nx - 0.002) * terrainScale, ny * terrainScale, seed + 303, 5);
+      const dy = fbm(nx * terrainScale, (ny + 0.002) * terrainScale, seed + 303, 5) - fbm(nx * terrainScale, (ny - 0.002) * terrainScale, seed + 303, 5);
+      let shade = 82 + elevation * 116 + (dx * sunX + dy * sunY) * 310;
+
+      if (hasWaterFeatures && elevation < water * 0.42) shade = 42 + elevation * 62;
+      if (isFrozen && elevation > 0.58 + (1 - ice) * 0.18) shade += 34;
+      if (isHot && crack > 0.74 && elevation > 0.48) shade += 36;
+      if (crack > 0.86) shade -= 30;
+
+      const idx = (y * w + x) * 4;
+      const v = Math.round(clamp(shade, 0, 255));
+      data[idx] = v;
+      data[idx + 1] = v;
+      data[idx + 2] = v;
+      data[idx + 3] = 255;
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'multiply';
+  for (let i = 0; i < 10 + Math.floor(rng() * 14); i++) {
+    const cx = rng() * w;
+    const cy = rng() * usableH;
+    const r = 12 + rng() * 54;
+    const crater = ctx.createRadialGradient(cx - r * 0.18, cy - r * 0.18, r * 0.10, cx, cy, r);
+    crater.addColorStop(0, 'rgba(255,255,255,0.08)');
+    crater.addColorStop(0.42, 'rgba(80,80,80,0.16)');
+    crater.addColorStop(0.68, 'rgba(20,20,20,0.24)');
+    crater.addColorStop(0.78, 'rgba(230,230,230,0.12)');
+    crater.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = crater;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, r * (0.8 + rng() * 0.45), r * (0.7 + rng() * 0.35), rng() * Math.PI, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  if (hasWaterFeatures) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.strokeStyle = 'rgba(18,18,18,0.34)';
+    ctx.lineWidth = 2.2;
+    for (let river = 0; river < 5; river++) {
+      let x = rng() * w;
+      let y = -20;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      for (let step = 0; step < 34; step++) {
+        y += usableH / 28;
+        x += (fbm(step * 0.22, river * 0.9, seed + 700) - 0.5) * 58;
+        ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(235,235,235,0.13)';
+  ctx.lineWidth = 1;
+  for (let level = 0.18; level < 0.92; level += 0.12) {
+    ctx.beginPath();
+    for (let x = 0; x <= w; x += 12) {
+      const y = usableH * clamp(level + (fbm(x * 0.004, level * 4.0, seed + 808, 4) - 0.5) * 0.14);
+      if (x === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(230,235,238,0.34)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([10, 10]);
+  ctx.strokeRect(22, 22, w - 44, usableH - 44);
+  ctx.beginPath();
+  ctx.moveTo(w * 0.5, 30);
+  ctx.lineTo(w * 0.5, usableH - 30);
+  ctx.moveTo(30, usableH * 0.5);
+  ctx.lineTo(w - 30, usableH * 0.5);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.font = '10px monospace';
+  ctx.fillStyle = 'rgba(230,235,238,0.62)';
+  ctx.fillText('NADIR LOCK // ALT 420M // 90 DEG', 34, 44);
+  ctx.restore();
+}
+
 export function renderMissionProbePhoto(params: {
   planet: Planet;
   star: Star;
@@ -475,11 +665,14 @@ export function renderMissionProbePhoto(params: {
   const seed = hashSeed(`${planet.id}:${report.missionId}:${report.missionType}`);
   const rng = rngFromSeed(seed);
 
-  if (report.missionType === 'surface_landing' || report.missionType === 'drone_recon') {
+  if (report.missionType === 'drone_recon') {
+    drawDroneTopDownView(ctx, planet, seed, rng, w, h);
+  } else if (report.missionType === 'surface_landing') {
     drawRoverView(ctx, planet, seed, rng, w, h);
   } else {
     drawOrbitalMap(ctx, planet, report.missionType, seed, rng, w, h);
   }
+  applyBlackWhiteFilm(ctx, w, h - 42, rng, seed);
   drawCrosshair(ctx, w, h);
   drawScanlines(ctx, w, h, rng);
   drawMetadata(ctx, planet, star, report, w, h);
@@ -493,5 +686,5 @@ export function getMissionPhotoKey(planetId: string, report: PlanetReportSummary
     : report.missionType === 'drone_recon'
       ? 'planet-drone'
       : 'planet-probe';
-  return `${prefix}-${planetId}__${report.missionId}`;
+  return `${prefix}-${report.systemId}__${planetId}__${report.missionId}`;
 }

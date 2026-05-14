@@ -1305,6 +1305,8 @@
     "pack_optimal": "Best choice",
     "pack_best_value": "Best value",
     "iap_loading": "Loading...",
+    "iap_unavailable": "Store products are unavailable in this build. Please try again after the next update.",
+    "iap_no_products": "No App Store products are available yet. Please try again later.",
     "iap_buy": "Buy for {{price}}",
     "iap_buying": "Processing...",
     "iap_success": "Received {{quarks}}",
@@ -1325,7 +1327,9 @@
     "zoom_in": "Zoom In",
     "zoom_out": "Zoom Out",
     "show_research_pct": "Show research %",
-    "hide_research_pct": "Hide research %"
+    "hide_research_pct": "Hide research %",
+    "recover": "Refresh screen and return to system",
+    "recovered": "Screen refreshed"
   },
   "quark_toast": {
     "starter": "starter wallet",
@@ -1429,6 +1433,9 @@
     "instant_research_btn": "Research ({{cost}} ⚛)",
     "instant_research_tooltip": "Instant research for {{cost}} ⚛",
     "buy_quarks_btn": "Buy quarks",
+    "favorite_systems": "Favorite Systems",
+    "system_pin": "Pin system",
+    "system_unpin": "Unpin system",
     "unpin": "Unpin",
     "pin": "Pin",
     "scanning": "scanning...",
@@ -1663,9 +1670,9 @@
     "new_dm_btn": "+ New Conversation",
     "no_dms": "No conversations",
     "astra_online": "A.S.T.R.A. online. Premium channel active. Ask about Nebulife, space, missions, and colony work.",
-    "astra_depleted": "Assistant depleted",
+    "astra_depleted": "A.S.T.R.A. is recharging",
     "astra_charge_btn": "Charge assistant",
-    "astra_unlock": "Unlock ($1)",
+    "astra_unlock": "Premium required",
     "astra_charge_quarks": "Charge A.S.T.R.A. — 50⚛",
     "astra_charging": "Charging...",
     "astra_charge_success": "A.S.T.R.A. charged",
@@ -1673,10 +1680,10 @@
     "astra_charge_error": "Charge failed. Please try again.",
     "astra_placeholder": "Query A.S.T.R.A....",
     "astra_placeholder_premium": "A.S.T.R.A. requires Premium...",
-    "astra_placeholder_depleted": "A.S.T.R.A. depleted...",
-    "astra_premium_required": "A.S.T.R.A. is Premium-only. No separate charge: 10 game-themed messages per hour.",
+    "astra_placeholder_depleted": "A.S.T.R.A. is recharging...",
+    "astra_premium_required": "A.S.T.R.A. is Premium-only: 10 game-themed messages per hour.",
     "astra_hourly_messages": "{{count}}/10 messages this hour",
-    "astra_hourly_limit": "A.S.T.R.A. is depleted and recharging. The next 10 messages unlock in the next hour.",
+    "astra_hourly_limit": "A.S.T.R.A. is recharging. The message limit is used up — come back in the next hour.",
     "weekly_digest_available": "Weekly space digest available",
     "open_digest": "Open digest",
     "you_label": "You",
@@ -1690,25 +1697,26 @@
     "no_results": "Nobody found",
     "pro_badge": "PRO",
     "pro_messages_today": "{{count}}/10 messages",
-    "pro_daily_limit": "A.S.T.R.A. is depleted. Return in the next hour."
+    "pro_daily_limit": "A.S.T.R.A. is recharging. Return in the next hour."
   },
   "premium": {
     "title": "Premium",
     "no_ads": "No ads · 10 A.S.T.R.A. messages every hour · +5 Quarks daily",
     "subscribe": "Subscribe",
     "active": "Premium active",
+    "unavailable": "Premium products are unavailable in this build. Please try again after the next update.",
+    "no_products": "Premium products are not available from the store yet. Please try again later.",
+    "purchase_success": "Premium activated",
+    "purchase_error": "Premium purchase failed. Please try again.",
     "monthly": "{{price}}/month",
     "monthly_label": "Monthly",
     "monthly_desc": "Billed every month",
-    "monthly_price": "$4.99/mo",
     "yearly_label": "Yearly",
     "yearly_desc": "Billed once per year",
-    "yearly_price": "$39.99/yr",
-    "yearly_save": "SAVE 33%",
+    "yearly_save": "Best value",
     "lifetime_label": "Lifetime",
-    "lifetime_desc": "Pay once, keep forever",
-    "lifetime_price": "$59.99",
-    "lifetime_save": "BEST"
+    "lifetime_desc": "One purchase, permanent access",
+    "lifetime_save": "One time"
   },
   "premium_help": {
     "common": {
@@ -1777,7 +1785,7 @@
     },
     "astra_charge": {
       "title": "A.S.T.R.A. Premium Channel",
-      "short": "A.S.T.R.A. is included with Premium and has no separate charge.",
+      "short": "A.S.T.R.A. is included with Premium with 10 game-themed messages every hour.",
       "benefits": "The player gets 10 game-themed messages per hour for Nebulife, missions, colony work, and space guidance.",
       "why_paid": "Each answer runs through the premium A.S.T.R.A. channel, so access is bundled into the Premium subscription.",
       "result": "After the hourly limit, A.S.T.R.A. recharges until the next hour."

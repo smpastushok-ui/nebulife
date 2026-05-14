@@ -66,7 +66,7 @@ export function TelescopeOverlay({
   const [grainOpacity, setGrainOpacity] = useState(0.4);
   const [showActions, setShowActions] = useState(false);
   const [flyAway, setFlyAway] = useState(false);
-  const [initFade, setInitFade] = useState(false);
+  const [initFade, setInitFade] = useState(phase !== 'init');
   const [photoFailed, setPhotoFailed] = useState(false);
 
   const rafRef = useRef(0);
@@ -85,9 +85,12 @@ export function TelescopeOverlay({
   // Init fade-in
   useEffect(() => {
     if (phase === 'init') {
+      setInitFade(false);
       requestAnimationFrame(() => setInitFade(true));
+      return;
     }
-  }, []);
+    setInitFade(true);
+  }, [phase]);
 
   // Capture phase animation loop
   useEffect(() => {
@@ -163,6 +166,11 @@ export function TelescopeOverlay({
     }, 700);
   }, [onSaveToCollection]);
 
+  const stopAndRun = useCallback((e: React.MouseEvent, action: () => void) => {
+    e.stopPropagation();
+    action();
+  }, []);
+
   // Handle close on backdrop click (only in reveal)
   const handleBackdropClick = useCallback((e: React.MouseEvent) => {
     if (phase === 'reveal' && e.target === e.currentTarget) {
@@ -191,6 +199,32 @@ export function TelescopeOverlay({
       }}
       onClick={handleBackdropClick}
     >
+      {phase === 'reveal' && (
+        <button
+          type="button"
+          aria-label="Close photo viewer"
+          onClick={(e) => stopAndRun(e, onClose)}
+          style={{
+            position: 'absolute',
+            top: 'calc(env(safe-area-inset-top, 0px) + 14px)',
+            right: 14,
+            zIndex: 10,
+            width: 42,
+            height: 42,
+            borderRadius: 4,
+            border: '1px solid rgba(68, 136, 170, 0.72)',
+            background: 'rgba(5, 10, 20, 0.86)',
+            color: '#aabbcc',
+            fontFamily: 'monospace',
+            fontSize: 20,
+            lineHeight: '38px',
+            cursor: 'pointer',
+            boxShadow: '0 0 18px rgba(0,0,0,0.55)',
+          }}
+        >
+          X
+        </button>
+      )}
       {/* ── System letterbox bars ── */}
       {isSystem && (phase === 'init' || phase === 'capture') && (
         <>
@@ -531,7 +565,7 @@ export function TelescopeOverlay({
                 transition: 'opacity 0.4s, transform 0.4s',
               }}>
                 <button
-                  onClick={onShare}
+                  onClick={(e) => stopAndRun(e, onShare)}
                   style={{
                     background: 'none',
                     border: '1px solid #4488aa',
@@ -548,7 +582,7 @@ export function TelescopeOverlay({
                 </button>
                 {onGoToExosphere && (
                   <button
-                    onClick={onGoToExosphere}
+                    onClick={(e) => stopAndRun(e, onGoToExosphere)}
                     style={{
                       background: 'rgba(68, 136, 170, 0.12)',
                       border: '1px solid #4488aa',
@@ -566,7 +600,7 @@ export function TelescopeOverlay({
                 )}
                 {canDownload && onDownload && (
                   <button
-                    onClick={onDownload}
+                    onClick={(e) => stopAndRun(e, onDownload)}
                     style={{
                       background: 'none',
                       border: '1px solid #556677',
@@ -583,7 +617,7 @@ export function TelescopeOverlay({
                   </button>
                 )}
                 <button
-                  onClick={handleSave}
+                  onClick={(e) => stopAndRun(e, handleSave)}
                   style={{
                     background: 'rgba(68, 255, 136, 0.1)',
                     border: '1px solid #44ff88',
@@ -599,7 +633,7 @@ export function TelescopeOverlay({
                   {t('telescope.save_btn')}
                 </button>
                 <button
-                  onClick={onClose}
+                  onClick={(e) => stopAndRun(e, onClose)}
                   style={{
                     background: 'none',
                     border: '1px solid #334455',

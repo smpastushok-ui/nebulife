@@ -190,7 +190,7 @@ export const HangarPage: React.FC<HangarPageProps> = ({
   });
   const activeCustomShip = customShips.find((ship) => ship.id === localStorage.getItem(CUSTOM_SHIP_ID_KEY))
     ?? customShips.find((ship) => ship.status === 'ready' && ship.glb_url);
-  const customShipUrl = activeCustomShip ? proxyShipGlbUrl(activeCustomShip.id, activeCustomShip.glb_url) : localStorage.getItem(CUSTOM_SHIP_GLB_KEY);
+  const customShipUrl = activeCustomShip ? proxyShipGlbUrl(activeCustomShip.id, activeCustomShip.glb_url) : null;
   const activeSlot: ShipSlot = selectedShip === 'custom' && customShipUrl
     ? {
         id: 'custom',
@@ -208,12 +208,14 @@ export const HangarPage: React.FC<HangarPageProps> = ({
     : SHIP_SLOTS;
 
   useEffect(() => {
-    localStorage.setItem(SELECTED_SHIP_KEY, selectedShip);
+    localStorage.setItem(SELECTED_SHIP_KEY, activeSlot.id);
     localStorage.setItem(SELECTED_TEAM_KEY, activeSlot.team);
     if (selectedShip === 'custom' && customShipUrl) {
       localStorage.setItem(CUSTOM_SHIP_GLB_KEY, customShipUrl);
+    } else if (selectedShip === 'custom' && !customShipUrl) {
+      localStorage.removeItem(CUSTOM_SHIP_GLB_KEY);
     }
-  }, [activeSlot.team, customShipUrl, selectedShip]);
+  }, [activeSlot.id, activeSlot.team, customShipUrl, selectedShip]);
 
   useEffect(() => {
     let cancelled = false;
@@ -227,6 +229,10 @@ export const HangarPage: React.FC<HangarPageProps> = ({
         if (ready && url) {
           localStorage.setItem(CUSTOM_SHIP_ID_KEY, ready.id);
           localStorage.setItem(CUSTOM_SHIP_GLB_KEY, url);
+        } else {
+          localStorage.removeItem(CUSTOM_SHIP_ID_KEY);
+          localStorage.removeItem(CUSTOM_SHIP_GLB_KEY);
+          setSelectedShip((current) => current === 'custom' ? SHIP_SLOTS[0].id : current);
         }
       })
       .catch(() => { /* non-critical: static ships still work */ });

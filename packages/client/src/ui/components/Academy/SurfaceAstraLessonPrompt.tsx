@@ -100,12 +100,12 @@ export function SurfaceAstraLessonPrompt({ onDismiss, onOpenMission }: SurfaceAs
             muted
             playsInline
             preload="metadata"
-            style={styles.video}
+            style={{ ...styles.video, ...(isCompact ? styles.videoCompact : {}) }}
           />
           <div style={styles.videoShade} />
         </div>
 
-        <div style={styles.content}>
+        <div style={{ ...styles.content, ...(isCompact ? styles.contentCompact : {}) }}>
           <div style={styles.eyebrow}>{t('academy.surface_intro.eyebrow')}</div>
           <h2 style={styles.title}>{t('academy.surface_intro.title')}</h2>
           <div style={styles.progressRow}>
@@ -185,6 +185,7 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: '0 18px 60px rgba(0,0,0,0.62), inset 0 0 34px rgba(123,184,255,0.05)',
   },
   cardCompact: {
+    position: 'relative',
     gridTemplateColumns: '1fr',
     maxHeight: '88vh',
   },
@@ -195,10 +196,20 @@ const styles: Record<string, React.CSSProperties> = {
     borderRight: '1px solid rgba(68,102,136,0.38)',
   },
   portraitPanelCompact: {
-    minHeight: 92,
-    maxHeight: 118,
+    position: 'absolute',
+    top: 14,
+    left: 14,
+    zIndex: 2,
+    width: 76,
+    height: 76,
+    minHeight: 0,
+    maxHeight: 'none',
+    overflow: 'hidden',
+    border: '1px solid rgba(123,184,255,0.36)',
+    borderRadius: 6,
     borderRight: 'none',
-    borderBottom: '1px solid rgba(68,102,136,0.38)',
+    borderBottom: '1px solid rgba(123,184,255,0.36)',
+    boxShadow: '0 10px 28px rgba(0,0,0,0.42)',
   },
   video: {
     width: '100%',
@@ -207,6 +218,11 @@ const styles: Record<string, React.CSSProperties> = {
     objectPosition: '50% 18%',
     display: 'block',
     filter: 'saturate(0.9) contrast(0.95) brightness(0.86)',
+  },
+  videoCompact: {
+    objectFit: 'contain',
+    objectPosition: '50% 50%',
+    background: '#020510',
   },
   videoShade: {
     position: 'absolute',
@@ -217,6 +233,9 @@ const styles: Record<string, React.CSSProperties> = {
   content: {
     padding: '18px 20px',
     overflowY: 'auto',
+  },
+  contentCompact: {
+    padding: '16px 18px 16px 106px',
   },
   eyebrow: {
     color: '#7bb8ff',

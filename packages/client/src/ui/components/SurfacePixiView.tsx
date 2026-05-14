@@ -205,8 +205,8 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
         // Load buildings + surface state from API in parallel
         perf.markStart('api-load');
         const [loadedBuildings, surfaceState] = await Promise.all([
-          getBuildings(playerId, planet.id).catch(() => [] as PlacedBuilding[]),
-          getSurfaceState(playerId, planet.id),
+          getBuildings(playerId, 'legacy', planet.id).catch(() => [] as PlacedBuilding[]),
+          getSurfaceState(playerId, 'legacy', planet.id),
         ]);
         perf.markEnd('api-load');
         let loaded = loadedBuildings;
@@ -226,8 +226,8 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
           };
           loaded = [autoHub];
           // Save to DB with retry on failure
-          placeBuilding(playerId, planet.id, autoHub).catch(() => {
-            setTimeout(() => placeBuilding(playerId, planet.id, autoHub).catch(console.error), 2000);
+          placeBuilding(playerId, 'legacy', planet.id, autoHub).catch(() => {
+            setTimeout(() => placeBuilding(playerId, 'legacy', planet.id, autoHub).catch(console.error), 2000);
           });
           // Notify parent so research slot is added (colony_hub = 1 observatory after evacuation)
           onBuildingPlaced?.('colony_hub');
@@ -237,7 +237,7 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
 
         // Pass surface state (fog, harvests, bot, drones) loaded from DB
         scene.setPlayerId(playerId);
-        scene.setSaveSurfaceState((data) => saveSurfaceState(playerId, planet.id, data));
+        scene.setSaveSurfaceState((data) => saveSurfaceState(playerId, 'legacy', planet.id, data));
         await scene.init(app, planet, star, loaded, surfaceState);
 
         // Wire isotope consumption callback for drone fuel
@@ -548,8 +548,8 @@ export const SurfacePixiView = forwardRef<SurfaceViewHandle, SurfacePixiViewProp
       setPendingPlacement(null);
       sceneRef.current?.clearGhost();
       onBuildingPlaced?.(newBuilding.type);
-      placeBuilding(playerId, planet.id, newBuilding).catch(() => {
-        setTimeout(() => placeBuilding(playerId, planet.id, newBuilding).catch(console.error), 2000);
+      placeBuilding(playerId, 'legacy', planet.id, newBuilding).catch(() => {
+        setTimeout(() => placeBuilding(playerId, 'legacy', planet.id, newBuilding).catch(console.error), 2000);
       });
       if (newBuilding.type === 'colony_hub') sceneRef.current?.spawnBotAtHub(newBuilding);
       if (newBuilding.type === 'alpha_harvester') sceneRef.current?.spawnHarvesterDrone(newBuilding);

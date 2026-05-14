@@ -8,9 +8,13 @@
  *    - nebulife_quarks_100   (100  quarks, ~$0.99)
  *    - nebulife_quarks_500   (500  quarks, ~$3.99)
  *    - nebulife_quarks_2000  (2000 quarks, ~$12.99)
- * 4. Create an Offering in RevenueCat named "default" with the above products as Packages.
- * 5. Set VITE_REVENUECAT_IOS_API_KEY and/or VITE_REVENUECAT_ANDROID_API_KEY.
- * 6. Run `npx cap sync` after building to push native changes.
+ * 4. Create Pro products and attach all to RevenueCat entitlement "premium":
+ *    - nebulife_pro_monthly  (auto-renewable subscription)
+ *    - nebulife_pro_yearly   (auto-renewable subscription)
+ *    - nebulife_pro_lifetime (non-consumable)
+ * 5. Create an Offering in RevenueCat named "default" with quark and Premium packages.
+ * 6. Set VITE_REVENUECAT_IOS_API_KEY and/or VITE_REVENUECAT_ANDROID_API_KEY.
+ * 7. Run `npx cap sync` after building to push native changes.
  */
 
 import { Capacitor } from '@capacitor/core';
@@ -43,6 +47,11 @@ export interface IAPPackage {
   priceString: string;
   /** How many quarks the player receives */
   quarks: number;
+}
+
+export interface IAPPackagesResult {
+  packages: IAPPackage[];
+  configured: boolean;
 }
 
 /** Fallback packages — used while loading or if RevenueCat is not configured.
@@ -82,9 +91,22 @@ type CustomerInfo = import('@revenuecat/purchases-capacitor').CustomerInfo;
 const PREMIUM_ENTITLEMENT_ID = 'premium';
 const DEFAULT_OFFERING_ID = 'default';
 
+export const PREMIUM_PRODUCT_IDS = {
+  monthly: 'nebulife_pro_monthly',
+  yearly: 'nebulife_pro_yearly',
+  lifetime: 'nebulife_pro_lifetime',
+} as const;
+
+type PremiumPlan = keyof typeof PREMIUM_PRODUCT_IDS;
+
+const PREMIUM_PLAN_BY_PRODUCT_ID: Record<string, PremiumPlan> = Object.fromEntries(
+  Object.entries(PREMIUM_PRODUCT_IDS).map(([plan, productId]) => [productId, plan]),
+) as Record<string, PremiumPlan>;
+
 let configured = false;
 let configuredUserId: string | null = null;
 let packageCache = new Map<string, RevenueCatPackage>();
+let premiumPackageCache = new Map<string, RevenueCatPackage>();
 
 function getRevenueCatApiKey(): string | null {
   const platform = Capacitor.getPlatform();
@@ -116,6 +138,40 @@ function toIAPPackage(pkg: RevenueCatPackage): IAPPackage | null {
     description: FALLBACK_IAP_PACKAGES.find((fallback) => fallback.productIdentifier === productId)?.description ?? pkg.product.description,
     priceString: pkg.product.priceString,
     quarks,
+  };
+}
+
+export interface PremiumPackage {
+  /** Package identifier from RevenueCat (e.g. "$rc_monthly", "$rc_annual", or custom lifetime) */
+  identifier: string;
+  /** App Store / Play Store product ID */
+  productIdentifier: string;
+  plan: PremiumPlan;
+  titleKey: string;
+  descriptionKey: string;
+  badgeKey?: string;
+  /** Localized price string from the store */
+  priceString: string;
+}
+
+export interface PremiumPackagesResult {
+  packages: PremiumPackage[];
+  configured: boolean;
+}
+
+function toPremiumPackage(pkg: RevenueCatPackage): PremiumPackage | null {
+  const productId = pkg.product.identifier;
+  const plan = PREMIUM_PLAN_BY_PRODUCT_ID[productId];
+  if (!plan) return null;
+
+  return {
+    identifier: pkg.identifier,
+    productIdentifier: productId,
+    plan,
+    titleKey: `premium.${plan}_label`,
+    descriptionKey: `premium.${plan}_desc`,
+    badgeKey: plan === 'yearly' ? 'premium.yearly_save' : plan === 'lifetime' ? 'premium.lifetime_save' : undefined,
+    priceString: pkg.product.priceString,
   };
 }
 
@@ -154,25 +210,61 @@ export async function initIAP(userId: string): Promise<void> {
   await ensureIAPConfigured(userId);
 }
 
-/** Fetch available quark packs from RevenueCat (or fall back to static list). */
+/** Fetch available quark packs from RevenueCat. Native builds must not show
+ * hardcoded fallback prices because App Review treats them as inaccurate
+ * commerce metadata. */
 export async function fetchIAPPackages(): Promise<IAPPackage[]> {
-  if (!await ensureIAPConfigured()) return FALLBACK_IAP_PACKAGES;
+  const result = await fetchIAPPackagesWithStatus();
+  return result.configured && result.packages.length > 0 ? result.packages : FALLBACK_IAP_PACKAGES;
+}
+
+export async function fetchIAPPackagesWithStatus(): Promise<IAPPackagesResult> {
+  if (!await ensureIAPConfigured()) return { packages: [], configured: false };
 
   try {
     const { Purchases } = await import('@revenuecat/purchases-capacitor');
     const offerings = await Purchases.getOfferings();
     const offering = offerings.current ?? offerings.all[DEFAULT_OFFERING_ID] ?? Object.values(offerings.all)[0];
     const nativePackages = offering?.availablePackages ?? [];
-    packageCache = new Map(nativePackages.map((pkg) => [pkg.identifier, pkg]));
+    packageCache = new Map(nativePackages
+      .filter((pkg) => QUARKS_BY_PRODUCT_ID[pkg.product.identifier])
+      .map((pkg) => [pkg.identifier, pkg]));
 
     const packages = nativePackages
       .map(toIAPPackage)
       .filter((pkg): pkg is IAPPackage => pkg !== null);
 
-    return packages.length > 0 ? packages : FALLBACK_IAP_PACKAGES;
+    return { packages, configured: true };
   } catch (err) {
     console.warn('[IAP] Failed to fetch RevenueCat offerings:', err);
-    return FALLBACK_IAP_PACKAGES;
+    return { packages: [], configured: true };
+  }
+}
+
+export async function fetchPremiumPackagesWithStatus(): Promise<PremiumPackagesResult> {
+  if (!await ensureIAPConfigured()) return { packages: [], configured: false };
+
+  try {
+    const { Purchases } = await import('@revenuecat/purchases-capacitor');
+    const offerings = await Purchases.getOfferings();
+    const offering = offerings.current ?? offerings.all[DEFAULT_OFFERING_ID] ?? Object.values(offerings.all)[0];
+    const nativePackages = offering?.availablePackages ?? [];
+    premiumPackageCache = new Map(nativePackages
+      .filter((pkg) => PREMIUM_PLAN_BY_PRODUCT_ID[pkg.product.identifier])
+      .map((pkg) => [pkg.identifier, pkg]));
+
+    const packages = nativePackages
+      .map(toPremiumPackage)
+      .filter((pkg): pkg is PremiumPackage => pkg !== null)
+      .sort((a, b) => {
+        const order: Record<PremiumPlan, number> = { monthly: 0, yearly: 1, lifetime: 2 };
+        return order[a.plan] - order[b.plan];
+      });
+
+    return { packages, configured: true };
+  } catch (err) {
+    console.warn('[IAP] Failed to fetch Premium offerings:', err);
+    return { packages: [], configured: true };
   }
 }
 
@@ -231,21 +323,46 @@ export async function checkPremiumStatus(): Promise<PremiumStatus> {
   return server;
 }
 
-/**
- * Premium subscriptions need a custom paywall.
- * RevenueCat's prebuilt native UI links SwiftUICore when built with recent
- * Xcode versions, which crashes before launch on older supported iPads running
- * iOS 16. Keep this disabled instead of shipping a launch-time native crash.
- *
- * TODO(iOS IAP): restore RevenueCat before release, either by pinning an
- * iOS-16-compatible SDK version or by shipping our own React paywall on top of
- * the base Purchases SDK. Test on iPad 5th gen / iOS 16.7 before re-enabling.
- */
-export async function purchasePremium(): Promise<{ success: boolean; error?: string }> {
-  if (!isNativeIAP()) {
+/** Purchase Premium through the custom React paywall backed by RevenueCat packages. */
+export async function purchasePremium(
+  packageIdentifier: string,
+  playerId: string,
+): Promise<{ success: boolean; status?: PremiumStatus; error?: string }> {
+  if (!await ensureIAPConfigured(playerId)) {
     return { success: false, error: 'Not on native platform' };
   }
-  return { success: false, error: 'Premium subscription product is not configured in this build' };
+
+  try {
+    const { Purchases } = await import('@revenuecat/purchases-capacitor');
+    if (premiumPackageCache.size === 0) await fetchPremiumPackagesWithStatus();
+
+    const nativePackage = premiumPackageCache.get(packageIdentifier);
+    if (!nativePackage) {
+      return { success: false, error: 'Premium package not found' };
+    }
+
+    const purchase = await Purchases.purchasePackage({ aPackage: nativePackage });
+    const activePremium = hasPremium(purchase.customerInfo);
+    if (!activePremium) {
+      return { success: false, error: 'Premium entitlement was not activated' };
+    }
+
+    const status = await syncServerPremiumStatus().catch(() => ({ active: activePremium }) as PremiumStatus);
+    cachePremiumStatus(status.active);
+    void trackEvent('purchase', {
+      currency: 'USD',
+      transaction_id: purchase.transaction?.transactionIdentifier ?? nativePackage.product.identifier,
+      item_id: nativePackage.product.identifier,
+      item_name: 'premium',
+      premium_plan: PREMIUM_PLAN_BY_PRODUCT_ID[nativePackage.product.identifier] ?? 'unknown',
+    });
+    return { success: status.active, status };
+  } catch (err) {
+    if (isPurchaseCancelled(err)) return { success: false, error: 'cancelled' };
+    if (isNetworkError(err)) return { success: false, error: 'network' };
+    console.warn('[IAP] Premium purchase failed:', err);
+    return { success: false, error: 'Premium purchase failed' };
+  }
 }
 
 export interface PurchaseResult {

@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { authenticate } from '../../../packages/server/src/auth-middleware.js';
 import { getShipModel, updateShipModel } from '../../../packages/server/src/db.js';
 import { checkModelTask } from '../../../packages/server/src/tripo-client.js';
 
@@ -13,9 +14,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    const auth = await authenticate(req, res);
+    if (!auth) return;
+
     const ship = await getShipModel(shipId);
     if (!ship) {
       return res.status(404).json({ error: 'Ship model not found' });
+    }
+    if (ship.player_id !== auth.playerId) {
+      return res.status(403).json({ error: 'Forbidden' });
     }
     if (ship.status !== 'ready' || !ship.glb_url) {
       return res.status(404).json({ error: 'Ship model not ready' });

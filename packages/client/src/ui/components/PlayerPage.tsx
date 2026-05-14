@@ -132,7 +132,6 @@ export function PlayerPage({
   const [confirmReset, setConfirmReset] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTypeInput, setDeleteTypeInput] = useState('');
-  const [nativeTopUpMsg, setNativeTopUpMsg] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [graphicsTier, setGraphicsTier] = useState<PerfTierChoice>(() => {
     try {
@@ -179,11 +178,6 @@ export function PlayerPage({
     playSfx('ui-click', 0.07);
     if (isGuest) {
       onLinkAccount();
-      return;
-    }
-    if (isNative) {
-      setNativeTopUpMsg(true);
-      setTimeout(() => setNativeTopUpMsg(false), 3000);
       return;
     }
     onOpenTopUp();
@@ -512,12 +506,6 @@ export function PlayerPage({
           >
             {t('player.top_up_quarks')}
           </button>
-
-          {nativeTopUpMsg && (
-            <div style={{ fontSize: 10, color: '#cc8844', textAlign: 'center' }}>
-              {t('player.web_only_topup')}
-            </div>
-          )}
 
           {isGuest && (
             <div style={{ fontSize: 10, color: '#556677', textAlign: 'center' }}>

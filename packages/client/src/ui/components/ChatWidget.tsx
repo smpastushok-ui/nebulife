@@ -8,6 +8,8 @@ import {
   getDMChannels,
   dmChannelId,
   reportMessage,
+  getMessageReadStates,
+  markMessageChannelRead,
   type MessageData,
   type DMChannelInfo,
 } from '../../api/messages-api.js';
@@ -190,11 +192,6 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
     onDigestSeen?.(weekDate);
   }, [onDigestSeen]);
 
-  const visibleLogEntries = React.useMemo(
-    () => [...logEntries].sort((a, b) => a.timestamp - b.timestamp).slice(-50),
-    [logEntries],
-  );
-
   // Inject neon pulse keyframes once
   const pulseStyleInjected = useRef(false);
   useEffect(() => {
@@ -232,7 +229,6 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
   const instantMessagesScrollRef = useRef(true);
   const instantAstraScrollRef = useRef(true);
   const instantSystemScrollRef = useRef(true);
-  const lastReadRef = useRef<string | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const authFailedRef = useRef(false);
 
@@ -241,13 +237,51 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
     return `nebulife_chat_last_read_${channel}`;
   }, []);
 
+  const updateLocalReadState = useCallback((channel: string, lastReadAt: string) => {
+    localStorage.setItem(readKeyForChannel(channel), lastReadAt);
+  }, [readKeyForChannel]);
+
+  const getLastReadAt = useCallback(async (channel: string): Promise<string | null> => {
+    const [state] = await getMessageReadStates([channel]);
+    if (state?.last_read_at) {
+      updateLocalReadState(channel, state.last_read_at);
+      return state.last_read_at;
+    }
+    return localStorage.getItem(readKeyForChannel(channel));
+  }, [readKeyForChannel, updateLocalReadState]);
+
+  const clearUnreadIndicators = useCallback(() => {
+    setUnreadGlobal(0);
+    setUnreadAstraMessages(0);
+    setUnreadSystemMessages(0);
+    setUnreadDm(0);
+    markDigestSeen(latestDigestWeekDate);
+    systemNotifs.filter(n => !n.read).forEach(n => onSystemNotifRead?.(n.id));
+    onUnreadChange?.(0);
+  }, [latestDigestWeekDate, markDigestSeen, onSystemNotifRead, onUnreadChange, systemNotifs]);
+
+  const markChannelRead = useCallback(async (channel: string, lastReadAt: string) => {
+    updateLocalReadState(channel, lastReadAt);
+    try {
+      await markMessageChannelRead(channel, lastReadAt);
+    } catch (err) {
+      console.warn('[ChatWidget] failed to sync read state:', err);
+    }
+  }, [updateLocalReadState]);
+
   const markDmChannelsRead = useCallback((channels = dmChannels) => {
     for (const channel of channels) {
       if (!channel.last_at) continue;
-      localStorage.setItem(readKeyForChannel(channel.channel), channel.last_at);
+      markChannelRead(channel.channel, channel.last_at);
     }
     setUnreadDm(0);
-  }, [dmChannels, readKeyForChannel]);
+  }, [dmChannels, markChannelRead]);
+
+  const markLatestChannelMessageRead = useCallback(async (channel: string) => {
+    const latest = await getMessages(channel, 1);
+    const latestTs = latest[latest.length - 1]?.created_at;
+    if (latestTs) await markChannelRead(channel, latestTs);
+  }, [markChannelRead]);
 
   const jumpToBottom = useCallback((ref: React.RefObject<HTMLDivElement | null>) => {
     const el = ref.current;
@@ -257,11 +291,6 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
 
   // Current channel
   const activeChannel = tab === 'global' ? 'global' : activeDM?.channel ?? '';
-
-  // Load initial read timestamp from localStorage
-  useEffect(() => {
-    lastReadRef.current = localStorage.getItem('nebulife_chat_last_read_global');
-  }, []);
 
   // Fetch messages for active channel
   const fetchMessages = useCallback(async () => {
@@ -319,6 +348,18 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
 
   // Fetch system channel messages (fun facts, moderation notices)
   const [systemMessages, setSystemMessages] = useState<MessageData[]>([]);
+  const visibleLogEntries = React.useMemo(
+    () => {
+      const mirroredTexts = new Set<string>();
+      for (const msg of systemMessages) mirroredTexts.add(msg.content);
+      for (const notif of systemNotifs) mirroredTexts.add(notif.text);
+      return [...logEntries]
+        .filter((entry) => !mirroredTexts.has(entry.text))
+        .sort((a, b) => a.timestamp - b.timestamp)
+        .slice(-50);
+    },
+    [logEntries, systemMessages, systemNotifs],
+  );
   useEffect(() => {
     if (collapsed || tab !== 'system') return;
 
@@ -365,12 +406,11 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
     let iv: ReturnType<typeof setInterval> | null = null;
     let stopped = false;
     const countUnreadChannel = async (channel: string, setCount: (count: number) => void) => {
-      const key = readKeyForChannel(channel);
-      const lastRead = localStorage.getItem(key);
+      const lastRead = await getLastReadAt(channel);
       if (!lastRead) {
         const latest = await getMessages(channel, 1);
         const latestTs = latest[latest.length - 1]?.created_at;
-        if (latestTs) localStorage.setItem(key, latestTs);
+        if (latestTs) markChannelRead(channel, latestTs);
         setCount(0);
         return;
       }
@@ -382,14 +422,11 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
     const checkUnread = async () => {
       if (stopped) return;
       try {
-        const lastRead = localStorage.getItem('nebulife_chat_last_read_global');
+        const lastRead = await getLastReadAt('global');
         if (!lastRead) {
           const latest = await getMessages('global', 1);
           const latestTs = latest[latest.length - 1]?.created_at;
-          if (latestTs) {
-            localStorage.setItem('nebulife_chat_last_read_global', latestTs);
-            lastReadRef.current = latestTs;
-          }
+          if (latestTs) markChannelRead('global', latestTs);
           setUnreadGlobal(0);
         } else {
           const msgs = await getMessages('global', 50, lastRead || undefined);
@@ -403,7 +440,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
         const channels = await getDMChannels();
         let dmUnread = 0;
         for (const channel of channels) {
-          const lastReadDm = localStorage.getItem(readKeyForChannel(channel.channel));
+          const lastReadDm = await getLastReadAt(channel.channel);
           if (!lastReadDm) {
             const latestDm = await getMessages(channel.channel, 1);
             if (latestDm.some((msg) => msg.sender_id !== playerId)) dmUnread += 1;
@@ -426,7 +463,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
     checkUnread();
     iv = setInterval(checkUnread, 10000);
     return () => { if (iv) clearInterval(iv); };
-  }, [collapsed, playerId, readKeyForChannel]);
+  }, [collapsed, getLastReadAt, markChannelRead, playerId]);
 
   // Notify parent of all unread chat activity so the collapsed comms button
   // does not look idle while global messages are waiting.
@@ -449,16 +486,16 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
   useEffect(() => {
     if (collapsed || tab !== 'system' || systemMessages.length === 0) return;
     const lastTs = systemMessages[systemMessages.length - 1].created_at;
-    localStorage.setItem(readKeyForChannel(`system:${playerId}`), lastTs);
+    markChannelRead(`system:${playerId}`, lastTs);
     setUnreadSystemMessages(0);
-  }, [collapsed, playerId, readKeyForChannel, systemMessages, tab]);
+  }, [collapsed, markChannelRead, playerId, systemMessages, tab]);
 
   useEffect(() => {
     if (collapsed || tab !== 'astra' || astraMessages.length === 0) return;
     const lastTs = astraMessages[astraMessages.length - 1].created_at;
-    localStorage.setItem(readKeyForChannel(`astra:${playerId}`), lastTs);
+    markChannelRead(`astra:${playerId}`, lastTs);
     setUnreadAstraMessages(0);
-  }, [astraMessages, collapsed, playerId, readKeyForChannel, tab]);
+  }, [astraMessages, collapsed, markChannelRead, playerId, tab]);
 
   useEffect(() => {
     if (collapsed) return;
@@ -474,6 +511,45 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
       setUnreadDm(0);
     }
   }, [collapsed, latestDigestWeekDate, markDigestSeen, onSystemNotifRead, systemNotifs, tab]);
+
+  useEffect(() => {
+    if (collapsed) return;
+
+    let cancelled = false;
+    const markChatOpenRead = async () => {
+      try {
+        const channels = await getDMChannels().catch(() => [] as DMChannelInfo[]);
+        if (cancelled) return;
+
+        await Promise.all([
+          markLatestChannelMessageRead('global'),
+          markLatestChannelMessageRead(`astra:${playerId}`),
+          markLatestChannelMessageRead(`system:${playerId}`),
+          ...channels.map((channel) => (
+            channel.last_at
+              ? markChannelRead(channel.channel, channel.last_at)
+              : markLatestChannelMessageRead(channel.channel)
+          )),
+        ]);
+
+        if (cancelled) return;
+        clearUnreadIndicators();
+      } catch (err) {
+        console.warn('[ChatWidget] failed to mark chat open read:', err);
+      }
+    };
+
+    void markChatOpenRead();
+    return () => { cancelled = true; };
+  }, [
+    collapsed,
+    clearUnreadIndicators,
+    latestDigestWeekDate,
+    markChannelRead,
+    markDigestSeen,
+    markLatestChannelMessageRead,
+    playerId,
+  ]);
 
   // Auto-scroll to bottom only when user is already at bottom. On first open /
   // tab switch, jump instantly so the user does not watch history scroll down.
@@ -494,16 +570,15 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
   useEffect(() => {
     if (!collapsed && tab === 'global' && messages.length > 0) {
       const lastTs = messages[messages.length - 1].created_at;
-      localStorage.setItem('nebulife_chat_last_read_global', lastTs);
-      lastReadRef.current = lastTs;
+      markChannelRead('global', lastTs);
       setUnreadGlobal(0);
     }
     if (!collapsed && tab === 'dm-chat' && activeDM && messages.length > 0) {
       const lastTs = messages[messages.length - 1].created_at;
-      localStorage.setItem(readKeyForChannel(activeDM.channel), lastTs);
+      markChannelRead(activeDM.channel, lastTs);
       setUnreadDm(0);
     }
-  }, [activeDM, collapsed, messages, readKeyForChannel, tab]);
+  }, [activeDM, collapsed, markChannelRead, messages, tab]);
 
   const globalLocked = tab === 'global' && playerLevel < 10;
 
@@ -545,8 +620,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
       const msg = await sendMessage(activeChannel, input.trim());
       setMessages((prev) => [...prev, msg]);
       if (activeChannel === 'global') {
-        localStorage.setItem('nebulife_chat_last_read_global', msg.created_at);
-        lastReadRef.current = msg.created_at;
+        markChannelRead('global', msg.created_at);
         setUnreadGlobal(0);
       }
       playSfx('chat-send', 0.25);
@@ -701,6 +775,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
         aria-label={t('chat.title')}
         onClick={() => {
           playSfx('ui-click', 0.07);
+          clearUnreadIndicators();
           // Auto-select the tab with unread messages (priority: system > astra > DM > global)
           if (unreadSystem + effectiveUnreadSystemMessages > 0) {
             instantSystemScrollRef.current = true;

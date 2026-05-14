@@ -17,6 +17,7 @@ const REQUIRED_PROD_ENV = [
   'VITE_FIREBASE_AUTH_DOMAIN',
   'VITE_FIREBASE_PROJECT_ID',
   'VITE_FIREBASE_APP_ID',
+  'VITE_FIREBASE_MEASUREMENT_ID',
 ] as const;
 
 function requireProdEnv(): Plugin {

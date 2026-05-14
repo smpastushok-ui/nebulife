@@ -3,6 +3,11 @@ import { authenticate } from '../../packages/server/src/auth-middleware.js';
 import { getPremiumStatus, updatePlayerPremium } from '../../packages/server/src/db.js';
 
 const PREMIUM_ENTITLEMENT_ID = 'premium';
+const PREMIUM_PRODUCT_IDS = new Set([
+  'nebulife_pro_monthly',
+  'nebulife_pro_yearly',
+  'nebulife_pro_lifetime',
+]);
 
 interface RevenueCatEntitlement {
   expires_date?: string | null;
@@ -17,6 +22,9 @@ interface RevenueCatSubscriberResponse {
 
 function isEntitlementActive(entitlement: RevenueCatEntitlement | undefined): boolean {
   if (!entitlement) return false;
+  if (entitlement.product_identifier && !PREMIUM_PRODUCT_IDS.has(entitlement.product_identifier)) {
+    return false;
+  }
   if (!entitlement.expires_date) return true;
   return new Date(entitlement.expires_date).getTime() > Date.now();
 }

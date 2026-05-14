@@ -117,6 +117,10 @@ interface SystemsListProps {
   /** Open the global TopUp/buy-quarks modal — used by the instant-research
    *  popup when the player can't afford the shortcut. */
   onOpenTopUp?: () => void;
+  /** Pinned systems shown in a separate top block without changing ring order. */
+  pinnedSystems?: Set<string>;
+  /** Callback when pinned systems change. */
+  onPinnedSystemsChange?: (systems: Set<string>) => void;
 }
 
 export function SystemsList({
@@ -139,6 +143,8 @@ export function SystemsList({
   onInstantResearch,
   instantResearchCost = 30,
   onOpenTopUp,
+  pinnedSystems,
+  onPinnedSystemsChange,
 }: SystemsListProps) {
   const { t } = useTranslation();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -150,6 +156,7 @@ export function SystemsList({
   // popup. null when popup is closed.
   const [instantTargetId, setInstantTargetId] = useState<string | null>(null);
   const [revealedByRing, setRevealedByRing] = useState<Record<number, number>>({});
+  const pinned = pinnedSystems ?? new Set<string>();
 
   // Filter: show only systems where progress < 100 (unresearched)
   const [filterUnresearched, setFilterUnresearched] = useState(false);
@@ -224,6 +231,18 @@ export function SystemsList({
       .map(([ringIndex, systems]) => ({ ringIndex, systems }))
       .sort((a, b) => a.ringIndex - b.ringIndex);
   }, [sorted]);
+
+  const pinnedList = useMemo(() => (
+    sorted.filter((system) => pinned.has(system.id))
+  ), [pinned, sorted]);
+
+  const togglePinnedSystem = useCallback((systemId: string) => {
+    if (!onPinnedSystemsChange) return;
+    const next = new Set(pinned);
+    if (next.has(systemId)) next.delete(systemId);
+    else next.add(systemId);
+    onPinnedSystemsChange(next);
+  }, [onPinnedSystemsChange, pinned]);
 
   useEffect(() => {
     const revealTutorialTarget = () => {
@@ -342,6 +361,291 @@ export function SystemsList({
   const gridColsMobile    = hasResearchCol ? 'minmax(0,1fr) 30px 28px 28px 78px' : 'minmax(0,1fr) 30px 28px 28px';
   const gridColsDesktop   = hasResearchCol ? 'minmax(0,1fr) 36px 36px 36px 88px' : 'minmax(0,1fr) 36px 36px 36px';
 
+  const renderSystemRow = (system: StarSystem, keyPrefix = 'system') => {
+    const isHome = system.planets.some((p) => p.isHomePlanet);
+    const isHovered = hoveredId === system.id;
+    const name = aliases[system.id] || system.name;
+    const starColor =
+      SPECTRAL_COLORS[system.star.spectralClass?.[0] ?? 'G'] ?? '#fff4e8';
+    const ringLocked = isRingLocked?.(system.ringIndex ?? 0) ?? false;
+    const quarkUnlocked = isQuarkUnlocked?.(system.id) ?? false;
+    const locked = ringLocked && !quarkUnlocked;
+    const researching = isResearching?.(system.id) ?? false;
+    const progressPct = Math.max(
+      0,
+      Math.min(100, getResearchProgress?.(system.id) ?? (isFullyResearched?.(system.id) ? 100 : 0)),
+    );
+    const fullyResearched = progressPct >= 100 || (isFullyResearched?.(system.id) ?? false);
+    const canResearch = locked || fullyResearched ? false : (canStartResearch?.(system.id) ?? false);
+    const dataCost = getResearchDataCost?.(system) ?? researchDataCost;
+    const hasResearchData = Math.floor(researchData) >= dataCost;
+    const isFirstNonHome = system.id === firstNonHomeId;
+    const statusLabel = fullyResearched
+      ? t('archive.status_complete')
+      : researching
+        ? t('archive.status_scanning')
+        : canResearch
+          ? t('archive.status_ready')
+          : locked
+            ? t('archive.status_locked')
+        : !hasResearchData
+          ? t('archive.status_need_data')
+          : t('archive.status_no_slots');
+    const showInsufficientData = insufficientDataId === system.id;
+    const isPinned = pinned.has(system.id);
+
+    return (
+      <div
+        key={`${keyPrefix}-${system.id}`}
+        onMouseEnter={() => setHoveredId(system.id)}
+        onMouseLeave={() => setHoveredId(null)}
+        onDoubleClick={() => handleSystemRowResearch(system, canResearch, researching, fullyResearched)}
+        onTouchEnd={(e) => {
+          const now = Date.now();
+          const prev = lastSystemTapRef.current;
+          lastSystemTapRef.current = { id: system.id, at: now };
+          if (prev?.id === system.id && now - prev.at < 360) {
+            e.preventDefault();
+            handleSystemRowResearch(system, canResearch, researching, fullyResearched);
+          }
+        }}
+        style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? gridColsMobile : gridColsDesktop,
+          gap: isMobile ? 4 : 8,
+          padding: isMobile ? '7px 8px' : '8px 12px',
+          background: fullyResearched
+            ? 'linear-gradient(90deg, rgba(96,180,130,0.035), rgba(5,10,20,0.18))'
+            : researching
+              ? undefined
+              : canResearch
+                ? 'linear-gradient(90deg, rgba(215,179,106,0.035), rgba(5,10,20,0.18))'
+                : isHovered
+                  ? 'rgba(20, 38, 58, 0.42)'
+                  : 'rgba(5, 10, 20, 0.18)',
+          border: isMobile
+            ? 'none'
+            : researching
+              ? '1px solid rgba(68, 136, 170, 0.35)'
+              : `1px solid ${fullyResearched ? 'rgba(127,217,166,0.16)' : canResearch ? 'rgba(215,179,106,0.15)' : 'rgba(51, 68, 85, 0.18)'}`,
+          borderBottom: isMobile ? '1px solid rgba(51, 68, 85, 0.14)' : undefined,
+          borderRadius: isMobile ? 0 : 3,
+          fontFamily: 'monospace',
+          fontSize: 11,
+          color: locked ? '#556677' : '#aabbcc',
+          textAlign: 'left',
+          alignItems: 'center',
+          transition: 'background 0.15s',
+          animation: researching ? 'sys-row-research-pulse 2.5s ease-in-out infinite' : undefined,
+          position: 'relative',
+          opacity: locked ? 0.6 : 1,
+          cursor: canResearch && !researching && !fullyResearched ? 'copy' : undefined,
+          overflow: 'visible',
+        }}
+      >
+
+        <div style={{ minWidth: 0, cursor: 'pointer' }} onClick={() => onNavigate(system)}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            <span
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: '50%',
+                background: starColor,
+                flexShrink: 0,
+                boxShadow: isHome
+                  ? '0 0 0 2px rgba(127,217,166,0.20), 0 0 10px rgba(127,217,166,0.28)'
+                  : `0 0 10px ${starColor}44`,
+              }}
+            />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: locked ? '#667788' : '#c6d8ee' }}>
+              {name}
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 6 }}>
+            <div style={{
+              position: 'relative',
+              flex: 1,
+              height: 3,
+              overflow: 'hidden',
+              borderRadius: 999,
+              background: 'rgba(51,68,85,0.16)',
+            }}>
+              <div style={{
+                width: `${progressPct}%`,
+                height: '100%',
+                borderRadius: 999,
+                background: 'linear-gradient(90deg, rgba(68,136,170,0.28), rgba(123,184,255,0.48))',
+                boxShadow: progressPct > 0 ? '0 0 4px rgba(123,184,255,0.14)' : undefined,
+                transition: 'width 0.25s ease',
+              }} />
+              {researching && (
+                <span style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '32%',
+                  height: '100%',
+                  background: 'linear-gradient(90deg, transparent, rgba(180,215,245,0.16), transparent)',
+                  animation: getDeviceTier() === 'low' ? undefined : 'sys-scan-flow 1.9s ease-in-out infinite',
+                }} />
+              )}
+            </div>
+            <span style={{ color: '#7bb8ff', opacity: 0.66, fontSize: 10, minWidth: 34, textAlign: 'right' }}>
+              {Math.round(progressPct)}%
+            </span>
+          </div>
+        </div>
+
+        <span style={{ color: '#667788', fontSize: 10, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+          {onPinnedSystemsChange && (
+            <button
+              type="button"
+              title={isPinned ? t('archive.system_unpin') : t('archive.system_pin')}
+              aria-label={isPinned ? t('archive.system_unpin') : t('archive.system_pin')}
+              onClick={(e) => {
+                e.stopPropagation();
+                togglePinnedSystem(system.id);
+              }}
+              style={{
+                width: 18,
+                height: 18,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0,
+                border: '1px solid transparent',
+                background: 'transparent',
+                color: isPinned ? '#7bb8ff' : '#445566',
+                cursor: 'pointer',
+              }}
+            >
+              <PinIcon active={isPinned} />
+            </button>
+          )}
+          <span>{system.star.spectralClass}</span>
+        </span>
+
+        <span style={{ color: '#667788', fontSize: 10, textAlign: 'center' }}>
+          {system.planets.length}
+        </span>
+
+        <span style={{ color: '#556677', fontSize: 10, textAlign: 'center' }}>
+          {system.ringIndex ?? '-'}
+        </span>
+
+        {hasResearchCol && (
+          <div style={{ display: 'flex', justifyContent: 'center', position: 'relative', overflow: 'visible' }}>
+            {isHome ? (
+              <span style={{ color: '#334455', fontSize: 10 }} />
+            ) : locked ? (
+              onUnlockViaQuarks ? (
+                <button
+                  title={t('archive.unlock_via_quarks_tooltip', { cost: quarkUnlockCost }) as string}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (quarksBalance >= quarkUnlockCost) {
+                      onUnlockViaQuarks(system.id);
+                    }
+                  }}
+                  disabled={quarksBalance < quarkUnlockCost}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3,
+                    background: quarksBalance >= quarkUnlockCost ? 'rgba(68,136,255,0.14)' : 'rgba(10,15,25,0.4)',
+                    border: `1px solid ${quarksBalance >= quarkUnlockCost ? '#446688' : '#223344'}`,
+                    borderRadius: 3,
+                    color: quarksBalance >= quarkUnlockCost ? '#7bb8ff' : '#445566',
+                    fontFamily: 'monospace',
+                    fontSize: 9,
+                    padding: '2px 6px',
+                    cursor: quarksBalance >= quarkUnlockCost ? 'pointer' : 'not-allowed',
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  {quarkUnlockCost} ⚛
+                </button>
+              ) : (
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#445566" strokeWidth="1.2" strokeLinecap="round">
+                  <rect x="3" y="7" width="10" height="8" rx="1.5" />
+                  <path d="M5 7V5a3 3 0 0 1 6 0v2" />
+                </svg>
+              )
+            ) : fullyResearched || researching || !locked ? (
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <ResearchProgressIcon
+                  state={fullyResearched ? 'complete' : researching ? 'researching' : 'idle'}
+                  progress={progressPct}
+                  seedId={system.id}
+                  disabled={!fullyResearched && !researching && !canResearch}
+                  tooltip={!fullyResearched && !researching && !canResearch ? statusLabel : undefined}
+                  tutorialId={canResearch && !researching && !fullyResearched && isFirstNonHome ? 'research-btn-first' : undefined}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (fullyResearched) {
+                      onNavigate(system);
+                    } else if (canResearch && !researching) {
+                      handleResearchClick(system);
+                    }
+                  }}
+                />
+                {onInstantResearch && quarkShortcutsVisible && canResearch && !researching && !fullyResearched && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setInstantTargetId(system.id);
+                    }}
+                    title={t('archive.instant_research_tooltip', { cost: instantResearchCost }) as string}
+                    aria-label={t('archive.instant_research_tooltip', { cost: instantResearchCost }) as string}
+                    style={{
+                      position: 'absolute',
+                      right: -22,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      width: 18, height: 18, borderRadius: '50%',
+                      background: 'rgba(68,136,255,0.10)',
+                      border: '1px solid rgba(123,184,255,0.45)',
+                      color: '#7bb8ff',
+                      cursor: 'pointer',
+                      fontFamily: 'monospace',
+                      fontSize: 11,
+                      lineHeight: 1,
+                      padding: 0,
+                    }}
+                  >
+                    ⚛
+                  </button>
+                )}
+                {showInsufficientData && (
+                  <div style={{
+                    position: 'absolute',
+                    bottom: '100%',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    marginBottom: 4,
+                    whiteSpace: 'nowrap',
+                    fontSize: 10,
+                    color: '#cc8844',
+                    background: 'rgba(10, 15, 25, 0.95)',
+                    border: '1px solid rgba(204, 136, 68, 0.3)',
+                    borderRadius: 3,
+                    padding: '4px 8px',
+                    zIndex: 10,
+                    pointerEvents: 'none',
+                  }}>
+                    {t('research.panel_insufficient_data')}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <span style={{ color: '#334455', fontSize: 10 }}>
+                {'\u2014'}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       {/* Header row — SVG icons with tooltips */}
@@ -437,6 +741,34 @@ export function SystemsList({
           </div>
         )}
       </div>
+
+      {pinnedList.length > 0 && (
+        <div style={{
+          marginBottom: 10,
+          padding: isMobile ? '8px 0 10px' : '8px 0 12px',
+          borderBottom: '1px solid rgba(68, 136, 170, 0.18)',
+        }}>
+          <div style={{
+            fontSize: 10,
+            color: '#7bb8ff',
+            textTransform: 'uppercase',
+            letterSpacing: 1.5,
+            padding: isMobile ? '4px 8px 8px' : '4px 10px 8px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}>
+            <PinIcon active />
+            <span>{t('archive.favorite_systems')}</span>
+            <span style={{ fontSize: 9, color: '#556677', textTransform: 'none', letterSpacing: 0 }}>
+              ({pinnedList.length})
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {pinnedList.map((system) => renderSystemRow(system, 'pinned'))}
+          </div>
+        </div>
+      )}
 
       {/* System rows grouped by ring */}
       {ringGroups.map((group) => {
@@ -536,6 +868,7 @@ export function SystemsList({
                     ? t('archive.status_need_data')
                     : t('archive.status_no_slots');
               const showInsufficientData = insufficientDataId === system.id;
+              const isPinned = pinned.has(system.id);
 
               return (
                 <div
@@ -643,8 +976,33 @@ export function SystemsList({
                   </div>
 
                   {/* Spectral class */}
-                  <span style={{ color: '#667788', fontSize: 10, textAlign: 'center' }}>
-                    {system.star.spectralClass}
+                  <span style={{ color: '#667788', fontSize: 10, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                    {onPinnedSystemsChange && (
+                      <button
+                        type="button"
+                        title={isPinned ? t('archive.system_unpin') : t('archive.system_pin')}
+                        aria-label={isPinned ? t('archive.system_unpin') : t('archive.system_pin')}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          togglePinnedSystem(system.id);
+                        }}
+                        style={{
+                          width: 18,
+                          height: 18,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: 0,
+                          border: '1px solid transparent',
+                          background: 'transparent',
+                          color: isPinned ? '#7bb8ff' : '#445566',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <PinIcon active={isPinned} />
+                      </button>
+                    )}
+                    <span>{system.star.spectralClass}</span>
                   </span>
 
                   {/* Planet count */}
@@ -1066,5 +1424,23 @@ function ResearchProgressIcon({
         </svg>
       )}
     </button>
+  );
+}
+
+function PinIcon({ active = false }: { active?: boolean }) {
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 16 16"
+      fill={active ? 'currentColor' : 'none'}
+      stroke="currentColor"
+      strokeWidth="1.35"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M5.3 1.8h5.4l-.8 4.1 2.5 2.4v1.2H8.7L8 14.2 7.3 9.5H3.6V8.3l2.5-2.4-.8-4.1z" />
+    </svg>
   );
 }

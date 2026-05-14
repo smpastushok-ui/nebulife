@@ -49,6 +49,7 @@ export interface SurfaceViewHandle {
 interface HexSurfaceProps {
   planet:                 Planet;
   star:                   Star;
+  systemId:               string;
   playerId:               string;
   onClose:                () => void;
   onBuildingCountChange?: (count: number) => void;
@@ -178,6 +179,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
     {
       planet,
       star,
+      systemId,
       playerId,
       onClose,
       onBuildingCountChange,
@@ -340,6 +342,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       planet,
       star,
       playerId,
+      systemId,
       colonyResources,
       handleResourceChange,
       (type) => {

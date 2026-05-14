@@ -144,6 +144,10 @@ export interface CosmicArchiveProps {
   favoritePlanets?: Set<string>;
   /** Callback when favorites change */
   onFavoritesChange?: (favorites: Set<string>) => void;
+  /** Pinned system IDs shown in the Systems tab top block. */
+  pinnedSystems?: Set<string>;
+  /** Callback when pinned systems change. */
+  onPinnedSystemsChange?: (systems: Set<string>) => void;
   /** Telescope photos for collection galleries */
   systemPhotos?: Map<string, SystemPhotoData>;
   /** Colony resource totals (for Resources tab — should be totalResources() aggregate). */
@@ -320,6 +324,8 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   getResearchDataCost,
   favoritePlanets: externalFavorites,
   onFavoritesChange,
+  pinnedSystems: externalPinnedSystems,
+  onPinnedSystemsChange,
   systemPhotos,
   colonyResources,
   chemicalInventory = {},
@@ -402,12 +408,29 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   });
   const favorites = externalFavorites ?? localFavorites;
 
+  const [localPinnedSystems, setLocalPinnedSystems] = useState<Set<string>>(() => {
+    if (externalPinnedSystems) return externalPinnedSystems;
+    try {
+      const raw = localStorage.getItem('nebulife_pinned_systems');
+      return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+  const pinnedSystems = externalPinnedSystems ?? localPinnedSystems;
+
   // Persist favorites
   useEffect(() => {
     try {
       localStorage.setItem('nebulife_favorite_planets', JSON.stringify([...favorites]));
     } catch { /* ignore */ }
   }, [favorites]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('nebulife_pinned_systems', JSON.stringify([...pinnedSystems]));
+    } catch { /* ignore */ }
+  }, [pinnedSystems]);
 
   const toggleFavorite = useCallback((planetId: string) => {
     const updater = (prev: Set<string>) => {
@@ -422,6 +445,14 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
       setLocalFavorites(updater);
     }
   }, [favorites, onFavoritesChange]);
+
+  const handlePinnedSystemsChange = useCallback((systems: Set<string>) => {
+    if (onPinnedSystemsChange) {
+      onPinnedSystemsChange(systems);
+    } else {
+      setLocalPinnedSystems(systems);
+    }
+  }, [onPinnedSystemsChange]);
 
   const currentTabDef = TABS.find((t) => t.id === mainTab)!;
   const currentSubTab = subTabMap[mainTab];
@@ -604,6 +635,8 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           onInstantResearch={onInstantResearch}
           instantResearchCost={instantResearchCost ?? 30}
           onOpenTopUp={onOpenTopUp}
+          pinnedSystems={pinnedSystems}
+          onPinnedSystemsChange={handlePinnedSystemsChange}
         />
       );
     }

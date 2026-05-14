@@ -656,9 +656,8 @@ export async function savePlanetSkin(data: {
       ${data.klingTaskId ?? null}, ${data.promptUsed}, ${status}, ${data.textureUrl ?? null},
       ${data.quarksPaid ?? 0}, ${status === 'succeed' ? new Date().toISOString() : null}
     )
-    ON CONFLICT (planet_id, kind) DO UPDATE SET
-      system_id = EXCLUDED.system_id,
-      generated_by = EXCLUDED.generated_by,
+    ON CONFLICT (system_id, planet_id, kind) DO UPDATE SET
+      generated_by = COALESCE(planet_skins.generated_by, EXCLUDED.generated_by),
       kling_task_id = EXCLUDED.kling_task_id,
       prompt_used = EXCLUDED.prompt_used,
       status = EXCLUDED.status,
@@ -671,13 +670,14 @@ export async function savePlanetSkin(data: {
 }
 
 export async function getPlanetSkin(
+  systemId: string,
   planetId: string,
   kind: 'system' | 'exosphere',
 ): Promise<PlanetSkinRow | null> {
   const sql = getSQL();
   const rows = await sql`
     SELECT * FROM planet_skins
-    WHERE planet_id = ${planetId} AND kind = ${kind}
+    WHERE system_id = ${systemId} AND planet_id = ${planetId} AND kind = ${kind}
   `;
   return (rows[0] as PlanetSkinRow) ?? null;
 }
@@ -730,6 +730,7 @@ export interface SurfaceBuildingRow {
   id: string;
   player_id: string;
   planet_id: string;
+  system_id: string | null;
   type: string;
   x: number;
   y: number;
@@ -741,14 +742,15 @@ export async function saveSurfaceBuilding(b: {
   id: string;
   playerId: string;
   planetId: string;
+  systemId: string;
   type: string;
   x: number;
   y: number;
 }): Promise<SurfaceBuildingRow> {
   const sql = getSQL();
   const rows = await sql`
-    INSERT INTO surface_buildings (id, player_id, planet_id, type, x, y)
-    VALUES (${b.id}, ${b.playerId}, ${b.planetId}, ${b.type}, ${b.x}, ${b.y})
+    INSERT INTO surface_buildings (id, player_id, planet_id, system_id, type, x, y)
+    VALUES (${b.id}, ${b.playerId}, ${b.planetId}, ${b.systemId}, ${b.type}, ${b.x}, ${b.y})
     RETURNING *
   `;
   return rows[0] as SurfaceBuildingRow;
@@ -756,12 +758,19 @@ export async function saveSurfaceBuilding(b: {
 
 export async function getSurfaceBuildings(
   playerId: string,
+  systemId: string,
   planetId: string,
 ): Promise<SurfaceBuildingRow[]> {
   const sql = getSQL();
+  const scoped = (await sql`
+    SELECT * FROM surface_buildings
+    WHERE player_id = ${playerId} AND system_id = ${systemId} AND planet_id = ${planetId}
+    ORDER BY built_at ASC
+  `) as SurfaceBuildingRow[];
+  if (scoped.length > 0) return scoped;
   return (await sql`
     SELECT * FROM surface_buildings
-    WHERE player_id = ${playerId} AND planet_id = ${planetId}
+    WHERE player_id = ${playerId} AND planet_id = ${planetId} AND system_id IS NULL
     ORDER BY built_at ASC
   `) as SurfaceBuildingRow[];
 }
@@ -1085,7 +1094,7 @@ export async function saveSurfaceMap(data: {
   const rows = await sql`
     INSERT INTO surface_maps (id, player_id, planet_id, system_id, kling_task_id, status)
     VALUES (${data.id}, ${data.playerId}, ${data.planetId}, ${data.systemId}, ${data.klingTaskId}, 'generating')
-    ON CONFLICT (planet_id) DO UPDATE SET
+    ON CONFLICT (system_id, planet_id) DO UPDATE SET
       kling_task_id = EXCLUDED.kling_task_id,
       status = 'generating',
       photo_url = NULL
@@ -1094,10 +1103,23 @@ export async function saveSurfaceMap(data: {
   return rows[0] as SurfaceMapRow;
 }
 
-export async function getSurfaceMap(planetId: string): Promise<SurfaceMapRow | null> {
+export async function getSurfaceMap(
+  systemId: string,
+  planetId: string,
+): Promise<SurfaceMapRow | null> {
   const sql = getSQL();
-  const rows = await sql`SELECT * FROM surface_maps WHERE planet_id = ${planetId}`;
-  return (rows[0] as SurfaceMapRow) ?? null;
+  const scoped = await sql`
+    SELECT * FROM surface_maps
+    WHERE system_id = ${systemId} AND planet_id = ${planetId}
+    LIMIT 1
+  `;
+  if (scoped[0]) return scoped[0] as SurfaceMapRow;
+  const legacy = await sql`
+    SELECT * FROM surface_maps
+    WHERE planet_id = ${planetId} AND system_id IS NULL
+    LIMIT 1
+  `;
+  return (legacy[0] as SurfaceMapRow) ?? null;
 }
 
 export async function getSurfaceMapById(id: string): Promise<SurfaceMapRow | null> {
@@ -1410,6 +1432,13 @@ export interface DMChannelInfo {
   last_at: string;
 }
 
+export interface MessageReadRow {
+  player_id: string;
+  channel: string;
+  last_read_at: string;
+  updated_at: string;
+}
+
 /** Save a chat message. */
 export async function saveMessage(
   senderId: string,
@@ -1497,6 +1526,43 @@ export async function getPlayerDMChannels(playerId: string): Promise<DMChannelIn
       last_at: row.last_at,
     } as DMChannelInfo;
   });
+}
+
+/** Get per-channel read timestamps for a player. */
+export async function getMessageReadStates(
+  playerId: string,
+  channels?: string[],
+): Promise<MessageReadRow[]> {
+  const sql = getSQL();
+  if (channels && channels.length > 0) {
+    return (await sql`
+      SELECT * FROM message_reads
+      WHERE player_id = ${playerId}
+        AND channel = ANY(${channels})
+    `) as MessageReadRow[];
+  }
+  return (await sql`
+    SELECT * FROM message_reads
+    WHERE player_id = ${playerId}
+  `) as MessageReadRow[];
+}
+
+/** Persist a channel read timestamp, never moving it backwards. */
+export async function markMessageChannelRead(
+  playerId: string,
+  channel: string,
+  lastReadAt: string,
+): Promise<MessageReadRow> {
+  const sql = getSQL();
+  const rows = await sql`
+    INSERT INTO message_reads (player_id, channel, last_read_at)
+    VALUES (${playerId}, ${channel}, ${lastReadAt})
+    ON CONFLICT (player_id, channel) DO UPDATE
+      SET last_read_at = GREATEST(message_reads.last_read_at, EXCLUDED.last_read_at),
+          updated_at = NOW()
+    RETURNING *
+  `;
+  return rows[0] as MessageReadRow;
 }
 
 /** Search players by callsign prefix (for DM search). */
@@ -2601,6 +2667,7 @@ export async function getClusterCount(): Promise<number> {
 export interface SurfaceStateRow {
   player_id: string;
   planet_id: string;
+  system_id: string | null;
   revealed_cells: unknown;  // JSONB — string[] of "col,row"
   harvested_cells: unknown; // JSONB — [string, HarvestedCell][]
   bot: unknown;             // JSONB — { col, row, active } | null
@@ -2610,18 +2677,27 @@ export interface SurfaceStateRow {
 
 export async function getSurfaceState(
   playerId: string,
+  systemId: string,
   planetId: string,
 ): Promise<SurfaceStateRow | null> {
   const sql = getSQL();
-  const rows = await sql`
+  const scoped = await sql`
     SELECT * FROM surface_state
-    WHERE player_id = ${playerId} AND planet_id = ${planetId}
+    WHERE player_id = ${playerId} AND system_id = ${systemId} AND planet_id = ${planetId}
+    LIMIT 1
   `;
-  return (rows[0] as SurfaceStateRow) ?? null;
+  if (scoped[0]) return scoped[0] as SurfaceStateRow;
+  const legacy = await sql`
+    SELECT * FROM surface_state
+    WHERE player_id = ${playerId} AND planet_id = ${planetId} AND system_id IS NULL
+    LIMIT 1
+  `;
+  return (legacy[0] as SurfaceStateRow) ?? null;
 }
 
 export async function saveSurfaceState(
   playerId: string,
+  systemId: string,
   planetId: string,
   data: {
     revealedCells?: unknown;
@@ -2637,16 +2713,16 @@ export async function saveSurfaceState(
   const hr = data.harvesters !== undefined ? JSON.stringify(data.harvesters) : null;
 
   await sql`
-    INSERT INTO surface_state (player_id, planet_id, revealed_cells, harvested_cells, bot, harvesters, updated_at)
+    INSERT INTO surface_state (player_id, system_id, planet_id, revealed_cells, harvested_cells, bot, harvesters, updated_at)
     VALUES (
-      ${playerId}, ${planetId},
+      ${playerId}, ${systemId}, ${planetId},
       COALESCE(${rc}::jsonb, '[]'::jsonb),
       COALESCE(${hc}::jsonb, '[]'::jsonb),
       ${bt}::jsonb,
       COALESCE(${hr}::jsonb, '[]'::jsonb),
       NOW()
     )
-    ON CONFLICT (player_id, planet_id) DO UPDATE SET
+    ON CONFLICT (player_id, system_id, planet_id) DO UPDATE SET
       revealed_cells  = COALESCE(${rc}::jsonb,  surface_state.revealed_cells),
       harvested_cells = COALESCE(${hc}::jsonb,  surface_state.harvested_cells),
       bot             = COALESCE(${bt}::jsonb,  surface_state.bot),

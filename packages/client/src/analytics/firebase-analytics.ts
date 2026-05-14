@@ -6,9 +6,20 @@ type AnalyticsParams = Record<string, string | number | boolean | null | undefin
 
 let analyticsPromise: Promise<Analytics | null> | null = null;
 const onceKeys = new Set<string>();
+let reportedAnalyticsUnavailable = false;
+
+const measurementId = import.meta.env.VITE_FIREBASE_MEASUREMENT_ID as string | undefined;
+
+function getGtag(): ((command: 'event', name: string, params?: Record<string, string | number | boolean>) => void) | null {
+  if (typeof window === 'undefined') return null;
+  const gtag = (window as Window & {
+    gtag?: (command: 'event', name: string, params?: Record<string, string | number | boolean>) => void;
+  }).gtag;
+  return typeof gtag === 'function' ? gtag : null;
+}
 
 async function getWebAnalytics(): Promise<Analytics | null> {
-  if (!isFirebaseConfigured) return null;
+  if (!isFirebaseConfigured || !measurementId) return null;
   if (!analyticsPromise) {
     analyticsPromise = isSupported()
       .then((supported) => supported ? getAnalytics(getApp()) : null)
@@ -30,6 +41,21 @@ export async function trackEvent(name: string, params: AnalyticsParams = {}): Pr
     }
   } catch {
     // Firebase analytics must never block gameplay.
+  }
+
+  const gtag = getGtag();
+  if (gtag) {
+    gtag('event', name, cleaned);
+    return;
+  }
+
+  if (!reportedAnalyticsUnavailable) {
+    reportedAnalyticsUnavailable = true;
+    console.warn('[analytics] unavailable', {
+      firebaseConfigured: isFirebaseConfigured,
+      hasMeasurementId: Boolean(measurementId),
+      hasGtag: Boolean(gtag),
+    });
   }
 
   if (import.meta.env.DEV) {

@@ -11,10 +11,10 @@ import { createHmac } from 'node:crypto';
 
 export interface DigestEmailPayload {
   to: string;
-  playerName: string;
+  playerName: string | null | undefined;
   playerId: string;
   lang: 'uk' | 'en';
-  weekDate: string;
+  weekDate: string | Date | null | undefined;
   imageUrls: string[];
 }
 
@@ -84,8 +84,18 @@ const WELCOME_SUBJECTS: Record<string, string> = {
 // Shared helpers
 // ---------------------------------------------------------------------------
 
-function escapeHtml(value: string): string {
-  return value
+function stringifyEmailValue(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+    return String(value);
+  }
+  return JSON.stringify(value);
+}
+
+function escapeHtml(value: unknown): string {
+  return stringifyEmailValue(value)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -320,6 +330,48 @@ export async function sendAdminAlert(opts: {
     to: adminEmail,
     subject: opts.subject,
     html: opts.html,
+  });
+}
+
+export async function sendSupportRequest(opts: {
+  fromEmail: string;
+  name?: string;
+  subject: string;
+  message: string;
+  meta?: Record<string, string>;
+}): Promise<void> {
+  const safeName = opts.name ? escapeHtml(opts.name) : 'Anonymous';
+  const safeEmail = escapeHtml(opts.fromEmail);
+  const safeSubject = escapeHtml(opts.subject);
+  const safeMessage = escapeHtml(opts.message).replace(/\n/g, '<br>');
+  const metaHtml = opts.meta
+    ? Object.entries(opts.meta)
+      .filter(([, value]) => value)
+      .map(([key, value]) => `<li><strong>${escapeHtml(key)}:</strong> ${escapeHtml(value)}</li>`)
+      .join('')
+    : '';
+
+  await sendResendEmail({
+    to: process.env.SUPPORT_EMAIL ?? 'woodoo.ukraine@gmail.com',
+    subject: `[Nebulife Support] ${opts.subject}`,
+    html: `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><title>Nebulife Support</title></head>
+<body style="margin:0;padding:24px;background:#020510;color:#aabbcc;font-family:monospace;">
+  <div style="max-width:680px;margin:0 auto;border:1px solid #334455;border-radius:6px;padding:20px;background:rgba(10,15,25,0.94);">
+    <div style="font-size:10px;color:#44ff88;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px;">NEBULIFE SUPPORT</div>
+    <h1 style="font-size:18px;color:#ccddee;margin:0 0 16px;">${safeSubject}</h1>
+    <p><strong>From:</strong> ${safeName} &lt;${safeEmail}&gt;</p>
+    <div style="border-top:1px solid #223344;border-bottom:1px solid #223344;padding:16px 0;margin:16px 0;line-height:1.6;">
+      ${safeMessage}
+    </div>
+    ${metaHtml ? `<ul style="font-size:12px;color:#8899aa;line-height:1.6;">${metaHtml}</ul>` : ''}
+  </div>
+</body>
+</html>`,
+    headers: {
+      'Reply-To': opts.fromEmail,
+    },
   });
 }
 

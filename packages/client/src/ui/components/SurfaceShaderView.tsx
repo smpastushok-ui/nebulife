@@ -177,7 +177,7 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
     /* ================================================================ */
 
     useEffect(() => {
-      getBuildings(playerId, planet.id)
+      getBuildings(playerId, 'legacy', planet.id)
         .then((b) => setBuildings(b))
         .catch((err) => console.error('Failed to load buildings:', err));
     }, [playerId, planet.id]);
@@ -675,7 +675,7 @@ export const SurfaceShaderView = forwardRef<SurfaceViewHandle, SurfaceShaderView
       setSelectedBuilding(null);
       onBuildingPlaced?.(newBuilding.type);
 
-      placeBuilding(playerId, planet.id, newBuilding).catch((err) => {
+      placeBuilding(playerId, 'legacy', planet.id, newBuilding).catch((err) => {
         console.error('Failed to save building:', err);
       });
     }, [selectedBuilding, buildings, planet.seed, planet.id, waterCoverage, playerId, onBuildingPlaced]);

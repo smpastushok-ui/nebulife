@@ -40,6 +40,38 @@ function resolveSfxSrc(name: string): string {
   return `/sfx/${name}.${canPlayWebmAudio() ? 'webm' : 'mp3'}`;
 }
 
+function isIosLikeRuntime(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const platform = navigator.platform || '';
+  const userAgent = navigator.userAgent || '';
+  return /iPad|iPhone|iPod/.test(userAgent)
+    || (platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+function getIosSfxVolumeMultiplier(name: string): number {
+  const normalized = name.toLowerCase();
+  if (
+    normalized.includes('text-massage')
+    || normalized.includes('text-message')
+    || normalized.includes('typewriter')
+    || normalized.includes('typing')
+  ) {
+    return 0.2;
+  }
+  if (normalized.includes('ui-click') || normalized === 'click' || normalized.includes('-click')) {
+    return 0.2;
+  }
+  if (normalized.includes('alarm') || normalized.includes('siren')) {
+    return 0.3;
+  }
+  return 1;
+}
+
+function normalizeSfxVolume(name: string, volume: number): number {
+  const multiplier = isIosLikeRuntime() ? getIosSfxVolumeMultiplier(name) : 1;
+  return Math.max(0, Math.min(1, volume * multiplier));
+}
+
 function onFirstInteraction(): void {
   if (unlocked) return;
   unlocked = true;
@@ -76,7 +108,7 @@ export function playSfx(name: string, volume = 0.5, rate = 1): void {
   try {
     const src = resolveSfxSrc(name);
     const audio = new Audio(src);
-    audio.volume = Math.max(0, Math.min(1, volume));
+    audio.volume = normalizeSfxVolume(name, volume);
     if (rate !== 1) audio.playbackRate = Math.max(0.25, Math.min(4, rate));
     activeOneShots.add(audio);
     audio.addEventListener('ended', () => activeOneShots.delete(audio), { once: true });

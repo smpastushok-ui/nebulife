@@ -1303,6 +1303,8 @@
     "pack_optimal": "Оптимальний вибір",
     "pack_best_value": "Найкраще значення",
     "iap_loading": "Завантаження...",
+    "iap_unavailable": "Магазинні продукти недоступні в цій збірці. Спробуйте після наступного оновлення.",
+    "iap_no_products": "Продукти App Store ще недоступні. Спробуйте пізніше.",
     "iap_buy": "Придбати за {{price}}",
     "iap_buying": "Обробка...",
     "iap_success": "Отримано {{quarks}}",
@@ -1323,7 +1325,9 @@
     "zoom_in": "Наблизити",
     "zoom_out": "Віддалити",
     "show_research_pct": "Показати % дослідженості",
-    "hide_research_pct": "Сховати % дослідженості"
+    "hide_research_pct": "Сховати % дослідженості",
+    "recover": "Оновити екран і повернутися до системи",
+    "recovered": "Екран оновлено"
   },
   "quark_toast": {
     "starter": "стартова матерія",
@@ -1430,6 +1434,9 @@
     "instant_research_btn": "Дослідити ({{cost}} ⚛)",
     "instant_research_tooltip": "Миттєве дослідження за {{cost}} ⚛",
     "buy_quarks_btn": "Купити кварки",
+    "favorite_systems": "Обрані системи",
+    "system_pin": "Закріпити систему",
+    "system_unpin": "Відкріпити систему",
     "unpin": "Відкріпити",
     "pin": "Закріпити",
     "scanning": "сканування...",
@@ -1674,10 +1681,10 @@
     "astra_charge_error": "Помилка заряджання. Спробуйте ще раз.",
     "astra_placeholder": "Запит до A.S.T.R.A....",
     "astra_placeholder_premium": "A.S.T.R.A. доступна з Premium...",
-    "astra_placeholder_depleted": "A.S.T.R.A. розряджена...",
-    "astra_premium_required": "A.S.T.R.A. доступна лише з Premium. Без окремої оплати: 10 тематичних повідомлень про гру на годину.",
+    "astra_placeholder_depleted": "A.S.T.R.A. на зарядці...",
+    "astra_premium_required": "A.S.T.R.A. доступна лише з Premium: 10 тематичних повідомлень про гру на годину.",
     "astra_hourly_messages": "{{count}}/10 повідомлень за годину",
-    "astra_hourly_limit": "A.S.T.R.A. розряджена й переходить на зарядку. Наступні 10 повідомлень будуть доступні в нову годину.",
+    "astra_hourly_limit": "A.S.T.R.A. на зарядці. Ліміт повідомлень вичерпано — поверніться в нову годину.",
     "weekly_digest_available": "Тижневий космічний дайджест доступний",
     "open_digest": "Відкрити дайджест",
     "you_label": "Ви",
@@ -1691,25 +1698,26 @@
     "no_results": "Нікого не знайдено",
     "pro_badge": "PRO",
     "pro_messages_today": "{{count}}/10 повідомлень",
-    "pro_daily_limit": "A.S.T.R.A. розряджена. Повернись у наступну годину."
+    "pro_daily_limit": "A.S.T.R.A. на зарядці. Поверніться в наступну годину."
   },
   "premium": {
     "title": "Premium",
     "no_ads": "Без реклами · 10 повідомлень A.S.T.R.A. щогодини · +5 Кварків щодня",
     "subscribe": "Підписатись",
     "active": "Premium активний",
+    "unavailable": "Premium-продукти недоступні в цій збірці. Спробуйте після наступного оновлення.",
+    "no_products": "Premium-продукти ще недоступні в магазині. Спробуйте пізніше.",
+    "purchase_success": "Premium активовано",
+    "purchase_error": "Помилка покупки Premium. Спробуйте ще раз.",
     "monthly": "{{price}}/місяць",
     "monthly_label": "Місячна",
     "monthly_desc": "Оплата щомісяця",
-    "monthly_price": "$4.99/міс",
     "yearly_label": "Річна",
     "yearly_desc": "Оплата раз на рік",
-    "yearly_price": "$39.99/рік",
-    "yearly_save": "−33%",
+    "yearly_save": "Вигідно",
     "lifetime_label": "Назавжди",
-    "lifetime_desc": "Один раз — назавжди",
-    "lifetime_price": "$59.99",
-    "lifetime_save": "ТОП"
+    "lifetime_desc": "Одна покупка, постійний доступ",
+    "lifetime_save": "Один раз"
   },
   "premium_help": {
     "common": {
@@ -1778,7 +1786,7 @@
     },
     "astra_charge": {
       "title": "Premium-канал A.S.T.R.A.",
-      "short": "A.S.T.R.A. входить у Premium без окремої оплати.",
+      "short": "A.S.T.R.A. входить у Premium з 10 тематичними повідомленнями щогодини.",
       "benefits": "Гравець отримує 10 тематичних повідомлень на годину для порад по Nebulife, місіях, колонії й космосу.",
       "why_paid": "Кожна відповідь працює через преміальний канал A.S.T.R.A., тому доступ входить у Premium-підписку.",
       "result": "Після ліміту A.S.T.R.A. переходить на зарядку до наступної години."

@@ -24,6 +24,7 @@ interface ResearchPanelInfo {
 
 interface SceneControlsPanelProps {
   onBack: () => void;
+  onRecover?: () => void;
   onCenter?: () => void;
   onZoomIn?: () => void;
   onZoomOut?: () => void;
@@ -103,6 +104,7 @@ function ControlButton({
 
 export function SceneControlsPanel({
   onBack,
+  onRecover,
   onCenter,
   onZoomIn,
   onZoomOut,
@@ -217,6 +219,20 @@ export function SceneControlsPanel({
             {btn.icon}
           </ControlButton>
         )
+      )}
+
+      {/* Recovery: last button, returns player to the stable system scene. */}
+      {onRecover && (
+        <ControlButton onClick={onRecover} title={t('scene_controls.recover')}>
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M13.2 5.2A5.4 5.4 0 0 0 3.4 4.1" />
+            <path d="M3.4 4.1H6.2" />
+            <path d="M3.4 4.1V1.3" />
+            <path d="M2.8 10.8A5.4 5.4 0 0 0 12.6 11.9" />
+            <path d="M12.6 11.9H9.8" />
+            <path d="M12.6 11.9V14.7" />
+          </svg>
+        </ControlButton>
       )}
     </div>
   );

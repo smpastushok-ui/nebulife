@@ -426,11 +426,11 @@ export const en: Record<TranslationKey, string> = {
   'chat.digest.open':     'Open Digest',
   'chat.quiz_label':      'QUIZ',
   'chat.astra.online':    'A.S.T.R.A. online. Ask a question, Commander.',
-  'chat.astra.discharged': 'Assistant discharged',
-  'chat.astra.recharge':  'Recharge assistant',
-  'chat.astra.unlock':    'Unlock ($1)',
+  'chat.astra.discharged': 'A.S.T.R.A. is recharging',
+  'chat.astra.recharge':  'A.S.T.R.A. is recharging',
+  'chat.astra.unlock':    'Premium required',
   'chat.astra.placeholder': 'Query A.S.T.R.A....',
-  'chat.astra.discharged_placeholder': 'A.S.T.R.A. discharged...',
+  'chat.astra.discharged_placeholder': 'A.S.T.R.A. is recharging...',
 
   // ─── Auth ─────────────────────────────────────────────────────────────────
   'auth.subtitle':         'explore the universe',
@@ -650,6 +650,8 @@ export const en: Record<TranslationKey, string> = {
   // Scene controls
   'scene_controls.zoom_in':  'Zoom in',
   'scene_controls.zoom_out': 'Zoom out',
+  'scene_controls.recover': 'Refresh screen and return to system',
+  'scene_controls.recovered': 'Screen refreshed',
 
   // Mission report photos
   'mission_report.receiving_photo':         'Receiving mission photo',

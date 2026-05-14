@@ -605,8 +605,8 @@ export const SurfaceSVGView = forwardRef<SurfaceViewHandle, SurfaceSVGViewProps>
 
       playSfx('building-place', 0.35);
       onBuildingPlaced?.(newBuilding.type);
-      placeBuilding(playerId, planet.id, newBuilding).catch(() => {
-        setTimeout(() => placeBuilding(playerId, planet.id, newBuilding).catch(console.error), 2000);
+      placeBuilding(playerId, 'legacy', planet.id, newBuilding).catch(() => {
+        setTimeout(() => placeBuilding(playerId, 'legacy', planet.id, newBuilding).catch(console.error), 2000);
       });
     }, [pendingPlacement, playerId, planet.id, onBuildingPlaced, setBuildings]);
 

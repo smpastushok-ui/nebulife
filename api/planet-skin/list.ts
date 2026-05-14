@@ -18,8 +18,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const { systemId, planetId, kind } = req.query;
     if (planetId && typeof planetId === 'string') {
+      if (!systemId || typeof systemId !== 'string') {
+        return res.status(400).json({ error: 'Missing systemId for planet skin lookup' });
+      }
       const skinKind = kind === 'exosphere' ? 'exosphere' : 'system';
-      const skin = await getPlanetSkin(planetId, skinKind);
+      const skin = await getPlanetSkin(systemId, planetId, skinKind);
       return res.status(200).json({ skins: skin ? [skin] : [] });
     }
 

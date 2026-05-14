@@ -27,6 +27,13 @@ export interface DMChannelInfo {
   last_at: string;
 }
 
+export interface MessageReadState {
+  player_id: string;
+  channel: string;
+  last_read_at: string;
+  updated_at: string;
+}
+
 // ---------------------------------------------------------------------------
 // Messages
 // ---------------------------------------------------------------------------
@@ -76,6 +83,40 @@ export async function getDMChannels(): Promise<DMChannelInfo[]> {
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'Unknown error' }));
     throw new Error(err.error ?? `Get channels failed: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+/** Get cross-device read timestamps for chat channels. */
+export async function getMessageReadStates(channels?: string[]): Promise<MessageReadState[]> {
+  const params = new URLSearchParams();
+  if (channels && channels.length > 0) params.set('channels', channels.join(','));
+
+  const res = await authFetch(`${API_BASE}/messages/read-state${params.size ? `?${params}` : ''}`);
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(err.error ?? `Get read states failed: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+/** Persist a channel as read for all devices on the account. */
+export async function markMessageChannelRead(
+  channel: string,
+  lastReadAt: string,
+): Promise<MessageReadState> {
+  const res = await authFetch(`${API_BASE}/messages/mark-read`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ channel, lastReadAt }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(err.error ?? `Mark read failed: ${res.status}`);
   }
 
   return res.json();

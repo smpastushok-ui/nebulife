@@ -161,7 +161,8 @@ function RootRouter() {
   if (w.__nebulifeGAInjected) return;
   w.__nebulifeGAInjected = true;
 
-  const GA_ID = 'G-JEELHEM0Z4';
+  const GA_ID = import.meta.env.VITE_FIREBASE_MEASUREMENT_ID as string | undefined;
+  if (!GA_ID) return;
   const s = document.createElement('script');
   s.async = true;
   s.src = `https://www.googletagmanager.com/gtag/js?id=${GA_ID}`;

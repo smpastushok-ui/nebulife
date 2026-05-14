@@ -8,8 +8,8 @@ import { authenticate } from '../../packages/server/src/auth-middleware.js';
 /**
  * /api/surface/state (auth required)
  *
- * GET   ?playerId=...&planetId=...  → load surface state (fog, harvests, bot, drones)
- * POST  { playerId, planetId, revealedCells?, harvestedCells?, bot?, harvesters? }
+ * GET   ?playerId=...&systemId=...&planetId=...  → load surface state
+ * POST  { playerId, systemId, planetId, revealedCells?, harvestedCells?, bot?, harvesters? }
  *       → upsert surface state (partial update — only provided fields are overwritten)
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -20,16 +20,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // --- GET: Load surface state ---
     if (req.method === 'GET') {
       const playerId = req.query.playerId as string;
+      const systemId = req.query.systemId as string;
       const planetId = req.query.planetId as string;
 
-      if (!playerId || !planetId) {
-        return res.status(400).json({ error: 'Missing playerId or planetId' });
+      if (!playerId || !systemId || !planetId) {
+        return res.status(400).json({ error: 'Missing playerId, systemId, or planetId' });
       }
       if (playerId !== auth.playerId) {
         return res.status(403).json({ error: 'Forbidden: player mismatch' });
       }
 
-      const row = await getSurfaceState(playerId, planetId);
+      const row = await getSurfaceState(playerId, systemId, planetId);
       if (!row) {
         return res.status(200).json({
           revealedCells: [],
@@ -49,16 +50,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // --- POST: Save surface state (partial upsert) ---
     if (req.method === 'POST') {
-      const { playerId, planetId, revealedCells, harvestedCells, bot, harvesters } = req.body ?? {};
+      const { playerId, systemId, planetId, revealedCells, harvestedCells, bot, harvesters } = req.body ?? {};
 
-      if (!playerId || !planetId) {
-        return res.status(400).json({ error: 'Missing playerId or planetId' });
+      if (!playerId || !systemId || !planetId) {
+        return res.status(400).json({ error: 'Missing playerId, systemId, or planetId' });
       }
       if (playerId !== auth.playerId) {
         return res.status(403).json({ error: 'Forbidden: player mismatch' });
       }
 
-      await saveSurfaceState(playerId, planetId, {
+      await saveSurfaceState(playerId, systemId, planetId, {
         revealedCells,
         harvestedCells,
         bot,

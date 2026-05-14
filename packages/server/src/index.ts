@@ -79,6 +79,8 @@ export {
   saveMessage,
   getMessages,
   getPlayerDMChannels,
+  getMessageReadStates,
+  markMessageChannelRead,
   searchPlayers,
   // Universe
   getTotalPlayerCount,

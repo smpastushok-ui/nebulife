@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="uk">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -19,7 +19,25 @@
     h2 { margin-top: 32px; font-size: 16px; }
     a { color: #7bb8ff; }
     .meta { color: #667788; font-size: 12px; margin-bottom: 24px; }
-    .lang { float: right; font-size: 12px; }
+    .lang-switch {
+      display: flex;
+      justify-content: flex-end;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+    .lang-switch button {
+      margin-top: 0;
+      padding: 7px 12px;
+      color: #8899aa;
+      border-color: #334455;
+      background: rgba(10,15,25,0.72);
+    }
+    .lang-switch button.active {
+      color: #7bb8ff;
+      border-color: #4488aa;
+      background: rgba(68,136,170,0.18);
+    }
+    .lang-panel[hidden] { display: none; }
     .contact {
       background: rgba(68,136,170,0.12);
       border: 1px solid #4488aa;
@@ -29,90 +47,214 @@
     }
     dt { color: #ccddee; margin-top: 12px; font-weight: bold; }
     dd { margin-left: 0; margin-bottom: 8px; color: #889aab; }
+    form {
+      background: rgba(10,15,25,0.72);
+      border: 1px solid #334455;
+      border-radius: 4px;
+      padding: 16px;
+      margin: 16px 0 28px;
+    }
+    label {
+      display: block;
+      color: #8899aa;
+      font-size: 12px;
+      margin: 12px 0 6px;
+    }
+    input, textarea {
+      width: 100%;
+      box-sizing: border-box;
+      background: rgba(2,5,16,0.92);
+      border: 1px solid #334455;
+      border-radius: 3px;
+      color: #ccddee;
+      font-family: monospace;
+      font-size: 13px;
+      padding: 10px;
+    }
+    textarea { min-height: 130px; resize: vertical; }
+    button {
+      margin-top: 14px;
+      background: rgba(68,136,170,0.18);
+      border: 1px solid #4488aa;
+      border-radius: 3px;
+      color: #7bb8ff;
+      cursor: pointer;
+      font-family: monospace;
+      font-size: 13px;
+      padding: 10px 16px;
+    }
+    button:disabled { cursor: wait; opacity: 0.55; }
+    .status { min-height: 20px; color: #44ff88; font-size: 12px; margin-top: 10px; }
+    .status.error { color: #ff8844; }
+    .hidden-field { position: absolute; left: -9999px; opacity: 0; pointer-events: none; }
   </style>
 </head>
 <body>
-  <a class="lang" href="#en">EN</a>
-  <h1>Nebulife — Підтримка</h1>
-  <div class="meta">Оновлено: 19 квітня 2026</div>
-
-  <div class="contact">
-    <strong>📧 Контакт:</strong> <a href="mailto:support@nebulife.space">support@nebulife.space</a><br>
-    <strong>🌐 Сайт:</strong> <a href="https://nebulife.space">nebulife.space</a><br>
-    <strong>⏱ Час відповіді:</strong> до 48 годин у робочі дні
+  <div class="lang-switch" aria-label="Language">
+    <button type="button" data-lang-switch="uk">Українська</button>
+    <button type="button" class="active" data-lang-switch="en">English</button>
   </div>
 
-  <h2>Часті запитання</h2>
+  <section class="lang-panel" data-lang-panel="uk" hidden>
+    <h1>Nebulife — Підтримка</h1>
+    <div class="meta">Оновлено: 19 квітня 2026</div>
 
-  <dl>
-    <dt>Як відновити прогрес на новому пристрої?</dt>
-    <dd>Увійдіть тим самим Apple ID / Google акаунтом. Гостьовий прогрес НЕ переноситься між пристроями — щоб його зберегти, зв'яжіть акаунт через Settings → Account.</dd>
+    <div class="contact">
+      <strong>Контакт:</strong> <a href="mailto:woodoo.ukraine@gmail.com">woodoo.ukraine@gmail.com</a><br>
+      <strong>Сайт:</strong> <a href="https://nebulife.space">nebulife.space</a><br>
+      <strong>Час відповіді:</strong> до 48 годин у робочі дні
+    </div>
 
-    <dt>Не приходить покупка кварків</dt>
-    <dd>Перевірте інтернет-з'єднання. Якщо не з'являється протягом 5 хв — перезапустіть додаток. Settings → IAP → Restore Purchases поверне куплені пакети.</dd>
+    <h2>Часті запитання</h2>
 
-    <dt>AI-фото не генерується</dt>
-    <dd>Потрібне стабільне з'єднання. Перший рендер може зайняти до 60 секунд. Якщо зазнало збою — кварки повертаються автоматично.</dd>
+    <dl>
+      <dt>Як відновити прогрес на новому пристрої?</dt>
+      <dd>Увійдіть тим самим Apple ID / Google акаунтом. Гостьовий прогрес НЕ переноситься між пристроями — щоб його зберегти, зв'яжіть акаунт через Settings → Account.</dd>
 
-    <dt>Як видалити акаунт?</dt>
-    <dd>Напишіть на <a href="mailto:support@nebulife.space">support@nebulife.space</a> з рядком "Delete Account" у темі. Видалимо всі дані протягом 14 днів.</dd>
+      <dt>Не приходить покупка кварків</dt>
+      <dd>Перевірте інтернет-з'єднання. Якщо не з'являється протягом 5 хв — перезапустіть додаток. Settings → IAP → Restore Purchases поверне куплені пакети.</dd>
 
-    <dt>Чому countdown 7 діб?</dt>
-    <dd>Це базова тривалість апокаліпсиса в грі. Ви можете прискорити (технології, будівлі) або бути повнішим дослідником тільки якщо встигнете до деструкції зоряної системи.</dd>
+      <dt>Фото місії не генерується</dt>
+      <dd>Потрібне стабільне з'єднання. Перший рендер може зайняти до 60 секунд. Якщо сталася помилка — кварки повертаються автоматично.</dd>
 
-    <dt>Не працює Sign in with Apple</dt>
-    <dd>Потрібно iOS 13 або новіший. Якщо кнопка не з'являється — у вас Android (Apple Sign-In тільки на iOS). Використайте Google або email.</dd>
-  </dl>
+      <dt>Як видалити акаунт?</dt>
+      <dd>Напишіть на <a href="mailto:woodoo.ukraine@gmail.com">woodoo.ukraine@gmail.com</a> з рядком "Delete Account" у темі. Видалимо всі дані протягом 14 днів.</dd>
 
-  <h2>Повідомити про баг</h2>
-  <p>Напишіть email з темою "Bug: [короткий опис]" і включіть:</p>
-  <ul>
-    <li>Версію гри (Settings → About)</li>
-    <li>Модель пристрою + версію ОС</li>
-    <li>Кроки відтворення проблеми</li>
-    <li>Screenshot, якщо можливо</li>
-  </ul>
+      <dt>Чому countdown 7 діб?</dt>
+      <dd>Це базова тривалість апокаліпсиса в грі. Ви можете прискорити (технології, будівлі) або бути повнішим дослідником тільки якщо встигнете до деструкції зоряної системи.</dd>
 
-  <hr style="border-color: #334455; margin: 48px 0 24px;">
+      <dt>Не працює Sign in with Apple</dt>
+      <dd>Потрібно iOS 13 або новіший. Якщо кнопка не з'являється — у вас Android (Apple Sign-In тільки на iOS). Використайте Google або email.</dd>
+    </dl>
 
-  <h1 id="en">Nebulife — Support (English)</h1>
-  <div class="meta">Updated: April 19, 2026</div>
+    <h2>Повідомити про баг</h2>
+    <p>Скористайтесь формою нижче або напишіть email з темою "Bug: [короткий опис]" і включіть:</p>
+    <ul>
+      <li>Версію гри (Settings → About)</li>
+      <li>Модель пристрою + версію ОС</li>
+      <li>Кроки відтворення проблеми</li>
+      <li>Screenshot, якщо можливо</li>
+    </ul>
+    <form data-support-form data-lang="uk">
+      <label for="name-uk">Ваше ім'я</label>
+      <input id="name-uk" name="name" autocomplete="name">
+      <label for="email-uk">Email для відповіді</label>
+      <input id="email-uk" name="email" type="email" autocomplete="email" required>
+      <label for="subject-uk">Тема</label>
+      <input id="subject-uk" name="subject" required maxlength="120">
+      <label for="message-uk">Повідомлення</label>
+      <textarea id="message-uk" name="message" required maxlength="5000"></textarea>
+      <input class="hidden-field" name="website" tabindex="-1" autocomplete="off">
+      <button type="submit">Надіслати</button>
+      <div class="status" role="status"></div>
+    </form>
+  </section>
 
-  <div class="contact">
-    <strong>📧 Contact:</strong> <a href="mailto:support@nebulife.space">support@nebulife.space</a><br>
-    <strong>🌐 Website:</strong> <a href="https://nebulife.space">nebulife.space</a><br>
-    <strong>⏱ Response time:</strong> within 48 hours on business days
-  </div>
+  <section class="lang-panel" data-lang-panel="en">
+    <h1>Nebulife — Support</h1>
+    <div class="meta">Updated: April 19, 2026</div>
 
-  <h2>FAQ</h2>
+    <div class="contact">
+      <strong>Contact:</strong> <a href="mailto:woodoo.ukraine@gmail.com">woodoo.ukraine@gmail.com</a><br>
+      <strong>Website:</strong> <a href="https://nebulife.space">nebulife.space</a><br>
+      <strong>Response time:</strong> within 48 hours on business days
+    </div>
 
-  <dl>
-    <dt>How to restore progress on a new device?</dt>
-    <dd>Sign in with the same Apple ID / Google account. Guest progress is NOT transferred between devices — link your account via Settings → Account to preserve it.</dd>
+    <h2>FAQ</h2>
 
-    <dt>Quark purchase didn't go through</dt>
-    <dd>Check your internet connection. If not delivered within 5 min — restart the app. Settings → IAP → Restore Purchases will recover bought packs.</dd>
+    <dl>
+      <dt>How to restore progress on a new device?</dt>
+      <dd>Sign in with the same Apple ID / Google account. Guest progress is NOT transferred between devices — link your account via Settings → Account to preserve it.</dd>
 
-    <dt>AI photo won't generate</dt>
-    <dd>Requires stable connection. First render may take up to 60 seconds. If it fails, quarks are auto-refunded.</dd>
+      <dt>Quark purchase didn't go through</dt>
+      <dd>Check your internet connection. If not delivered within 5 min — restart the app. Settings → IAP → Restore Purchases will recover bought packs.</dd>
 
-    <dt>How do I delete my account?</dt>
-    <dd>Email <a href="mailto:support@nebulife.space">support@nebulife.space</a> with "Delete Account" in the subject. We'll delete all data within 14 days.</dd>
+      <dt>Mission photo won't generate</dt>
+      <dd>Requires a stable connection. First render may take up to 60 seconds. If it fails, quarks are auto-refunded.</dd>
 
-    <dt>Why is the countdown 1 day?</dt>
-    <dd>That's the base apocalypse duration in-game. You can speed it up via techs/buildings or become a more complete explorer only if you make it before star system destruction.</dd>
+      <dt>How do I delete my account?</dt>
+      <dd>Email <a href="mailto:woodoo.ukraine@gmail.com">woodoo.ukraine@gmail.com</a> with "Delete Account" in the subject. We'll delete all data within 14 days.</dd>
 
-    <dt>Sign in with Apple doesn't work</dt>
-    <dd>Requires iOS 13 or newer. If the button doesn't appear — you're on Android (Apple Sign-In is iOS-only). Use Google or email instead.</dd>
-  </dl>
+      <dt>Why is the countdown 1 day?</dt>
+      <dd>That's the base apocalypse duration in-game. You can speed it up via techs/buildings or become a more complete explorer only if you make it before star system destruction.</dd>
 
-  <h2>Report a bug</h2>
-  <p>Email with subject "Bug: [short description]" and include:</p>
-  <ul>
-    <li>Game version (Settings → About)</li>
-    <li>Device model + OS version</li>
-    <li>Steps to reproduce</li>
-    <li>Screenshot if possible</li>
-  </ul>
+      <dt>Sign in with Apple doesn't work</dt>
+      <dd>Requires iOS 13 or newer. If the button doesn't appear — you're on Android (Apple Sign-In is iOS-only). Use Google or email instead.</dd>
+    </dl>
+
+    <h2>Report a bug</h2>
+    <p>Use the form below or email with subject "Bug: [short description]" and include:</p>
+    <ul>
+      <li>Game version (Settings → About)</li>
+      <li>Device model + OS version</li>
+      <li>Steps to reproduce</li>
+      <li>Screenshot if possible</li>
+    </ul>
+    <form data-support-form data-lang="en">
+      <label for="name-en">Your name</label>
+      <input id="name-en" name="name" autocomplete="name">
+      <label for="email-en">Reply email</label>
+      <input id="email-en" name="email" type="email" autocomplete="email" required>
+      <label for="subject-en">Subject</label>
+      <input id="subject-en" name="subject" required maxlength="120">
+      <label for="message-en">Message</label>
+      <textarea id="message-en" name="message" required maxlength="5000"></textarea>
+      <input class="hidden-field" name="website" tabindex="-1" autocomplete="off">
+      <button type="submit">Send</button>
+      <div class="status" role="status"></div>
+    </form>
+  </section>
+  <script>
+    const switchLanguage = (lang) => {
+      document.documentElement.lang = lang;
+      document.querySelectorAll('[data-lang-switch]').forEach((button) => {
+        const isActive = button.getAttribute('data-lang-switch') === lang;
+        button.classList.toggle('active', isActive);
+        button.setAttribute('aria-pressed', String(isActive));
+      });
+      document.querySelectorAll('[data-lang-panel]').forEach((panel) => {
+        panel.hidden = panel.getAttribute('data-lang-panel') !== lang;
+      });
+    };
+
+    document.querySelectorAll('[data-lang-switch]').forEach((button) => {
+      button.addEventListener('click', () => {
+        switchLanguage(button.getAttribute('data-lang-switch') || 'uk');
+      });
+    });
+
+    document.querySelectorAll('[data-support-form]').forEach((form) => {
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const status = form.querySelector('.status');
+        const button = form.querySelector('button');
+        const lang = form.getAttribute('data-lang') || 'en';
+        status.className = 'status';
+        status.textContent = lang === 'uk' ? 'Надсилаємо...' : 'Sending...';
+        button.disabled = true;
+        const data = Object.fromEntries(new FormData(form).entries());
+        data.lang = lang;
+        try {
+          const response = await fetch('/api/support/contact', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+          });
+          if (!response.ok) throw new Error('Request failed');
+          form.reset();
+          status.textContent = lang === 'uk'
+            ? 'Дякуємо. Повідомлення надіслано.'
+            : 'Thank you. Your message has been sent.';
+        } catch {
+          status.className = 'status error';
+          status.textContent = lang === 'uk'
+            ? 'Не вдалося надіслати. Напишіть напряму на woodoo.ukraine@gmail.com.'
+            : 'Could not send. Please email woodoo.ukraine@gmail.com directly.';
+        } finally {
+          button.disabled = false;
+        }
+      });
+    });
+  </script>
 </body>
 </html>

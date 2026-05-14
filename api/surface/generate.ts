@@ -54,7 +54,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Check if surface map already exists for this planet
-    const existingMap = await getSurfaceMap(planetId);
+    const existingMap = await getSurfaceMap(systemId, planetId);
     const isRegenerating = !!existingMap && existingMap.status === 'ready';
 
     // Determine pricing

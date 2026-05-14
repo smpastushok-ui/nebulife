@@ -424,11 +424,11 @@ export const uk = {
   'chat.digest.open':     'Відкрити дайджест',
   'chat.quiz_label':      'ВІКТОРИНА',
   'chat.astra.online':    'A.S.T.R.A. online. Задайте питання, Командоре.',
-  'chat.astra.discharged': 'Асистент розряджений',
-  'chat.astra.recharge':  'Зарядити асистента',
-  'chat.astra.unlock':    'Розблокувати ($1)',
+  'chat.astra.discharged': 'A.S.T.R.A. на зарядці',
+  'chat.astra.recharge':  'A.S.T.R.A. на зарядці',
+  'chat.astra.unlock':    'Доступно з Premium',
   'chat.astra.placeholder': 'Запит до A.S.T.R.A....',
-  'chat.astra.discharged_placeholder': 'A.S.T.R.A. розряджена...',
+  'chat.astra.discharged_placeholder': 'A.S.T.R.A. на зарядці...',
 
   // ─── Auth ─────────────────────────────────────────────────────────────────
   'auth.subtitle':         'дослідження всесвіту',
@@ -648,6 +648,8 @@ export const uk = {
   // Scene controls
   'scene_controls.zoom_in':  'Наблизити',
   'scene_controls.zoom_out': 'Віддалити',
+  'scene_controls.recover': 'Оновити екран і повернутися до системи',
+  'scene_controls.recovered': 'Екран оновлено',
 
   // Mission report photos
   'mission_report.receiving_photo':         'Приймаємо фото місії',

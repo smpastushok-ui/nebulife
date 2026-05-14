@@ -3,12 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { startTopUpFlow } from '../../api/payment-api.js';
 import {
   isNativeIAP,
-  fetchIAPPackages,
+  fetchIAPPackagesWithStatus,
+  fetchPremiumPackagesWithStatus,
   purchaseQuarkPack,
-  checkPremiumStatus,
   purchasePremium,
+  checkPremiumStatus,
   restoreIAPPurchases,
   type IAPPackage,
+  type PremiumPackage,
 } from '../../api/iap-service.js';
 import { watchAdsWithProgress, canShowAd } from '../../services/ads-service.js';
 import { interstitialManager } from '../../services/interstitial-manager.js';
@@ -25,6 +27,8 @@ interface QuarkTopUpModalProps {
   onClose: () => void;
   /** Called after successful IAP with the number of quarks granted */
   onQuarksGranted?: (quarks: number) => void;
+  /** Called after Premium status changes through purchase or restore */
+  onPremiumChanged?: (active: boolean) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -120,30 +124,43 @@ function WebTopUpModal({ playerId, currentBalance, onClose }: QuarkTopUpModalPro
 // ---------------------------------------------------------------------------
 // Native IAP variant (iOS / Android via RevenueCat)
 // ---------------------------------------------------------------------------
-function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted }: QuarkTopUpModalProps) {
+function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted, onPremiumChanged }: QuarkTopUpModalProps) {
   const { t } = useTranslation();
   const [packages, setPackages] = useState<IAPPackage[]>([]);
+  const [premiumPackages, setPremiumPackages] = useState<PremiumPackage[]>([]);
   const [loadingPkgs, setLoadingPkgs] = useState(true);
+  const [loadingPremiumPkgs, setLoadingPremiumPkgs] = useState(true);
   const [purchasing, setPurchasing] = useState<string | null>(null); // identifier of package being purchased
-  const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
+  const [message, setMessage] = useState<{ text: string; ok: boolean; showQuarkIcon?: boolean } | null>(null);
   const [restoring, setRestoring] = useState(false);
   const [isPremiumActive, setIsPremiumActive] = useState(false);
-  const [subscribing, setSubscribing] = useState(false);
+  const [storeConfigured, setStoreConfigured] = useState(true);
+  const [premiumStoreConfigured, setPremiumStoreConfigured] = useState(true);
 
   // Ads reward state
   const [adsProgress, setAdsProgress] = useState(0); // 0-3
   const [adsRunning, setAdsRunning] = useState(false);
 
   useEffect(() => {
-    fetchIAPPackages()
-      .then(pkgs => setPackages(pkgs))
+    fetchIAPPackagesWithStatus()
+      .then((result) => {
+        setPackages(result.packages);
+        setStoreConfigured(result.configured);
+      })
       .finally(() => setLoadingPkgs(false));
+    fetchPremiumPackagesWithStatus()
+      .then((result) => {
+        setPremiumPackages(result.packages);
+        setPremiumStoreConfigured(result.configured);
+      })
+      .finally(() => setLoadingPremiumPkgs(false));
     // Check premium status when modal opens
     checkPremiumStatus().then(status => {
       setIsPremiumActive(status.active);
       interstitialManager.setPremium(status.active);
+      onPremiumChanged?.(status.active);
     });
-  }, []);
+  }, [onPremiumChanged]);
 
   const handleBuy = async (pkg: IAPPackage) => {
     if (purchasing) return;
@@ -152,7 +169,7 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted }
     try {
       const result = await purchaseQuarkPack(pkg.identifier, playerId);
       if (result.success) {
-        setMessage({ text: t('topup.iap_success', { quarks: result.quarksGranted }), ok: true });
+        setMessage({ text: t('topup.iap_success', { quarks: result.quarksGranted }), ok: true, showQuarkIcon: true });
         onQuarksGranted?.(result.quarksGranted);
         setTimeout(onClose, 1800);
       } else if (result.error === 'cancelled') {
@@ -165,21 +182,24 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted }
     }
   };
 
-  const handleSubscribe = async () => {
-    if (subscribing || isPremiumActive || !!purchasing) return;
-    setSubscribing(true);
+  const handleBuyPremium = async (pkg: PremiumPackage) => {
+    if (purchasing || adsRunning || isPremiumActive) return;
     setMessage(null);
+    setPurchasing(pkg.identifier);
     try {
-      const result = await purchasePremium();
+      const result = await purchasePremium(pkg.identifier, playerId);
       if (result.success) {
         setIsPremiumActive(true);
         interstitialManager.setPremium(true);
-        setMessage({ text: t('premium.active'), ok: true });
-      } else if (result.error !== 'cancelled') {
-        setMessage({ text: t('topup.iap_error'), ok: false });
+        onPremiumChanged?.(true);
+        setMessage({ text: t('premium.purchase_success'), ok: true });
+      } else if (result.error === 'cancelled') {
+        setMessage({ text: t('topup.iap_cancelled'), ok: false });
+      } else {
+        setMessage({ text: t('premium.purchase_error'), ok: false });
       }
     } finally {
-      setSubscribing(false);
+      setPurchasing(null);
     }
   };
 
@@ -212,6 +232,9 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted }
     try {
       const result = await restoreIAPPurchases();
       if (result.restored) {
+        setIsPremiumActive(true);
+        interstitialManager.setPremium(true);
+        onPremiumChanged?.(true);
         setMessage({ text: t('topup.restore_success'), ok: true });
         onQuarksGranted?.(0);
       } else {
@@ -241,138 +264,66 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted }
           {t('topup.current_balance')}: <span style={styles.balanceValue}>{currentBalance} <QuarkIcon /></span>
         </div>
 
-        {/* Premium subscription section */}
-        <div style={{
-          marginBottom: 16,
-          padding: '14px 16px',
-          borderRadius: 4,
-          border: `1px solid ${isPremiumActive ? 'rgba(68,255,136,0.4)' : '#4488aa'}`,
-          background: isPremiumActive ? 'rgba(68,255,136,0.06)' : 'rgba(68,136,170,0.08)',
-        }}>
-          <div style={{ marginBottom: isPremiumActive ? 0 : 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'monospace', color: isPremiumActive ? '#44ff88' : '#7bb8ff', marginBottom: 2 }}>
-                {t('premium.title')}
-              </div>
-              {!isPremiumActive && <PremiumHelpButton helpId="premium-subscription" />}
-              {isPremiumActive && (
-                <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#44ff88', fontWeight: 600 }}>
-                  {t('premium.active')}
-                </div>
-              )}
-            </div>
-            <div style={{ fontSize: 11, color: '#8899aa', fontFamily: 'monospace' }}>
-              {t('premium.no_ads')}
-            </div>
+        {isPremiumActive && (
+          <div style={styles.premiumActiveNotice}>
+            {t('premium.active')}
           </div>
-          {!isPremiumActive && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {/* Monthly subscription */}
-              <button
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '10px 14px',
-                  borderRadius: 3,
-                  border: '1px solid #4488aa',
-                  background: subscribing ? 'rgba(68,136,170,0.3)' : 'rgba(68,136,170,0.12)',
-                  color: '#7bb8ff',
-                  fontFamily: 'monospace',
-                  fontSize: 12,
-                  cursor: subscribing || !!purchasing ? 'default' : 'pointer',
-                  opacity: subscribing || !!purchasing ? 0.6 : 1,
-                  width: '100%',
-                  textAlign: 'left' as const,
-                }}
-                onClick={handleSubscribe}
-                disabled={subscribing || !!purchasing}
-              >
-                <div>
-                  <div style={{ fontWeight: 700, marginBottom: 2 }}>{t('premium.monthly_label')}</div>
-                  <div style={{ fontSize: 10, color: '#8899aa' }}>{t('premium.monthly_desc')}</div>
-                </div>
-                <div style={{ fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap' as const }}>
-                  {subscribing ? '...' : t('premium.monthly_price')}
-                </div>
-              </button>
-              {/* Yearly subscription */}
-              <button
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '10px 14px',
-                  borderRadius: 3,
-                  border: '1px solid #ddaa44',
-                  background: subscribing ? 'rgba(221,170,68,0.25)' : 'rgba(221,170,68,0.10)',
-                  color: '#ffcc66',
-                  fontFamily: 'monospace',
-                  fontSize: 12,
-                  cursor: subscribing || !!purchasing ? 'default' : 'pointer',
-                  opacity: subscribing || !!purchasing ? 0.6 : 1,
-                  width: '100%',
-                  textAlign: 'left' as const,
-                  position: 'relative' as const,
-                }}
-                onClick={handleSubscribe}
-                disabled={subscribing || !!purchasing}
-              >
-                <div>
-                  <div style={{ fontWeight: 700, marginBottom: 2 }}>
-                    {t('premium.yearly_label')}{' '}
-                    <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 2, background: 'rgba(221,170,68,0.25)', color: '#ffd680', marginLeft: 4 }}>
-                      {t('premium.yearly_save')}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 10, color: '#aa9966' }}>{t('premium.yearly_desc')}</div>
-                </div>
-                <div style={{ fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap' as const }}>
-                  {subscribing ? '...' : t('premium.yearly_price')}
-                </div>
-              </button>
-              {/* Lifetime (non-consumable) — one-time purchase, no auto-renewal. */}
-              <button
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '10px 14px',
-                  borderRadius: 3,
-                  border: '1px solid #44ff88',
-                  background: subscribing ? 'rgba(68,255,136,0.22)' : 'rgba(68,255,136,0.08)',
-                  color: '#88ffbb',
-                  fontFamily: 'monospace',
-                  fontSize: 12,
-                  cursor: subscribing || !!purchasing ? 'default' : 'pointer',
-                  opacity: subscribing || !!purchasing ? 0.6 : 1,
-                  width: '100%',
-                  textAlign: 'left' as const,
-                  position: 'relative' as const,
-                }}
-                onClick={handleSubscribe}
-                disabled={subscribing || !!purchasing}
-              >
-                <div>
-                  <div style={{ fontWeight: 700, marginBottom: 2 }}>
-                    {t('premium.lifetime_label')}{' '}
-                    <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 2, background: 'rgba(68,255,136,0.25)', color: '#aaffcc', marginLeft: 4 }}>
-                      {t('premium.lifetime_save')}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 10, color: '#66aa88' }}>{t('premium.lifetime_desc')}</div>
-                </div>
-                <div style={{ fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap' as const }}>
-                  {subscribing ? '...' : t('premium.lifetime_price')}
-                </div>
-              </button>
+        )}
+
+        <div style={styles.premiumSection}>
+          <div style={styles.premiumHeader}>
+            <div>
+              <div style={styles.premiumTitle}>{t('premium.title')}</div>
+              <div style={styles.premiumBenefits}>{t('premium.no_ads')}</div>
+            </div>
+            <PremiumHelpButton helpId="premium-subscription" />
+          </div>
+
+          {loadingPremiumPkgs ? (
+            <div style={styles.inlineLoading}>{t('topup.iap_loading')}</div>
+          ) : premiumPackages.length === 0 ? (
+            <div style={styles.storeUnavailable}>
+              {premiumStoreConfigured ? t('premium.no_products') : t('premium.unavailable')}
+            </div>
+          ) : (
+            <div style={styles.premiumPlans}>
+              {premiumPackages.map(pkg => {
+                const isBuying = purchasing === pkg.identifier;
+                return (
+                  <button
+                    key={pkg.identifier}
+                    style={{
+                      ...styles.premiumPlanBtn,
+                      ...(isBuying ? styles.premiumPlanBtnActive : {}),
+                      ...(isPremiumActive ? styles.premiumPlanBtnDisabled : {}),
+                    }}
+                    onClick={() => handleBuyPremium(pkg)}
+                    disabled={!!purchasing || adsRunning || isPremiumActive}
+                  >
+                    <div style={styles.premiumPlanText}>
+                      <div style={styles.premiumPlanName}>
+                        {t(pkg.titleKey)}
+                        {pkg.badgeKey && <span style={styles.premiumBadge}>{t(pkg.badgeKey)}</span>}
+                      </div>
+                      <div style={styles.premiumPlanDesc}>{t(pkg.descriptionKey)}</div>
+                    </div>
+                    <div style={styles.premiumPlanPrice}>
+                      {isBuying ? t('topup.iap_buying') : pkg.priceString}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
 
         {loadingPkgs ? (
-          <div style={{ textAlign: 'center', padding: '24px 0', color: 'rgba(255,255,255,0.5)', fontSize: 14, fontFamily: 'monospace' }}>
+          <div style={styles.inlineLoading}>
             {t('topup.iap_loading')}
+          </div>
+        ) : packages.length === 0 ? (
+          <div style={styles.storeUnavailable}>
+            {storeConfigured ? t('topup.iap_no_products') : t('topup.iap_unavailable')}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
@@ -459,7 +410,7 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted }
             marginBottom: 12,
             fontFamily: 'monospace',
           }}>
-            {message.text}{message.ok && (
+            {message.text}{message.showQuarkIcon && (
               <> <QuarkIcon /></>
             )}
           </div>
@@ -591,6 +542,127 @@ const styles: Record<string, React.CSSProperties> = {
   summaryPrice: { fontSize: 16, fontWeight: 700, color: '#aabbcc' },
   error: {
     color: '#cc4444', fontSize: 12, marginBottom: 8, textAlign: 'center' as const,
+    fontFamily: 'monospace',
+  },
+  premiumActiveNotice: {
+    padding: '10px 14px',
+    marginBottom: 14,
+    borderRadius: 4,
+    border: '1px solid rgba(68,255,136,0.36)',
+    background: 'rgba(68,255,136,0.06)',
+    color: '#44ff88',
+    fontSize: 12,
+    textAlign: 'center' as const,
+    fontFamily: 'monospace',
+  },
+  premiumSection: {
+    padding: 12,
+    marginBottom: 16,
+    borderRadius: 4,
+    border: '1px solid rgba(221,170,68,0.3)',
+    background: 'rgba(42,28,6,0.22)',
+  },
+  premiumHeader: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 10,
+  },
+  premiumTitle: {
+    color: '#ddaa44',
+    fontSize: 13,
+    fontWeight: 700,
+    letterSpacing: '0.4px',
+    fontFamily: 'monospace',
+  },
+  premiumBenefits: {
+    color: '#8899aa',
+    fontSize: 10,
+    lineHeight: 1.5,
+    marginTop: 4,
+    fontFamily: 'monospace',
+  },
+  premiumPlans: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+  },
+  premiumPlanBtn: {
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    padding: '11px 12px',
+    borderRadius: 4,
+    border: '1px solid rgba(221,170,68,0.3)',
+    background: 'rgba(10,15,25,0.58)',
+    color: '#aabbcc',
+    cursor: 'pointer',
+    fontFamily: 'monospace',
+    textAlign: 'left' as const,
+  },
+  premiumPlanBtnActive: {
+    border: '1px solid rgba(221,170,68,0.7)',
+    background: 'rgba(221,170,68,0.12)',
+  },
+  premiumPlanBtnDisabled: {
+    opacity: 0.58,
+    cursor: 'default',
+  },
+  premiumPlanText: {
+    minWidth: 0,
+  },
+  premiumPlanName: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    color: '#d7c19a',
+    fontSize: 12,
+    fontWeight: 700,
+    fontFamily: 'monospace',
+  },
+  premiumPlanDesc: {
+    color: '#667788',
+    fontSize: 10,
+    marginTop: 3,
+    fontFamily: 'monospace',
+  },
+  premiumBadge: {
+    padding: '2px 5px',
+    borderRadius: 3,
+    border: '1px solid rgba(68,136,170,0.42)',
+    color: '#7bb8ff',
+    fontSize: 8,
+    letterSpacing: '0.5px',
+    textTransform: 'uppercase' as const,
+    fontFamily: 'monospace',
+  },
+  premiumPlanPrice: {
+    flexShrink: 0,
+    color: '#ffcc55',
+    fontSize: 12,
+    fontWeight: 700,
+    fontFamily: 'monospace',
+  },
+  inlineLoading: {
+    textAlign: 'center' as const,
+    padding: '18px 0',
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 13,
+    fontFamily: 'monospace',
+  },
+  storeUnavailable: {
+    padding: '18px 14px',
+    marginBottom: 16,
+    borderRadius: 4,
+    border: '1px solid rgba(255,136,68,0.32)',
+    background: 'rgba(255,136,68,0.07)',
+    color: '#ffbb88',
+    fontSize: 12,
+    lineHeight: 1.5,
+    textAlign: 'center' as const,
     fontFamily: 'monospace',
   },
   payBtn: {

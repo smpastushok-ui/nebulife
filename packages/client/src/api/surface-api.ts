@@ -11,9 +11,13 @@ const API_BASE = '/api';
 /**
  * Get all buildings on a planet for a player.
  */
-export async function getBuildings(playerId: string, planetId: string): Promise<PlacedBuilding[]> {
+export async function getBuildings(
+  playerId: string,
+  systemId: string,
+  planetId: string,
+): Promise<PlacedBuilding[]> {
   const res = await authFetch(
-    `${API_BASE}/surface/buildings?playerId=${encodeURIComponent(playerId)}&planetId=${encodeURIComponent(planetId)}`,
+    `${API_BASE}/surface/buildings?playerId=${encodeURIComponent(playerId)}&systemId=${encodeURIComponent(systemId)}&planetId=${encodeURIComponent(planetId)}`,
   );
 
   if (!res.ok) {
@@ -29,6 +33,7 @@ export async function getBuildings(playerId: string, planetId: string): Promise<
  */
 export async function placeBuilding(
   playerId: string,
+  systemId: string,
   planetId: string,
   building: PlacedBuilding,
 ): Promise<PlacedBuilding> {
@@ -37,6 +42,7 @@ export async function placeBuilding(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       playerId,
+      systemId,
       planetId,
       id: building.id,
       type: building.type,
@@ -105,9 +111,13 @@ export interface SurfaceStateData {
 /**
  * Load surface state (fog, harvests, bot, drones) from DB.
  */
-export async function getSurfaceState(playerId: string, planetId: string): Promise<SurfaceStateData> {
+export async function getSurfaceState(
+  playerId: string,
+  systemId: string,
+  planetId: string,
+): Promise<SurfaceStateData> {
   const res = await authFetch(
-    `${API_BASE}/surface/state?playerId=${encodeURIComponent(playerId)}&planetId=${encodeURIComponent(planetId)}`,
+    `${API_BASE}/surface/state?playerId=${encodeURIComponent(playerId)}&systemId=${encodeURIComponent(systemId)}&planetId=${encodeURIComponent(planetId)}`,
   );
   if (!res.ok) {
     return { revealedCells: [], harvestedCells: [], bot: null, harvesters: [] };
@@ -120,13 +130,14 @@ export async function getSurfaceState(playerId: string, planetId: string): Promi
  */
 export async function saveSurfaceState(
   playerId: string,
+  systemId: string,
   planetId: string,
   data: Partial<SurfaceStateData>,
 ): Promise<void> {
   authFetch(`${API_BASE}/surface/state`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ playerId, planetId, ...data }),
+    body: JSON.stringify({ playerId, systemId, planetId, ...data }),
   }).catch(() => { /* fire-and-forget, retry on next save */ });
 }
 

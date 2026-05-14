@@ -1,8 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { generateImage } from '../../packages/server/src/kling-client.js';
-import { saveKlingTask, saveDiscovery, deductQuarks } from '../../packages/server/src/db.js';
+import { saveKlingTask, saveDiscovery, deductQuarks, creditQuarks } from '../../packages/server/src/db.js';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
 import { verifyPhotoToken } from '../../packages/server/src/photo-token.js';
+
+function isKlingInsufficientBalance(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return message.includes('Kling API error 429') && message.includes('Account balance not enough');
+}
 
 /**
  * POST /api/kling/generate
@@ -33,6 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const auth = await authenticate(req, res);
   if (!auth) return;
 
+  let debitedQuarks = 0;
   try {
     const {
       playerId,
@@ -72,6 +78,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(402).json({ error: 'Insufficient quarks' });
       }
       quarksRemaining = player.quarks;
+      debitedQuarks = quarkCost;
     }
 
     // 1. Save discovery record to DB (without photo yet)
@@ -102,6 +109,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({ taskId, discoveryId, quarksRemaining });
   } catch (err) {
+    if (debitedQuarks > 0) {
+      await creditQuarks(auth.playerId, debitedQuarks).catch((refundErr) => {
+        console.error('[kling/generate] Failed to refund quarks after generation error:', refundErr);
+      });
+    }
+    if (isKlingInsufficientBalance(err)) {
+      console.warn('[kling/generate] Kling account balance is not enough; generation skipped.');
+      return res.status(503).json({
+        error: 'Image generation is temporarily unavailable',
+        code: 'KLING_INSUFFICIENT_BALANCE',
+      });
+    }
     console.error('Kling generate error:', err);
     return res.status(500).json({ error: err instanceof Error ? err.message : 'Internal error' });
   }

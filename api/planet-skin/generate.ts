@@ -70,10 +70,10 @@ async function convertGeneratedSkinToTextureMap(imageUrl: string, skinId: string
     .extract({ left: 2048 - edgeBlend, top: 0, width: edgeBlend, height: 1024 })
     .toBuffer();
   const blendedLeft = await sharp(leftEdge)
-    .composite([{ input: rightEdge, blend: 'over', opacity: 0.5 }])
+    .composite([{ input: rightEdge, blend: 'lighten' }])
     .toBuffer();
   const blendedRight = await sharp(rightEdge)
-    .composite([{ input: leftEdge, blend: 'over', opacity: 0.5 }])
+    .composite([{ input: leftEdge, blend: 'lighten' }])
     .toBuffer();
   const texture = await sharp(cropped)
     .composite([
@@ -116,7 +116,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   let charged = false;
   try {
-    const existing = await getPlanetSkin(planetId, kind);
+    const existing = await getPlanetSkin(systemId, planetId, kind);
     if (existing && existing.status === 'succeed' && isTextureMapUrl(existing.texture_url)) {
       return res.status(200).json({
         skinId: existing.id,
@@ -139,7 +139,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       charged = true;
     }
 
-    const skinId = existing?.id ?? `ps_${kind}_${planetId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const skinId = existing?.id ?? `ps_${kind}_${systemId}_${planetId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+      .replace(/[^a-zA-Z0-9_-]+/g, '_');
     const prompt = buildPlanetSkinPrompt(system, planet, kind);
     const generated = await generateImageWithGemini({
       prompt,

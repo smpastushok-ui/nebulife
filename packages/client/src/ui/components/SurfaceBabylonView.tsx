@@ -333,7 +333,7 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
     // ── Load buildings from server ─────────────────────────────────────────
 
     useEffect(() => {
-      getBuildings(playerId, planet.id)
+      getBuildings(playerId, 'legacy', planet.id)
         .then((b) => setBuildings(b))
         .catch((err) => console.error('Failed to load buildings:', err));
     }, [playerId, planet.id]);
@@ -871,7 +871,7 @@ export const SurfaceBabylonView = forwardRef<SurfaceViewHandle, SurfaceBabylonVi
       setSelectedBuilding(null);
       onBuildingPlaced?.();
 
-      placeBuilding(playerId, planet.id, newBuilding).catch((err) => {
+      placeBuilding(playerId, 'legacy', planet.id, newBuilding).catch((err) => {
         console.error('Failed to save building:', err);
       });
     }, [selectedBuilding, buildings, planet.seed, planet.id, waterCoverage, playerId, gridW, gridH, onBuildingPlaced]);

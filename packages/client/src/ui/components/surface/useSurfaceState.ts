@@ -347,6 +347,7 @@ export function useSurfaceState(
   planet: Planet,
   _star: Star,
   playerId: string,
+  systemId: string = 'legacy',
 ): SurfaceStateResult {
   // ── Derived static values ──────────────────────────────────────────────────
   const gridSize    = useMemo(() => computeIsoGridSize(planet.radiusEarth * 6371), [planet.radiusEarth]);
@@ -411,14 +412,14 @@ export function useSurfaceState(
   ) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
-      saveSurfaceState(playerId, planetId, {
+      saveSurfaceState(playerId, systemId, planetId, {
         revealedCells:  [...discovered],
         harvestedCells: [...harvested],
         bot: bot ? { col: bot.col, row: bot.row, active: bot.active } : null,
         harvesters: [],
       });
     }, SAVE_DEBOUNCE_MS);
-  }, [playerId, planetId]);
+  }, [playerId, systemId, planetId]);
 
   // ── Persist harvested cells to localStorage + schedule DB save ────────────
   const saveHarvested = useCallback((
@@ -442,8 +443,8 @@ export function useSurfaceState(
     async function load() {
       setLoading(true);
       const [loadedBuildings, surfaceState] = await Promise.all([
-        getBuildings(playerId, planetId).catch(() => [] as PlacedBuilding[]),
-        getSurfaceState(playerId, planetId),
+        getBuildings(playerId, systemId, planetId).catch(() => [] as PlacedBuilding[]),
+        getSurfaceState(playerId, systemId, planetId),
       ]);
 
       if (cancelled) return;
@@ -513,8 +514,8 @@ export function useSurfaceState(
           builtAt: new Date().toISOString(),
         };
         finalBuildings = [autoHub];
-        placeBuilding(playerId, planetId, autoHub).catch(() => {
-          setTimeout(() => placeBuilding(playerId, planetId, autoHub).catch(console.error), 2000);
+        placeBuilding(playerId, systemId, planetId, autoHub).catch(() => {
+          setTimeout(() => placeBuilding(playerId, systemId, planetId, autoHub).catch(console.error), 2000);
         });
       }
 

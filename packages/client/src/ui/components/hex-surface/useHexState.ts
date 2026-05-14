@@ -474,6 +474,7 @@ export function useHexState(
   planet: Planet,
   star: Star,
   playerId: string,
+  systemId: string,
   colonyResources: ColonyResources,
   onResourceChange?: (delta: Partial<ColonyResources>) => void,
   onBuildingPlaced?: (type: BuildingType) => void,
@@ -498,6 +499,7 @@ export function useHexState(
 ): HexStateResult {
   // Pass full planet so gas-giants → 'orbital' and dwarf → 'small'
   const planetSize = getPlanetSize(planet);
+  const hexSlotsKey = `nebulife_hex_slots_${systemId}_${planet.id}`;
 
   const [slots, setSlots] = useState<HexSlotData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -517,7 +519,7 @@ export function useHexState(
   const scheduleSave = useCallback(
     (newSlots: HexSlotData[]) => {
       // Always persist to localStorage immediately (survives app close / reload)
-      try { localStorage.setItem('nebulife_hex_slots', JSON.stringify(newSlots)); } catch { /* ignore */ }
+      try { localStorage.setItem(hexSlotsKey, JSON.stringify(newSlots)); } catch { /* ignore */ }
       // Bust player data cache so that re-entry within 30s fetches fresh server state
       // instead of returning stale cached data that would overwrite localStorage.
       _lastFetchTime = 0;
@@ -525,14 +527,14 @@ export function useHexState(
       if (saveTimerRef.current !== null) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
         updatePlayer(playerId, {
-          game_state: { hex_slots: newSlots },
+          game_state: { hex_slots_by_planet: { [hexSlotsKey]: newSlots } },
         }).catch((err) => {
           console.error('[useHexState] save failed:', err);
         });
         saveTimerRef.current = null;
       }, 2000);
     },
-    [playerId],
+    [hexSlotsKey, playerId],
   );
 
   // ---------------------------------------------------------------------------
@@ -560,7 +562,7 @@ export function useHexState(
     // If data exists, show it immediately WITHOUT loading screen
     let localLoaded = false;
     try {
-      const local = localStorage.getItem('nebulife_hex_slots');
+      const local = localStorage.getItem(hexSlotsKey) ?? localStorage.getItem('nebulife_hex_slots');
       if (local) {
         const parsed = JSON.parse(local) as HexSlotData[];
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -587,7 +589,8 @@ export function useHexState(
 
         if (cancelled) return;
 
-        const saved = playerData?.game_state?.hex_slots;
+        const scopedSaved = playerData?.game_state?.hex_slots_by_planet?.[hexSlotsKey];
+        const saved = scopedSaved ?? playerData?.game_state?.hex_slots;
 
         if (Array.isArray(saved) && saved.length > 0) {
           const serverSlots = validateAndMigrate(saved as HexSlotData[]);
@@ -602,7 +605,7 @@ export function useHexState(
               // Server is at least as advanced — use server as truth
               setSlots(serverSlots);
               // Sync localStorage with server truth
-              try { localStorage.setItem('nebulife_hex_slots', JSON.stringify(serverSlots)); } catch { /* ignore */ }
+              try { localStorage.setItem(hexSlotsKey, JSON.stringify(serverSlots)); } catch { /* ignore */ }
             }
             // else: local has more progress (e.g., just unlocked, server not saved yet) — keep local
           }
@@ -638,11 +641,11 @@ export function useHexState(
         saveTimerRef.current = null;
         // Flush immediately — send current slots to server
         updatePlayer(playerId, {
-          game_state: { hex_slots: slotsRef.current },
+          game_state: { hex_slots_by_planet: { [hexSlotsKey]: slotsRef.current } },
         }).catch(() => {});
       }
     };
-  }, [playerId]);
+  }, [hexSlotsKey, playerId]);
 
   // NOTE: Respawn timer removed — HexSlot handles its own timer via RAF + direct DOM.
   // The old 60s setInterval was creating [...prev] which broke React.memo on HexGrid.
@@ -903,13 +906,13 @@ export function useHexState(
         level:   1,
         builtAt: new Date().toISOString(),
       };
-      apiPlaceBuilding(playerId, planet.id, building).catch((err) => {
+      apiPlaceBuilding(playerId, systemId, planet.id, building).catch((err) => {
         console.error('[useHexState] apiPlaceBuilding failed:', err);
       });
 
       return true;
     },
-    [colonyResources, chemicalInventory, onBuildingPlaced, onResourceChange, onElementChange, planet.id, playerId, updateSlots],
+    [colonyResources, chemicalInventory, onBuildingPlaced, onResourceChange, onElementChange, planet.id, playerId, systemId, updateSlots],
   );
 
   // ---------------------------------------------------------------------------
