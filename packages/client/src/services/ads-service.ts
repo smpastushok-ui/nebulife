@@ -368,6 +368,10 @@ function loadProgress(rewardType: RewardType): AdProgressData | null {
     const raw = localStorage.getItem(getProgressKey(rewardType));
     if (!raw) return null;
     const data = JSON.parse(raw) as AdProgressData;
+    if (data.tokens.some(token => token.includes(':'))) {
+      localStorage.removeItem(getProgressKey(rewardType));
+      return null;
+    }
     // Discard stale progress — server tokens expire in 5 min, we use 4 min margin
     if (Date.now() - data.lastAt > AD_PROGRESS_TTL_MS) {
       localStorage.removeItem(getProgressKey(rewardType));

@@ -4109,6 +4109,7 @@ function AppInner() {
   const [lastDigestSeen, setLastDigestSeen] = useState<string | null>(null);
   const [latestDigestWeekDate, setLatestDigestWeekDate] = useState<string | null>(null);
   const [isPremiumActive, setIsPremiumActive] = useState(() => localStorage.getItem('nebulife_premium') === '1');
+  const [premiumExpiresAt, setPremiumExpiresAt] = useState<string | null>(null);
   const [astraQuizAnswers, setAstraQuizAnswers] = useState<Record<string, number>>(() => {
     try {
       const saved = localStorage.getItem('nebulife_astra_quiz_answers');
@@ -5052,6 +5053,7 @@ function AppInner() {
             checkPremiumStatus()
               .then((status) => {
                 setIsPremiumActive(status.active);
+                setPremiumExpiresAt(status.expiresAt ?? null);
                 interstitialManager.setPremium(status.active);
               })
               .catch(() => { /* non-critical */ });
@@ -5194,6 +5196,9 @@ function AppInner() {
               hydrateGameStateFromServer(player);
               setState((prev) => ({ ...prev, playerName: player.callsign || player.name || 'Explorer' }));
               setNeedsCallsign(!player.callsign);
+              setIsPremiumActive(player.premium_active === true
+                && (!player.premium_expires_at || new Date(player.premium_expires_at).getTime() > Date.now()));
+              setPremiumExpiresAt(player.premium_expires_at ?? null);
               // Starter toast deferred to handleOnboardingComplete so it
               // renders after the cinematic intro overlay closes.
               claimDailyLoginBonusOnce().catch(() => { /* soft-fail */ });
@@ -10466,6 +10471,7 @@ function AppInner() {
           isGuest={isGuest}
           isNative={Capacitor.isNativePlatform()}
           isPremium={isPremiumActive}
+          premiumExpiresAt={premiumExpiresAt}
           avatarUrl={playerAvatarUrl}
           avatarUploading={avatarUploading}
           onChangeAvatar={handleChangeAvatar}
@@ -10537,7 +10543,10 @@ function AppInner() {
           currentBalance={quarks}
           onClose={() => setShowTopUpModal(false)}
           onQuarksGranted={(granted) => setQuarks(q => q + granted)}
-          onPremiumChanged={setIsPremiumActive}
+          onPremiumChanged={(status) => {
+            setIsPremiumActive(status.active);
+            setPremiumExpiresAt(status.expiresAt ?? null);
+          }}
         />
       )}
 

@@ -18,6 +18,8 @@ interface PlayerPageProps {
   isNative: boolean;
   /** Whether the player has an active Pro subscription */
   isPremium?: boolean;
+  /** ISO timestamp for subscription expiry. Null means lifetime access. */
+  premiumExpiresAt?: string | null;
   onClose: () => void;
   onLogout: () => void;
   onStartOver: () => void;
@@ -103,6 +105,17 @@ function QuarkIcon() {
   );
 }
 
+function formatPremiumExpiresAt(expiresAt: string | null | undefined, locale: string): string {
+  if (!expiresAt) return '4ever';
+  const date = new Date(expiresAt);
+  if (!Number.isFinite(date.getTime())) return '4ever';
+  return new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  }).format(date);
+}
+
 export function PlayerPage({
   playerName,
   playerLevel,
@@ -111,6 +124,7 @@ export function PlayerPage({
   isGuest,
   isNative,
   isPremium = false,
+  premiumExpiresAt = null,
   onClose,
   onLogout,
   onStartOver,
@@ -370,16 +384,28 @@ export function PlayerPage({
         </button>
 
         {/* Name */}
-        <div style={{
-          fontSize: 14,
-          color: '#aabbcc',
-          letterSpacing: 1,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 4,
-        }}>
-          {playerName}
-          {isPremium && <ProBadge />}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+          <div style={{
+            fontSize: 14,
+            color: '#aabbcc',
+            letterSpacing: 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+          }}>
+            {playerName}
+            {isPremium && <ProBadge />}
+          </div>
+          {isPremium && (
+            <div style={{
+              fontSize: 9,
+              color: '#9fddb8',
+              letterSpacing: 0.7,
+              textTransform: 'uppercase',
+            }}>
+              {t('premium.active_until', { date: formatPremiumExpiresAt(premiumExpiresAt, i18n.language) })}
+            </div>
+          )}
         </div>
 
         {/* Level + XP */}

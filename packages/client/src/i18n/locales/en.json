@@ -1704,6 +1704,7 @@
     "no_ads": "No ads · 10 A.S.T.R.A. messages every hour · +5 Quarks daily",
     "subscribe": "Subscribe",
     "active": "Premium active",
+    "active_until": "Active until {{date}}",
     "unavailable": "Premium products are unavailable in this build. Please try again after the next update.",
     "no_products": "Premium products are not available from the store yet. Please try again later.",
     "purchase_success": "Premium activated",

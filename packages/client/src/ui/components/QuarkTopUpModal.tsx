@@ -11,6 +11,7 @@ import {
   restoreIAPPurchases,
   type IAPPackage,
   type PremiumPackage,
+  type PremiumStatus,
 } from '../../api/iap-service.js';
 import { watchAdsWithProgress, canShowAd } from '../../services/ads-service.js';
 import { interstitialManager } from '../../services/interstitial-manager.js';
@@ -21,6 +22,17 @@ const PRESETS = [50, 100, 200, 500];
 // Number of ads required to earn quarks via ad reward
 const ADS_FOR_QUARKS = 3;
 
+function formatPremiumExpiresAt(expiresAt: string | null | undefined, locale: string): string {
+  if (!expiresAt) return '4ever';
+  const date = new Date(expiresAt);
+  if (!Number.isFinite(date.getTime())) return '4ever';
+  return new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  }).format(date);
+}
+
 interface QuarkTopUpModalProps {
   playerId: string;
   currentBalance: number;
@@ -28,7 +40,7 @@ interface QuarkTopUpModalProps {
   /** Called after successful IAP with the number of quarks granted */
   onQuarksGranted?: (quarks: number) => void;
   /** Called after Premium status changes through purchase or restore */
-  onPremiumChanged?: (active: boolean) => void;
+  onPremiumChanged?: (status: PremiumStatus) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -125,7 +137,7 @@ function WebTopUpModal({ playerId, currentBalance, onClose }: QuarkTopUpModalPro
 // Native IAP variant (iOS / Android via RevenueCat)
 // ---------------------------------------------------------------------------
 function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted, onPremiumChanged }: QuarkTopUpModalProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [packages, setPackages] = useState<IAPPackage[]>([]);
   const [premiumPackages, setPremiumPackages] = useState<PremiumPackage[]>([]);
   const [loadingPkgs, setLoadingPkgs] = useState(true);
@@ -134,6 +146,7 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted, 
   const [message, setMessage] = useState<{ text: string; ok: boolean; showQuarkIcon?: boolean } | null>(null);
   const [restoring, setRestoring] = useState(false);
   const [isPremiumActive, setIsPremiumActive] = useState(false);
+  const [premiumExpiresAt, setPremiumExpiresAt] = useState<string | null>(null);
   const [storeConfigured, setStoreConfigured] = useState(true);
   const [premiumStoreConfigured, setPremiumStoreConfigured] = useState(true);
 
@@ -157,8 +170,9 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted, 
     // Check premium status when modal opens
     checkPremiumStatus().then(status => {
       setIsPremiumActive(status.active);
+      setPremiumExpiresAt(status.expiresAt ?? null);
       interstitialManager.setPremium(status.active);
-      onPremiumChanged?.(status.active);
+      onPremiumChanged?.(status);
     });
   }, [onPremiumChanged]);
 
@@ -190,17 +204,19 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted, 
       const result = await purchasePremium(pkg.identifier, playerId);
       if (result.success) {
         setIsPremiumActive(true);
+        setPremiumExpiresAt(result.status?.expiresAt ?? null);
         interstitialManager.setPremium(true);
-        onPremiumChanged?.(true);
+        onPremiumChanged?.(result.status ?? { active: true });
         setMessage({ text: t('premium.purchase_success'), ok: true });
       } else if (result.error === 'cancelled') {
         setMessage({ text: t('topup.iap_cancelled'), ok: false });
       } else if (result.error === 'already-purchased') {
-        const status = await checkPremiumStatus().catch(() => ({ active: false }));
+        const status = await checkPremiumStatus().catch(() => ({ active: false }) as PremiumStatus);
         if (status.active) {
           setIsPremiumActive(true);
+          setPremiumExpiresAt(status.expiresAt ?? null);
           interstitialManager.setPremium(true);
-          onPremiumChanged?.(true);
+          onPremiumChanged?.(status);
           setMessage({ text: t('premium.purchase_success'), ok: true });
         } else {
           setMessage({ text: t('topup.restore_purchases'), ok: false });
@@ -246,9 +262,11 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted, 
     try {
       const result = await restoreIAPPurchases();
       if (result.restored) {
-        setIsPremiumActive(true);
-        interstitialManager.setPremium(true);
-        onPremiumChanged?.(true);
+        const status = await checkPremiumStatus().catch(() => ({ active: true }) as PremiumStatus);
+        setIsPremiumActive(status.active);
+        setPremiumExpiresAt(status.expiresAt ?? null);
+        interstitialManager.setPremium(status.active);
+        onPremiumChanged?.(status);
         setMessage({ text: t('topup.restore_success'), ok: true });
         onQuarksGranted?.(0);
       } else {
@@ -281,7 +299,10 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted, 
 
         {isPremiumActive && (
           <div style={styles.premiumActiveNotice}>
-            {t('premium.active')}
+            <div>{t('premium.active')}</div>
+            <div style={styles.premiumActiveUntil}>
+              {t('premium.active_until', { date: formatPremiumExpiresAt(premiumExpiresAt, i18n.language) })}
+            </div>
           </div>
         )}
 
@@ -594,6 +615,13 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#44ff88',
     fontSize: 12,
     textAlign: 'center' as const,
+    fontFamily: 'monospace',
+  },
+  premiumActiveUntil: {
+    marginTop: 4,
+    color: '#9fddb8',
+    fontSize: 10,
+    letterSpacing: '0.3px',
     fontFamily: 'monospace',
   },
   premiumSection: {

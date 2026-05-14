@@ -8,6 +8,17 @@ import crypto from 'node:crypto';
  * Issues a signed ad session token before showing a rewarded ad.
  * Token is valid for 5 minutes — must be returned to /api/ads/reward.
  */
+function createAdToken(params: { sessionId: string; playerId: string; expiresAt: number }): string {
+  const secret = process.env.CRON_SECRET || 'nebulife-ad-secret';
+  const payload = Buffer.from(JSON.stringify(params)).toString('base64url');
+  const signature = crypto
+    .createHmac('sha256', secret)
+    .update(payload)
+    .digest('base64url');
+
+  return `${payload}.${signature}`;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -23,16 +34,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const sessionId = crypto.randomUUID();
     const expiresAt = Date.now() + 5 * 60 * 1000; // 5 min
-    const secret = process.env.CRON_SECRET || 'nebulife-ad-secret';
-
-    // HMAC-signed token: sessionId:playerId:expiresAt:signature
-    const payload = `${sessionId}:${auth.playerId}:${expiresAt}`;
-    const signature = crypto
-      .createHmac('sha256', secret)
-      .update(payload)
-      .digest('hex');
-
-    const token = `${payload}:${signature}`;
+    const token = createAdToken({ sessionId, playerId: auth.playerId, expiresAt });
 
     return res.status(200).json({ adSessionToken: token });
   } catch (err) {

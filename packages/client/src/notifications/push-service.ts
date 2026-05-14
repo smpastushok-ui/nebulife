@@ -8,7 +8,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage, isSupported } from 'firebase/messaging';
 import { Capacitor } from '@capacitor/core';
-import { PushNotifications } from '@capacitor/push-notifications';
+import { FirebaseMessaging } from '@capacitor-firebase/messaging';
 
 /** VAPID public key — must match FIREBASE_SERVICE_ACCOUNT_JSON project */
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY as string | undefined;
@@ -63,32 +63,15 @@ function getFirebaseApp() {
 export async function requestPushPermissionDetailed(): Promise<PushPermissionResult> {
   if (Capacitor.isNativePlatform()) {
     try {
-      let permission = await PushNotifications.checkPermissions();
+      let permission = await FirebaseMessaging.checkPermissions();
       if (permission.receive !== 'granted') {
-        permission = await PushNotifications.requestPermissions();
+        permission = await FirebaseMessaging.requestPermissions();
       }
       if (permission.receive !== 'granted') {
         return { token: null, issue: 'permission_denied' };
       }
 
-      const token = await new Promise<string | null>((resolve) => {
-        const timeout = window.setTimeout(() => resolve(null), 10000);
-        PushNotifications.addListener('registration', (result) => {
-          window.clearTimeout(timeout);
-          resolve(result.value);
-        }).catch(() => {
-          window.clearTimeout(timeout);
-          resolve(null);
-        });
-        PushNotifications.addListener('registrationError', () => {
-          window.clearTimeout(timeout);
-          resolve(null);
-        }).catch(() => {});
-        PushNotifications.register().catch(() => {
-          window.clearTimeout(timeout);
-          resolve(null);
-        });
-      });
+      const { token } = await FirebaseMessaging.getToken();
 
       return token ? { token } : { token: null, issue: 'native_registration_failed' };
     } catch (err) {
@@ -142,18 +125,20 @@ export function startForegroundListener(): (() => void) | null {
   if (Capacitor.isNativePlatform()) {
     let removeReceived: (() => void) | null = null;
     let removeAction: (() => void) | null = null;
-    PushNotifications.addListener('pushNotificationReceived', (notification) => {
-      const weekDate = notification.data?.weekDate ?? '';
-      const action = notification.data?.action ?? 'open-notification';
-      window.dispatchEvent(new CustomEvent('nebulife:push-notification', { detail: { action, weekDate, data: notification.data } }));
+    FirebaseMessaging.addListener('notificationReceived', ({ notification }) => {
+      const data = normalizeNotificationData(notification.data);
+      const weekDate = data.weekDate ?? '';
+      const action = data.action ?? 'open-notification';
+      window.dispatchEvent(new CustomEvent('nebulife:push-notification', { detail: { action, weekDate, data } }));
       if (action === 'open-digest' || weekDate) {
         window.dispatchEvent(new CustomEvent('nebulife:push-digest', { detail: { weekDate } }));
       }
     }).then((handle) => { removeReceived = () => { void handle.remove(); }; }).catch(() => {});
-    PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-      const weekDate = action.notification.data?.weekDate ?? '';
-      const notificationAction = action.notification.data?.action ?? 'open-notification';
-      window.dispatchEvent(new CustomEvent('nebulife:open-notification', { detail: { action: notificationAction, weekDate, data: action.notification.data } }));
+    FirebaseMessaging.addListener('notificationActionPerformed', ({ notification }) => {
+      const data = normalizeNotificationData(notification.data);
+      const weekDate = data.weekDate ?? '';
+      const notificationAction = data.action ?? 'open-notification';
+      window.dispatchEvent(new CustomEvent('nebulife:open-notification', { detail: { action: notificationAction, weekDate, data } }));
       if (notificationAction === 'open-digest' || weekDate) {
         window.dispatchEvent(new CustomEvent('nebulife:open-digest', { detail: { weekDate } }));
       }
@@ -185,6 +170,16 @@ export function startForegroundListener(): (() => void) | null {
     }
   });
   return null;
+}
+
+function normalizeNotificationData(data: unknown): Record<string, string> {
+  if (!data || typeof data !== 'object') return {};
+  const normalized: Record<string, string> = {};
+  for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
+    if (typeof value === 'string') normalized[key] = value;
+    else if (value != null) normalized[key] = String(value);
+  }
+  return normalized;
 }
 
 /**

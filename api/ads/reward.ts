@@ -13,23 +13,75 @@ const REWARD_CONFIG: Record<string, { requiredAds: number }> = {
   panorama_photo: { requiredAds: 5 },
 };
 
-function verifyAdToken(token: string, playerId: string): boolean {
+interface AdTokenPayload {
+  sessionId: string;
+  playerId: string;
+  expiresAt: number;
+}
+
+function parseLegacyAdToken(token: string): AdTokenPayload | null {
+  const parts = token.split(':');
+  if (parts.length !== 4) return null;
+  const [sessionId, playerId, expiresAtStr] = parts;
+  const expiresAt = parseInt(expiresAtStr, 10);
+  if (!sessionId || !playerId || !Number.isFinite(expiresAt)) return null;
+  return { sessionId, playerId, expiresAt };
+}
+
+function parseAdToken(token: string): AdTokenPayload | null {
+  const secret = process.env.CRON_SECRET || 'nebulife-ad-secret';
+  const [payload, sig] = token.split('.');
+  if (!payload || !sig || token.split('.').length !== 2) {
+    return parseLegacyAdToken(token);
+  }
+
+  const expected = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
+  const sigBuf = Buffer.from(sig);
+  const expBuf = Buffer.from(expected);
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(new Uint8Array(sigBuf), new Uint8Array(expBuf))) {
+    return null;
+  }
+
+  try {
+    const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as Partial<AdTokenPayload>;
+    if (
+      typeof decoded.sessionId !== 'string' ||
+      typeof decoded.playerId !== 'string' ||
+      typeof decoded.expiresAt !== 'number' ||
+      !Number.isFinite(decoded.expiresAt)
+    ) {
+      return null;
+    }
+    return decoded as AdTokenPayload;
+  } catch {
+    return null;
+  }
+}
+
+function verifyLegacyAdToken(token: string): boolean {
   const secret = process.env.CRON_SECRET || 'nebulife-ad-secret';
   const parts = token.split(':');
   if (parts.length !== 4) return false;
 
   const [sessionId, pid, expiresAtStr, sig] = parts;
-  if (pid !== playerId) return false;
-
-  const expiresAt = parseInt(expiresAtStr, 10);
-  if (Date.now() > expiresAt) return false;
-
   const payload = `${sessionId}:${pid}:${expiresAtStr}`;
   const expected = crypto.createHmac('sha256', secret).update(payload).digest('hex');
   const sigBuf = Buffer.from(sig);
   const expBuf = Buffer.from(expected);
   if (sigBuf.length !== expBuf.length) return false;
   return crypto.timingSafeEqual(new Uint8Array(sigBuf), new Uint8Array(expBuf));
+}
+
+function verifyAdToken(token: string, playerId: string): AdTokenPayload | null {
+  const parsed = parseAdToken(token);
+  if (!parsed) return null;
+  if (parsed.playerId !== playerId) return null;
+  if (Date.now() > parsed.expiresAt) return null;
+
+  // Short compatibility window for old tokens already saved in localStorage.
+  if (token.includes(':') && !verifyLegacyAdToken(token)) return null;
+
+  return parsed;
 }
 
 /**
@@ -70,16 +122,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const sessionIds = new Set<string>();
     for (const token of adSessionTokens.slice(0, config.requiredAds)) {
-      if (typeof token !== 'string' || !verifyAdToken(token, auth.playerId)) {
+      const parsedToken = typeof token === 'string' ? verifyAdToken(token, auth.playerId) : null;
+      if (!parsedToken) {
         console.warn('[ads/reward] invalid token', { playerId: auth.playerId, rewardType });
         return res.status(400).json({ error: 'Invalid or expired ad session token' });
       }
-      const sid = token.split(':')[0];
-      if (sessionIds.has(sid)) {
+      if (sessionIds.has(parsedToken.sessionId)) {
         console.warn('[ads/reward] duplicate token', { playerId: auth.playerId, rewardType });
         return res.status(400).json({ error: 'Duplicate ad session token' });
       }
-      sessionIds.add(sid);
+      sessionIds.add(parsedToken.sessionId);
     }
 
     // Atomic daily limit check + increment
