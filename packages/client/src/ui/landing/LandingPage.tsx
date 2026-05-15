@@ -7,9 +7,28 @@ export function LandingPage() {
   const [isIgnited, setIsIgnited] = useState(false);
   const [igniteComplete, setIgniteComplete] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  const [showNextHint, setShowNextHint] = useState(false);
   const isScrollingRef = useRef(false);
+  const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const TOTAL_STEPS = 8;
   const currentLanguage = i18n.language.startsWith('uk') ? 'uk' : 'en';
+
+  const resetInactivityTimer = () => {
+    setShowNextHint(false);
+    if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+    if (igniteComplete && currentStep > 0 && currentStep < TOTAL_STEPS) {
+      inactivityTimerRef.current = setTimeout(() => {
+        setShowNextHint(true);
+      }, 5000);
+    }
+  };
+
+  useEffect(() => {
+    resetInactivityTimer();
+    return () => {
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+    };
+  }, [currentStep, igniteComplete]);
 
   useEffect(() => {
     // Inject global styles to override the game's default overflow:hidden
@@ -40,6 +59,7 @@ export function LandingPage() {
     if (!igniteComplete) return;
 
     const handleWheel = (e: WheelEvent) => {
+      resetInactivityTimer();
       if (isScrollingRef.current) return;
       if (e.deltaY > 50) {
         if (currentStep < TOTAL_STEPS) {
@@ -59,8 +79,10 @@ export function LandingPage() {
     let touchStartY = 0;
     const handleTouchStart = (e: TouchEvent) => {
       touchStartY = e.touches[0].clientY;
+      resetInactivityTimer();
     };
     const handleTouchMove = (e: TouchEvent) => {
+      resetInactivityTimer();
       if (isScrollingRef.current) return;
       const touchEndY = e.touches[0].clientY;
       const deltaY = touchStartY - touchEndY;
@@ -104,6 +126,51 @@ export function LandingPage() {
   // Helper for opacity based on discrete step
   const getOpacity = (step: number) => {
     return currentStep === step ? 1 : 0;
+  };
+
+  const renderNextButton = (nextStep: number, align: 'left' | 'right') => {
+    return (
+      <div style={{
+        marginTop: '25px',
+        opacity: showNextHint && currentStep === nextStep - 1 ? 1 : 0,
+        pointerEvents: showNextHint && currentStep === nextStep - 1 ? 'auto' : 'none',
+        transition: 'opacity 0.5s',
+        display: 'flex',
+        justifyContent: align === 'right' ? 'flex-end' : 'flex-start'
+      }}>
+        <button 
+          onClick={() => setCurrentStep(nextStep)}
+          style={{ 
+            padding: '10px 24px', 
+            background: 'rgba(255, 255, 255, 0.05)', 
+            border: '1px solid rgba(255, 255, 255, 0.2)', 
+            color: '#8899aa', 
+            fontSize: '12px', 
+            letterSpacing: '2px', 
+            cursor: 'pointer',
+            textTransform: 'uppercase', 
+            borderRadius: '20px', 
+            transition: 'all 0.3s ease',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            animation: 'pulseFade 2s infinite ease-in-out'
+          }}
+          onMouseOver={(e) => { 
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'; 
+            e.currentTarget.style.color = '#fff';
+            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.4)';
+          }}
+          onMouseOut={(e) => { 
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'; 
+            e.currentTarget.style.color = '#8899aa';
+            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+          }}
+        >
+          {currentLanguage === 'uk' ? 'Наступна планета' : 'Next Planet'} <span style={{ fontSize: '16px' }}>→</span>
+        </button>
+      </div>
+    );
   };
 
   return (
@@ -227,6 +294,7 @@ export function LandingPage() {
               <div style={{ color: '#888888', fontSize: '12px', letterSpacing: '2px', marginBottom: '10px', textTransform: 'uppercase' }}>01 / {t('landing.chapters.mercury.label')}</div>
               <h2 style={{ fontSize: 'clamp(20px, 4vw, 36px)', margin: '0 0 15px 0', fontWeight: 'normal', textShadow: '0 0 10px rgba(136,136,136,0.3)' }}>{t('landing.chapters.mercury.title')}</h2>
               <p style={{ color: '#8899aa', maxWidth: '400px', lineHeight: 1.6 }}>{t('landing.chapters.mercury.body')}</p>
+              {renderNextButton(2, 'left')}
             </div>
 
             {/* Step 2: Venus */}
@@ -234,6 +302,7 @@ export function LandingPage() {
               <div style={{ color: '#cc5500', fontSize: '12px', letterSpacing: '2px', marginBottom: '10px', textTransform: 'uppercase' }}>02 / {t('landing.chapters.venus.label')}</div>
               <h2 style={{ fontSize: 'clamp(20px, 4vw, 36px)', margin: '0 0 15px 0', fontWeight: 'normal', textShadow: '0 0 10px rgba(204,85,0,0.3)' }}>{t('landing.chapters.venus.title')}</h2>
               <p style={{ color: '#8899aa', maxWidth: '400px', marginLeft: 'auto', lineHeight: 1.6 }}>{t('landing.chapters.venus.body')}</p>
+              {renderNextButton(3, 'right')}
             </div>
 
             {/* Step 3: Earth */}
@@ -241,6 +310,7 @@ export function LandingPage() {
               <div style={{ color: '#4488aa', fontSize: '12px', letterSpacing: '2px', marginBottom: '10px', textTransform: 'uppercase' }}>03 / {t('landing.chapters.earth.label')}</div>
               <h2 style={{ fontSize: 'clamp(20px, 4vw, 36px)', margin: '0 0 15px 0', fontWeight: 'normal', textShadow: '0 0 10px rgba(68,136,170,0.3)' }}>{t('landing.chapters.earth.title')}</h2>
               <p style={{ color: '#8899aa', maxWidth: '400px', lineHeight: 1.6 }}>{t('landing.chapters.earth.body')}</p>
+              {renderNextButton(4, 'left')}
             </div>
 
             {/* Step 4: Mars */}
@@ -248,6 +318,7 @@ export function LandingPage() {
               <div style={{ color: '#ff8844', fontSize: '12px', letterSpacing: '2px', marginBottom: '10px', textTransform: 'uppercase' }}>04 / {t('landing.chapters.mars.label')}</div>
               <h2 style={{ fontSize: 'clamp(20px, 4vw, 36px)', margin: '0 0 15px 0', fontWeight: 'normal', textShadow: '0 0 10px rgba(255,136,68,0.3)' }}>{t('landing.chapters.mars.title')}</h2>
               <p style={{ color: '#8899aa', maxWidth: '400px', marginLeft: 'auto', lineHeight: 1.6 }}>{t('landing.chapters.mars.body')}</p>
+              {renderNextButton(5, 'right')}
             </div>
 
             {/* Step 5: Jupiter */}
@@ -255,6 +326,7 @@ export function LandingPage() {
               <div style={{ color: '#c69a68', fontSize: '12px', letterSpacing: '2px', marginBottom: '10px', textTransform: 'uppercase' }}>05 / {t('landing.chapters.jupiter.label')}</div>
               <h2 style={{ fontSize: 'clamp(20px, 4vw, 36px)', margin: '0 0 15px 0', fontWeight: 'normal', textShadow: '0 0 10px rgba(198,154,104,0.3)' }}>{t('landing.chapters.jupiter.title')}</h2>
               <p style={{ color: '#8899aa', maxWidth: '400px', lineHeight: 1.6 }}>{t('landing.chapters.jupiter.body')}</p>
+              {renderNextButton(6, 'left')}
             </div>
 
             {/* Step 6: Uranus */}
@@ -262,6 +334,7 @@ export function LandingPage() {
               <div style={{ color: '#5b9fb5', fontSize: '12px', letterSpacing: '2px', marginBottom: '10px', textTransform: 'uppercase' }}>06 / {t('landing.chapters.uranus.label')}</div>
               <h2 style={{ fontSize: 'clamp(20px, 4vw, 36px)', margin: '0 0 15px 0', fontWeight: 'normal', textShadow: '0 0 10px rgba(91,159,181,0.3)' }}>{t('landing.chapters.uranus.title')}</h2>
               <p style={{ color: '#8899aa', maxWidth: '400px', marginLeft: 'auto', lineHeight: 1.6 }}>{t('landing.chapters.uranus.body')}</p>
+              {renderNextButton(7, 'right')}
             </div>
 
             {/* Step 7: Neptune */}
@@ -269,6 +342,7 @@ export function LandingPage() {
               <div style={{ color: '#4488ff', fontSize: '12px', letterSpacing: '2px', marginBottom: '10px', textTransform: 'uppercase' }}>07 / {t('landing.chapters.neptune.label')}</div>
               <h2 style={{ fontSize: 'clamp(20px, 4vw, 36px)', margin: '0 0 15px 0', fontWeight: 'normal', textShadow: '0 0 10px rgba(68,136,255,0.3)' }}>{t('landing.chapters.neptune.title')}</h2>
               <p style={{ color: '#8899aa', maxWidth: '400px', lineHeight: 1.6 }}>{t('landing.chapters.neptune.body')}</p>
+              {renderNextButton(8, 'left')}
             </div>
 
             {/* Step 8: Full Cluster / CTA (End of journey) */}
