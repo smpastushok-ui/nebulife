@@ -990,6 +990,8 @@ export function LivingOrreryHero({ isIgnited, onIgniteComplete, targetStep }: Li
 
     // Dynamic stop calculator
     const getStop = (index: number) => {
+      const isMobile = window.innerWidth <= 768;
+      
       if (index <= 0) {
         // Base view near the sun. We use camPosProxy so the initial Ignition pull-back animation works.
         return { 
@@ -1012,10 +1014,15 @@ export function LivingOrreryHero({ isIgnited, onIgniteComplete, targetStep }: Li
         
         // Scale distance by planet radius to fit perfectly
         const dist = Math.max(3.0, p.radius * 6);
-        return { 
-          pos: planetPos.clone().add(offsetDir.multiplyScalar(dist)), 
-          look: planetPos 
-        };
+        let pos = planetPos.clone().add(offsetDir.multiplyScalar(dist));
+        let look = planetPos.clone();
+        
+        if (isMobile) {
+          // Look slightly above the planet so the planet is rendered lower on the screen (making room for text at the top)
+          look.y += p.radius * 1.5;
+        }
+        
+        return { pos, look };
       } else {
         // Final Cluster View (beyond Neptune)
         // Bring camera much closer so the inner system (Sun, Earth, Mars) 
