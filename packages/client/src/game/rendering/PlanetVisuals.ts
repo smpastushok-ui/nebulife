@@ -1,6 +1,21 @@
-import type { Planet, PlanetType } from '@nebulife/core';
-import type { Star } from '@nebulife/core';
+import type { Planet, PlanetType, Star } from '@nebulife/core';
+import { SeededRNG } from '@nebulife/core';
 import * as THREE from 'three';
+
+export function mixHex(a: number, b: number, t: number): number {
+  const f = clamp(t, 0, 1);
+  const ar = (a >> 16) & 0xff;
+  const ag = (a >> 8) & 0xff;
+  const ab = a & 0xff;
+  const br = (b >> 16) & 0xff;
+  const bg = (b >> 8) & 0xff;
+  const bb = b & 0xff;
+  return (
+    (Math.round(ar + (br - ar) * f) << 16)
+    | (Math.round(ag + (bg - ag) * f) << 8)
+    | Math.round(ab + (bb - ab) * f)
+  );
+}
 
 /**
  * Star sprite position in the 3D globe scene.
@@ -166,51 +181,117 @@ function deriveSurfaceHighColor(tempK: number): number {
 }
 
 /** Derive ocean colors from depth — vivid saturated blues */
-function deriveOceanColors(depthKm: number, tempK: number): { shallow: number; deep: number } {
+function deriveOceanColors(depthKm: number, tempK: number, seed: number, starColor: number): { shallow: number; deep: number } {
+  const rng = new SeededRNG(seed + 1928);
+  const hueShift = (rng.next() - 0.5) * 0.5; // +/- 0.25 hue shift
+  
   if (tempK > 373) {
-    // Super-hot water → murky / boiling
     return { shallow: 0x4a3a2a, deep: 0x2a1a0a };
   }
   if (tempK < 200) {
-    // Frozen — subsurface ocean is dark
     return { shallow: 0x3a4a6a, deep: 0x1a2a4a };
   }
-  // Normal liquid water — dark saturated navy (target: ~RGB(15,30,60) after shader)
+  
   const depthFactor = clamp(depthKm / 10, 0, 1);
-  const shallow = lerpColor(0x1050a0, 0x0c4590, depthFactor);  // dark blue
-  const deep = lerpColor(0x082a68, 0x051a48, depthFactor);     // very dark navy
+  
+  // Base water color
+  let shallow = lerpColor(0x1050a0, 0x0c4590, depthFactor);
+  let deep = lerpColor(0x082a68, 0x051a48, depthFactor);
+  
+  // Randomly shift the water color (from deep blue to cyan, teal, or purple)
+  // Converting to HSL, shifting, converting back is too heavy, so we'll just mix in some colors
+  const exoticOceanRoll = rng.next();
+  if (exoticOceanRoll > 0.5) {
+    if (exoticOceanRoll > 0.85) {
+      // Purple / Pinkish ocean (due to alien algae or star color)
+      shallow = mixHex(shallow, 0x8a2be2, 0.4 + rng.next() * 0.3);
+      deep = mixHex(deep, 0x4b0082, 0.4 + rng.next() * 0.3);
+    } else if (exoticOceanRoll > 0.7) {
+      // Teal / Cyan ocean
+      shallow = mixHex(shallow, 0x00ced1, 0.4 + rng.next() * 0.4);
+      deep = mixHex(deep, 0x008080, 0.4 + rng.next() * 0.4);
+    } else {
+      // Greenish ocean
+      shallow = mixHex(shallow, 0x2e8b57, 0.3 + rng.next() * 0.3);
+      deep = mixHex(deep, 0x006400, 0.3 + rng.next() * 0.3);
+    }
+  }
+  
+  // Tint ocean slightly with star color
+  shallow = mixHex(shallow, starColor, 0.1);
+  deep = mixHex(deep, starColor, 0.05);
+
   return { shallow, deep };
 }
 
 /** Derive biome colors based on temperature and life complexity */
-function deriveBiomeColors(tempK: number, lifeComplexity: string): BiomeColors {
-  if (lifeComplexity === 'intelligent' || lifeComplexity === 'multicellular') {
-    // Full biomes — natural Earth-like tones (dark greens, warm browns)
+function deriveBiomeColors(tempK: number, hasLife: boolean, lifeComplexity: string | undefined, seed: number, starColor: number): BiomeColors {
+  const rng = new SeededRNG(seed + 412);
+  
+  if (!hasLife) {
+    // Geological biomes for lifeless planets (varied sand, clay, rock, salt instead of flat gray)
+    let tropical = mixHex(0x8a5a44, 0x6b4226, rng.next()); // Clay / Mud
+    let temperate = mixHex(0x705c4a, 0x5a4a3a, rng.next()); // Dirt / Gravel
+    let boreal = mixHex(0x4a4a4a, 0x3a3a3a, rng.next()); // Dark Rock
+    let desert = mixHex(0xd2b48c, 0xe2c49c, rng.next()); // Sand / Dunes
+    let tundra = mixHex(0xa9a9a9, 0xb9b9b9, rng.next()); // Frost / Light rock
+
     return {
-      tropical: 0x2a7a30,    // dark forest green (not neon)
-      temperate: 0x3a7838,   // medium olive-forest green
-      boreal: 0x3a6830,      // dark conifer green
-      desert: 0xc8a858,      // warm sandy beige
-      tundra: 0x888078,      // cool neutral gray-brown
+      tropical: mixHex(tropical, starColor, 0.1),
+      temperate: mixHex(temperate, starColor, 0.1),
+      boreal: mixHex(boreal, starColor, 0.1),
+      desert: mixHex(desert, starColor, 0.1),
+      tundra: mixHex(tundra, starColor, 0.1),
     };
   }
-  if (lifeComplexity === 'unicellular') {
-    // Subtle green tint
-    return {
-      tropical: 0x4a7a4a,
-      temperate: 0x5a7a5a,
-      boreal: 0x5a6a4a,
-      desert: 0xaa9a6a,
-      tundra: 0x686660,      // neutral gray-brown
-    };
+
+  // Generate vibrant alien or earth-like flora colors for any life (to make it look AAA)
+  const roll = rng.next();
+  
+  let tropical = 0x2a7a30;
+  let temperate = 0x3a7838;
+  let boreal = 0x3a6830;
+  
+  if (roll > 0.8) {
+    // Red/Orange flora
+    tropical = mixHex(0x8a3324, 0x9c4221, rng.next());
+    temperate = mixHex(0x7a2d1f, 0x8a3a24, rng.next());
+    boreal = mixHex(0x5a1e12, 0x6a2417, rng.next());
+  } else if (roll > 0.6) {
+    // Purple/Blue flora
+    tropical = mixHex(0x4a2a7a, 0x3a3a8a, rng.next());
+    temperate = mixHex(0x553388, 0x444499, rng.next());
+    boreal = mixHex(0x3a1a5a, 0x2a2a6a, rng.next());
+  } else if (roll > 0.4) {
+    // Golden/Yellow flora
+    tropical = mixHex(0x8a7a20, 0x9a8a30, rng.next());
+    temperate = mixHex(0x7a6a1a, 0x8a7a20, rng.next());
+    boreal = mixHex(0x5a4a10, 0x6a5a15, rng.next());
+  } else {
+    // Standard green with some variance
+    tropical = mixHex(0x2a7a30, 0x1a6a20, rng.next());
+    temperate = mixHex(0x3a7838, 0x2a6828, rng.next());
+    boreal = mixHex(0x3a6830, 0x2a5820, rng.next());
   }
-  // microbial / moss — very subtle
+  
+  // If life is just microbial/unicellular, desaturate slightly but keep the hue
+  if (lifeComplexity === 'unicellular' || lifeComplexity === 'microbial') {
+      tropical = mixHex(tropical, 0x707070, 0.3);
+      temperate = mixHex(temperate, 0x707070, 0.3);
+      boreal = mixHex(boreal, 0x707070, 0.3);
+  }
+
+  // Mix slightly with star color for ambient integration
+  tropical = mixHex(tropical, starColor, 0.1);
+  temperate = mixHex(temperate, starColor, 0.1);
+  boreal = mixHex(boreal, starColor, 0.1);
+
   return {
-    tropical: 0x6a7a5a,
-    temperate: 0x6a7a5a,
-    boreal: 0x6a6a5a,
-    desert: 0x9a8a6a,
-    tundra: 0x686660,        // neutral gray-brown
+    tropical,
+    temperate,
+    boreal,
+    desert: mixHex(0xc8a858, starColor, 0.15 + rng.next() * 0.1),
+    tundra: mixHex(0x888078, starColor, 0.1 + rng.next() * 0.1),
   };
 }
 
@@ -342,7 +423,8 @@ export function derivePlanetVisuals(planet: Planet, star: Star): PlanetVisualCon
   const waterCoverage = hydro?.waterCoverageFraction ?? 0;
   const hasOcean = waterCoverage > 0.01 && !isGas && !isIce;
   const oceanDepth = hydro?.oceanDepthKm ?? 0;
-  const oceanColors = deriveOceanColors(oceanDepth, tempK);
+  const starColorNum = parseInt(star.colorHex.replace('#', ''), 16);
+  const oceanColors = deriveOceanColors(oceanDepth, tempK, planet.seed, starColorNum);
 
   // --- Ice ---
   const iceCapFraction = hydro?.iceCapFraction ?? (tempK < 250 ? clamp((250 - tempK) / 200, 0.1, 0.8) : 0);
@@ -351,11 +433,11 @@ export function derivePlanetVisuals(planet: Planet, star: Star): PlanetVisualCon
   const surfaceBaseColor = deriveSurfaceBaseColor(tempK);
   const surfaceHighColor = deriveSurfaceHighColor(tempK);
 
-  // --- Biomes (only for planets with life) ---
+  // --- Biomes ---
   const hasBiomes = planet.hasLife && (planet.type === 'rocky' || planet.type === 'terrestrial' || planet.type === 'dwarf');
-  const biomeColors = hasBiomes
-    ? deriveBiomeColors(tempK, planet.lifeComplexity)
-    : { tropical: surfaceBaseColor, temperate: surfaceBaseColor, boreal: surfaceBaseColor, desert: surfaceBaseColor, tundra: surfaceBaseColor };
+  
+  // We ALWAYS calculate biome colors so lifeless terran planets still get rich soil/clay/rock colors
+  const biomeColors = deriveBiomeColors(tempK, planet.hasLife, planet.lifeComplexity, planet.seed, starColorNum);
 
   // --- Land threshold ---
   const landThreshold = hasOcean ? deriveLandThreshold(waterCoverage) : -1; // -1 = no ocean, all land

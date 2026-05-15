@@ -18,6 +18,7 @@ import {
   getMoonColors,
   STAR_SPRITE_POSITION,
 } from '../../game/rendering/PlanetVisuals.js';
+import { createAaaPlanetMaterial } from '../../game/rendering/AaaPlanetVisuals.js';
 
 // GLSL shader imports (Vite ?raw)
 import planetVertSrc from '../../shaders/planet/planet.vert.glsl?raw';
@@ -660,6 +661,9 @@ function createPlanetSphere(
     generatedTexture.anisotropy = Math.max(1, Math.min(maxAnisotropy, 8));
     generatedTexture.generateMipmaps = true;
   }
+  const aaaMaterial = !generatedTexture && lod.aaaExosphere
+    ? createAaaPlanetMaterial(planet, star, visuals, lod.exosphereQuality)
+    : null;
   const material = generatedTexture
     ? new THREE.ShaderMaterial({
         vertexShader: texturedPlanetVert,
@@ -672,7 +676,7 @@ function createPlanetSphere(
           uTime: { value: 0.0 },
         },
       })
-    : new THREE.ShaderMaterial({
+    : aaaMaterial ?? new THREE.ShaderMaterial({
         vertexShader: planetVertSrc,
         fragmentShader: fragShader,
         uniforms,
@@ -686,7 +690,7 @@ function createPlanetSphere(
   mesh.scale.setScalar(planetVisualScale(planet));
   scene.add(mesh);
 
-  return { mesh, uniforms };
+  return { mesh, uniforms: material.uniforms };
 }
 
 /** Visual radius multiplier for the planet sphere + atmosphere + cloud meshes.
@@ -1749,7 +1753,8 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
         controls.update();
 
         // Update planet time uniform
-        planetUniforms.uTime.value = elapsed;
+        if (planetUniforms.uTime) planetUniforms.uTime.value = elapsed;
+        if (planetUniforms.time) planetUniforms.time.value = elapsed;
 
         // Update cloud time
         if (cloudResult) {

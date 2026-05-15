@@ -21,11 +21,13 @@ const PRESETS = [50, 100, 200, 500];
 
 // Number of ads required to earn quarks via ad reward
 const ADS_FOR_QUARKS = 3;
+const PREMIUM_LIFETIME_PRODUCT_ID = 'nebulife_pro_lifetime';
 
-function formatPremiumExpiresAt(expiresAt: string | null | undefined, locale: string): string {
-  if (!expiresAt) return '4ever';
+function formatPremiumExpiresAt(expiresAt: string | null | undefined, productId: string | null | undefined, locale: string): string | null {
+  if (productId === PREMIUM_LIFETIME_PRODUCT_ID) return '4ever';
+  if (!expiresAt) return null;
   const date = new Date(expiresAt);
-  if (!Number.isFinite(date.getTime())) return '4ever';
+  if (!Number.isFinite(date.getTime())) return null;
   return new Intl.DateTimeFormat(locale, {
     year: 'numeric',
     month: 'short',
@@ -147,6 +149,7 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted, 
   const [restoring, setRestoring] = useState(false);
   const [isPremiumActive, setIsPremiumActive] = useState(false);
   const [premiumExpiresAt, setPremiumExpiresAt] = useState<string | null>(null);
+  const [premiumProductId, setPremiumProductId] = useState<string | null>(null);
   const [storeConfigured, setStoreConfigured] = useState(true);
   const [premiumStoreConfigured, setPremiumStoreConfigured] = useState(true);
 
@@ -171,6 +174,7 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted, 
     checkPremiumStatus().then(status => {
       setIsPremiumActive(status.active);
       setPremiumExpiresAt(status.expiresAt ?? null);
+      setPremiumProductId(status.productId ?? null);
       interstitialManager.setPremium(status.active);
       onPremiumChanged?.(status);
     });
@@ -205,6 +209,7 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted, 
       if (result.success) {
         setIsPremiumActive(true);
         setPremiumExpiresAt(result.status?.expiresAt ?? null);
+        setPremiumProductId(result.status?.productId ?? null);
         interstitialManager.setPremium(true);
         onPremiumChanged?.(result.status ?? { active: true });
         setMessage({ text: t('premium.purchase_success'), ok: true });
@@ -215,6 +220,7 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted, 
         if (status.active) {
           setIsPremiumActive(true);
           setPremiumExpiresAt(status.expiresAt ?? null);
+          setPremiumProductId(status.productId ?? null);
           interstitialManager.setPremium(true);
           onPremiumChanged?.(status);
           setMessage({ text: t('premium.purchase_success'), ok: true });
@@ -265,6 +271,7 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted, 
         const status = await checkPremiumStatus().catch(() => ({ active: true }) as PremiumStatus);
         setIsPremiumActive(status.active);
         setPremiumExpiresAt(status.expiresAt ?? null);
+        setPremiumProductId(status.productId ?? null);
         interstitialManager.setPremium(status.active);
         onPremiumChanged?.(status);
         setMessage({ text: t('topup.restore_success'), ok: true });
@@ -300,9 +307,11 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted, 
         {isPremiumActive && (
           <div style={styles.premiumActiveNotice}>
             <div>{t('premium.active')}</div>
-            <div style={styles.premiumActiveUntil}>
-              {t('premium.active_until', { date: formatPremiumExpiresAt(premiumExpiresAt, i18n.language) })}
-            </div>
+            {formatPremiumExpiresAt(premiumExpiresAt, premiumProductId, i18n.language) && (
+              <div style={styles.premiumActiveUntil}>
+                {t('premium.active_until', { date: formatPremiumExpiresAt(premiumExpiresAt, premiumProductId, i18n.language) })}
+              </div>
+            )}
           </div>
         )}
 

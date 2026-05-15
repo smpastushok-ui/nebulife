@@ -22,6 +22,7 @@ import { auth } from './firebase-config.js';
 // ---------------------------------------------------------------------------
 
 const GOOGLE_WEB_CLIENT_ID = '702900049376-e7k1574lfpjri29a9j3kde7pmio68h0a.apps.googleusercontent.com';
+const GOOGLE_IOS_CLIENT_ID = '702900049376-hgk67iamhrretsuauhnjb0g356k626ja.apps.googleusercontent.com';
 
 // Native iOS Sign in with Apple issues identity tokens for the app bundle id.
 // Web Apple OAuth uses the Services ID + redirect URI.
@@ -102,23 +103,49 @@ async function exchangeNativeAppleToken(identityToken: string): Promise<string> 
 // Lazy-initialized native Google Auth (dynamic import to avoid Vercel build failure)
 let _googleAuthInitialized = false;
 
+function isIosNativeShell(): boolean {
+  if (Capacitor.getPlatform() === 'ios') return true;
+  if (!Capacitor.isNativePlatform()) return false;
+  return /iPad|iPhone|iPod/i.test(navigator.userAgent);
+}
+
 /**
  * True if Google Sign-in is usable on this platform.
  * - Web: always available (Firebase popup).
- * - iOS native: show it even if the plugin is missing. iPad apps running on
- *   macOS can report native iOS while the GoogleAuth bridge is unavailable;
- *   in that case signInWithGoogle falls back to Firebase popup.
+ * - iOS native: disabled while the app uses Capacitor SPM. The current
+ *   GoogleAuth plugin only ships CocoaPods native files, so it is not linked
+ *   into the iOS binary and would fail with "plugin is not implemented".
  * - Android native: requires `@codetrix-studio/capacitor-google-auth` to be
  *   registered in MainActivity and configured in Firebase.
  */
 export function isGoogleSignInAvailable(): boolean {
   if (!Capacitor.isNativePlatform()) return true;
-  if (Capacitor.getPlatform() === 'ios') return true;
+  if (isIosNativeShell()) return false;
   return Capacitor.isPluginAvailable('GoogleAuth');
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type GoogleAuthAny = any;
+
+function shouldUseNativeGoogleAuth(): boolean {
+  if (!Capacitor.isNativePlatform()) return false;
+  return !isIosNativeShell() && Capacitor.isPluginAvailable('GoogleAuth');
+}
+
+function getNativeGoogleIdToken(googleUser: unknown): string {
+  const authData = (googleUser as { authentication?: { idToken?: unknown; accessToken?: unknown } } | null)?.authentication;
+  const idToken = authData?.idToken;
+  console.warn('[auth] Native Google response:', {
+    hasAuthentication: !!authData,
+    idTokenType: typeof idToken,
+    idTokenParts: typeof idToken === 'string' ? idToken.split('.').length : 0,
+    hasAccessToken: typeof authData?.accessToken === 'string' && authData.accessToken.length > 0,
+  });
+  if (typeof idToken !== 'string' || idToken.split('.').length !== 3) {
+    throw new Error('Google Sign-In returned an invalid identity token. Check iOS Google client ID and URL scheme.');
+  }
+  return idToken;
+}
 
 // CRITICAL: must wrap in an object. Returning the Capacitor plugin proxy
 // directly from an async function makes the runtime await `.then()` on it
@@ -133,8 +160,9 @@ async function getNativeGoogleAuth(): Promise<{ GoogleAuth: GoogleAuthAny }> {
   const mod = await import('@codetrix-studio/capacitor-google-auth');
   const GoogleAuth: GoogleAuthAny = mod.GoogleAuth;
   if (!_googleAuthInitialized) {
-    GoogleAuth.initialize({
-      clientId: GOOGLE_WEB_CLIENT_ID,
+    await GoogleAuth.initialize({
+      clientId: Capacitor.getPlatform() === 'ios' ? GOOGLE_IOS_CLIENT_ID : GOOGLE_WEB_CLIENT_ID,
+      serverClientId: GOOGLE_WEB_CLIENT_ID,
       scopes: ['profile', 'email'],
       grantOfflineAccess: true,
     });
@@ -171,7 +199,13 @@ export async function signInAsGuest(): Promise<User> {
  *  login would hang forever on a spinner). */
 export async function signInWithGoogle(): Promise<User | null> {
   const a = requireAuth();
-  if (Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('GoogleAuth')) {
+  console.warn('[auth] Google sign-in route:', {
+    platform: Capacitor.getPlatform(),
+    native: Capacitor.isNativePlatform(),
+    pluginAvailable: Capacitor.isPluginAvailable('GoogleAuth'),
+    useNative: shouldUseNativeGoogleAuth(),
+  });
+  if (shouldUseNativeGoogleAuth()) {
     const { GoogleAuth } = await getNativeGoogleAuth();
     try {
       await Promise.race([
@@ -180,7 +214,8 @@ export async function signInWithGoogle(): Promise<User | null> {
       ]);
     } catch { /* no session yet — fine */ }
     const googleUser = await GoogleAuth.signIn();
-    const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
+    const idToken = getNativeGoogleIdToken(googleUser);
+    const credential = GoogleAuthProvider.credential(idToken);
     const result = await signInWithCredential(a, credential);
     return result.user;
   }
@@ -207,10 +242,11 @@ export async function linkGoogleToAnonymous(): Promise<User | null> {
   const a = requireAuth();
   const user = a.currentUser;
   if (!user) throw new Error('No current user');
-  if (Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('GoogleAuth')) {
+  if (shouldUseNativeGoogleAuth()) {
     const { GoogleAuth } = await getNativeGoogleAuth();
     const googleUser = await GoogleAuth.signIn();
-    const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
+    const idToken = getNativeGoogleIdToken(googleUser);
+    const credential = GoogleAuthProvider.credential(idToken);
     const result = await linkWithCredential(user, credential);
     return result.user;
   }

@@ -100,8 +100,8 @@ export function getSystemPlanetTextureId(planet: Planet): SystemPlanetTextureId 
     return planet.hasLife ? 'terran_continental' : 'terran_archipelago';
   }
 
-  if (tempK < 170) return 'ammonia_cold';
-  if (tempK < 235 || ice > 0.18) return planet.type === 'dwarf' ? 'dwarf_icy_rocky' : 'frozen_ice';
+  if (tempK < 170 && ice > 0.1) return 'ammonia_cold';
+  if (ice > 0.18 || (tempK < 235 && ice > 0.05)) return planet.type === 'dwarf' ? 'dwarf_icy_rocky' : 'frozen_ice';
   if (planet.type === 'dwarf') return 'dwarf_icy_rocky';
   if (c > 0.035) return 'carbon_world';
   if (fe > 0.075) return pickBySeed(planet.seed, ['rocky_red_iron', 'iron_rich'] as const);

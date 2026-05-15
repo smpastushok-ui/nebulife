@@ -4110,6 +4110,7 @@ function AppInner() {
   const [latestDigestWeekDate, setLatestDigestWeekDate] = useState<string | null>(null);
   const [isPremiumActive, setIsPremiumActive] = useState(() => localStorage.getItem('nebulife_premium') === '1');
   const [premiumExpiresAt, setPremiumExpiresAt] = useState<string | null>(null);
+  const [premiumProductId, setPremiumProductId] = useState<string | null>(null);
   const [astraQuizAnswers, setAstraQuizAnswers] = useState<Record<string, number>>(() => {
     try {
       const saved = localStorage.getItem('nebulife_astra_quiz_answers');
@@ -5054,6 +5055,7 @@ function AppInner() {
               .then((status) => {
                 setIsPremiumActive(status.active);
                 setPremiumExpiresAt(status.expiresAt ?? null);
+                setPremiumProductId(status.productId ?? null);
                 interstitialManager.setPremium(status.active);
               })
               .catch(() => { /* non-critical */ });
@@ -5199,6 +5201,7 @@ function AppInner() {
               setIsPremiumActive(player.premium_active === true
                 && (!player.premium_expires_at || new Date(player.premium_expires_at).getTime() > Date.now()));
               setPremiumExpiresAt(player.premium_expires_at ?? null);
+              setPremiumProductId(player.premium_product_id ?? null);
               // Starter toast deferred to handleOnboardingComplete so it
               // renders after the cinematic intro overlay closes.
               claimDailyLoginBonusOnce().catch(() => { /* soft-fail */ });
@@ -8319,8 +8322,9 @@ function AppInner() {
       setToastMessage('Test push sent');
       setTimeout(() => setToastMessage(null), 2500);
     } catch (err) {
-      console.warn('[push] test push failed:', err);
-      setToastMessage(err instanceof Error ? `Test push failed: ${err.message}` : 'Test push failed');
+      const detail = err instanceof Error ? err.message : String(err);
+      console.warn('[push] test push failed:', detail, err);
+      setToastMessage(`Test push failed: ${detail}`);
       setTimeout(() => setToastMessage(null), 3500);
     }
   }, []);
@@ -10483,6 +10487,7 @@ function AppInner() {
           isNative={Capacitor.isNativePlatform()}
           isPremium={isPremiumActive}
           premiumExpiresAt={premiumExpiresAt}
+          premiumProductId={premiumProductId}
           avatarUrl={playerAvatarUrl}
           avatarUploading={avatarUploading}
           onChangeAvatar={handleChangeAvatar}
@@ -10557,6 +10562,7 @@ function AppInner() {
           onPremiumChanged={(status) => {
             setIsPremiumActive(status.active);
             setPremiumExpiresAt(status.expiresAt ?? null);
+            setPremiumProductId(status.productId ?? null);
           }}
         />
       )}

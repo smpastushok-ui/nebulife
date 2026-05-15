@@ -224,6 +224,10 @@ export interface ExosphereLOD {
    * storm/ring/terrain detail branches stay effectively disabled there.
    */
   exosphereQuality: number;
+  /** Enables the heavier AAA non-Earth exosphere shader path. */
+  aaaExosphere: boolean;
+  /** System-view star shader richness multiplier. */
+  aaaStarQuality: number;
 }
 
 export function getExosphereLOD(): ExosphereLOD {
@@ -254,6 +258,8 @@ export function getExosphereLOD(): ExosphereLOD {
         atmosphereLayerStrength: 0.08,
         surfaceDetailBoost: 0.92,
         exosphereQuality: 0.0,
+        aaaExosphere: false,
+        aaaStarQuality: 0.0,
       };
     case 'mid':
       return {
@@ -277,6 +283,8 @@ export function getExosphereLOD(): ExosphereLOD {
         atmosphereLayerStrength: 0.12,
         surfaceDetailBoost: 1.0,
         exosphereQuality: 0.15,
+        aaaExosphere: false,
+        aaaStarQuality: 0.0,
       };
     case 'high':
       // Flagship mobiles (S22 Ultra, iPhone 14 Pro) still run this scene
@@ -302,6 +310,8 @@ export function getExosphereLOD(): ExosphereLOD {
         atmosphereLayerStrength: 0.22,
         surfaceDetailBoost: 1.12,
         exosphereQuality: 0.85,
+        aaaExosphere: true,
+        aaaStarQuality: 0.75,
       };
     case 'ultra':
     default:
@@ -325,6 +335,8 @@ export function getExosphereLOD(): ExosphereLOD {
         atmosphereLayerStrength: 0.3,
         surfaceDetailBoost: 1.18,
         exosphereQuality: 1.15,
+        aaaExosphere: true,
+        aaaStarQuality: 1.0,
       };
   }
 }

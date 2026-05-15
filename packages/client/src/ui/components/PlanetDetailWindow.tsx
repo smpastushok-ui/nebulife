@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { StarSystem, Planet, Star, Moon, ResourceGroup } from '@nebulife/core';
 import { SeededRNG, ELEMENTS, RESOURCE_GROUPS, GROUP_COLORS, getGroupElements, formatMassKg } from '@nebulife/core';
+import { getExosphereLOD } from '../../utils/device-tier.js';
 
 /** i18n key for each resource group label */
 const GROUP_T_KEY: Record<ResourceGroup, string> = {
@@ -19,6 +20,7 @@ import {
   getMoonColors,
   STAR_SPRITE_POSITION,
 } from '../../game/rendering/PlanetVisuals.js';
+import { createAaaPlanetMaterial } from '../../game/rendering/AaaPlanetVisuals.js';
 
 // GLSL shader imports (Vite ?raw)
 import planetVertSrc from '../../shaders/planet/planet.vert.glsl?raw';
@@ -282,7 +284,14 @@ function PlanetCanvas({ planet, star, displayRadius, canvasW, canvasH }: PlanetC
     const fragShader = isGas ? gasGiantFrag : rockySurfaceFrag;
 
     const planetGeo = new THREE.SphereGeometry(1, 128, 128);
-    const planetMat = new THREE.ShaderMaterial({
+    const detailLod = getExosphereLOD();
+    const planetMat = detailLod.aaaExosphere
+      ? createAaaPlanetMaterial(planet, star as Star, visuals, detailLod.exosphereQuality) ?? new THREE.ShaderMaterial({
+        vertexShader: planetVertSrc,
+        fragmentShader: fragShader,
+        uniforms: planetUniforms,
+      })
+      : new THREE.ShaderMaterial({
       vertexShader: planetVertSrc,
       fragmentShader: fragShader,
       uniforms: planetUniforms,
@@ -436,8 +445,10 @@ function PlanetCanvas({ planet, star, displayRadius, canvasW, canvasH }: PlanetC
 
       controls.update();
 
-      // Update planet time uniform
-      planetUniforms.uTime.value = elapsed;
+      // Update planet time uniform (works for both legacy and AAA shader paths).
+      const activePlanetUniforms = (planetMat as THREE.ShaderMaterial).uniforms;
+      if (activePlanetUniforms.uTime) activePlanetUniforms.uTime.value = elapsed;
+      if (activePlanetUniforms.time) activePlanetUniforms.time.value = elapsed;
 
       // Update cloud time
       if (cloudTimeUniform) {

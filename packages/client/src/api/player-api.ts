@@ -161,8 +161,8 @@ export async function updateFcmToken(playerId: string, token: string | null): Pr
 export async function sendTestPush(): Promise<void> {
   const res = await authFetch(`${API_BASE}/player/test-push`, { method: 'POST' });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(err.error ?? `Test push failed: ${res.status}`);
+    const err = await res.json().catch(() => ({ message: 'Unknown error' }));
+    throw new Error(err.message ?? err.error ?? `Test push failed: ${res.status}`);
   }
 }
 

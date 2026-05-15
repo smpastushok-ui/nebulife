@@ -3,6 +3,35 @@ import { authenticate } from '../../packages/server/src/auth-middleware.js';
 import { getPlayer, updateFcmToken } from '../../packages/server/src/db.js';
 import { sendPush } from '../../packages/server/src/push-client.js';
 
+function getPushErrorResponse(err: unknown): { status: number; error: string; message: string } {
+  const detail = err instanceof Error ? err.message : String(err);
+  if (
+    detail.includes('THIRD_PARTY_AUTH_ERROR')
+    || detail.includes('ApnsError')
+    || detail.includes('APNS')
+  ) {
+    return {
+      status: 502,
+      error: 'apns_auth_error',
+      message: 'iOS push is registered, but Firebase APNs authentication failed. Re-upload the APNs key in Firebase and try again in a few minutes.',
+    };
+  }
+
+  if (detail.includes('FIREBASE_SERVICE_ACCOUNT_JSON')) {
+    return {
+      status: 500,
+      error: 'firebase_server_config_missing',
+      message: 'Firebase server credentials are not configured.',
+    };
+  }
+
+  return {
+    status: 500,
+    error: 'push_send_failed',
+    message: 'Push could not be sent. Check server logs for details.',
+  };
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -43,6 +72,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ sent: true });
   } catch (err) {
     console.error('[player/test-push] failed:', err);
-    return res.status(500).json({ error: err instanceof Error ? err.message : 'Internal error' });
+    const response = getPushErrorResponse(err);
+    return res.status(response.status).json(response);
   }
 }

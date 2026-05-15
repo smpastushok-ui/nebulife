@@ -20,6 +20,8 @@ interface PlayerPageProps {
   isPremium?: boolean;
   /** ISO timestamp for subscription expiry. Null means lifetime access. */
   premiumExpiresAt?: string | null;
+  /** Store product id for the active Premium purchase. Lifetime uses 4ever. */
+  premiumProductId?: string | null;
   onClose: () => void;
   onLogout: () => void;
   onStartOver: () => void;
@@ -105,10 +107,13 @@ function QuarkIcon() {
   );
 }
 
-function formatPremiumExpiresAt(expiresAt: string | null | undefined, locale: string): string {
-  if (!expiresAt) return '4ever';
+const PREMIUM_LIFETIME_PRODUCT_ID = 'nebulife_pro_lifetime';
+
+function formatPremiumExpiresAt(expiresAt: string | null | undefined, productId: string | null | undefined, locale: string): string | null {
+  if (productId === PREMIUM_LIFETIME_PRODUCT_ID) return '4ever';
+  if (!expiresAt) return null;
   const date = new Date(expiresAt);
-  if (!Number.isFinite(date.getTime())) return '4ever';
+  if (!Number.isFinite(date.getTime())) return null;
   return new Intl.DateTimeFormat(locale, {
     year: 'numeric',
     month: 'short',
@@ -125,6 +130,7 @@ export function PlayerPage({
   isNative,
   isPremium = false,
   premiumExpiresAt = null,
+  premiumProductId = null,
   onClose,
   onLogout,
   onStartOver,
@@ -403,7 +409,10 @@ export function PlayerPage({
               letterSpacing: 0.7,
               textTransform: 'uppercase',
             }}>
-              {t('premium.active_until', { date: formatPremiumExpiresAt(premiumExpiresAt, i18n.language) })}
+              {(() => {
+                const formatted = formatPremiumExpiresAt(premiumExpiresAt, premiumProductId, i18n.language);
+                return formatted ? t('premium.active_until', { date: formatted }) : t('premium.active');
+              })()}
             </div>
           )}
         </div>

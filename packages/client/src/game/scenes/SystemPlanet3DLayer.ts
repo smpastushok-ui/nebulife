@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import type { Planet, Star } from '@nebulife/core';
+import { coronaFragmentShader, coronaVertexShader, sunFragmentShader, sunVertexShader } from '../shaders/SunShaders.js';
+import { getDeviceTier } from '../../utils/device-tier.js';
 
 export interface SystemPlanet3DNode {
   planet: Planet;
@@ -90,6 +92,35 @@ function starVisualRadius(star: SystemStar3DNode): number {
   return Math.max(10, star.radius * classScale * luminosityScale);
 }
 
+function getAaaStarQuality(): number {
+  return getDeviceTier() === 'ultra' ? 1.0 : 0.75;
+}
+
+function starShaderPalette(star: SystemStar3DNode): {
+  dark: THREE.Color;
+  base: THREE.Color;
+  bright: THREE.Color;
+  core: THREE.Color;
+} {
+  const color = starRenderColor(star);
+  const spectralRamps: Record<string, { dark: number; base: number; bright: number; core: number }> = {
+    O: { dark: 0x081339, base: 0x3d73ff, bright: 0xaed0ff, core: 0xffffff },
+    B: { dark: 0x091645, base: 0x4e83ff, bright: 0xb8d4ff, core: 0xffffff },
+    A: { dark: 0x111a34, base: 0x9cbcff, bright: 0xe2ecff, core: 0xffffff },
+    F: { dark: 0x2a210e, base: 0xffcc73, bright: 0xfff0bb, core: 0xffffff },
+    G: { dark: 0x300900, base: 0xd96a10, bright: 0xffc24a, core: 0xfff6d8 },
+    K: { dark: 0x2a0700, base: 0xbd4415, bright: 0xff9b40, core: 0xffe1b0 },
+    M: { dark: 0x1b0300, base: 0x8f1c12, bright: 0xff6038, core: 0xffc19a },
+  };
+  const ramp = spectralRamps[star.spectralClass] ?? spectralRamps.G;
+  return {
+    dark: new THREE.Color(ramp.dark).lerp(color, 0.16),
+    base: new THREE.Color(ramp.base).lerp(color, 0.25),
+    bright: new THREE.Color(ramp.bright).lerp(color, 0.25),
+    core: new THREE.Color(ramp.core).lerp(color, 0.12),
+  };
+}
+
 const PLANET_VERT = `
   varying vec2 vUv;
   varying vec3 vWorldNormal;
@@ -151,6 +182,7 @@ export class SystemPlanet3DLayer {
   private starLight = new THREE.PointLight(0xfff1d2, 52000, 4200, 0.92);
   private fillLight = new THREE.DirectionalLight(0x5b739d, 0.16);
   private starSphere: THREE.Mesh | null = null;
+  private starCorona: THREE.Mesh | null = null;
   private starSprite: THREE.Sprite | null = null;
   private starFlare: THREE.Sprite | null = null;
   private starTexture: THREE.CanvasTexture | null = null;
@@ -165,6 +197,7 @@ export class SystemPlanet3DLayer {
   private width = 1;
   private height = 1;
   private destroyed = false;
+  private timeSec = 0;
 
   constructor(private host: HTMLElement) {
     for (const layer of SystemPlanet3DLayer.activeLayers) {
@@ -224,6 +257,7 @@ export class SystemPlanet3DLayer {
 
   sync(nodes: SystemPlanet3DNode[], star: SystemStar3DNode, deltaMs: number): void {
     if (this.destroyed) return;
+    this.timeSec += deltaMs / 1000;
     this.resize();
     this.syncStar(star);
     const live = new Set<string>();
@@ -299,14 +333,12 @@ export class SystemPlanet3DLayer {
     this.transitionAlpha = t;
     this.transitionScale = 0.72 + t * 0.28;
     if (this.starSphere) {
-      const material = this.starSphere.material as THREE.MeshStandardMaterial;
-      material.opacity = t;
-      material.transparent = t < 1;
+      const material = this.starSphere.material as THREE.ShaderMaterial;
+      material.uniforms.alpha.value = t;
     }
-    for (const sprite of [this.starSprite, this.starFlare]) {
-      if (!sprite) continue;
-      const material = sprite.material as THREE.SpriteMaterial;
-      material.opacity = (sprite === this.starSprite ? 0.88 : 0.22) * t;
+    if (this.starCorona) {
+      const material = this.starCorona.material as THREE.ShaderMaterial;
+      material.uniforms.alpha.value = t;
     }
   }
 
@@ -337,6 +369,14 @@ export class SystemPlanet3DLayer {
       this.starSphere.geometry.dispose();
       this.starSphere = null;
     }
+    if (this.starCorona) {
+      this.scene.remove(this.starCorona);
+      const material = this.starCorona.material;
+      if (Array.isArray(material)) material.forEach((m) => m.dispose());
+      else material.dispose();
+      this.starCorona.geometry.dispose();
+      this.starCorona = null;
+    }
     if (this.starSprite) {
       this.scene.remove(this.starSprite);
       const material = this.starSprite.material;
@@ -363,62 +403,70 @@ export class SystemPlanet3DLayer {
 
   private syncStar(star: SystemStar3DNode): void {
     const color = starRenderColor(star);
+    const palette = starShaderPalette(star);
+    const quality = getAaaStarQuality();
+    const intensity = Math.max(0.65, Math.min(2.2, Math.pow(Math.max(0.001, star.luminositySolar), 0.16))) * (0.9 + quality * 0.1);
     if (!this.starSphere) {
       const geometry = new THREE.SphereGeometry(1, 64, 32);
-      const material = new THREE.MeshStandardMaterial({
-        color,
-        emissive: color,
-        emissiveIntensity: 2.6,
-        roughness: 0.65,
-        metalness: 0,
+      const material = new THREE.ShaderMaterial({
+        vertexShader: sunVertexShader,
+        fragmentShader: sunFragmentShader,
+        uniforms: {
+          time: { value: 0 },
+          intensity: { value: intensity },
+          alpha: { value: this.transitionAlpha },
+          colorDark: { value: palette.dark.clone() },
+          colorBase: { value: palette.base.clone() },
+          colorBright: { value: palette.bright.clone() },
+          colorCore: { value: palette.core.clone() },
+        },
+        transparent: true,
+        depthWrite: false,
       });
       this.starSphere = new THREE.Mesh(geometry, material);
       this.starSphere.frustumCulled = false;
       this.starSphere.renderOrder = 100001;
       this.scene.add(this.starSphere);
     }
-    if (!this.starSprite) {
-      this.starTexture = this.createStarTexture(star.colorHex);
-      const material = new THREE.SpriteMaterial({
-        map: this.starTexture,
-        color,
+    if (!this.starCorona) {
+      const geometry = new THREE.SphereGeometry(1, 64, 32);
+      const material = new THREE.ShaderMaterial({
+        vertexShader: coronaVertexShader,
+        fragmentShader: coronaFragmentShader,
+        uniforms: {
+          time: { value: 0 },
+          alpha: { value: this.transitionAlpha },
+          colorBright: { value: palette.bright.clone() },
+        },
         transparent: true,
-        opacity: 0.88,
         blending: THREE.AdditiveBlending,
-        depthTest: false,
+        side: THREE.BackSide,
         depthWrite: false,
       });
-      this.starSprite = new THREE.Sprite(material);
-      this.starSprite.renderOrder = 100000;
-      this.scene.add(this.starSprite);
-    }
-    if (!this.starFlare) {
-      const material = new THREE.SpriteMaterial({
-        map: this.starTexture ?? this.createStarTexture(star.colorHex),
-        color,
-        transparent: true,
-        opacity: 0.22,
-        blending: THREE.AdditiveBlending,
-        depthTest: false,
-        depthWrite: false,
-      });
-      this.starFlare = new THREE.Sprite(material);
-      this.starFlare.renderOrder = 100000;
-      this.scene.add(this.starFlare);
+      this.starCorona = new THREE.Mesh(geometry, material);
+      this.starCorona.frustumCulled = false;
+      this.starCorona.renderOrder = 100000;
+      this.scene.add(this.starCorona);
     }
     const visualRadius = starVisualRadius(star);
     this.starSphere.position.set(star.x, star.y, 520);
     this.starSphere.scale.setScalar(visualRadius * this.transitionScale);
-    const sphereMaterial = this.starSphere.material as THREE.MeshStandardMaterial;
-    sphereMaterial.color.copy(color);
-    sphereMaterial.emissive.copy(color);
+    const sphereMaterial = this.starSphere.material as THREE.ShaderMaterial;
+    sphereMaterial.uniforms.time.value = this.timeSec;
+    sphereMaterial.uniforms.intensity.value = intensity;
+    sphereMaterial.uniforms.alpha.value = this.transitionAlpha;
+    sphereMaterial.uniforms.colorDark.value.copy(palette.dark);
+    sphereMaterial.uniforms.colorBase.value.copy(palette.base);
+    sphereMaterial.uniforms.colorBright.value.copy(palette.bright);
+    sphereMaterial.uniforms.colorCore.value.copy(palette.core);
 
-    this.starSprite.position.set(star.x, star.y, 510);
-    this.starSprite.scale.set(visualRadius * 2.1 * this.transitionScale, visualRadius * 2.1 * this.transitionScale, 1);
-    if (this.starFlare) {
-      this.starFlare.position.set(star.x, star.y, 505);
-      this.starFlare.scale.set(visualRadius * 3.2 * this.transitionScale, visualRadius * 0.2 * this.transitionScale, 1);
-    }
+    this.starCorona.position.set(star.x, star.y, 520);
+    this.starCorona.scale.setScalar(visualRadius * (1.32 + quality * 0.13) * this.transitionScale * (1 + Math.sin(this.timeSec * 2.0) * 0.03));
+    const coronaMaterial = this.starCorona.material as THREE.ShaderMaterial;
+    coronaMaterial.uniforms.time.value = this.timeSec;
+    coronaMaterial.uniforms.alpha.value = this.transitionAlpha * (0.75 + quality * 0.25);
+    coronaMaterial.uniforms.colorBright.value.copy(palette.bright);
+
     this.starLight.color.copy(color);
     this.starLight.intensity = 28000 + Math.min(42000, Math.sqrt(Math.max(0.001, star.luminositySolar)) * 9000);
     this.starLight.position.set(star.x, star.y, 520);

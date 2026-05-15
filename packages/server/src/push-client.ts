@@ -147,6 +147,8 @@ export async function sendPush(payload: PushPayload): Promise<boolean> {
         priority: 'HIGH',
         notification: {
           channel_id: 'nebulife_default',
+          icon: 'ic_stat_nebulife',
+          color: '#4488AA',
           tag: payload.tag ?? payload.data?.action ?? 'nebulife',
           sound: 'default',
           default_sound: true,
