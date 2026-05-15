@@ -1,145 +1,102 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { trackEvent } from '../../analytics/firebase-analytics.js';
+import { LivingOrreryHero } from './LivingOrreryHero.js';
 import './landing.css';
 
-const TESTER_GROUP_URL = 'https://t.me/+IT3QjV5a-tQ0ZDZi';
-const TESTER_LEAD_EMAIL_KEY = 'nebulife_tester_lead_email';
-type ProofTone = 'planet' | 'galaxy' | 'terminal' | 'surface' | 'academy';
-type ShowcaseTone = 'planet' | 'photo' | 'ships';
+type ChapterTone = 'crisis' | 'worlds' | 'discoveries' | 'colony' | 'academy' | 'cluster';
+type PillarTone = 'discovery' | 'colony' | 'academy' | 'premium';
 
-const LANDING_IMAGES = {
-  hero: '/landing/landing-hero.jpg',
-  planets: '/landing/landing-planets.jpg',
-  expedition: '/landing/landing-expedition.jpg',
-  arena: '/landing/landing-arena.jpg',
-};
+const APP_STORE_URL = 'https://apps.apple.com/app/nebulife';
+const GOOGLE_PLAY_URL = 'https://play.google.com/store/apps/details?id=com.nebulife.app';
 
-const DUST_POINTS = Array.from({ length: 18 }, (_, index) => index);
+const CHAPTER_TONES: ChapterTone[] = ['crisis', 'worlds', 'discoveries', 'colony', 'academy', 'cluster'];
+const PILLAR_TONES: PillarTone[] = ['discovery', 'colony', 'academy', 'premium'];
 
-function isValidEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+function usePrefersReducedMotion(): boolean {
+  const [reduceMotion, setReduceMotion] = React.useState(false);
+
+  React.useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setReduceMotion(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+
+  return reduceMotion;
 }
 
-function CosmicDust() {
+function getGameHref(): string {
+  return '/play';
+}
+
+function StoreBadge({ store, label }: { store: 'apple' | 'google'; label: string }) {
   return (
-    <div className="landing-dust" aria-hidden="true">
-      {DUST_POINTS.map((index) => <span key={index} />)}
+    <a
+      className={`landing-store-badge landing-store-${store}`}
+      href={store === 'apple' ? APP_STORE_URL : GOOGLE_PLAY_URL}
+      target="_blank"
+      rel="noreferrer"
+      onClick={() => {
+        void trackEvent('landing_store_click', { store });
+      }}
+    >
+      <span>{store === 'apple' ? 'APP STORE' : 'GOOGLE PLAY'}</span>
+      <strong>{label}</strong>
+    </a>
+  );
+}
+
+function ChapterGlyph({ tone }: { tone: ChapterTone }) {
+  return (
+    <div className={`landing-chapter-glyph landing-chapter-glyph-${tone}`} aria-hidden="true">
+      <span />
+      <span />
+      <span />
     </div>
   );
 }
 
-function ProofGlyph({ tone }: { tone: ProofTone }) {
-  if (tone === 'planet') {
-    return (
-      <svg viewBox="0 0 72 72" aria-hidden="true">
-        <circle cx="36" cy="36" r="16" />
-        <path d="M18 38c9 7 27 8 39 1" />
-        <path d="M22 28c10-5 23-6 34 0" />
-        <path d="M14 36c0-15 10-27 22-27s22 12 22 27-10 27-22 27-22-12-22-27Z" className="soft" />
-      </svg>
-    );
-  }
-  if (tone === 'galaxy') {
-    return (
-      <svg viewBox="0 0 72 72" aria-hidden="true">
-        <circle cx="36" cy="36" r="3" />
-        <path d="M36 20c12 0 20 6 20 13 0 9-12 13-24 11-10-2-16-7-16-13 0-8 9-11 20-11Z" />
-        <path d="M18 47c10-9 31-14 39-7" />
-        <path d="M24 25c8 9 28 14 35 5" className="soft" />
-      </svg>
-    );
-  }
-  if (tone === 'terminal') {
-    return (
-      <svg viewBox="0 0 72 72" aria-hidden="true">
-        <rect x="14" y="16" width="44" height="38" rx="3" />
-        <path d="M21 27h10M21 36h30M21 45h22" />
-        <path d="M46 27l5 4-5 4" className="soft" />
-      </svg>
-    );
-  }
-  if (tone === 'surface') {
-    return (
-      <svg viewBox="0 0 72 72" aria-hidden="true">
-        <path d="M36 12l22 12-22 12-22-12 22-12Z" />
-        <path d="M14 34l22 12 22-12" />
-        <path d="M14 44l22 12 22-12" />
-        <path d="M36 36v20" className="soft" />
-      </svg>
-    );
-  }
+function PillarVisual({ tone }: { tone: PillarTone }) {
   return (
-    <svg viewBox="0 0 72 72" aria-hidden="true">
-      <path d="M18 20h36v32H18z" />
-      <path d="M25 29h22M25 37h16M25 45h10" />
-      <circle cx="50" cy="45" r="6" className="soft" />
-      <path d="M46 45h8M50 41v8" className="soft" />
-    </svg>
+    <div className={`landing-pillar-visual landing-pillar-visual-${tone}`} aria-hidden="true">
+      <span />
+      <span />
+      <span />
+      <span />
+    </div>
   );
 }
 
 export function LandingPage() {
   const { t, i18n } = useTranslation();
   const rootRef = React.useRef<HTMLElement | null>(null);
-  const [isLeadOpen, setIsLeadOpen] = React.useState(false);
-  const [leadEmail, setLeadEmail] = React.useState(() => localStorage.getItem(TESTER_LEAD_EMAIL_KEY) ?? '');
-  const [leadError, setLeadError] = React.useState('');
-  const [leadWebsite, setLeadWebsite] = React.useState('');
-  const [isLeadSubmitting, setIsLeadSubmitting] = React.useState(false);
-  const [isTesterUnlocked, setIsTesterUnlocked] = React.useState(() => Boolean(localStorage.getItem(TESTER_LEAD_EMAIL_KEY)));
-  const features = [
-    { code: '01', title: t('landing.features.live_title'), body: t('landing.features.live_body') },
-    { code: '02', title: t('landing.features.ai_title'), body: t('landing.features.ai_body') },
-    { code: '03', title: t('landing.features.learn_title'), body: t('landing.features.learn_body') },
-    { code: '04', title: t('landing.features.cluster_title'), body: t('landing.features.cluster_body') },
-  ];
-  const stats = [
-    { value: '50', label: t('landing.stats.players') },
-    { value: '1,450', label: t('landing.stats.systems') },
-    { value: '8,000+', label: t('landing.stats.planets') },
-  ];
-  const universeFacts = [
-    { value: t('landing.universe.fact_1_value'), label: t('landing.universe.fact_1_label') },
-    { value: t('landing.universe.fact_2_value'), label: t('landing.universe.fact_2_label') },
-    { value: t('landing.universe.fact_3_value'), label: t('landing.universe.fact_3_label') },
-  ];
-  const showcaseCards: { tone: ShowcaseTone; eyebrow: string; title: string; body: string; image: string }[] = [
-    {
-      tone: 'planet',
-      eyebrow: t('landing.showcase.planet_eyebrow'),
-      title: t('landing.showcase.planet_title'),
-      body: t('landing.showcase.planet_body'),
-      image: LANDING_IMAGES.planets,
-    },
-    {
-      tone: 'photo',
-      eyebrow: t('landing.showcase.photo_eyebrow'),
-      title: t('landing.showcase.photo_title'),
-      body: t('landing.showcase.photo_body'),
-      image: LANDING_IMAGES.expedition,
-    },
-    {
-      tone: 'ships',
-      eyebrow: t('landing.showcase.ships_eyebrow'),
-      title: t('landing.showcase.ships_title'),
-      body: t('landing.showcase.ships_body'),
-      image: LANDING_IMAGES.arena,
-    },
-  ];
-  const proofCards = [
-    { code: '01', title: t('landing.proof.exosphere'), body: t('landing.proof.exosphere_body'), tone: 'planet' as const },
-    { code: '02', title: t('landing.proof.galaxy'), body: t('landing.proof.galaxy_body'), tone: 'galaxy' as const },
-    { code: '03', title: t('landing.proof.terminal'), body: t('landing.proof.terminal_body'), tone: 'terminal' as const },
-    { code: '04', title: t('landing.proof.surface'), body: t('landing.proof.surface_body'), tone: 'surface' as const },
-    { code: '05', title: t('landing.proof.academy'), body: t('landing.proof.academy_body'), tone: 'academy' as const },
-  ];
-  const flow = [
-    t('landing.flow.step_1'),
-    t('landing.flow.step_2'),
-    t('landing.flow.step_3'),
-    t('landing.flow.step_4'),
-    t('landing.flow.step_5'),
+  const reduceMotion = usePrefersReducedMotion();
+  const currentLanguage = i18n.language.startsWith('uk') ? 'uk' : 'en';
+  const gameHref = getGameHref();
+
+  const chapters = CHAPTER_TONES.map((tone, index) => ({
+    tone,
+    code: `0${index + 1}`,
+    label: t(`landing.chapters.${tone}.label`),
+    title: t(`landing.chapters.${tone}.title`),
+    body: t(`landing.chapters.${tone}.body`),
+    metric: t(`landing.chapters.${tone}.metric`),
+  }));
+
+  const pillars = PILLAR_TONES.map((tone) => ({
+    tone,
+    label: t(`landing.pillars.${tone}.label`),
+    title: t(`landing.pillars.${tone}.title`),
+    body: t(`landing.pillars.${tone}.body`),
+  }));
+
+  const telemetry = [
+    { value: '1,450', label: t('landing.telemetry.stars') },
+    { value: '8,000+', label: t('landing.telemetry.worlds') },
+    { value: '50', label: t('landing.telemetry.players') },
+    { value: '24h', label: t('landing.telemetry.countdown') },
   ];
 
   const setLanguage = (lang: 'uk' | 'en') => {
@@ -147,88 +104,9 @@ export function LandingPage() {
     localStorage.setItem('nebulife_lang_chosen', '1');
     void i18n.changeLanguage(lang);
   };
-  const currentLanguage = i18n.language.startsWith('uk') ? 'uk' : 'en';
 
-  const openLead = () => {
-    setLeadError('');
-    setIsLeadOpen(true);
-  };
-
-  const submitLead = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const normalizedEmail = leadEmail.trim().toLowerCase();
-    if (!isValidEmail(normalizedEmail)) {
-      setLeadError(t('landing.lead.invalid'));
-      return;
-    }
-
-    setIsLeadSubmitting(true);
-    setLeadError('');
-    try {
-      const response = await fetch('/api/tester-lead', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: normalizedEmail,
-          language: currentLanguage,
-          source: 'landing_mobile_test',
-          website: leadWebsite,
-        }),
-      });
-      if (!response.ok) throw new Error('Lead request failed');
-
-      localStorage.setItem(TESTER_LEAD_EMAIL_KEY, normalizedEmail);
-      setLeadEmail(normalizedEmail);
-      setIsTesterUnlocked(true);
-      void trackEvent('tester_lead_submitted', {
-        source: 'landing_mobile_test',
-        language: currentLanguage,
-      });
-      void trackEvent('generate_lead', {
-        method: 'mobile_tester_signup',
-        source: 'landing_mobile_test',
-        value: 1,
-        currency: 'USD',
-      });
-      // GA4 policy does not allow sending PII, so the email stays local.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const gtag = (window as any).gtag;
-      if (typeof gtag === 'function') {
-        // Custom event for granular reporting in our funnel
-        gtag('event', 'tester_lead_submitted', {
-          event_category: 'landing',
-          event_label: 'mobile_test',
-        });
-        // Standard GA4 'generate_lead' event — recognised automatically by
-        // GA4 Audiences / Conversions, so we can mark it a key event
-        // without further mapping.
-        gtag('event', 'generate_lead', {
-          method: 'mobile_tester_signup',
-          value: 1,
-          currency: 'USD',
-        });
-      }
-    } catch {
-      setLeadError(t('landing.lead.save_error'));
-    } finally {
-      setIsLeadSubmitting(false);
-    }
-  };
-
-  const renderTesterCta = (label: string, extraClassName = '') => {
-    if (isTesterUnlocked) {
-      return (
-        <a className={`landing-btn landing-btn-primary ${extraClassName}`} href={TESTER_GROUP_URL} target="_blank" rel="noreferrer">
-          {t('landing.lead.open_test')}
-        </a>
-      );
-    }
-
-    return (
-      <button className={`landing-btn landing-btn-primary ${extraClassName}`} type="button" onClick={openLead}>
-        {label}
-      </button>
-    );
+  const trackPlay = (source: string) => {
+    void trackEvent('landing_play_click', { source, language: currentLanguage });
   };
 
   React.useEffect(() => {
@@ -242,19 +120,15 @@ export function LandingPage() {
 
   React.useEffect(() => {
     const root = rootRef.current;
-    if (!root) return;
-
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduceMotion) return;
+    if (!root || reduceMotion) return;
 
     root.classList.add('landing-motion-ready');
-
     const animatedBlocks = Array.from(root.querySelectorAll('.landing-animate-window'));
     const observer = new IntersectionObserver((entries) => {
       for (const entry of entries) {
         if (entry.isIntersecting) entry.target.classList.add('landing-in-view');
       }
-    }, { threshold: 0.2 });
+    }, { threshold: 0.18 });
     animatedBlocks.forEach((block) => observer.observe(block));
 
     let raf = 0;
@@ -275,11 +149,7 @@ export function LandingPage() {
       window.removeEventListener('pointermove', updatePointer);
       if (raf) window.cancelAnimationFrame(raf);
     };
-  }, []);
-
-  // GA4 is injected globally in main.tsx (covers both landing and /play,
-  // skipped on Capacitor native). LandingPage just dispatches events
-  // through window.gtag — see handleLeadSubmit.
+  }, [reduceMotion]);
 
   return (
     <main className="landing-root" ref={rootRef}>
@@ -289,14 +159,17 @@ export function LandingPage() {
         <span />
         <span />
       </div>
+
       <nav className="landing-nav" aria-label={t('landing.nav_label')}>
         <a className="landing-logo" href="/">
           <span className="landing-logo-mark" aria-hidden="true" />
           Nebulife
         </a>
         <div className="landing-nav-actions">
-          <button type="button" onClick={openLead}>{t('landing.nav_testers')}</button>
-          <span className="landing-nav-soon">{t('landing.nav_play')}</span>
+          <a href="#chapters">{t('landing.nav_chapters')}</a>
+          <a href="#academy">{t('landing.nav_academy')}</a>
+          <a href="#stores">{t('landing.nav_store')}</a>
+          <a className="landing-nav-play" href={gameHref} onClick={() => trackPlay('nav')}>{t('landing.nav_play')}</a>
           <div className="landing-lang" aria-label={t('landing.lang_label')}>
             <button type="button" className={currentLanguage === 'uk' ? 'active' : ''} onClick={() => setLanguage('uk')}>{t('landing.lang_uk')}</button>
             <button type="button" className={currentLanguage === 'en' ? 'active' : ''} onClick={() => setLanguage('en')}>{t('landing.lang_en')}</button>
@@ -310,11 +183,11 @@ export function LandingPage() {
           <h1>{t('landing.title')}</h1>
           <p>{t('landing.subtitle')}</p>
           <div className="landing-actions">
-            {renderTesterCta(t('landing.cta_testers'))}
-            <span className="landing-btn landing-btn-secondary landing-btn-disabled">{t('landing.cta_play')}</span>
+            <a className="landing-btn landing-btn-primary" href={gameHref} onClick={() => trackPlay('hero')}>{t('landing.cta_play')}</a>
+            <a className="landing-btn landing-btn-secondary" href="#chapters">{t('landing.cta_watch')}</a>
           </div>
           <div className="landing-stats">
-            {stats.map((item) => (
+            {telemetry.map((item) => (
               <div className="landing-stat" key={item.label}>
                 <strong>{item.value}</strong>
                 <span>{item.label}</span>
@@ -323,176 +196,96 @@ export function LandingPage() {
           </div>
         </div>
 
-        <div className="landing-galaxy-stage landing-cosmos-window landing-animate-window" aria-label={t('landing.visual_label')}>
-          <img className="landing-hero-image" src={LANDING_IMAGES.hero} alt="" aria-hidden="true" loading="eager" />
-          <CosmicDust />
-          <div className="landing-window-grid" aria-hidden="true" />
-          <div className="landing-light-sweep" aria-hidden="true" />
-        </div>
-      </section>
-
-      <section className="landing-section landing-showcase-panel">
-        <div className="landing-section-head">
-          <span>{t('landing.showcase.label')}</span>
-          <h2>{t('landing.showcase.title')}</h2>
-        </div>
-        <p className="landing-text">{t('landing.showcase.body')}</p>
-        <div className="landing-showcase-grid">
-          {showcaseCards.map((item) => (
-            <article className={`landing-showcase-card landing-showcase-${item.tone} landing-animate-window`} key={item.title}>
-              <div className="landing-showcase-visual" aria-hidden="true">
-                <img src={item.image} alt="" loading="lazy" />
-                <CosmicDust />
-                <div className="landing-light-sweep" aria-hidden="true" />
-              </div>
-              <div className="landing-showcase-copy">
-                <span>{item.eyebrow}</span>
-                <h3>{item.title}</h3>
-                <p>{item.body}</p>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="landing-section landing-universe-panel">
-        <div className="landing-section-head">
-          <span>{t('landing.universe.label')}</span>
-          <h2>{t('landing.universe.title')}</h2>
-        </div>
-        <p className="landing-text">{t('landing.universe.body')}</p>
-        <div className="landing-universe-grid">
-          {universeFacts.map((item) => (
-            <div className="landing-universe-stat" key={item.label}>
-              <strong>{item.value}</strong>
-              <span>{item.label}</span>
+        <div className="landing-hero-stage landing-animate-window" aria-label={t('landing.visual_label')}>
+          <LivingOrreryHero reduceMotion={reduceMotion} />
+          <div className="landing-briefing">
+            <span>{t('landing.hero_brief_label')}</span>
+            <strong>{t('landing.hero_brief_title')}</strong>
+            <p>{t('landing.hero_brief_body')}</p>
+            <div className="landing-briefing-metrics">
+              <span>{t('landing.hero_metric_a')}</span>
+              <span>{t('landing.hero_metric_b')}</span>
+              <span>{t('landing.hero_metric_c')}</span>
             </div>
-          ))}
-        </div>
-        <div className="landing-mystery-line">
-          <span>{t('landing.universe.mystery_a')}</span>
-          <span>{t('landing.universe.mystery_b')}</span>
-          <span>{t('landing.universe.mystery_c')}</span>
+          </div>
         </div>
       </section>
 
-      <section className="landing-section">
+      <section className="landing-section landing-manifest landing-animate-window">
         <div className="landing-section-head">
-          <span>{t('landing.section_label')}</span>
-          <h2>{t('landing.why_title')}</h2>
+          <span>{t('landing.manifest.label')}</span>
+          <h2>{t('landing.manifest.title')}</h2>
         </div>
-        <div className="landing-grid">
-          {features.map((item) => (
-            <article className="landing-card" key={item.title}>
-              <span>{item.code}</span>
-              <h3>{item.title}</h3>
-              <p>{item.body}</p>
-            </article>
-          ))}
-        </div>
+        <p className="landing-text">{t('landing.manifest.body')}</p>
       </section>
 
-      <section className="landing-section landing-tester-panel" id="testers">
+      <section className="landing-section landing-chapters" id="chapters">
         <div className="landing-section-head">
-          <span>{t('landing.testers_label')}</span>
-          <h2>{t('landing.testers_title')}</h2>
+          <span>{t('landing.chapters_label')}</span>
+          <h2>{t('landing.chapters_title')}</h2>
         </div>
-        <p className="landing-text">{t('landing.testers_body')}</p>
-        <div className="landing-actions">
-          {renderTesterCta(t('landing.cta_testers'))}
-          <span className="landing-btn landing-btn-secondary landing-btn-disabled">{t('landing.cta_play')}</span>
-        </div>
-      </section>
-
-      <section className="landing-section">
-        <div className="landing-section-head">
-          <span>{t('landing.flow_label')}</span>
-          <h2>{t('landing.flow_title')}</h2>
-        </div>
-        <ol className="landing-flow">
-          {flow.map((step) => <li key={step}>{step}</li>)}
-        </ol>
-      </section>
-
-      <section className="landing-section">
-        <div className="landing-section-head">
-          <span>{t('landing.proof_label')}</span>
-          <h2>{t('landing.proof_title')}</h2>
-        </div>
-        <div className="landing-proof-grid">
-          {proofCards.map((item) => (
-            <article className={`landing-proof-card landing-proof-${item.tone}`} key={item.title}>
-              <div className="landing-proof-top">
-                <span>{item.code}</span>
-                <div className="landing-proof-visual">
-                  <ProofGlyph tone={item.tone} />
-                </div>
+        <div className="landing-chapter-list">
+          {chapters.map((chapter) => (
+            <article className={`landing-chapter-card landing-chapter-${chapter.tone} landing-animate-window`} key={chapter.tone}>
+              <div className="landing-chapter-index">{chapter.code}</div>
+              <ChapterGlyph tone={chapter.tone} />
+              <div>
+                <span>{chapter.label}</span>
+                <h3>{chapter.title}</h3>
+                <p>{chapter.body}</p>
+                <strong>{chapter.metric}</strong>
               </div>
-              <h3>{item.title}</h3>
-              <p>{item.body}</p>
             </article>
           ))}
         </div>
       </section>
 
-      <section className="landing-final">
+      <section className="landing-section landing-pillars" id="academy">
+        <div className="landing-section-head">
+          <span>{t('landing.pillars_label')}</span>
+          <h2>{t('landing.pillars_title')}</h2>
+        </div>
+        <div className="landing-pillar-grid">
+          {pillars.map((pillar) => (
+            <article className="landing-pillar-card landing-animate-window" key={pillar.tone}>
+              <PillarVisual tone={pillar.tone} />
+              <span>{pillar.label}</span>
+              <h3>{pillar.title}</h3>
+              <p>{pillar.body}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="landing-section landing-cluster-panel landing-animate-window">
+        <div className="landing-section-head">
+          <span>{t('landing.cluster.label')}</span>
+          <h2>{t('landing.cluster.title')}</h2>
+        </div>
+        <p className="landing-text">{t('landing.cluster.body')}</p>
+        <div className="landing-cluster-map" aria-hidden="true">
+          {Array.from({ length: 50 }, (_, index) => <span key={index} />)}
+        </div>
+      </section>
+
+      <section className="landing-final" id="stores">
+        <span>{t('landing.final_label')}</span>
         <h2>{t('landing.final_title')}</h2>
         <p>{t('landing.final_subtitle')}</p>
         <div className="landing-actions">
-          {renderTesterCta(t('landing.cta_enter'))}
-          <span className="landing-btn landing-btn-secondary landing-btn-disabled">{t('landing.cta_play')}</span>
+          <a className="landing-btn landing-btn-primary" href={gameHref} onClick={() => trackPlay('final')}>{t('landing.cta_play')}</a>
+          <a className="landing-btn landing-btn-secondary" href="mailto:support@nebulife.space">{t('landing.cta_support')}</a>
+        </div>
+        <div className="landing-store-row">
+          <StoreBadge store="apple" label={t('landing.store.apple')} />
+          <StoreBadge store="google" label={t('landing.store.google')} />
+        </div>
+        <div className="landing-footer-links">
+          <a href="/privacy.html">{t('landing.footer.privacy')}</a>
+          <a href="/support.html">{t('landing.footer.support')}</a>
+          <a href="/terms.html">{t('landing.footer.terms')}</a>
         </div>
       </section>
-
-      {isLeadOpen && (
-        <div className="landing-lead-overlay" role="dialog" aria-modal="true" aria-labelledby="landing-lead-title">
-          <div className="landing-lead-modal">
-            <button className="landing-lead-close" type="button" onClick={() => setIsLeadOpen(false)} aria-label={t('landing.lead.close')}>x</button>
-            <div className="landing-section-head">
-              <span>{t('landing.lead.label')}</span>
-              <h2 id="landing-lead-title">{t('landing.lead.title')}</h2>
-            </div>
-            <p>{t('landing.lead.body')}</p>
-            <form className="landing-lead-form" onSubmit={submitLead}>
-              <div className="landing-honeypot" aria-hidden="true">
-                <label htmlFor="landing-lead-website">Website</label>
-                <input
-                  id="landing-lead-website"
-                  type="text"
-                  value={leadWebsite}
-                  onChange={(event) => setLeadWebsite(event.target.value)}
-                  tabIndex={-1}
-                  autoComplete="off"
-                />
-              </div>
-              <label htmlFor="landing-lead-email">{t('landing.lead.email_label')}</label>
-              <input
-                id="landing-lead-email"
-                type="email"
-                value={leadEmail}
-                onChange={(event) => setLeadEmail(event.target.value)}
-                placeholder={t('landing.lead.email_placeholder')}
-                autoComplete="email"
-                disabled={isLeadSubmitting || isTesterUnlocked}
-              />
-              <div className="landing-lead-consent">{t('landing.lead.consent')}</div>
-              {leadError && <div className="landing-lead-error">{leadError}</div>}
-              <button className="landing-btn landing-btn-primary" type="submit" disabled={isLeadSubmitting || isTesterUnlocked}>
-                {isLeadSubmitting ? t('landing.lead.saving') : t('landing.lead.submit')}
-              </button>
-            </form>
-            {isTesterUnlocked && (
-              <div className="landing-lead-unlocked">
-                <strong>{t('landing.lead.ready_title')}</strong>
-                <span>{t('landing.lead.ready_body')}</span>
-                <a className="landing-btn landing-btn-primary" href={TESTER_GROUP_URL} target="_blank" rel="noreferrer">{t('landing.lead.open_test')}</a>
-                <span>{t('landing.lead.ios_note')}</span>
-                <span>{t('landing.lead.android_note')}</span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </main>
   );
 }

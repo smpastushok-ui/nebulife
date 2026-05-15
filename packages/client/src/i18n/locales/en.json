@@ -2428,115 +2428,118 @@
     "kk": "kk"
   },
   "landing": {
-    "badge": "Early Mobile Test",
-    "title": "Enter a living galaxy that keeps expanding",
-    "subtitle": "Nebulife is not a map with levels. It is a procedural universe with stellar physics, orbital mechanics and planetary chemistry, where every tester begins inside one cluster, then helps reveal a much larger cosmos hidden beyond the signal.",
+    "badge": "Living Orrery",
+    "title": "A living solar system you can enter",
+    "subtitle": "Nebulife is a quiet sci-fi universe about evacuation, discovery, colonies, AI expedition artifacts, and real astronomy. Scroll through the orrery, then begin your own star cluster.",
     "nav_label": "Nebulife landing navigation",
-    "nav_testers": "Mobile testers",
-    "nav_play": "Web soon",
+    "nav_chapters": "Journey",
+    "nav_academy": "Academy",
+    "nav_store": "Stores",
+    "nav_play": "Play",
     "lang_label": "Language",
     "lang_uk": "UK",
     "lang_en": "EN",
-    "cta_play": "Web version soon",
-    "cta_testers": "Join Android / iOS testers",
-    "cta_enter": "Join the mobile test",
-    "section_label": "Signal received",
-    "testers_label": "Open test",
-    "flow_label": "Mission sequence",
-    "proof_label": "Live modules",
-    "visual_label": "Living galaxy scanner",
-    "visual_scan_a": "One cluster: 50 commanders",
-    "visual_scan_b": "8,000+ worlds online",
-    "visual_scan_c": "Mission imagery",
-    "hero_brief_title": "Enter a living galaxy before anyone else",
-    "hero_brief_body": "Explore real-scale systems, generate expedition artifacts, and help tune Nebulife for Android and iOS launch.",
-    "why_title": "Why Nebulife feels different",
-    "testers_title": "Test Nebulife on Android and iOS",
-    "testers_body": "We are collecting mobile testers first: onboarding, battery, performance, exosphere quality, terminal UX, and Academy flow. Join the Telegram group to get builds, notes, and feedback calls.",
-    "flow_title": "Gameplay loop",
-    "proof_title": "What you will test",
-    "final_title": "Ready for first mobile contact",
-    "final_subtitle": "Join the Android and iOS test group now. The browser version will open later when the mobile test is stable.",
-    "lead": {
-      "label": "Tester lead",
-      "title": "Leave your email to start testing",
-      "body": "We will use this contact to understand who joined the early mobile test. After email confirmation, the test group button appears here.",
-      "email_label": "Email",
-      "email_placeholder": "Enter your email here",
-      "submit": "Unlock test access",
-      "saving": "Saving signal...",
-      "consent": "We will only use this email for Android/iOS test access and Nebulife tester updates.",
-      "invalid": "Enter a valid email to continue.",
-      "save_error": "Could not save the lead. Check connection and try again.",
-      "ready_title": "Test access unlocked",
-      "ready_body": "Email saved. Join the Telegram group, and the mobile test invite will arrive separately after we add you to the tester list.",
-      "open_test": "Open tester group",
-      "ios_note": "iOS: the TestFlight invitation will arrive to the email you entered.",
-      "android_note": "Android: the Google Play test invitation will also arrive to that email. Open it with the same Google account on your phone.",
-      "close": "Close"
+    "cta_play": "Play Nebulife",
+    "cta_watch": "Watch the living galaxy",
+    "cta_support": "Contact support",
+    "visual_label": "Interactive Nebulife solar orrery",
+    "hero_brief_label": "Alpha Lyrae broadcast",
+    "hero_brief_title": "One star. One day. One evacuation.",
+    "hero_brief_body": "A home world is running out of time. Scan nearby systems, find a habitable target, launch rescue ships, and carry your civilization into a wider cluster.",
+    "hero_metric_a": "24h impact clock",
+    "hero_metric_b": "physics-first worlds",
+    "hero_metric_c": "AI field artifacts",
+    "chapters_label": "Cinematic route",
+    "chapters_title": "Scroll from one doomed world into a living cluster",
+    "pillars_label": "Game pillars",
+    "pillars_title": "Nebulife is built around wonders you discover, not power you buy",
+    "final_label": "Begin transmission",
+    "final_title": "Your first star is already waiting",
+    "final_subtitle": "Play in the browser, then continue toward the mobile release. Store links are prepared for launch review and will open as availability expands.",
+    "telemetry": {
+      "stars": "stars per cluster",
+      "worlds": "planets and moons",
+      "players": "players per cluster",
+      "countdown": "survival arc"
     },
-    "stats": {
-      "systems": "systems per cluster",
-      "players": "players per test cluster",
-      "planets": "planets and moons per cluster",
-      "arc": "survival arc"
+    "manifest": {
+      "label": "Not a tester page anymore",
+      "title": "Nebulife is a site-card for a game that feels alive before install",
+      "body": "The landing page now presents the fantasy directly: a scroll-driven orrery, a crisis around Alpha Lyrae, believable planets, AI-generated discoveries, colony construction, the Academy, and a shared 50-player cluster. The interface stays dark, monospace, procedural, and release-focused."
     },
-    "universe": {
-      "label": "Beyond the first signal",
-      "title": "A cluster is only the doorway",
-      "body": "Each 50-player group receives a living cluster with 1,450 stars and more than 8,000 planets and moons. But that is only the local frontier. Nebulife is designed as an expanding universe: new clusters, new discoveries, scientific expedition artifacts, and unknown routes deeper into the core.",
-      "fact_1_value": "1 cluster",
-      "fact_1_label": "your first civilization-scale test zone",
-      "fact_2_value": "1,450 stars",
-      "fact_2_label": "deterministic systems shared by your group",
-      "fact_3_value": "8,000+ worlds",
-      "fact_3_label": "planets and moons waiting for scans, colonies, and anomalies",
-      "mystery_a": "unknown core routes",
-      "mystery_b": "scientific expeditions",
-      "mystery_c": "first discoveries belong to testers"
+    "chapters": {
+      "crisis": {
+        "label": "Evacuation clock",
+        "title": "One day before impact",
+        "body": "Your home planet begins with a deadline. The mission is simple to understand and difficult to master: discover enough of the sky to save 10,000 passengers.",
+        "metric": "Impact timer: 24 hours"
+      },
+      "worlds": {
+        "label": "Orbital worlds",
+        "title": "Explore systems that obey physics",
+        "body": "Stars, orbits, atmospheres, hydrospheres, temperature, moons, and habitability are generated from shared deterministic rules.",
+        "metric": "Every seed returns the same universe"
+      },
+      "discoveries": {
+        "label": "AI discoveries",
+        "title": "Turn signals into personal cosmic artifacts",
+        "body": "Kling and Gemini transform exploration into collectible images, reports, planet skins, ships, and field notes tied to your own discoveries.",
+        "metric": "Pay for wonders, not for winning"
+      },
+      "colony": {
+        "label": "Surface colony",
+        "title": "Build the second home",
+        "body": "After evacuation, the surface becomes a resource puzzle: power, storage, landing pads, habitats, and terrain constraints.",
+        "metric": "Colony economy is already playable"
+      },
+      "academy": {
+        "label": "Real astronomy",
+        "title": "Learn the universe by playing it",
+        "body": "Academy lessons, quizzes, weekly digests, and A.S.T.R.A. connect game progress to real NASA, ESA, and JWST-grade ideas.",
+        "metric": "Science learning inside the core loop"
+      },
+      "cluster": {
+        "label": "Living cluster",
+        "title": "Fifty players share a frontier",
+        "body": "Each group receives a deterministic cluster: personal rings, neighbor systems, and a core zone that expands the social map.",
+        "metric": "1,450 stars in every cluster"
+      }
     },
-    "showcase": {
-      "label": "Look first",
-      "title": "A site that feels like opening the game",
-      "body": "Nebulife has to sell the fantasy before the install: a nebula-lit galaxy, believable planets, generated expedition images, and arena ships that already hint at motion and danger.",
-      "planet_eyebrow": "Exosphere render",
-      "planet_title": "Planets with scale, storms, rings, and atmosphere",
-      "planet_body": "The landing page now previews the kind of worlds players will inspect: Earth-like worlds, gas giants, ice planets, atmospheric glow, and orbital drama.",
-      "photo_eyebrow": "Expedition artifacts",
-      "photo_title": "Every discovery can become a personal cosmic image",
-      "photo_body": "The page shows the idea itself: photo-like mission frames that feel collectible before the player even joins testing.",
-      "ships_eyebrow": "Hangar and arena",
-      "ships_title": "Ships, asteroids, team colors, and combat mood",
-      "ships_body": "The tester sees that Nebulife is not only research: there is a hangar, ship identity, arena movement, missiles, and dangerous asteroid fields."
+    "pillars": {
+      "discovery": {
+        "label": "Discoveries",
+        "title": "Your first photo should feel better than a loading screen",
+        "body": "The first AI surface image is designed as the emotional hook: a share-ready artifact from a world only you found first."
+      },
+      "colony": {
+        "label": "Colony",
+        "title": "Survival becomes infrastructure",
+        "body": "Surface maps, buildable zones, finite resources, and missions turn a destination planet into a real settlement."
+      },
+      "academy": {
+        "label": "Academy",
+        "title": "Education is part of the fantasy",
+        "body": "Nebulife teaches astronomy without leaving the game: adaptive lessons, quizzes, and weekly space news keep the universe current."
+      },
+      "premium": {
+        "label": "Premium",
+        "title": "Monetization stays cosmetic and artifact-based",
+        "body": "Quarks and Premium focus on AI artifacts, priority, and collection depth. The same progression remains available without paying."
+      }
     },
-    "features": {
-      "live_title": "Living Galaxy",
-      "live_body": "Procedural events, weekly digests, and evolving discoveries keep the universe fresh.",
-      "ai_title": "Scientific Expeditions",
-      "ai_body": "Collect mission artifacts — exosphere imagery and field reports tied to your own planets.",
-      "learn_title": "Real Astronomy",
-      "learn_body": "Academy turns sessions into actual science learning with adaptive difficulty.",
-      "cluster_title": "Clustered Infinite Universe",
-      "cluster_body": "Fifty testers share one cluster, but the architecture keeps opening new star fields beyond it."
+    "cluster": {
+      "label": "Cluster topology",
+      "title": "A shared sky, not a lonely menu",
+      "body": "Nebulife starts personal, then zooms outward. Your home ring connects to neighbor systems, the cluster core, and eventually a larger living galaxy."
     },
-    "flow": {
-      "step_1": "Start on your home planet and open your star map.",
-      "step_2": "Run observatory research sessions to reveal systems.",
-      "step_3": "Inspect exospheres and compare worlds by habitability.",
-      "step_4": "Launch expeditions and collect scientific discovery artifacts.",
-      "step_5": "Build colony infrastructure and prepare evacuation decisions."
+    "store": {
+      "apple": "App Store",
+      "google": "Google Play"
     },
-    "proof": {
-      "exosphere": "Real-time exosphere view",
-      "exosphere_body": "Inspect planet-scale atmosphere, rings, clouds, storms, and surface signatures.",
-      "galaxy": "Procedural galaxy navigation",
-      "galaxy_body": "Move through a deterministic cluster where every star has a place and purpose.",
-      "terminal": "Command terminal and research tree",
-      "terminal_body": "Plan research branches, compare discoveries, and control your expedition flow.",
-      "surface": "Surface economy and colony building",
-      "surface_body": "Build a colony from terrain, resources, energy, and survival constraints.",
-      "academy": "Academy lessons and quizzes",
-      "academy_body": "Learn real astronomy through adaptive missions connected to your progress."
+    "footer": {
+      "privacy": "Privacy",
+      "support": "Support",
+      "terms": "Terms"
     }
   }
 }
