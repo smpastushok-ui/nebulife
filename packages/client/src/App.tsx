@@ -176,7 +176,7 @@ import { TutorialOverlay, FreeTaskHUD, TUTORIAL_STEPS } from './ui/components/Tu
 import type { User } from 'firebase/auth';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
-import { canShowAd, isNativePlatform, watchAdsWithProgress } from './services/ads-service.js';
+import { canShowAd, isNativePlatform, requestAppTrackingTransparencyIfNeeded, watchAdsWithProgress } from './services/ads-service.js';
 import { setAdsUnlockedAfterSettlement } from './services/ad-release-gate.js';
 import { interstitialManager } from './services/interstitial-manager.js';
 import {
@@ -8506,9 +8506,10 @@ function AppInner() {
     };
   }, []);
 
-  // ── AdMob session start (SDK init is lazy — happens on first ad request) ─
+  // ── Native ads/privacy session start (SDK init stays lazy) ─
   useEffect(() => {
     interstitialManager.sessionStartTime = Date.now();
+    void requestAppTrackingTransparencyIfNeeded();
   }, []);
 
   // ── Capacitor App lifecycle — flush sync IMMEDIATELY when app pauses ──

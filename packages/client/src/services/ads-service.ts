@@ -48,6 +48,30 @@ const AD_PROGRESS_TTL_MS = 4 * 60 * 1000;
 
 let _admobInitialized = false;
 let _admobInitPromise: Promise<void> | null = null;
+let _attRequestPromise: Promise<void> | null = null;
+
+export async function requestAppTrackingTransparencyIfNeeded(): Promise<void> {
+  if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'ios') return;
+  if (_attRequestPromise) {
+    await _attRequestPromise;
+    return;
+  }
+
+  _attRequestPromise = (async () => {
+    try {
+      const status = await AdMob.trackingAuthorizationStatus();
+      if (status.status === 'notDetermined') {
+        await AdMob.requestTrackingAuthorization();
+      }
+    } catch (err) {
+      console.warn('[ads] ATT request unavailable:', err);
+    }
+  })().finally(() => {
+    _attRequestPromise = null;
+  });
+
+  await _attRequestPromise;
+}
 
 async function _doInit(): Promise<void> {
   if (!Capacitor.isNativePlatform() || _admobInitialized) return;
@@ -55,16 +79,7 @@ async function _doInit(): Promise<void> {
   // --- iOS: App Tracking Transparency (ATT) ---
   // Must request tracking permission BEFORE initializing AdMob on iOS 14+.
   // Apple will reject the app if ATT is not shown before personalized ads.
-  if (Capacitor.getPlatform() === 'ios') {
-    try {
-      const status = await AdMob.trackingAuthorizationStatus();
-      if (status.status === 'notDetermined') {
-        await AdMob.requestTrackingAuthorization();
-      }
-    } catch {
-      // Not supported on this OS version or simulator — skip silently
-    }
-  }
+  await requestAppTrackingTransparencyIfNeeded();
 
   // --- Android / EEA: Google UMP Consent (GDPR) ---
   // Google requires collecting consent before showing personalized ads in the EEA.
