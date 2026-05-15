@@ -2430,7 +2430,7 @@
   "landing": {
     "badge": "Living Orrery",
     "title": "A living solar system you can enter",
-    "subtitle": "Nebulife is a quiet sci-fi universe about evacuation, discovery, colonies, AI expedition artifacts, and real astronomy. Scroll through the orrery, then begin your own star cluster.",
+    "subtitle": "Nebulife is a quiet sci-fi universe about evacuation, discovery, colonies, expedition artifacts, and real astronomy. Scroll through the orrery, then begin your own star cluster.",
     "nav_label": "Nebulife landing navigation",
     "nav_chapters": "Journey",
     "nav_academy": "Academy",
@@ -2448,7 +2448,7 @@
     "hero_brief_body": "A home world is running out of time. Scan nearby systems, find a habitable target, launch rescue ships, and carry your civilization into a wider cluster.",
     "hero_metric_a": "24h impact clock",
     "hero_metric_b": "physics-first worlds",
-    "hero_metric_c": "AI field artifacts",
+    "hero_metric_c": "Unique field artifacts",
     "chapters_label": "Cinematic route",
     "chapters_title": "Scroll from one doomed world into a living cluster",
     "pillars_label": "Game pillars",
@@ -2465,51 +2465,50 @@
     "manifest": {
       "label": "Not a tester page anymore",
       "title": "Nebulife is a site-card for a game that feels alive before install",
-      "body": "The landing page now presents the fantasy directly: a scroll-driven orrery, a crisis around Alpha Lyrae, believable planets, AI-generated discoveries, colony construction, the Academy, and a shared 50-player cluster. The interface stays dark, monospace, procedural, and release-focused."
+      "body": "The landing page now presents the fantasy directly: a scroll-driven orrery, a crisis around Alpha Lyrae, believable planets, unique discoveries, colony construction, the Academy, and a shared 50-player cluster. The interface stays dark, monospace, procedural, and release-focused."
     },
     "chapters": {
-      "crisis": {
-        "label": "Evacuation clock",
-        "title": "One day before impact",
-        "body": "Your home planet begins with a deadline. The mission is simple to understand and difficult to master: discover enough of the sky to save 10,000 passengers.",
-        "metric": "Impact timer: 24 hours"
+      "mercury": {
+        "label": "Forged in fire",
+        "title": "Mercury: The Scorched Stone",
+        "body": "Orbiting dangerously close to the star, this world faces thousands of degrees on its day side and freezing cold on the dark. While life is impossible, rare resources wait in deep craters."
       },
-      "worlds": {
+      "venus": {
+        "label": "Toxic veil",
+        "title": "Venus: The Greenhouse Trap",
+        "body": "Thick clouds of sulfuric acid and crushing atmospheric pressure make the surface hostile. Yet, our probes could extract rare gases crucial for terraforming other worlds."
+      },
+      "earth": {
         "label": "Orbital worlds",
         "title": "Explore systems that obey physics",
-        "body": "Stars, orbits, atmospheres, hydrospheres, temperature, moons, and habitability are generated from shared deterministic rules.",
-        "metric": "Every seed returns the same universe"
+        "body": "Stars, orbits, atmospheres, hydrospheres, temperature, moons, and habitability are generated from shared deterministic rules. Every seed returns the same universe."
       },
-      "discoveries": {
-        "label": "AI discoveries",
-        "title": "Turn signals into personal cosmic artifacts",
-        "body": "Kling and Gemini transform exploration into collectible images, reports, planet skins, ships, and field notes tied to your own discoveries.",
-        "metric": "Pay for wonders, not for winning"
-      },
-      "colony": {
+      "mars": {
         "label": "Surface colony",
         "title": "Build the second home",
-        "body": "After evacuation, the surface becomes a resource puzzle: power, storage, landing pads, habitats, and terrain constraints.",
-        "metric": "Colony economy is already playable"
+        "body": "After evacuation, the surface becomes a resource puzzle: power, storage, landing pads, habitats, and terrain constraints. The colony economy is already playable."
       },
-      "academy": {
+      "jupiter": {
+        "label": "Unique discoveries",
+        "title": "Turn signals into cosmic artifacts",
+        "body": "Advanced systems transform exploration into collectible images, reports, planet skins, ships, and field notes tied to your own discoveries."
+      },
+      "uranus": {
         "label": "Real astronomy",
         "title": "Learn the universe by playing it",
-        "body": "Academy lessons, quizzes, weekly digests, and A.S.T.R.A. connect game progress to real NASA, ESA, and JWST-grade ideas.",
-        "metric": "Science learning inside the core loop"
+        "body": "Academy lessons, quizzes, weekly digests, and A.S.T.R.A. connect game progress to real NASA, ESA, and JWST-grade ideas. Science learning inside the core loop."
       },
-      "cluster": {
-        "label": "Living cluster",
-        "title": "Fifty players share a frontier",
-        "body": "Each group receives a deterministic cluster: personal rings, neighbor systems, and a core zone that expands the social map.",
-        "metric": "1,450 stars in every cluster"
+      "neptune": {
+        "label": "The deep frontier",
+        "title": "Neptune: The Ice Giant",
+        "body": "The darkest edge of the system. Supersonic winds and an icy atmosphere hide the secrets of our system's formation. Perhaps this is where we'll find artifacts from ancient expeditions."
       }
     },
     "pillars": {
       "discovery": {
         "label": "Discoveries",
         "title": "Your first photo should feel better than a loading screen",
-        "body": "The first AI surface image is designed as the emotional hook: a share-ready artifact from a world only you found first."
+        "body": "The first detailed surface image is designed as the emotional hook: a share-ready artifact from a world only you found first."
       },
       "colony": {
         "label": "Colony",
@@ -2524,7 +2523,7 @@
       "premium": {
         "label": "Premium",
         "title": "Monetization stays cosmetic and artifact-based",
-        "body": "Quarks and Premium focus on AI artifacts, priority, and collection depth. The same progression remains available without paying."
+        "body": "Quarks and Premium focus on unique artifacts, priority, and collection depth. The same progression remains available without paying."
       }
     },
     "cluster": {
