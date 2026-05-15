@@ -10,15 +10,31 @@ export function LandingPage() {
   const currentLanguage = i18n.language.startsWith('uk') ? 'uk' : 'en';
 
   useEffect(() => {
-    // Force dark theme and remove scrollbar issues
-    document.documentElement.style.backgroundColor = '#010206';
-    document.body.style.backgroundColor = '#010206';
-    document.body.style.margin = '0';
-    document.body.style.color = '#fff';
-    document.body.style.fontFamily = 'monospace';
+    // Inject global styles to override the game's default overflow:hidden
+    const style = document.createElement('style');
+    style.innerHTML = `
+      html, body {
+        height: auto !important;
+        min-height: 100% !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        overscroll-behavior-y: auto !important;
+        touch-action: pan-y manipulation !important;
+        background-color: #010206 !important;
+        color: #fff !important;
+        font-family: monospace !important;
+      }
+      #root {
+        height: auto !important;
+        min-height: 100vh !important;
+        overflow: visible !important;
+      }
+    `;
+    document.head.appendChild(style);
     
     const handleScroll = () => {
-      const maxScroll = document.body.scrollHeight - window.innerHeight;
+      const docHeight = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
+      const maxScroll = docHeight - window.innerHeight;
       if (maxScroll > 0) {
         setScrollProgress(window.scrollY / maxScroll);
       }
@@ -26,6 +42,7 @@ export function LandingPage() {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => {
       window.removeEventListener('scroll', handleScroll);
+      document.head.removeChild(style);
     };
   }, []);
 
