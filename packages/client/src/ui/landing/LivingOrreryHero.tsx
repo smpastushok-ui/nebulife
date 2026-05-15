@@ -1027,10 +1027,15 @@ export function LivingOrreryHero({ isIgnited, onIgniteComplete, targetStep }: Li
         // Final Cluster View (beyond Neptune)
         // Bring camera much closer so the inner system (Sun, Earth, Mars) 
         // fills the screen effectively as in the reference image.
-        return { 
-          pos: new THREE.Vector3(35, 12, 35), 
-          look: new THREE.Vector3(0, 0, 0) 
-        };
+        let pos = new THREE.Vector3(35, 12, 35);
+        let look = new THREE.Vector3(0, 0, 0);
+        
+        if (isMobile) {
+          // Look slightly above the cluster center so it renders lower on the screen (making room for text at the top)
+          look.y += 18;
+        }
+        
+        return { pos, look };
       }
     };
 

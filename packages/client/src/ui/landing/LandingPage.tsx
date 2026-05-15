@@ -64,6 +64,10 @@ export function LandingPage() {
         
         --text-translate-active: -50%;
         --text-translate-inactive: -40%;
+        
+        --cluster-text-top: 75%;
+        --cluster-text-translate-active: -50%;
+        --cluster-text-translate-inactive: -40%;
       }
 
       /* Mobile Layout Variables */
@@ -83,6 +87,10 @@ export function LandingPage() {
           
           --text-translate-active: 0;
           --text-translate-inactive: 20px;
+          
+          --cluster-text-top: 8%;
+          --cluster-text-translate-active: 0;
+          --cluster-text-translate-inactive: 20px;
         }
       }
     `;
@@ -384,7 +392,7 @@ export function LandingPage() {
             </div>
 
             {/* Step 8: Full Cluster / CTA (End of journey) */}
-            <div style={{ position: 'absolute', top: '75%', left: '50%', transform: `translate(-50%, ${currentStep === 8 ? '-50%' : '-40%'})`, textAlign: 'center', opacity: getOpacity(8), transition: 'all 1s cubic-bezier(0.2, 0.8, 0.2, 1)', pointerEvents: currentStep === 8 ? 'auto' : 'none' }}>
+            <div style={{ position: 'absolute', top: 'var(--cluster-text-top)', left: '50%', transform: `translate(-50%, ${currentStep === 8 ? 'var(--cluster-text-translate-active)' : 'var(--cluster-text-translate-inactive)'})`, textAlign: 'center', opacity: getOpacity(8), transition: 'all 1s cubic-bezier(0.2, 0.8, 0.2, 1)', pointerEvents: currentStep === 8 ? 'auto' : 'none', width: '90%', maxWidth: '800px' }}>
               <div style={{ color: '#7bb8ff', fontSize: '12px', letterSpacing: '2px', marginBottom: '10px', textTransform: 'uppercase' }}>08 / {t('landing.cluster.label')}</div>
               <h2 style={{ fontSize: 'clamp(24px, 5vw, 42px)', margin: '0 0 20px 0', fontWeight: 'normal', textShadow: '0 0 15px rgba(123,184,255,0.3)' }}>{t('landing.cluster.title')}</h2>
               <p style={{ color: '#8899aa', maxWidth: '600px', margin: '0 auto 40px', lineHeight: 1.6 }}>{t('landing.cluster.body')}</p>
