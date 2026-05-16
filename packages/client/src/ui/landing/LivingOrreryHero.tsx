@@ -1059,8 +1059,8 @@ export function LivingOrreryHero({ isIgnited, onIgniteComplete, targetStep }: Li
           // Look slightly above the cluster center so it renders lower on the screen (making room for text at the top)
           look.y += 18;
         } else {
-          // Raise the cluster higher on desktop by looking below it
-          look.y -= 25; // Increased to raise the scene even higher
+          // Keep the cluster perfectly centered vertically on desktop
+          look.y -= 0; 
         }
         
         return { pos, look };
