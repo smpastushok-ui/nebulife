@@ -1013,7 +1013,7 @@ export function LivingOrreryHero({ isIgnited, onIgniteComplete, targetStep }: Li
         const offsetDir = dirToSun.clone().multiplyScalar(0.75).add(right.multiplyScalar(0.6)).add(new THREE.Vector3(0, 0.4, 0)).normalize();
         
         // Scale distance by planet radius to fit perfectly
-        const dist = Math.max(3.0, p.radius * 6);
+        const dist = isMobile ? Math.max(3.0, p.radius * 6) : Math.max(2.5, p.radius * 3.8); // 3.8 makes desktop planets much larger
         let pos = planetPos.clone().add(offsetDir.multiplyScalar(dist));
         let look = planetPos.clone();
         
@@ -1040,6 +1040,9 @@ export function LivingOrreryHero({ isIgnited, onIgniteComplete, targetStep }: Li
         if (isMobile) {
           // Look slightly above the cluster center so it renders lower on the screen (making room for text at the top)
           look.y += 18;
+        } else {
+          // Raise the cluster higher on desktop by looking below it
+          look.y -= 12;
         }
         
         return { pos, look };
