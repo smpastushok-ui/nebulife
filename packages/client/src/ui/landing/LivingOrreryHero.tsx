@@ -1019,16 +1019,21 @@ export function LivingOrreryHero({ isIgnited, onIgniteComplete, targetStep }: Li
         
         let forward = look.clone().sub(pos).normalize();
         let camRight = forward.clone().cross(new THREE.Vector3(0, 1, 0)).normalize();
+        let camUp = camRight.clone().cross(forward).normalize();
         
         if (isMobile) {
-          // On mobile, we look ABOVE the planet if text is at the TOP (odd steps),
-          // or BELOW the planet if text is at the BOTTOM (even steps).
-          // Looking above shifts the planet down; looking below shifts the planet up.
+          // On mobile, pan the camera up or down vertically to shift the planet
           const isOddStep = index % 2 !== 0;
+          const shiftAmount = dist * 0.25; // Pan amount relative to distance
+          
           if (isOddStep) {
-            look.y += Math.max(3.0, p.radius * 3.0);
+            // Text is TOP, planet should be BOTTOM -> Pan camera UP
+            pos.add(camUp.clone().multiplyScalar(shiftAmount));
+            look.add(camUp.clone().multiplyScalar(shiftAmount));
           } else {
-            look.y -= Math.max(3.0, p.radius * 3.0);
+            // Text is BOTTOM, planet should be TOP -> Pan camera DOWN
+            pos.sub(camUp.clone().multiplyScalar(shiftAmount));
+            look.sub(camUp.clone().multiplyScalar(shiftAmount));
           }
         } else {
           // On desktop, shift the camera left or right so the planet moves to the opposite side of the screen
