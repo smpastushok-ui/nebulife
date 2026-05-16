@@ -13,18 +13,18 @@ export function LandingPage() {
   const TOTAL_STEPS = 8;
   const currentLanguage = i18n.language.startsWith('uk') ? 'uk' : 'en';
 
-  const resetInactivityTimer = () => {
-    setShowNextHint(false);
+  const resetInactivityTimer = (hideHint = false) => {
+    if (hideHint) setShowNextHint(false);
     if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
     if (igniteComplete && currentStep > 0 && currentStep < TOTAL_STEPS) {
       inactivityTimerRef.current = setTimeout(() => {
         setShowNextHint(true);
-      }, 5000);
+      }, 3000); // 3 seconds is better than 5
     }
   };
 
   useEffect(() => {
-    resetInactivityTimer();
+    resetInactivityTimer(false);
     return () => {
       if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
     };
@@ -79,8 +79,8 @@ export function LandingPage() {
           --text-pos-right: 5%;
           --text-align: center;
           
-          --text-pos-top-alt: 10%;
-          --text-pos-bottom-alt: auto;
+          --text-pos-top-alt: auto;
+          --text-pos-bottom-alt: 12%;
           --text-pos-left-alt: 5%;
           --text-pos-right-alt: 5%;
           --text-align-alt: center;
@@ -105,7 +105,7 @@ export function LandingPage() {
     if (!igniteComplete) return;
 
     const handleWheel = (e: WheelEvent) => {
-      resetInactivityTimer();
+      resetInactivityTimer(true);
       if (isScrollingRef.current) return;
       if (e.deltaY > 50) {
         if (currentStep < TOTAL_STEPS) {
@@ -125,10 +125,10 @@ export function LandingPage() {
     let touchStartX = 0;
     const handleTouchStart = (e: TouchEvent) => {
       touchStartX = e.touches[0].clientX;
-      resetInactivityTimer();
+      resetInactivityTimer(false); // don't hide immediately just on touch
     };
     const handleTouchMove = (e: TouchEvent) => {
-      resetInactivityTimer();
+      resetInactivityTimer(true); // hide when actively swiping
       if (isScrollingRef.current) return;
       const touchEndX = e.touches[0].clientX;
       const deltaX = touchStartX - touchEndX; // positive means swipe left (next)
@@ -336,7 +336,7 @@ export function LandingPage() {
             </div>
 
             {/* Step 1: Mercury */}
-            <div style={{ position: 'absolute', top: 'var(--text-pos-top)', bottom: 'var(--text-pos-bottom)', left: 'var(--text-pos-left)', right: 'var(--text-pos-right)', textAlign: 'var(--text-align)' as any, opacity: getOpacity(1), transition: 'all 1s cubic-bezier(0.2, 0.8, 0.2, 1)', transform: `translateY(${currentStep === 1 ? 'var(--text-translate-active)' : 'var(--text-translate-inactive)'})` }}>
+            <div style={{ position: 'absolute', top: 'var(--text-pos-top)', bottom: 'var(--text-pos-bottom)', left: 'var(--text-pos-left)', right: 'var(--text-pos-right)', textAlign: 'var(--text-align)' as any, opacity: getOpacity(1), transition: 'all 1s cubic-bezier(0.2, 0.8, 0.2, 1)', transform: `translateY(${currentStep === 1 ? 'var(--text-translate-active)' : 'var(--text-translate-inactive)'})`, pointerEvents: currentStep === 1 ? 'auto' : 'none' }}>
               <div style={{ color: '#888888', fontSize: '12px', letterSpacing: '2px', marginBottom: '10px', textTransform: 'uppercase' }}>01 / {t('landing.chapters.mercury.label')}</div>
               <h2 style={{ fontSize: 'clamp(20px, 4vw, 36px)', margin: '0 0 15px 0', fontWeight: 'normal', textShadow: '0 0 10px rgba(136,136,136,0.3)' }}>{t('landing.chapters.mercury.title')}</h2>
               <p style={{ color: '#8899aa', maxWidth: '400px', margin: '0 auto', lineHeight: 1.6 }}>{t('landing.chapters.mercury.body')}</p>
@@ -344,7 +344,7 @@ export function LandingPage() {
             </div>
 
             {/* Step 2: Venus */}
-            <div style={{ position: 'absolute', top: 'var(--text-pos-top-alt)', bottom: 'var(--text-pos-bottom-alt)', left: 'var(--text-pos-left-alt)', right: 'var(--text-pos-right-alt)', textAlign: 'var(--text-align-alt)' as any, opacity: getOpacity(2), transition: 'all 1s cubic-bezier(0.2, 0.8, 0.2, 1)', transform: `translateY(${currentStep === 2 ? 'var(--text-translate-active)' : 'var(--text-translate-inactive)'})` }}>
+            <div style={{ position: 'absolute', top: 'var(--text-pos-top-alt)', bottom: 'var(--text-pos-bottom-alt)', left: 'var(--text-pos-left-alt)', right: 'var(--text-pos-right-alt)', textAlign: 'var(--text-align-alt)' as any, opacity: getOpacity(2), transition: 'all 1s cubic-bezier(0.2, 0.8, 0.2, 1)', transform: `translateY(${currentStep === 2 ? 'var(--text-translate-active)' : 'var(--text-translate-inactive)'})`, pointerEvents: currentStep === 2 ? 'auto' : 'none' }}>
               <div style={{ color: '#cc5500', fontSize: '12px', letterSpacing: '2px', marginBottom: '10px', textTransform: 'uppercase' }}>02 / {t('landing.chapters.venus.label')}</div>
               <h2 style={{ fontSize: 'clamp(20px, 4vw, 36px)', margin: '0 0 15px 0', fontWeight: 'normal', textShadow: '0 0 10px rgba(204,85,0,0.3)' }}>{t('landing.chapters.venus.title')}</h2>
               <p style={{ color: '#8899aa', maxWidth: '400px', margin: '0 auto', lineHeight: 1.6 }}>{t('landing.chapters.venus.body')}</p>
@@ -352,7 +352,7 @@ export function LandingPage() {
             </div>
 
             {/* Step 3: Earth */}
-            <div style={{ position: 'absolute', top: 'var(--text-pos-top)', bottom: 'var(--text-pos-bottom)', left: 'var(--text-pos-left)', right: 'var(--text-pos-right)', textAlign: 'var(--text-align)' as any, opacity: getOpacity(3), transition: 'all 1s cubic-bezier(0.2, 0.8, 0.2, 1)', transform: `translateY(${currentStep === 3 ? 'var(--text-translate-active)' : 'var(--text-translate-inactive)'})` }}>
+            <div style={{ position: 'absolute', top: 'var(--text-pos-top)', bottom: 'var(--text-pos-bottom)', left: 'var(--text-pos-left)', right: 'var(--text-pos-right)', textAlign: 'var(--text-align)' as any, opacity: getOpacity(3), transition: 'all 1s cubic-bezier(0.2, 0.8, 0.2, 1)', transform: `translateY(${currentStep === 3 ? 'var(--text-translate-active)' : 'var(--text-translate-inactive)'})`, pointerEvents: currentStep === 3 ? 'auto' : 'none' }}>
               <div style={{ color: '#4488aa', fontSize: '12px', letterSpacing: '2px', marginBottom: '10px', textTransform: 'uppercase' }}>03 / {t('landing.chapters.earth.label')}</div>
               <h2 style={{ fontSize: 'clamp(20px, 4vw, 36px)', margin: '0 0 15px 0', fontWeight: 'normal', textShadow: '0 0 10px rgba(68,136,170,0.3)' }}>{t('landing.chapters.earth.title')}</h2>
               <p style={{ color: '#8899aa', maxWidth: '400px', margin: '0 auto', lineHeight: 1.6 }}>{t('landing.chapters.earth.body')}</p>
@@ -360,7 +360,7 @@ export function LandingPage() {
             </div>
 
             {/* Step 4: Mars */}
-            <div style={{ position: 'absolute', top: 'var(--text-pos-top-alt)', bottom: 'var(--text-pos-bottom-alt)', left: 'var(--text-pos-left-alt)', right: 'var(--text-pos-right-alt)', textAlign: 'var(--text-align-alt)' as any, opacity: getOpacity(4), transition: 'all 1s cubic-bezier(0.2, 0.8, 0.2, 1)', transform: `translateY(${currentStep === 4 ? 'var(--text-translate-active)' : 'var(--text-translate-inactive)'})` }}>
+            <div style={{ position: 'absolute', top: 'var(--text-pos-top-alt)', bottom: 'var(--text-pos-bottom-alt)', left: 'var(--text-pos-left-alt)', right: 'var(--text-pos-right-alt)', textAlign: 'var(--text-align-alt)' as any, opacity: getOpacity(4), transition: 'all 1s cubic-bezier(0.2, 0.8, 0.2, 1)', transform: `translateY(${currentStep === 4 ? 'var(--text-translate-active)' : 'var(--text-translate-inactive)'})`, pointerEvents: currentStep === 4 ? 'auto' : 'none' }}>
               <div style={{ color: '#ff8844', fontSize: '12px', letterSpacing: '2px', marginBottom: '10px', textTransform: 'uppercase' }}>04 / {t('landing.chapters.mars.label')}</div>
               <h2 style={{ fontSize: 'clamp(20px, 4vw, 36px)', margin: '0 0 15px 0', fontWeight: 'normal', textShadow: '0 0 10px rgba(255,136,68,0.3)' }}>{t('landing.chapters.mars.title')}</h2>
               <p style={{ color: '#8899aa', maxWidth: '400px', margin: '0 auto', lineHeight: 1.6 }}>{t('landing.chapters.mars.body')}</p>
@@ -368,7 +368,7 @@ export function LandingPage() {
             </div>
 
             {/* Step 5: Jupiter */}
-            <div style={{ position: 'absolute', top: 'var(--text-pos-top)', bottom: 'var(--text-pos-bottom)', left: 'var(--text-pos-left)', right: 'var(--text-pos-right)', textAlign: 'var(--text-align)' as any, opacity: getOpacity(5), transition: 'all 1s cubic-bezier(0.2, 0.8, 0.2, 1)', transform: `translateY(${currentStep === 5 ? 'var(--text-translate-active)' : 'var(--text-translate-inactive)'})` }}>
+            <div style={{ position: 'absolute', top: 'var(--text-pos-top)', bottom: 'var(--text-pos-bottom)', left: 'var(--text-pos-left)', right: 'var(--text-pos-right)', textAlign: 'var(--text-align)' as any, opacity: getOpacity(5), transition: 'all 1s cubic-bezier(0.2, 0.8, 0.2, 1)', transform: `translateY(${currentStep === 5 ? 'var(--text-translate-active)' : 'var(--text-translate-inactive)'})`, pointerEvents: currentStep === 5 ? 'auto' : 'none' }}>
               <div style={{ color: '#c69a68', fontSize: '12px', letterSpacing: '2px', marginBottom: '10px', textTransform: 'uppercase' }}>05 / {t('landing.chapters.jupiter.label')}</div>
               <h2 style={{ fontSize: 'clamp(20px, 4vw, 36px)', margin: '0 0 15px 0', fontWeight: 'normal', textShadow: '0 0 10px rgba(198,154,104,0.3)' }}>{t('landing.chapters.jupiter.title')}</h2>
               <p style={{ color: '#8899aa', maxWidth: '400px', margin: '0 auto', lineHeight: 1.6 }}>{t('landing.chapters.jupiter.body')}</p>
@@ -376,7 +376,7 @@ export function LandingPage() {
             </div>
 
             {/* Step 6: Uranus */}
-            <div style={{ position: 'absolute', top: 'var(--text-pos-top-alt)', bottom: 'var(--text-pos-bottom-alt)', left: 'var(--text-pos-left-alt)', right: 'var(--text-pos-right-alt)', textAlign: 'var(--text-align-alt)' as any, opacity: getOpacity(6), transition: 'all 1s cubic-bezier(0.2, 0.8, 0.2, 1)', transform: `translateY(${currentStep === 6 ? 'var(--text-translate-active)' : 'var(--text-translate-inactive)'})` }}>
+            <div style={{ position: 'absolute', top: 'var(--text-pos-top-alt)', bottom: 'var(--text-pos-bottom-alt)', left: 'var(--text-pos-left-alt)', right: 'var(--text-pos-right-alt)', textAlign: 'var(--text-align-alt)' as any, opacity: getOpacity(6), transition: 'all 1s cubic-bezier(0.2, 0.8, 0.2, 1)', transform: `translateY(${currentStep === 6 ? 'var(--text-translate-active)' : 'var(--text-translate-inactive)'})`, pointerEvents: currentStep === 6 ? 'auto' : 'none' }}>
               <div style={{ color: '#5b9fb5', fontSize: '12px', letterSpacing: '2px', marginBottom: '10px', textTransform: 'uppercase' }}>06 / {t('landing.chapters.uranus.label')}</div>
               <h2 style={{ fontSize: 'clamp(20px, 4vw, 36px)', margin: '0 0 15px 0', fontWeight: 'normal', textShadow: '0 0 10px rgba(91,159,181,0.3)' }}>{t('landing.chapters.uranus.title')}</h2>
               <p style={{ color: '#8899aa', maxWidth: '400px', margin: '0 auto', lineHeight: 1.6 }}>{t('landing.chapters.uranus.body')}</p>
@@ -384,7 +384,7 @@ export function LandingPage() {
             </div>
 
             {/* Step 7: Neptune */}
-            <div style={{ position: 'absolute', top: 'var(--text-pos-top)', bottom: 'var(--text-pos-bottom)', left: 'var(--text-pos-left)', right: 'var(--text-pos-right)', textAlign: 'var(--text-align)' as any, opacity: getOpacity(7), transition: 'all 1s cubic-bezier(0.2, 0.8, 0.2, 1)', transform: `translateY(${currentStep === 7 ? 'var(--text-translate-active)' : 'var(--text-translate-inactive)'})` }}>
+            <div style={{ position: 'absolute', top: 'var(--text-pos-top)', bottom: 'var(--text-pos-bottom)', left: 'var(--text-pos-left)', right: 'var(--text-pos-right)', textAlign: 'var(--text-align)' as any, opacity: getOpacity(7), transition: 'all 1s cubic-bezier(0.2, 0.8, 0.2, 1)', transform: `translateY(${currentStep === 7 ? 'var(--text-translate-active)' : 'var(--text-translate-inactive)'})`, pointerEvents: currentStep === 7 ? 'auto' : 'none' }}>
               <div style={{ color: '#4488ff', fontSize: '12px', letterSpacing: '2px', marginBottom: '10px', textTransform: 'uppercase' }}>07 / {t('landing.chapters.neptune.label')}</div>
               <h2 style={{ fontSize: 'clamp(20px, 4vw, 36px)', margin: '0 0 15px 0', fontWeight: 'normal', textShadow: '0 0 10px rgba(68,136,255,0.3)' }}>{t('landing.chapters.neptune.title')}</h2>
               <p style={{ color: '#8899aa', maxWidth: '400px', margin: '0 auto', lineHeight: 1.6 }}>{t('landing.chapters.neptune.body')}</p>
@@ -398,23 +398,29 @@ export function LandingPage() {
               <p style={{ color: '#8899aa', maxWidth: '600px', margin: '0 auto 40px', lineHeight: 1.6 }}>{t('landing.cluster.body')}</p>
               
               <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                <a href="https://testflight.apple.com/join/HkeRMK2D" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '200px', height: '60px', background: '#0a0f19', border: '1px solid #334455', color: '#fff', fontSize: '16px', textDecoration: 'none', borderRadius: '8px', transition: 'all 0.3s' }}
-                   onMouseOver={(e) => { e.currentTarget.style.borderColor = '#7bb8ff'; e.currentTarget.style.background = '#111a2b'; e.currentTarget.style.boxShadow = '0 0 20px rgba(123,184,255,0.2)'; }}
-                   onMouseOut={(e) => { e.currentTarget.style.borderColor = '#334455'; e.currentTarget.style.background = '#0a0f19'; e.currentTarget.style.boxShadow = 'none'; }}
+                <a href="https://testflight.apple.com/join/HkeRMK2D" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '220px', height: '64px', background: 'linear-gradient(135deg, #101828, #0a0f19)', border: '1px solid #334455', color: '#fff', fontSize: '16px', textDecoration: 'none', borderRadius: '12px', transition: 'all 0.3s', boxShadow: '0 4px 15px rgba(0,0,0,0.5)' }}
+                   onMouseOver={(e) => { e.currentTarget.style.borderColor = '#7bb8ff'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(123,184,255,0.2)'; }}
+                   onMouseOut={(e) => { e.currentTarget.style.borderColor = '#334455'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.5)'; }}
                 >
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '12px' }}>
-                    <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm1.88 14.613c-.928 1.488-1.892 2.97-3.414 2.99-1.498.02-1.986-.893-3.71-.893-1.725 0-2.25.874-3.69.914-1.52.04-2.617-1.616-3.553-3.09C-1.59 13.56 1.442 8.795 4.542 8.756c1.458-.02 2.825.992 3.73.992.905 0 2.58-1.217 4.364-1.036 1.83.187 3.498 1.107 4.436 2.65-3.834 2.164-3.21 7.29.62 8.755-.89 2.193-2.615 4.29-4.57 4.282-1.46-.008-2.02-.916-3.764-.916-1.745 0-2.35.894-3.743.914-1.522.022-2.68-1.59-3.59-3.07C.324 13.595 1.54 8.752 4.64 8.71c1.458-.02 2.825.992 3.73.992.905 0 2.58-1.218 4.364-1.037 1.83.188 3.498 1.108 4.436 2.65-3.834 2.165-3.21 7.29.62 8.756-1.127 2.766-3.328 5.405-5.91 5.394M14.94 6.002c.813-.984 1.36-2.35.197-3.785C13.882 2.25 12.502 2.84 11.644 3.824c-.753.86-1.412 2.26-.266 3.655 1.42 1.573 2.747.886 3.562-.477z" />
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '14px' }}>
+                    <path d="M16.365 14.86c-.02-.02-.37-.22-1.12-1.07-.74-1.06-.88-1.57-1.1-2.02-.2-.46-.38-1.44-.3-2.61.08-1.17.43-2.1.66-2.58.23-.48.9-1.57 2.14-2.69 0 0 .01-.01.01-.02 0-.01-.01-.02-.02-.03-.27-.2-.93-.65-1.92-.93-1.06-.29-2.3-.23-3.66.19-1.25.4-2.15.93-2.65 1.19-.5-.26-1.56-.83-2.9-1.18-1.29-.33-2.47-.28-3.37-.15-2.08.31-3.79 1.63-4.57 2.65-2.17 2.82-2.31 6.55-1.14 9.17 1.15 2.58 3.14 4.54 4.7 4.58 1.48.04 2.12-.86 3.86-.88 1.76-.02 2.3.9 3.84.88 1.62-.02 3.32-1.77 4.57-3.6 1.09-1.6 1.51-3.14 1.52-3.21 0-.01-.01-.02-.02-.02-.01 0-1.84-.71-1.86-2.68zM14.94 6.002c.813-.984 1.36-2.35.197-3.785C13.882 2.25 12.502 2.84 11.644 3.824c-.753.86-1.412 2.26-.266 3.655 1.42 1.573 2.747.886 3.562-.477z" />
                   </svg>
-                  App Store
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: '10px', opacity: 0.7, letterSpacing: '1px' }}>Download on the</span>
+                    <span style={{ fontSize: '18px', fontWeight: 'bold', letterSpacing: '0px' }}>App Store</span>
+                  </div>
                 </a>
-                <a href="https://play.google.com/apps/testing/app.nebulife.game" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '200px', height: '60px', background: '#0a0f19', border: '1px solid #334455', color: '#fff', fontSize: '16px', textDecoration: 'none', borderRadius: '8px', transition: 'all 0.3s' }}
-                   onMouseOver={(e) => { e.currentTarget.style.borderColor = '#44ff88'; e.currentTarget.style.background = '#112211'; e.currentTarget.style.boxShadow = '0 0 20px rgba(68,255,136,0.2)'; }}
-                   onMouseOut={(e) => { e.currentTarget.style.borderColor = '#334455'; e.currentTarget.style.background = '#0a0f19'; e.currentTarget.style.boxShadow = 'none'; }}
+                <a href="https://play.google.com/apps/testing/app.nebulife.game" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '220px', height: '64px', background: 'linear-gradient(135deg, #101828, #0a0f19)', border: '1px solid #334455', color: '#fff', fontSize: '16px', textDecoration: 'none', borderRadius: '12px', transition: 'all 0.3s', boxShadow: '0 4px 15px rgba(0,0,0,0.5)' }}
+                   onMouseOver={(e) => { e.currentTarget.style.borderColor = '#44ff88'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(68,255,136,0.2)'; }}
+                   onMouseOut={(e) => { e.currentTarget.style.borderColor = '#334455'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.5)'; }}
                 >
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '12px' }}>
-                    <path d="M4.58 2.285L16.29 14 2 19.38l2.58-17.095zM17.41 15.122L20.895 18.6l-5.615.805 2.13-4.283zM3.46 20.82l6.56-5.83 5.38 5.38-11.94.45zM21.754 19.46l-2.095-2.094 1.442-.206c.45-.064.814.3.75.75l-.097.666v.884z" />
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '14px' }}>
+                    <path d="M19.33 11.025l-13.62-7.85c-1.12-.65-2.05-.12-2.05 1.18v15.3c0 1.3.93 1.83 2.05 1.18l13.62-7.85c1.12-.65 1.12-1.7 0-2.35zM5.38 18.23l6.08-6.08-6.08-6.08v12.16zM6.43 4.96l9.64 5.56-2.58 2.58-7.06-8.14zM12.44 14.1l2.58 2.58-9.64 5.56 7.06-8.14zm4.61-2.66l1.32-.76c.4-.23.4-.61 0-.84l-1.32-.76-3.21 3.21 3.21 3.21z" />
                   </svg>
-                  Google Play
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: '10px', opacity: 0.7, letterSpacing: '1px' }}>GET IT ON</span>
+                    <span style={{ fontSize: '18px', fontWeight: 'bold', letterSpacing: '0px' }}>Google Play</span>
+                  </div>
                 </a>
               </div>
             </div>

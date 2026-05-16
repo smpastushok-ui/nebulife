@@ -1018,8 +1018,15 @@ export function LivingOrreryHero({ isIgnited, onIgniteComplete, targetStep }: Li
         let look = planetPos.clone();
         
         if (isMobile) {
-          // Look slightly above the planet so the planet is rendered lower on the screen (making room for text at the top)
-          look.y += p.radius * 1.5;
+          // On mobile, we look ABOVE the planet if text is at the TOP (odd steps),
+          // or BELOW the planet if text is at the BOTTOM (even steps).
+          // Looking above shifts the planet down; looking below shifts the planet up.
+          const isOddStep = index % 2 !== 0;
+          if (isOddStep) {
+            look.y += Math.max(3.0, p.radius * 3.0);
+          } else {
+            look.y -= Math.max(3.0, p.radius * 3.0);
+          }
         }
         
         return { pos, look };
