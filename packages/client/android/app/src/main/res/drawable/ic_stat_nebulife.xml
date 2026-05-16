@@ -3,13 +3,12 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
+    <!-- Planet body (radius 6) -->
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M12,3.25C7.17,3.25 3.25,7.17 3.25,12C3.25,16.83 7.17,20.75 12,20.75C16.83,20.75 20.75,16.83 20.75,12C20.75,7.17 16.83,3.25 12,3.25ZM12,5.25C15.73,5.25 18.75,8.27 18.75,12C18.75,15.73 15.73,18.75 12,18.75C8.27,18.75 5.25,15.73 5.25,12C5.25,8.27 8.27,5.25 12,5.25Z" />
+        android:pathData="M12,12m-6,0a6,6 0,1,0 12,0a6,6 0,1,0 -12,0" />
+    <!-- Ring -->
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M5.35,4.8L6.75,3.55L18.65,19.2L17.25,20.45Z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M14.1,13.2C15.7,12.45 17.15,12.2 19.05,12.35C18.9,13.1 18.65,13.8 18.3,14.45C17.05,14.4 16.05,14.6 14.95,15.1C14.65,14.45 14.4,13.85 14.1,13.2Z" />
+        android:pathData="M 1,14 Q 12,20 23,10 L 22,8 Q 12,17 2,12 Z" />
 </vector>

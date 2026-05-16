@@ -730,19 +730,6 @@ export function PlayerPage({
                       }} />
                     </button>
                   </div>
-                  {onSendTestPush && (
-                    <button
-                      type="button"
-                      onClick={() => { playSfx('ui-click', 0.07); onSendTestPush(); }}
-                      style={{
-                        ...actionButtonStyle,
-                        padding: '7px 0',
-                        fontSize: 10,
-                      }}
-                    >
-                      {i18n.language === 'en' ? 'Send test push' : 'Надіслати тестовий push'}
-                    </button>
-                  )}
                 </div>
               )}
             </div>
