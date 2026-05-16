@@ -336,58 +336,58 @@ export function LandingPage() {
             </div>
 
             {/* Step 1: Mercury */}
-            <div style={{ position: 'absolute', top: 'var(--text-pos-top)', bottom: 'var(--text-pos-bottom)', left: 'var(--text-pos-left)', right: 'var(--text-pos-right)', textAlign: 'var(--text-align)' as any, opacity: getOpacity(1), transition: 'all 1s cubic-bezier(0.2, 0.8, 0.2, 1)', transform: `translateY(${currentStep === 1 ? 'var(--text-translate-active)' : 'var(--text-translate-inactive)'})`, pointerEvents: currentStep === 1 ? 'auto' : 'none' }}>
+            <div style={{ position: 'absolute', top: 'var(--text-pos-top)', bottom: 'var(--text-pos-bottom)', left: 'var(--text-pos-left)', right: 'var(--text-pos-right)', textAlign: 'var(--text-align)' as any, opacity: getOpacity(1), transition: 'all 1s cubic-bezier(0.2, 0.8, 0.2, 1)', transform: `translateY(${currentStep === 1 ? 'var(--text-translate-active)' : 'var(--text-translate-inactive)'})`, pointerEvents: currentStep === 1 ? 'auto' : 'none', padding: '20px', background: 'radial-gradient(circle at center, rgba(0,0,0,0.6) 0%, transparent 70%)' }}>
               <div style={{ color: '#888888', fontSize: '12px', letterSpacing: '2px', marginBottom: '10px', textTransform: 'uppercase', textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}>01 / {t('landing.chapters.mercury.label')}</div>
-              <h2 style={{ fontSize: 'clamp(20px, 4vw, 36px)', margin: '0 0 15px 0', fontWeight: 'normal', textShadow: '0 2px 10px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.9), 0 0 30px rgba(136,136,136,0.6)' }}>{t('landing.chapters.mercury.title')}</h2>
-              <p style={{ color: '#8899aa', maxWidth: '400px', margin: '0 auto', lineHeight: 1.6, textShadow: '0 2px 8px rgba(0,0,0,0.9), 0 0 15px rgba(0,0,0,0.8)' }}>{t('landing.chapters.mercury.body')}</p>
+              <h2 style={{ fontSize: 'clamp(24px, 4vw, 42px)', margin: '0 0 15px 0', fontWeight: 'normal', textShadow: '0 2px 10px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.9), 0 0 30px rgba(136,136,136,0.6)' }}>{t('landing.chapters.mercury.title')}</h2>
+              <p style={{ color: '#8899aa', maxWidth: '500px', margin: '0 auto', lineHeight: 1.6, fontSize: '16px', textShadow: '0 2px 8px rgba(0,0,0,0.9), 0 0 15px rgba(0,0,0,0.8)' }}>{t('landing.chapters.mercury.body')}</p>
               {renderNextButton(2, 'center')}
             </div>
 
             {/* Step 2: Venus */}
-            <div style={{ position: 'absolute', top: 'var(--text-pos-top-alt)', bottom: 'var(--text-pos-bottom-alt)', left: 'var(--text-pos-left-alt)', right: 'var(--text-pos-right-alt)', textAlign: 'var(--text-align-alt)' as any, opacity: getOpacity(2), transition: 'all 1s cubic-bezier(0.2, 0.8, 0.2, 1)', transform: `translateY(${currentStep === 2 ? 'var(--text-translate-active)' : 'var(--text-translate-inactive)'})`, pointerEvents: currentStep === 2 ? 'auto' : 'none' }}>
+            <div style={{ position: 'absolute', top: 'var(--text-pos-top-alt)', bottom: 'var(--text-pos-bottom-alt)', left: 'var(--text-pos-left-alt)', right: 'var(--text-pos-right-alt)', textAlign: 'var(--text-align-alt)' as any, opacity: getOpacity(2), transition: 'all 1s cubic-bezier(0.2, 0.8, 0.2, 1)', transform: `translateY(${currentStep === 2 ? 'var(--text-translate-active)' : 'var(--text-translate-inactive)'})`, pointerEvents: currentStep === 2 ? 'auto' : 'none', padding: '20px', background: 'radial-gradient(circle at center, rgba(0,0,0,0.6) 0%, transparent 70%)' }}>
               <div style={{ color: '#cc5500', fontSize: '12px', letterSpacing: '2px', marginBottom: '10px', textTransform: 'uppercase', textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}>02 / {t('landing.chapters.venus.label')}</div>
-              <h2 style={{ fontSize: 'clamp(20px, 4vw, 36px)', margin: '0 0 15px 0', fontWeight: 'normal', textShadow: '0 2px 10px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.9), 0 0 30px rgba(204,85,0,0.6)' }}>{t('landing.chapters.venus.title')}</h2>
-              <p style={{ color: '#8899aa', maxWidth: '400px', margin: '0 auto', lineHeight: 1.6, textShadow: '0 2px 8px rgba(0,0,0,0.9), 0 0 15px rgba(0,0,0,0.8)' }}>{t('landing.chapters.venus.body')}</p>
+              <h2 style={{ fontSize: 'clamp(24px, 4vw, 42px)', margin: '0 0 15px 0', fontWeight: 'normal', textShadow: '0 2px 10px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.9), 0 0 30px rgba(204,85,0,0.6)' }}>{t('landing.chapters.venus.title')}</h2>
+              <p style={{ color: '#8899aa', maxWidth: '500px', margin: '0 auto', lineHeight: 1.6, fontSize: '16px', textShadow: '0 2px 8px rgba(0,0,0,0.9), 0 0 15px rgba(0,0,0,0.8)' }}>{t('landing.chapters.venus.body')}</p>
               {renderNextButton(3, 'center')}
             </div>
 
             {/* Step 3: Earth */}
-            <div style={{ position: 'absolute', top: 'var(--text-pos-top)', bottom: 'var(--text-pos-bottom)', left: 'var(--text-pos-left)', right: 'var(--text-pos-right)', textAlign: 'var(--text-align)' as any, opacity: getOpacity(3), transition: 'all 1s cubic-bezier(0.2, 0.8, 0.2, 1)', transform: `translateY(${currentStep === 3 ? 'var(--text-translate-active)' : 'var(--text-translate-inactive)'})`, pointerEvents: currentStep === 3 ? 'auto' : 'none' }}>
+            <div style={{ position: 'absolute', top: 'var(--text-pos-top)', bottom: 'var(--text-pos-bottom)', left: 'var(--text-pos-left)', right: 'var(--text-pos-right)', textAlign: 'var(--text-align)' as any, opacity: getOpacity(3), transition: 'all 1s cubic-bezier(0.2, 0.8, 0.2, 1)', transform: `translateY(${currentStep === 3 ? 'var(--text-translate-active)' : 'var(--text-translate-inactive)'})`, pointerEvents: currentStep === 3 ? 'auto' : 'none', padding: '20px', background: 'radial-gradient(circle at center, rgba(0,0,0,0.6) 0%, transparent 70%)' }}>
               <div style={{ color: '#4488aa', fontSize: '12px', letterSpacing: '2px', marginBottom: '10px', textTransform: 'uppercase', textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}>03 / {t('landing.chapters.earth.label')}</div>
-              <h2 style={{ fontSize: 'clamp(20px, 4vw, 36px)', margin: '0 0 15px 0', fontWeight: 'normal', textShadow: '0 2px 10px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.9), 0 0 30px rgba(68,136,170,0.6)' }}>{t('landing.chapters.earth.title')}</h2>
-              <p style={{ color: '#8899aa', maxWidth: '400px', margin: '0 auto', lineHeight: 1.6, textShadow: '0 2px 8px rgba(0,0,0,0.9), 0 0 15px rgba(0,0,0,0.8)' }}>{t('landing.chapters.earth.body')}</p>
+              <h2 style={{ fontSize: 'clamp(24px, 4vw, 42px)', margin: '0 0 15px 0', fontWeight: 'normal', textShadow: '0 2px 10px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.9), 0 0 30px rgba(68,136,170,0.6)' }}>{t('landing.chapters.earth.title')}</h2>
+              <p style={{ color: '#8899aa', maxWidth: '500px', margin: '0 auto', lineHeight: 1.6, fontSize: '16px', textShadow: '0 2px 8px rgba(0,0,0,0.9), 0 0 15px rgba(0,0,0,0.8)' }}>{t('landing.chapters.earth.body')}</p>
               {renderNextButton(4, 'center')}
             </div>
 
             {/* Step 4: Mars */}
-            <div style={{ position: 'absolute', top: 'var(--text-pos-top-alt)', bottom: 'var(--text-pos-bottom-alt)', left: 'var(--text-pos-left-alt)', right: 'var(--text-pos-right-alt)', textAlign: 'var(--text-align-alt)' as any, opacity: getOpacity(4), transition: 'all 1s cubic-bezier(0.2, 0.8, 0.2, 1)', transform: `translateY(${currentStep === 4 ? 'var(--text-translate-active)' : 'var(--text-translate-inactive)'})`, pointerEvents: currentStep === 4 ? 'auto' : 'none' }}>
+            <div style={{ position: 'absolute', top: 'var(--text-pos-top-alt)', bottom: 'var(--text-pos-bottom-alt)', left: 'var(--text-pos-left-alt)', right: 'var(--text-pos-right-alt)', textAlign: 'var(--text-align-alt)' as any, opacity: getOpacity(4), transition: 'all 1s cubic-bezier(0.2, 0.8, 0.2, 1)', transform: `translateY(${currentStep === 4 ? 'var(--text-translate-active)' : 'var(--text-translate-inactive)'})`, pointerEvents: currentStep === 4 ? 'auto' : 'none', padding: '20px', background: 'radial-gradient(circle at center, rgba(0,0,0,0.6) 0%, transparent 70%)' }}>
               <div style={{ color: '#ff8844', fontSize: '12px', letterSpacing: '2px', marginBottom: '10px', textTransform: 'uppercase', textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}>04 / {t('landing.chapters.mars.label')}</div>
-              <h2 style={{ fontSize: 'clamp(20px, 4vw, 36px)', margin: '0 0 15px 0', fontWeight: 'normal', textShadow: '0 2px 10px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.9), 0 0 30px rgba(255,136,68,0.6)' }}>{t('landing.chapters.mars.title')}</h2>
-              <p style={{ color: '#8899aa', maxWidth: '400px', margin: '0 auto', lineHeight: 1.6, textShadow: '0 2px 8px rgba(0,0,0,0.9), 0 0 15px rgba(0,0,0,0.8)' }}>{t('landing.chapters.mars.body')}</p>
+              <h2 style={{ fontSize: 'clamp(24px, 4vw, 42px)', margin: '0 0 15px 0', fontWeight: 'normal', textShadow: '0 2px 10px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.9), 0 0 30px rgba(255,136,68,0.6)' }}>{t('landing.chapters.mars.title')}</h2>
+              <p style={{ color: '#8899aa', maxWidth: '500px', margin: '0 auto', lineHeight: 1.6, fontSize: '16px', textShadow: '0 2px 8px rgba(0,0,0,0.9), 0 0 15px rgba(0,0,0,0.8)' }}>{t('landing.chapters.mars.body')}</p>
               {renderNextButton(5, 'center')}
             </div>
 
             {/* Step 5: Jupiter */}
-            <div style={{ position: 'absolute', top: 'var(--text-pos-top)', bottom: 'var(--text-pos-bottom)', left: 'var(--text-pos-left)', right: 'var(--text-pos-right)', textAlign: 'var(--text-align)' as any, opacity: getOpacity(5), transition: 'all 1s cubic-bezier(0.2, 0.8, 0.2, 1)', transform: `translateY(${currentStep === 5 ? 'var(--text-translate-active)' : 'var(--text-translate-inactive)'})`, pointerEvents: currentStep === 5 ? 'auto' : 'none' }}>
+            <div style={{ position: 'absolute', top: 'var(--text-pos-top)', bottom: 'var(--text-pos-bottom)', left: 'var(--text-pos-left)', right: 'var(--text-pos-right)', textAlign: 'var(--text-align)' as any, opacity: getOpacity(5), transition: 'all 1s cubic-bezier(0.2, 0.8, 0.2, 1)', transform: `translateY(${currentStep === 5 ? 'var(--text-translate-active)' : 'var(--text-translate-inactive)'})`, pointerEvents: currentStep === 5 ? 'auto' : 'none', padding: '20px', background: 'radial-gradient(circle at center, rgba(0,0,0,0.6) 0%, transparent 70%)' }}>
               <div style={{ color: '#c69a68', fontSize: '12px', letterSpacing: '2px', marginBottom: '10px', textTransform: 'uppercase', textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}>05 / {t('landing.chapters.jupiter.label')}</div>
-              <h2 style={{ fontSize: 'clamp(20px, 4vw, 36px)', margin: '0 0 15px 0', fontWeight: 'normal', textShadow: '0 2px 10px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.9), 0 0 30px rgba(198,154,104,0.6)' }}>{t('landing.chapters.jupiter.title')}</h2>
-              <p style={{ color: '#8899aa', maxWidth: '400px', margin: '0 auto', lineHeight: 1.6, textShadow: '0 2px 8px rgba(0,0,0,0.9), 0 0 15px rgba(0,0,0,0.8)' }}>{t('landing.chapters.jupiter.body')}</p>
+              <h2 style={{ fontSize: 'clamp(24px, 4vw, 42px)', margin: '0 0 15px 0', fontWeight: 'normal', textShadow: '0 2px 10px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.9), 0 0 30px rgba(198,154,104,0.6)' }}>{t('landing.chapters.jupiter.title')}</h2>
+              <p style={{ color: '#8899aa', maxWidth: '500px', margin: '0 auto', lineHeight: 1.6, fontSize: '16px', textShadow: '0 2px 8px rgba(0,0,0,0.9), 0 0 15px rgba(0,0,0,0.8)' }}>{t('landing.chapters.jupiter.body')}</p>
               {renderNextButton(6, 'center')}
             </div>
 
             {/* Step 6: Uranus */}
-            <div style={{ position: 'absolute', top: 'var(--text-pos-top-alt)', bottom: 'var(--text-pos-bottom-alt)', left: 'var(--text-pos-left-alt)', right: 'var(--text-pos-right-alt)', textAlign: 'var(--text-align-alt)' as any, opacity: getOpacity(6), transition: 'all 1s cubic-bezier(0.2, 0.8, 0.2, 1)', transform: `translateY(${currentStep === 6 ? 'var(--text-translate-active)' : 'var(--text-translate-inactive)'})`, pointerEvents: currentStep === 6 ? 'auto' : 'none' }}>
+            <div style={{ position: 'absolute', top: 'var(--text-pos-top-alt)', bottom: 'var(--text-pos-bottom-alt)', left: 'var(--text-pos-left-alt)', right: 'var(--text-pos-right-alt)', textAlign: 'var(--text-align-alt)' as any, opacity: getOpacity(6), transition: 'all 1s cubic-bezier(0.2, 0.8, 0.2, 1)', transform: `translateY(${currentStep === 6 ? 'var(--text-translate-active)' : 'var(--text-translate-inactive)'})`, pointerEvents: currentStep === 6 ? 'auto' : 'none', padding: '20px', background: 'radial-gradient(circle at center, rgba(0,0,0,0.6) 0%, transparent 70%)' }}>
               <div style={{ color: '#5b9fb5', fontSize: '12px', letterSpacing: '2px', marginBottom: '10px', textTransform: 'uppercase', textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}>06 / {t('landing.chapters.uranus.label')}</div>
-              <h2 style={{ fontSize: 'clamp(20px, 4vw, 36px)', margin: '0 0 15px 0', fontWeight: 'normal', textShadow: '0 2px 10px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.9), 0 0 30px rgba(91,159,181,0.6)' }}>{t('landing.chapters.uranus.title')}</h2>
-              <p style={{ color: '#8899aa', maxWidth: '400px', margin: '0 auto', lineHeight: 1.6, textShadow: '0 2px 8px rgba(0,0,0,0.9), 0 0 15px rgba(0,0,0,0.8)' }}>{t('landing.chapters.uranus.body')}</p>
+              <h2 style={{ fontSize: 'clamp(24px, 4vw, 42px)', margin: '0 0 15px 0', fontWeight: 'normal', textShadow: '0 2px 10px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.9), 0 0 30px rgba(91,159,181,0.6)' }}>{t('landing.chapters.uranus.title')}</h2>
+              <p style={{ color: '#8899aa', maxWidth: '500px', margin: '0 auto', lineHeight: 1.6, fontSize: '16px', textShadow: '0 2px 8px rgba(0,0,0,0.9), 0 0 15px rgba(0,0,0,0.8)' }}>{t('landing.chapters.uranus.body')}</p>
               {renderNextButton(7, 'center')}
             </div>
 
             {/* Step 7: Neptune */}
-            <div style={{ position: 'absolute', top: 'var(--text-pos-top)', bottom: 'var(--text-pos-bottom)', left: 'var(--text-pos-left)', right: 'var(--text-pos-right)', textAlign: 'var(--text-align)' as any, opacity: getOpacity(7), transition: 'all 1s cubic-bezier(0.2, 0.8, 0.2, 1)', transform: `translateY(${currentStep === 7 ? 'var(--text-translate-active)' : 'var(--text-translate-inactive)'})`, pointerEvents: currentStep === 7 ? 'auto' : 'none' }}>
+            <div style={{ position: 'absolute', top: 'var(--text-pos-top)', bottom: 'var(--text-pos-bottom)', left: 'var(--text-pos-left)', right: 'var(--text-pos-right)', textAlign: 'var(--text-align)' as any, opacity: getOpacity(7), transition: 'all 1s cubic-bezier(0.2, 0.8, 0.2, 1)', transform: `translateY(${currentStep === 7 ? 'var(--text-translate-active)' : 'var(--text-translate-inactive)'})`, pointerEvents: currentStep === 7 ? 'auto' : 'none', padding: '20px', background: 'radial-gradient(circle at center, rgba(0,0,0,0.6) 0%, transparent 70%)' }}>
               <div style={{ color: '#4488ff', fontSize: '12px', letterSpacing: '2px', marginBottom: '10px', textTransform: 'uppercase', textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}>07 / {t('landing.chapters.neptune.label')}</div>
-              <h2 style={{ fontSize: 'clamp(20px, 4vw, 36px)', margin: '0 0 15px 0', fontWeight: 'normal', textShadow: '0 2px 10px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.9), 0 0 30px rgba(68,136,255,0.6)' }}>{t('landing.chapters.neptune.title')}</h2>
-              <p style={{ color: '#8899aa', maxWidth: '400px', margin: '0 auto', lineHeight: 1.6, textShadow: '0 2px 8px rgba(0,0,0,0.9), 0 0 15px rgba(0,0,0,0.8)' }}>{t('landing.chapters.neptune.body')}</p>
+              <h2 style={{ fontSize: 'clamp(24px, 4vw, 42px)', margin: '0 0 15px 0', fontWeight: 'normal', textShadow: '0 2px 10px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.9), 0 0 30px rgba(68,136,255,0.6)' }}>{t('landing.chapters.neptune.title')}</h2>
+              <p style={{ color: '#8899aa', maxWidth: '500px', margin: '0 auto', lineHeight: 1.6, fontSize: '16px', textShadow: '0 2px 8px rgba(0,0,0,0.9), 0 0 15px rgba(0,0,0,0.8)' }}>{t('landing.chapters.neptune.body')}</p>
               {renderNextButton(8, 'center')}
             </div>
 
@@ -398,29 +398,17 @@ export function LandingPage() {
               <p style={{ color: '#8899aa', maxWidth: '600px', margin: '0 auto 40px', lineHeight: 1.6, textShadow: '0 2px 8px rgba(0,0,0,0.9), 0 0 15px rgba(0,0,0,0.8)' }}>{t('landing.cluster.body')}</p>
               
               <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                <a href="https://testflight.apple.com/join/HkeRMK2D" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '220px', height: '64px', background: 'linear-gradient(135deg, #101828, #0a0f19)', border: '1px solid #334455', color: '#fff', fontSize: '16px', textDecoration: 'none', borderRadius: '12px', transition: 'all 0.3s', boxShadow: '0 4px 15px rgba(0,0,0,0.5)' }}
-                   onMouseOver={(e) => { e.currentTarget.style.borderColor = '#7bb8ff'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(123,184,255,0.2)'; }}
-                   onMouseOut={(e) => { e.currentTarget.style.borderColor = '#334455'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.5)'; }}
+                <a href="https://testflight.apple.com/join/HkeRMK2D" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', transition: 'all 0.3s' }}
+                   onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; }}
+                   onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 384 512" fill="currentColor" style={{ marginRight: '14px' }}>
-                    <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/>
-                  </svg>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                    <span style={{ fontSize: '10px', opacity: 0.7, letterSpacing: '1px' }}>Download on the</span>
-                    <span style={{ fontSize: '18px', fontWeight: 'bold', letterSpacing: '0px' }}>App Store</span>
-                  </div>
+                  <img src="/buttons/appstore_ai.png" alt="Download on the App Store" style={{ height: '72px', width: 'auto', borderRadius: '12px', boxShadow: '0 10px 30px rgba(0,0,0,0.5), 0 0 20px rgba(123,184,255,0.2)' }} />
                 </a>
-                <a href="https://play.google.com/apps/testing/app.nebulife.game" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '220px', height: '64px', background: 'linear-gradient(135deg, #101828, #0a0f19)', border: '1px solid #334455', color: '#fff', fontSize: '16px', textDecoration: 'none', borderRadius: '12px', transition: 'all 0.3s', boxShadow: '0 4px 15px rgba(0,0,0,0.5)' }}
-                   onMouseOver={(e) => { e.currentTarget.style.borderColor = '#44ff88'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(68,255,136,0.2)'; }}
-                   onMouseOut={(e) => { e.currentTarget.style.borderColor = '#334455'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.5)'; }}
+                <a href="https://play.google.com/apps/testing/app.nebulife.game" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', transition: 'all 0.3s' }}
+                   onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; }}
+                   onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 512 512" fill="currentColor" style={{ marginRight: '14px' }}>
-                    <path d="M325.3 234.3L104.6 13l280.8 161.2-60.1 60.1zM47 0C34 6.8 25.3 19.2 25.3 35.3v441.3c0 16.1 8.7 28.5 21.7 35.3l256.6-256L47 0zm425.2 225.6l-58.9-34.1-65.7 64.5 65.7 64.5 60.1-34.1c18-14.3 18-46.5-1.2-60.8zM104.6 499l280.8-161.2-60.1-60.1L104.6 499z"/>
-                  </svg>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                    <span style={{ fontSize: '10px', opacity: 0.7, letterSpacing: '1px' }}>GET IT ON</span>
-                    <span style={{ fontSize: '18px', fontWeight: 'bold', letterSpacing: '0px' }}>Google Play</span>
-                  </div>
+                  <img src="/buttons/googleplay_ai.png" alt="Get it on Google Play" style={{ height: '72px', width: 'auto', borderRadius: '12px', boxShadow: '0 10px 30px rgba(0,0,0,0.5), 0 0 20px rgba(68,255,136,0.2)' }} />
                 </a>
               </div>
             </div>

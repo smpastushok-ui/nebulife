@@ -1013,7 +1013,7 @@ export function LivingOrreryHero({ isIgnited, onIgniteComplete, targetStep }: Li
         const offsetDir = dirToSun.clone().multiplyScalar(0.75).add(right.multiplyScalar(0.6)).add(new THREE.Vector3(0, 0.4, 0)).normalize();
         
         // Scale distance by planet radius to fit perfectly
-        const dist = isMobile ? Math.max(3.0, p.radius * 6) : Math.max(2.5, p.radius * 2.2); // 2.2 makes desktop planets much larger
+        const dist = isMobile ? Math.max(3.0, p.radius * 6) : Math.max(2.2, p.radius * 2.0); // 2.0 makes desktop planets significantly larger
         let pos = planetPos.clone().add(offsetDir.multiplyScalar(dist));
         let look = planetPos.clone();
         
@@ -1034,7 +1034,7 @@ export function LivingOrreryHero({ isIgnited, onIgniteComplete, targetStep }: Li
           // On desktop, shift the camera left or right so the planet moves to the opposite side of the screen
           const isOddStep = index % 2 !== 0;
           // Shift amount scales with distance so it visually moves the planet across the screen
-          const shiftAmount = dist * 0.4;
+          const shiftAmount = dist * 0.3; // 0.3 keeps it nicely balanced
           
           if (isOddStep) {
             // Text is left, planet should be right -> pan camera left
