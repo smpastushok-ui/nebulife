@@ -73,14 +73,14 @@ export function LandingPage() {
       /* Mobile Layout Variables */
       @media (max-width: 768px) {
         :root {
-          --text-pos-top: 10%;
+          --text-pos-top: 5%;
           --text-pos-bottom: auto;
           --text-pos-left: 5%;
           --text-pos-right: 5%;
           --text-align: center;
           
           --text-pos-top-alt: auto;
-          --text-pos-bottom-alt: 12%;
+          --text-pos-bottom-alt: 5%;
           --text-pos-left-alt: 5%;
           --text-pos-right-alt: 5%;
           --text-align-alt: center;
@@ -88,7 +88,7 @@ export function LandingPage() {
           --text-translate-active: 0;
           --text-translate-inactive: 20px;
           
-          --cluster-text-top: 8%;
+          --cluster-text-top: 5%;
           --cluster-text-translate-active: 0;
           --cluster-text-translate-inactive: 20px;
         }

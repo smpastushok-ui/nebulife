@@ -1013,27 +1013,26 @@ export function LivingOrreryHero({ isIgnited, onIgniteComplete, targetStep }: Li
         const offsetDir = dirToSun.clone().multiplyScalar(0.75).add(right.multiplyScalar(0.6)).add(new THREE.Vector3(0, 0.4, 0)).normalize();
         
         // Scale distance by planet radius to fit perfectly
-        const dist = isMobile ? Math.max(3.0, p.radius * 6) : Math.max(2.2, p.radius * 2.0); // 2.0 makes desktop planets significantly larger
+        const dist = isMobile ? Math.max(2.5, p.radius * 4.5) : Math.max(2.2, p.radius * 2.0); // Mobile 4.5 makes planets larger, Desktop 2.0 makes them huge
         let pos = planetPos.clone().add(offsetDir.multiplyScalar(dist));
         let look = planetPos.clone();
         
         let forward = look.clone().sub(pos).normalize();
         let camRight = forward.clone().cross(new THREE.Vector3(0, 1, 0)).normalize();
-        let camUp = camRight.clone().cross(forward).normalize();
         
         if (isMobile) {
-          // On mobile, pan the camera up or down vertically to shift the planet
+          // On mobile, we look ABOVE the planet if text is at the TOP (odd steps),
+          // or BELOW the planet if text is at the BOTTOM (even steps).
+          // Looking above shifts the planet down; looking below shifts the planet up.
           const isOddStep = index % 2 !== 0;
-          const shiftAmount = dist * 0.25; // Pan amount relative to distance
+          const tiltAmount = p.radius * 2.0; // Careful not to tilt too much so it stays visible
           
           if (isOddStep) {
-            // Text is TOP, planet should be BOTTOM -> Pan camera UP
-            pos.add(camUp.clone().multiplyScalar(shiftAmount));
-            look.add(camUp.clone().multiplyScalar(shiftAmount));
+            // Text is TOP, planet should be BOTTOM -> look UP
+            look.y += tiltAmount;
           } else {
-            // Text is BOTTOM, planet should be TOP -> Pan camera DOWN
-            pos.sub(camUp.clone().multiplyScalar(shiftAmount));
-            look.sub(camUp.clone().multiplyScalar(shiftAmount));
+            // Text is BOTTOM, planet should be TOP -> look DOWN
+            look.y -= tiltAmount;
           }
         } else {
           // On desktop, shift the camera left or right so the planet moves to the opposite side of the screen
@@ -1061,8 +1060,9 @@ export function LivingOrreryHero({ isIgnited, onIgniteComplete, targetStep }: Li
         let look = new THREE.Vector3(0, 0, 0);
         
         if (isMobile) {
-          // Look slightly above the cluster center so it renders lower on the screen (making room for text at the top)
-          look.y += 18;
+          // Look slightly above the cluster center so it renders lower on the screen.
+          // Reduced from 18 to 5 to keep the cluster higher up, just below the buttons.
+          look.y += 5;
         } else {
           // Keep the cluster perfectly centered vertically on desktop
           look.y -= 0; 
