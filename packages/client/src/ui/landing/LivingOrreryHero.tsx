@@ -1013,9 +1013,12 @@ export function LivingOrreryHero({ isIgnited, onIgniteComplete, targetStep }: Li
         const offsetDir = dirToSun.clone().multiplyScalar(0.75).add(right.multiplyScalar(0.6)).add(new THREE.Vector3(0, 0.4, 0)).normalize();
         
         // Scale distance by planet radius to fit perfectly
-        const dist = isMobile ? Math.max(3.0, p.radius * 6) : Math.max(2.5, p.radius * 3.8); // 3.8 makes desktop planets much larger
+        const dist = isMobile ? Math.max(3.0, p.radius * 6) : Math.max(2.5, p.radius * 2.2); // 2.2 makes desktop planets much larger
         let pos = planetPos.clone().add(offsetDir.multiplyScalar(dist));
         let look = planetPos.clone();
+        
+        let forward = look.clone().sub(pos).normalize();
+        let camRight = forward.clone().cross(new THREE.Vector3(0, 1, 0)).normalize();
         
         if (isMobile) {
           // On mobile, we look ABOVE the planet if text is at the TOP (odd steps),
@@ -1026,6 +1029,21 @@ export function LivingOrreryHero({ isIgnited, onIgniteComplete, targetStep }: Li
             look.y += Math.max(3.0, p.radius * 3.0);
           } else {
             look.y -= Math.max(3.0, p.radius * 3.0);
+          }
+        } else {
+          // On desktop, shift the camera left or right so the planet moves to the opposite side of the screen
+          const isOddStep = index % 2 !== 0;
+          // Shift amount scales with distance so it visually moves the planet across the screen
+          const shiftAmount = dist * 0.4;
+          
+          if (isOddStep) {
+            // Text is left, planet should be right -> pan camera left
+            pos.sub(camRight.clone().multiplyScalar(shiftAmount));
+            look.sub(camRight.clone().multiplyScalar(shiftAmount));
+          } else {
+            // Text is right, planet should be left -> pan camera right
+            pos.add(camRight.clone().multiplyScalar(shiftAmount));
+            look.add(camRight.clone().multiplyScalar(shiftAmount));
           }
         }
         
@@ -1042,7 +1060,7 @@ export function LivingOrreryHero({ isIgnited, onIgniteComplete, targetStep }: Li
           look.y += 18;
         } else {
           // Raise the cluster higher on desktop by looking below it
-          look.y -= 12;
+          look.y -= 25; // Increased to raise the scene even higher
         }
         
         return { pos, look };

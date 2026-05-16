@@ -402,8 +402,8 @@ export function LandingPage() {
                    onMouseOver={(e) => { e.currentTarget.style.borderColor = '#7bb8ff'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(123,184,255,0.2)'; }}
                    onMouseOut={(e) => { e.currentTarget.style.borderColor = '#334455'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.5)'; }}
                 >
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '14px' }}>
-                    <path d="M16.365 14.86c-.02-.02-.37-.22-1.12-1.07-.74-1.06-.88-1.57-1.1-2.02-.2-.46-.38-1.44-.3-2.61.08-1.17.43-2.1.66-2.58.23-.48.9-1.57 2.14-2.69 0 0 .01-.01.01-.02 0-.01-.01-.02-.02-.03-.27-.2-.93-.65-1.92-.93-1.06-.29-2.3-.23-3.66.19-1.25.4-2.15.93-2.65 1.19-.5-.26-1.56-.83-2.9-1.18-1.29-.33-2.47-.28-3.37-.15-2.08.31-3.79 1.63-4.57 2.65-2.17 2.82-2.31 6.55-1.14 9.17 1.15 2.58 3.14 4.54 4.7 4.58 1.48.04 2.12-.86 3.86-.88 1.76-.02 2.3.9 3.84.88 1.62-.02 3.32-1.77 4.57-3.6 1.09-1.6 1.51-3.14 1.52-3.21 0-.01-.01-.02-.02-.02-.01 0-1.84-.71-1.86-2.68zM14.94 6.002c.813-.984 1.36-2.35.197-3.785C13.882 2.25 12.502 2.84 11.644 3.824c-.753.86-1.412 2.26-.266 3.655 1.42 1.573 2.747.886 3.562-.477z" />
+                  <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 384 512" fill="currentColor" style={{ marginRight: '14px' }}>
+                    <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/>
                   </svg>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                     <span style={{ fontSize: '10px', opacity: 0.7, letterSpacing: '1px' }}>Download on the</span>
@@ -414,8 +414,8 @@ export function LandingPage() {
                    onMouseOver={(e) => { e.currentTarget.style.borderColor = '#44ff88'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(68,255,136,0.2)'; }}
                    onMouseOut={(e) => { e.currentTarget.style.borderColor = '#334455'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.5)'; }}
                 >
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '14px' }}>
-                    <path d="M19.33 11.025l-13.62-7.85c-1.12-.65-2.05-.12-2.05 1.18v15.3c0 1.3.93 1.83 2.05 1.18l13.62-7.85c1.12-.65 1.12-1.7 0-2.35zM5.38 18.23l6.08-6.08-6.08-6.08v12.16zM6.43 4.96l9.64 5.56-2.58 2.58-7.06-8.14zM12.44 14.1l2.58 2.58-9.64 5.56 7.06-8.14zm4.61-2.66l1.32-.76c.4-.23.4-.61 0-.84l-1.32-.76-3.21 3.21 3.21 3.21z" />
+                  <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 512 512" fill="currentColor" style={{ marginRight: '14px' }}>
+                    <path d="M325.3 234.3L104.6 13l280.8 161.2-60.1 60.1zM47 0C34 6.8 25.3 19.2 25.3 35.3v441.3c0 16.1 8.7 28.5 21.7 35.3l256.6-256L47 0zm425.2 225.6l-58.9-34.1-65.7 64.5 65.7 64.5 60.1-34.1c18-14.3 18-46.5-1.2-60.8zM104.6 499l280.8-161.2-60.1-60.1L104.6 499z"/>
                   </svg>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                     <span style={{ fontSize: '10px', opacity: 0.7, letterSpacing: '1px' }}>GET IT ON</span>
