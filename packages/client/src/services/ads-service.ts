@@ -50,6 +50,27 @@ let _admobInitialized = false;
 let _admobInitPromise: Promise<void> | null = null;
 let _attRequestPromise: Promise<void> | null = null;
 
+function waitForVisibleDocument(): Promise<void> {
+  if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      resolve();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+  });
+}
+
+function waitForAppLaunchSettled(): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, 1500);
+  });
+}
+
 export async function requestAppTrackingTransparencyIfNeeded(): Promise<void> {
   if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'ios') return;
   if (_attRequestPromise) {
@@ -59,10 +80,12 @@ export async function requestAppTrackingTransparencyIfNeeded(): Promise<void> {
 
   _attRequestPromise = (async () => {
     try {
-      // Wait a moment to ensure the app is fully active and splash screen is gone.
-      // iOS suppresses the ATT prompt if requested while the app is still launching.
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
+      // ATT must be requested while the app is foregrounded and after launch
+      // settles, otherwise iOS may silently suppress the system prompt. This
+      // gate also runs before any AdMob initialization path.
+      await waitForVisibleDocument();
+      await waitForAppLaunchSettled();
+
       const status = await AdMob.trackingAuthorizationStatus();
       if (status.status === 'notDetermined') {
         await AdMob.requestTrackingAuthorization();
