@@ -59,12 +59,16 @@ export async function requestAppTrackingTransparencyIfNeeded(): Promise<void> {
 
   _attRequestPromise = (async () => {
     try {
+      // Wait a moment to ensure the app is fully active and splash screen is gone.
+      // iOS suppresses the ATT prompt if requested while the app is still launching.
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       const status = await AdMob.trackingAuthorizationStatus();
       if (status.status === 'notDetermined') {
         await AdMob.requestTrackingAuthorization();
       }
     } catch (err) {
-      console.warn('[ads] ATT request unavailable:', err);
+      console.warn('[ads] ATT request unavailable or failed:', err);
     }
   })().finally(() => {
     _attRequestPromise = null;
