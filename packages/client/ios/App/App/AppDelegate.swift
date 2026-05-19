@@ -1,11 +1,13 @@
 import UIKit
 import Capacitor
 import FirebaseCore
+import AppTrackingTransparency
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
+    private var didRequestTrackingAuthorizationThisLaunch = false
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         FirebaseApp.configure()
@@ -49,7 +51,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {
-        // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
+        requestTrackingAuthorizationIfNeeded()
     }
 
     func applicationWillTerminate(_ application: UIApplication) {
@@ -67,6 +69,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Feel free to add additional processing here, but if you want the App API to support
         // tracking app url opens, make sure to keep this call
         return ApplicationDelegateProxy.shared.application(application, continue: userActivity, restorationHandler: restorationHandler)
+    }
+
+    private func requestTrackingAuthorizationIfNeeded() {
+        guard #available(iOS 14, *) else { return }
+        guard !didRequestTrackingAuthorizationThisLaunch else { return }
+        guard ATTrackingManager.trackingAuthorizationStatus == .notDetermined else { return }
+
+        didRequestTrackingAuthorizationThisLaunch = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            ATTrackingManager.requestTrackingAuthorization { status in
+                print("[ATT] Tracking authorization status: \(status.rawValue)")
+            }
+        }
     }
 
 }

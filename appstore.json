@@ -1,0 +1,22 @@
+[
+  {
+    "id": "47231071-0c47-42b0-ad3c-0fba3ac27c58",
+    "status": "completed",
+    "display_name": "Nano Banana Pro",
+    "job_set_type": "nano_banana_2",
+    "result_url": "https://d8j0ntlcm91z4.cloudfront.net/user_2vLjM4hkCSKSuyWNVmbRZvTdZ2u/hf_20260516_154320_47231071-0c47-42b0-ad3c-0fba3ac27c58.png",
+    "created_at": 1778946200.550992,
+    "params": {
+      "width": 1584,
+      "height": 672,
+      "aspect_ratio": "21:9",
+      "resolution": "1k",
+      "batch_size": 1,
+      "input_images": [],
+      "input_image": null,
+      "application": null,
+      "surface": null,
+      "prompt": "A sleek sci-fi button UI element. Dark space background, glowing neon blue border. Inside the button, the Apple logo and the text 'Download on the App Store'. Flat clean vector art style, high quality game UI asset."
+    }
+  }
+]
