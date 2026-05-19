@@ -58,12 +58,12 @@
 	<string>ca-app-pub-3504252081237345~9129352922</string>
 	<!-- App Tracking Transparency (iOS 14.5+). AdMob personalized ads require this. -->
 	<key>NSUserTrackingUsageDescription</key>
-	<string>Дозвіл на відстеження допомагає показувати релевантнішу рекламу та підтримувати безкоштовний доступ до гри.</string>
+	<string>Allowing tracking helps us show more relevant ads and keep Nebulife free to play.</string>
 	<!-- Photos library (save AI-generated discovery photos to gallery). -->
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Зберегти AI-фото космічних об'єктів у вашу галерею.</string>
+	<string>Save AI-generated space discovery photos to your photo library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Обрати фото профілю з вашої галереї.</string>
+	<string>Select a profile photo from your photo library.</string>
 	<!-- Make Filesystem Directory.Documents visible in the iOS Files app. -->
 	<key>UIFileSharingEnabled</key>
 	<true/>
