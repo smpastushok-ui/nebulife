@@ -117,7 +117,7 @@ API ендпоінти:
 - [x] Premium: monthly/yearly/lifetime через RevenueCat (`nebulife_pro_*`)
 - [x] Premium daily quarks: +5⚛/день через `/api/player/daily-quarks`
 - [x] Rewarded ads: +5⚛ за 3 реклами, server limit 10 ad views/day
-- [ ] Перед релізом реальної реклами: `ADS_DISABLED_FOR_TESTING = false` у `ads-service.ts` і `interstitial-manager.ts`; для TestFlight/Play Beta можна лишити `true`, щоб не ловити AdMob no-fill.
+- [x] Перед релізом реальної реклами: `ADS_DISABLED_FOR_TESTING = false` у `ads-service.ts` і `interstitial-manager.ts`; для TestFlight/Play Beta можна лишити `true`, щоб не ловити AdMob no-fill.
 - [ ] 2⚛ за проходження денної вікторини Академії
 
 ---
