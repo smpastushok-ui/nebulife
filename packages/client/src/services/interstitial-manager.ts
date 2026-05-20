@@ -15,8 +15,8 @@ import { areAdsUnlockedAfterSettlement } from './ad-release-gate.js';
 //
 // **TO RESTORE ADS:** set to `false` here AND in ads-service.ts.
 // =============================================================================
-const ADS_DISABLED_FOR_TESTING = false;
-const ADS_DISABLED_ON_ANDROID_FOR_TESTERS = false;
+const ADS_DISABLED_FOR_TESTING = Capacitor.getPlatform() === 'android';
+const ADS_DISABLED_ON_ANDROID_FOR_TESTERS = true;
 
 // Interstitial ad unit IDs
 // TEST mode: use Google test IDs during development/testing
