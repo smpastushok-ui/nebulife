@@ -3903,6 +3903,15 @@ function AppInner() {
   const isTutorialActive = activeTutorialStep !== null;
   const tutorialCompleteStep = TUTORIAL_STEPS.length;
 
+  /* Коментар українською: Ефект синхронізації активного кроку туторіалу для решти компонентів через CustomEvent та атрибут body */
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stepId = activeTutorialStep?.id || '';
+      document.body.setAttribute('data-active-tutorial-step', stepId);
+      window.dispatchEvent(new CustomEvent('nebulife-tutorial-step', { detail: stepId }));
+    }
+  }, [activeTutorialStep]);
+
   /* Коментар українською: Стан згорнутого онбордингу */
   const [tutorialMinimized, setTutorialMinimized] = useState(false);
 
@@ -11469,8 +11478,9 @@ function AppInner() {
           quizAnswers={astraQuizAnswers}
           onQuizAnswer={handleAstraQuizAnswer}
           onDigestSeen={handleAstraDigestSeen}
-          /* Коментар українською: Чат залишається відкритим під час пояснювальних кроків туторіалу про чат */
+          /* Коментар українською: Чат залишається відкритим та примусово розширюється під час пояснювальних кроків туторіалу про чат */
           forceCollapsed={isTutorialActive && activeTutorialStep?.id !== 'astra-handoff' && activeTutorialStep?.id !== 'astra-chat-tabs' && activeTutorialStep?.id !== 'astra-chat-close'}
+          forceExpanded={isTutorialActive && (activeTutorialStep?.id === 'astra-handoff' || activeTutorialStep?.id === 'astra-chat-tabs' || activeTutorialStep?.id === 'astra-chat-close')}
           isPremium={isPremiumActive}
         />
       )}

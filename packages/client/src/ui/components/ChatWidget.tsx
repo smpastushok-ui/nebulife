@@ -75,6 +75,8 @@ interface ChatWidgetProps {
   playerLevel?: number;
   /** When true, force the widget into collapsed state (e.g. while tutorial is active). */
   forceCollapsed?: boolean;
+  /** When true, force the widget into expanded/open state. */
+  forceExpanded?: boolean;
   /** Premium unlock state for A.S.T.R.A. chat. */
   isPremium?: boolean;
 }
@@ -127,7 +129,7 @@ const CHAT_PULSE_KEYFRAMES = `
 // research ticks, countdown, etc.) previously forced a full re-render of
 // the entire chat tree. Memo blocks those; real chat updates come from
 // this component's own internal polling + setState so they still render.
-function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = [], logEntries = [], onSystemNotifRead, onNavigateToPlanet, onNavigateToSystem, onOpenPlanetMissionReport, onOpenSystemReport, onOpenLogDiscovery, lastDigestSeen, latestDigestWeekDate, preferredLanguage, onAwardXP, quizAnswers = {}, onQuizAnswer, onDigestSeen, playerLevel = 1, forceCollapsed = false, isPremium = false }: ChatWidgetProps) {
+function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = [], logEntries = [], onSystemNotifRead, onNavigateToPlanet, onNavigateToSystem, onOpenPlanetMissionReport, onOpenSystemReport, onOpenLogDiscovery, lastDigestSeen, latestDigestWeekDate, preferredLanguage, onAwardXP, quizAnswers = {}, onQuizAnswer, onDigestSeen, playerLevel = 1, forceCollapsed = false, forceExpanded = false, isPremium = false }: ChatWidgetProps) {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(true);
   const [viewport, setViewport] = useState(() => ({
@@ -155,6 +157,13 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
   useEffect(() => {
     if (forceCollapsed && !collapsed) setCollapsed(true);
   }, [forceCollapsed, collapsed]);
+
+  // When forceExpanded is true, expand/open the chat widget automatically
+  useEffect(() => {
+    if (forceExpanded && collapsed) {
+      setCollapsed(false);
+    }
+  }, [forceExpanded, collapsed]);
   const [tab, setTab] = useState<Tab>('global');
   const [messages, setMessages] = useState<MessageData[]>([]);
   const [dmChannels, setDmChannels] = useState<DMChannelInfo[]>([]);

@@ -292,7 +292,21 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, onMinim
   );
 
   // A.S.T.R.A. panel positioning — side panel on desktop, bottom card on mobile.
+  const isSubtitleStep = ['galaxy-intro', 'cluster-intro', 'galaxy-map-intro', 'system-scene-intro', 'exosphere-scene-explain'].includes(step.id);
+
   const getAstraPanelStyle = (): React.CSSProperties => {
+    if (isSubtitleStep) {
+      return {
+        position: 'fixed',
+        bottom: 'calc(74px + env(safe-area-inset-bottom, 0px))',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: 'calc(100% - 20px)',
+        maxWidth: '820px',
+        maxHeight: '150px',
+      };
+    }
+
     if (isCompact) {
       const targetIsLow = targetRect
         ? targetRect.top + targetRect.height / 2 > window.innerHeight * 0.54
@@ -392,9 +406,9 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, onMinim
           ...getAstraPanelStyle(),
           zIndex: 10051,
           display: 'grid',
-          gridTemplateColumns: isCompact ? '84px 1fr' : '1fr',
-          gap: isCompact ? 10 : 12,
-          padding: isCompact ? '10px 10px 12px' : '12px',
+          gridTemplateColumns: isSubtitleStep ? '72px 1fr' : (isCompact ? '84px 1fr' : '1fr'),
+          gap: isSubtitleStep ? 10 : (isCompact ? 10 : 12),
+          padding: isSubtitleStep ? '8px 12px' : (isCompact ? '10px 10px 12px' : '12px'),
           background: 'linear-gradient(145deg, rgba(5,10,20,0.94), rgba(13,22,36,0.9))',
           border: '1px solid rgba(123,184,255,0.30)',
           borderRadius: 8,
@@ -403,7 +417,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, onMinim
           boxShadow: '0 10px 30px rgba(0,0,0,0.55), inset 0 0 24px rgba(123,184,255,0.055)',
           animation: `${isCompact ? 'astra-panel-enter-mobile' : 'astra-panel-enter'} 0.48s ease-out`,
           pointerEvents: 'auto',
-          overflow: isCompact ? 'auto' : 'hidden',
+          overflow: isSubtitleStep ? 'hidden' : (isCompact ? 'auto' : 'hidden'),
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -424,7 +438,8 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, onMinim
         <div
           style={{
             position: 'relative',
-            height: isCompact ? 116 : 250,
+            height: isSubtitleStep ? 72 : (isCompact ? 116 : 250),
+            width: isSubtitleStep ? 72 : 'auto',
             borderRadius: 6,
             overflow: 'hidden',
             border: '1px solid rgba(123,184,255,0.22)',
@@ -482,7 +497,14 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, onMinim
           />
         </div>
 
-        <div style={{ position: 'relative', minWidth: 0 }}>
+        <div style={{
+          position: 'relative',
+          minWidth: 0,
+          display: isSubtitleStep ? 'flex' : 'block',
+          flexDirection: isSubtitleStep ? 'column' : undefined,
+          justifyContent: isSubtitleStep ? 'space-between' : undefined,
+          height: isSubtitleStep ? '100%' : undefined
+        }}>
           {/* Коментар українською: Панель індикатора кроків з кнопкою згортання туторіалу */}
           <div
             style={{
@@ -490,7 +512,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, onMinim
               alignItems: 'center',
               justifyContent: 'space-between',
               gap: 8,
-              marginBottom: 8,
+              marginBottom: isSubtitleStep ? 4 : 8,
               color: '#667788',
               fontSize: 8,
               letterSpacing: 1.2,
@@ -532,7 +554,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, onMinim
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: 10,
-            marginBottom: 10,
+            marginBottom: isSubtitleStep ? 4 : 10,
           }}>
             <div style={{
               display: 'flex',
@@ -583,10 +605,10 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, onMinim
 
           {/* Text */}
           <div style={{
-            marginBottom: isInfoStep || isAutoStep || (step.type === 'click' && !targetRect) ? 12 : 0,
+            marginBottom: isSubtitleStep ? 4 : (isInfoStep || isAutoStep || (step.type === 'click' && !targetRect) ? 12 : 0),
             color: '#c1d4e8',
-            fontSize: isCompact ? 11 : 12,
-            lineHeight: 1.65,
+            fontSize: isCompact || isSubtitleStep ? 11 : 12,
+            lineHeight: isSubtitleStep ? 1.4 : 1.65,
           }}>
             {t(currentText)}
           </div>
@@ -596,13 +618,18 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, onMinim
             <div style={{
               ...ASTRA_ACTION_ROW_STYLE,
               ...(step.id === 'astra-handoff' ? { gridTemplateColumns: '1fr' } : {}),
+              gap: isSubtitleStep ? 4 : 8,
             }}>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onAdvance();
                 }}
-                style={ASTRA_BUTTON_STYLE}
+                style={{
+                  ...ASTRA_BUTTON_STYLE,
+                  padding: isSubtitleStep ? '4px 0' : '8px 0',
+                  fontSize: isSubtitleStep ? 10 : 11,
+                }}
               >
                 {t(currentNextLabel)}
               </button>
@@ -612,7 +639,11 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, onMinim
                     e.stopPropagation();
                     onSkip();
                   }}
-                  style={ASTRA_SKIP_BUTTON_STYLE}
+                  style={{
+                    ...ASTRA_SKIP_BUTTON_STYLE,
+                    padding: isSubtitleStep ? '4px 8px' : '8px 10px',
+                    fontSize: isSubtitleStep ? 9 : 10,
+                  }}
                 >
                   {t('tutorial.skip')}
                 </button>

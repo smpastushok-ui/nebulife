@@ -23,6 +23,24 @@ export function NavigationMenu({ items = [], onNavigate, disabled }: NavigationM
   const menuRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
 
+  const [activeTutorialStepId, setActiveTutorialStepId] = useState<string>('');
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      setActiveTutorialStepId(customEvent.detail || '');
+    };
+    window.addEventListener('nebulife-tutorial-step', handler);
+    if (typeof document !== 'undefined') {
+      const initial = document.body.getAttribute('data-active-tutorial-step') || '';
+      setActiveTutorialStepId(initial);
+    }
+    return () => window.removeEventListener('nebulife-tutorial-step', handler);
+  }, []);
+
+  const shouldForceOpen = ['galaxy-intro', 'cluster-intro', 'galaxy-map-intro'].includes(activeTutorialStepId);
+  const isOpen = open || shouldForceOpen;
+
   const activeItem = items.find(i => i.active);
 
   const handleToggle = useCallback(() => {
@@ -41,7 +59,7 @@ export function NavigationMenu({ items = [], onNavigate, disabled }: NavigationM
 
   // Close on outside click
   useEffect(() => {
-    if (!open) return;
+    if (!isOpen) return;
     const handler = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node) &&
           btnRef.current && !btnRef.current.contains(e.target as Node)) {
@@ -50,17 +68,17 @@ export function NavigationMenu({ items = [], onNavigate, disabled }: NavigationM
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
+  }, [isOpen]);
 
   // Close on Escape
   useEffect(() => {
-    if (!open) return;
+    if (!isOpen) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false);
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [open]);
+  }, [isOpen]);
 
   return (
     <div style={{ position: 'relative' }}>
@@ -80,12 +98,12 @@ export function NavigationMenu({ items = [], onNavigate, disabled }: NavigationM
           alignItems: 'center',
           justifyContent: 'center',
           position: 'relative',
-          background: open
+          background: isOpen
             ? 'linear-gradient(180deg, rgba(30, 58, 88, 0.50), rgba(10, 18, 32, 0.58))'
             : 'linear-gradient(180deg, rgba(10, 18, 32, 0.48), rgba(5, 10, 20, 0.42))',
-          border: `1px solid ${open ? 'rgba(120, 184, 255, 0.62)' : 'rgba(68, 102, 136, 0.5)'}`,
+          border: `1px solid ${isOpen ? 'rgba(120, 184, 255, 0.62)' : 'rgba(68, 102, 136, 0.5)'}`,
           borderRadius: 3,
-          color: open ? '#aaccee' : '#9fb8d0',
+          color: isOpen ? '#aaccee' : '#9fb8d0',
           fontFamily: 'monospace',
           cursor: disabled ? 'not-allowed' : 'pointer',
           transition: 'all 0.2s',
@@ -102,15 +120,15 @@ export function NavigationMenu({ items = [], onNavigate, disabled }: NavigationM
             width: 8,
             height: 8,
             borderRadius: '50%',
-            border: `1px solid ${open ? 'rgba(123,184,255,0.90)' : 'rgba(123,184,255,0.42)'}`,
-            background: open ? 'rgba(123,184,255,0.35)' : 'rgba(123,184,255,0.08)',
-            boxShadow: open ? '0 0 8px rgba(123,184,255,0.42)' : undefined,
+            border: `1px solid ${isOpen ? 'rgba(123,184,255,0.90)' : 'rgba(123,184,255,0.42)'}`,
+            background: isOpen ? 'rgba(123,184,255,0.35)' : 'rgba(123,184,255,0.08)',
+            boxShadow: isOpen ? '0 0 8px rgba(123,184,255,0.42)' : undefined,
           }}
         />
       </button>
 
       {/* Dropdown menu */}
-      {open && (
+      {isOpen && (
         <div
           ref={menuRef}
           style={{
@@ -138,6 +156,7 @@ export function NavigationMenu({ items = [], onNavigate, disabled }: NavigationM
                 onMouseEnter={() => setHoveredId(item.id)}
                 onMouseLeave={() => setHoveredId(null)}
                 onClick={() => handleSelect(item)}
+                data-tutorial-id={`nav-item-${item.id}`}
                 style={{
                   display: 'flex',
                   alignItems: 'center',

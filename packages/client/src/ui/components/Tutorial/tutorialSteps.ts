@@ -158,7 +158,7 @@ export const TUTORIAL_STEPS: TutorialStepConfig[] = [
   {
     id: 'galaxy-intro',
     type: 'info',
-    target: 'screen-switcher-btn',
+    target: 'nav-item-universe',
     text: 'tutorial.step_galaxy_intro_text',
     tooltipPos: 'right',
     nextLabel: 'tutorial.next',
@@ -168,7 +168,7 @@ export const TUTORIAL_STEPS: TutorialStepConfig[] = [
   {
     id: 'cluster-intro',
     type: 'info',
-    target: 'screen-switcher-btn',
+    target: 'nav-item-cluster',
     text: 'tutorial.step_cluster_intro_text',
     tooltipPos: 'right',
     nextLabel: 'tutorial.next',
@@ -178,7 +178,7 @@ export const TUTORIAL_STEPS: TutorialStepConfig[] = [
   {
     id: 'galaxy-map-intro',
     type: 'info',
-    target: 'screen-switcher-btn',
+    target: 'nav-item-galaxy',
     text: 'tutorial.step_galaxy_map_intro_text',
     tooltipPos: 'right',
     nextLabel: 'tutorial.next',
