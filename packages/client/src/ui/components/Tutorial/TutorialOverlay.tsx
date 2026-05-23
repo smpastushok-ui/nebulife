@@ -138,10 +138,12 @@ interface TutorialOverlayProps {
   subStepIndex: number;
   onAdvance: () => void;
   onSkip: () => void;
+  minimized?: boolean;
   onMinimize?: () => void;
+  onExpand?: () => void;
 }
 
-export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, onMinimize }: TutorialOverlayProps) {
+export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, minimized = false, onMinimize, onExpand }: TutorialOverlayProps) {
   const { t, i18n } = useTranslation();
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [transitioning, setTransitioning] = useState(false);
@@ -292,9 +294,110 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, onMinim
   );
 
   // A.S.T.R.A. panel positioning — side panel on desktop, bottom card on mobile.
+  const isNoDimStep = [
+    'galaxy-intro',
+    'cluster-intro',
+    'galaxy-map-intro',
+    'galaxy-map-center',
+    'system-radial-select',
+    'system-scene-intro',
+    'exosphere-btn-click',
+    'exosphere-scene-explain',
+    'academy-intro',
+    'encyclopedia-explain',
+  ].includes(step.id);
+
   const isSubtitleStep = ['galaxy-intro', 'cluster-intro', 'galaxy-map-intro', 'system-scene-intro', 'exosphere-scene-explain'].includes(step.id);
 
+  if (minimized) {
+    return (
+      <button
+        onClick={() => {
+          playSfx('ui-click', 0.07);
+          onExpand?.();
+        }}
+        style={{
+          position: 'fixed',
+          right: 16,
+          top: 'calc(76px + env(safe-area-inset-top, 0px))', // upper right under resources menu
+          zIndex: 10051,
+          width: 54,
+          height: 54,
+          borderRadius: '50%',
+          background: 'rgba(5, 10, 20, 0.94)',
+          border: '2px solid rgba(123, 184, 255, 0.8)',
+          boxShadow: '0 0 15px rgba(123, 184, 255, 0.6), inset 0 0 10px rgba(123, 184, 255, 0.2)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          padding: 0,
+          overflow: 'hidden',
+          transition: 'transform 0.2s, border-color 0.2s',
+          animation: 'astra-soft-pulse 2s ease-in-out infinite',
+          pointerEvents: 'auto',
+        }}
+        title={t('tutorial.expand_astra' as any)}
+      >
+        {videoFailed ? (
+          <img
+            src={ASTRA_PORTRAIT_URL}
+            alt={t('tutorial.astra_alt')}
+            draggable={false}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              objectPosition: '50% 16%',
+              display: 'block',
+              filter: 'saturate(0.88) contrast(0.95) brightness(0.9)',
+            }}
+          />
+        ) : (
+          <video
+            ref={(el) => {
+              if (el) {
+                el.muted = true;
+                el.volume = 0;
+              }
+            }}
+            src={ASTRA_VIDEO_URL}
+            poster={ASTRA_PORTRAIT_URL}
+            aria-label={t('tutorial.astra_alt')}
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="metadata"
+            onError={() => setVideoFailed(true)}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              objectPosition: '50% 16%',
+              display: 'block',
+              filter: 'saturate(0.88) contrast(0.95) brightness(0.9)',
+            }}
+          />
+        )}
+      </button>
+    );
+  }
+
   const getAstraPanelStyle = (): React.CSSProperties => {
+    if (isNoDimStep) {
+      return {
+        position: 'fixed',
+        top: 'calc(76px + env(safe-area-inset-top, 0px))',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: 'calc(100% - 24px)',
+        maxWidth: '820px',
+        maxHeight: '120px',
+        boxSizing: 'border-box',
+      };
+    }
+
     if (isSubtitleStep) {
       return {
         position: 'fixed',
@@ -352,7 +455,9 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, onMinim
         borderRadius: 8,
         zIndex: 10050,
         pointerEvents: 'none',
-        boxShadow: '0 0 0 9999px rgba(0,0,0,0.75), 0 0 0 3px rgba(123,184,255,0.95), 0 0 22px rgba(123,184,255,0.55)',
+        boxShadow: isNoDimStep
+          ? '0 0 0 9999px rgba(0,0,0,0), 0 0 0 3px rgba(123,184,255,0.95), 0 0 22px rgba(123,184,255,0.55)'
+          : '0 0 0 9999px rgba(0,0,0,0.75), 0 0 0 3px rgba(123,184,255,0.95), 0 0 22px rgba(123,184,255,0.55)',
         outline: '2px solid rgba(68,255,136,0.85)',
         outlineOffset: 3,
         animation: 'tut-spotlight-pulse 2s ease-in-out infinite',
@@ -394,133 +499,95 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, onMinim
             position: 'fixed',
             inset: 0,
             zIndex: 10049,
-            background: 'rgba(0, 0, 0, 0.75)',
+            background: isNoDimStep ? 'transparent' : 'rgba(0, 0, 0, 0.75)',
             pointerEvents: 'none',
           }}
         />
       )}
 
       {/* A.S.T.R.A. hologram panel */}
-      <div
-        style={{
-          ...getAstraPanelStyle(),
-          zIndex: 10051,
-          display: 'grid',
-          gridTemplateColumns: isSubtitleStep ? '72px 1fr' : (isCompact ? '84px 1fr' : '1fr'),
-          gap: isSubtitleStep ? 10 : (isCompact ? 10 : 12),
-          padding: isSubtitleStep ? '8px 12px' : (isCompact ? '10px 10px 12px' : '12px'),
-          background: 'linear-gradient(145deg, rgba(5,10,20,0.94), rgba(13,22,36,0.9))',
-          border: '1px solid rgba(123,184,255,0.30)',
-          borderRadius: 8,
-          fontFamily: 'monospace',
-          color: '#aabbcc',
-          boxShadow: '0 10px 30px rgba(0,0,0,0.55), inset 0 0 24px rgba(123,184,255,0.055)',
-          animation: `${isCompact ? 'astra-panel-enter-mobile' : 'astra-panel-enter'} 0.48s ease-out`,
-          pointerEvents: 'auto',
-          overflow: isSubtitleStep ? 'hidden' : (isCompact ? 'auto' : 'hidden'),
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
+      {isNoDimStep ? (
         <div
           style={{
-            position: 'absolute',
-            inset: 0,
-            pointerEvents: 'none',
-            background: 'linear-gradient(90deg, transparent, rgba(123,184,255,0.18), transparent)',
-            animation: 'astra-scan-line 5.4s ease-in-out infinite',
-          }}
-        />
-        <span style={{ ...ASTRA_CORNER, top: 6, left: 6, borderRight: 0, borderBottom: 0 }} />
-        <span style={{ ...ASTRA_CORNER, top: 6, right: 6, borderLeft: 0, borderBottom: 0 }} />
-        <span style={{ ...ASTRA_CORNER, bottom: 6, left: 6, borderRight: 0, borderTop: 0 }} />
-        <span style={{ ...ASTRA_CORNER, bottom: 6, right: 6, borderLeft: 0, borderTop: 0 }} />
-
-        <div
-          style={{
-            position: 'relative',
-            height: isSubtitleStep ? 72 : (isCompact ? 116 : 250),
-            width: isSubtitleStep ? 72 : 'auto',
-            borderRadius: 6,
+            ...getAstraPanelStyle(),
+            zIndex: 10051,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+            padding: '10px 14px',
+            background: 'linear-gradient(145deg, rgba(5,10,20,0.94), rgba(13,22,36,0.9))',
+            border: '1px solid rgba(123,184,255,0.30)',
+            borderRadius: 8,
+            fontFamily: 'monospace',
+            color: '#aabbcc',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.55), inset 0 0 24px rgba(123,184,255,0.055)',
+            animation: 'astra-panel-enter-mobile 0.4s ease-out',
+            pointerEvents: 'auto',
             overflow: 'hidden',
-            border: '1px solid rgba(123,184,255,0.22)',
-            background: 'rgba(2,5,16,0.72)',
           }}
+          onClick={(e) => e.stopPropagation()}
         >
-          {videoFailed ? (
-            <img
-              src={ASTRA_PORTRAIT_URL}
-              alt={t('tutorial.astra_alt')}
-              draggable={false}
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                objectPosition: isCompact ? '50% 18%' : '50% 16%',
-                display: 'block',
-                filter: 'saturate(0.88) contrast(0.95) brightness(0.9)',
-              }}
-            />
-          ) : (
-            <video
-              ref={(el) => {
-                if (el) {
-                  el.muted = true;
-                  el.volume = 0;
-                }
-              }}
-              src={ASTRA_VIDEO_URL}
-              poster={ASTRA_PORTRAIT_URL}
-              aria-label={t('tutorial.astra_alt')}
-              autoPlay
-              loop
-              muted
-              playsInline
-              preload="metadata"
-              onError={() => setVideoFailed(true)}
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                objectPosition: isCompact ? '50% 18%' : '50% 16%',
-                display: 'block',
-                filter: 'saturate(0.88) contrast(0.95) brightness(0.9)',
-              }}
-            />
-          )}
           <div
             style={{
               position: 'absolute',
               inset: 0,
-              background: 'linear-gradient(180deg, rgba(2,5,16,0.02), rgba(2,5,16,0.36))',
-              boxShadow: 'inset 0 0 28px rgba(123,184,255,0.10)',
+              pointerEvents: 'none',
+              background: 'linear-gradient(90deg, transparent, rgba(123,184,255,0.18), transparent)',
+              animation: 'astra-scan-line 5.4s ease-in-out infinite',
             }}
           />
-        </div>
+          <span style={{ ...ASTRA_CORNER, top: 6, left: 6, borderRight: 0, borderBottom: 0 }} />
+          <span style={{ ...ASTRA_CORNER, top: 6, right: 6, borderLeft: 0, borderBottom: 0 }} />
+          <span style={{ ...ASTRA_CORNER, bottom: 6, left: 6, borderRight: 0, borderTop: 0 }} />
+          <span style={{ ...ASTRA_CORNER, bottom: 6, right: 6, borderLeft: 0, borderTop: 0 }} />
 
-        <div style={{
-          position: 'relative',
-          minWidth: 0,
-          display: isSubtitleStep ? 'flex' : 'block',
-          flexDirection: isSubtitleStep ? 'column' : undefined,
-          justifyContent: isSubtitleStep ? 'space-between' : undefined,
-          height: isSubtitleStep ? '100%' : undefined
-        }}>
-          {/* Коментар українською: Панель індикатора кроків з кнопкою згортання туторіалу */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 8,
-              marginBottom: isSubtitleStep ? 4 : 8,
-              color: '#667788',
-              fontSize: 8,
-              letterSpacing: 1.2,
-              textTransform: 'uppercase',
-            }}
-          >
-            <span>{t('tutorial.astra_unit')}</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {/* Row 1: Header / Only sound button */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            fontSize: 8,
+            color: '#667788',
+            textTransform: 'uppercase',
+            letterSpacing: 1.2,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{
+                width: 5,
+                height: 5,
+                borderRadius: '50%',
+                background: '#7bb8ff',
+                boxShadow: '0 0 8px rgba(123,184,255,0.65)',
+                animation: 'astra-soft-pulse 2s ease-in-out infinite',
+              }} />
+              <span>{t('tutorial.astra_unit')}</span>
+              {voiceSrc && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    playVoice();
+                  }}
+                  title={t('tutorial.astra_voice_replay')}
+                  aria-label={t('tutorial.astra_voice_replay')}
+                  style={{
+                    marginLeft: 6,
+                    padding: '2px 6px',
+                    border: '1px solid rgba(123,184,255,0.22)',
+                    borderRadius: 3,
+                    background: voicePlaying ? 'rgba(123,184,255,0.12)' : 'rgba(68,102,136,0.08)',
+                    color: '#9cc9ee',
+                    cursor: 'pointer',
+                    fontSize: 7,
+                    lineHeight: 1,
+                  }}
+                >
+                  {voicePlaying ? '||' : '>'}
+                </button>
+              )}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               {onMinimize && (
                 <button
                   type="button"
@@ -542,188 +609,403 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, onMinim
                     animation: 'astra-soft-pulse 2s ease-in-out infinite',
                   }}
                 >
-                  [{t('tutorial.minimize', { defaultValue: 'ЗГОРНУТИ' })}]
+                  [{t('tutorial.only_sound', { defaultValue: 'Only sound' })}]
                 </button>
               )}
               <span>{t('tutorial.step_counter', { step: parseInt(String(STEP_NUMBER_MAP[step.id] ?? 0)) + 1, total: TUTORIAL_STEPS.length })}</span>
             </div>
           </div>
 
+          {/* Row 2: Text in exactly one line */}
           <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 10,
-            marginBottom: isSubtitleStep ? 4 : 10,
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 7,
-              minWidth: 0,
-              color: '#7bb8ff',
-              fontSize: 9,
-              letterSpacing: 1.4,
-              textTransform: 'uppercase',
-            }}>
-              <span style={{
-                width: 6,
-                height: 6,
-                borderRadius: '50%',
-                background: '#7bb8ff',
-                boxShadow: '0 0 9px rgba(123,184,255,0.65)',
-                animation: 'astra-soft-pulse 2.4s ease-in-out infinite',
-              }} />
-              {t('tutorial.astra_status')}
-            </div>
-            {voiceSrc && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  playVoice();
-                }}
-                title={t('tutorial.astra_voice_replay')}
-                aria-label={t('tutorial.astra_voice_replay')}
-                style={{
-                  width: 28,
-                  height: 24,
-                  border: '1px solid rgba(123,184,255,0.30)',
-                  borderRadius: 4,
-                  background: voicePlaying ? 'rgba(123,184,255,0.16)' : 'rgba(68,102,136,0.12)',
-                  color: '#9cc9ee',
-                  cursor: 'pointer',
-                  fontFamily: 'monospace',
-                  fontSize: 11,
-                  lineHeight: 1,
-                }}
-              >
-                {voicePlaying ? '||' : '>'}
-              </button>
-            )}
-          </div>
-
-          {/* Text */}
-          <div style={{
-            marginBottom: isSubtitleStep ? 4 : (isInfoStep || isAutoStep || (step.type === 'click' && !targetRect) ? 12 : 0),
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            fontSize: 11.5,
             color: '#c1d4e8',
-            fontSize: isCompact || isSubtitleStep ? 11 : 12,
-            lineHeight: isSubtitleStep ? 1.4 : 1.65,
-          }}>
+            lineHeight: 1.3,
+            margin: '2px 0 4px',
+          }} title={t(currentText)}>
             {t(currentText)}
           </div>
 
-          {/* "Next" button for info steps */}
-          {(isInfoStep || isAutoStep) && currentNextLabel && (
-            <div style={{
-              ...ASTRA_ACTION_ROW_STYLE,
-              ...(step.id === 'astra-handoff' ? { gridTemplateColumns: '1fr' } : {}),
-              gap: isSubtitleStep ? 4 : 8,
-            }}>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAdvance();
-                }}
-                style={{
-                  ...ASTRA_BUTTON_STYLE,
-                  padding: isSubtitleStep ? '4px 0' : '8px 0',
-                  fontSize: isSubtitleStep ? 10 : 11,
-                }}
-              >
-                {t(currentNextLabel)}
-              </button>
-              {step.id !== 'astra-handoff' && (
+          {/* Row 3: Buttons or Hint under it in one line */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            width: '100%',
+          }}>
+            {(isInfoStep || isAutoStep) && currentNextLabel ? (
+              <>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onSkip();
+                    onAdvance();
                   }}
                   style={{
-                    ...ASTRA_SKIP_BUTTON_STYLE,
-                    padding: isSubtitleStep ? '4px 8px' : '8px 10px',
-                    fontSize: isSubtitleStep ? 9 : 10,
+                    ...ASTRA_BUTTON_STYLE,
+                    flex: 1,
+                    padding: '5px 0',
+                    fontSize: 10,
                   }}
                 >
-                  {t('tutorial.skip')}
+                  {t(currentNextLabel)}
                 </button>
-              )}
-            </div>
-          )}
-
-          {/* Click hint for click steps */}
-          {step.type === 'click' && targetRect && (
-            <>
-              <div style={{ fontSize: 10, color: '#667788', marginTop: 8, marginBottom: isCompact ? 8 : 0 }}>
-                {t('tutorial.click_hint')}
-              </div>
-              {isCompact && (
-                <div style={ASTRA_ACTION_ROW_STYLE}>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      triggerTargetAndAdvance();
-                    }}
-                    style={{
-                      ...ASTRA_BUTTON_STYLE,
-                      borderColor: 'rgba(123,184,255,0.55)',
-                      background: 'rgba(68,136,170,0.22)',
-                      color: '#d6efff',
-                      boxShadow: '0 0 14px rgba(68,136,170,0.18)',
-                    }}
-                  >
-                    {t('tutorial.tap_target')}
-                  </button>
+                {step.id !== 'astra-handoff' && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       onSkip();
                     }}
-                    style={ASTRA_SKIP_BUTTON_STYLE}
+                    style={{
+                      ...ASTRA_SKIP_BUTTON_STYLE,
+                      padding: '5px 12px',
+                      fontSize: 9,
+                    }}
                   >
                     {t('tutorial.skip')}
                   </button>
-                </div>
-              )}
-            </>
-          )}
+                )}
+              </>
+            ) : (
+              <div style={{
+                fontSize: 9,
+                color: '#88aacc',
+                fontStyle: 'italic',
+                flex: 1,
+                textAlign: 'left',
+              }}>
+                * {t('tutorial.click_hint')} *
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div
+          style={{
+            ...getAstraPanelStyle(),
+            zIndex: 10051,
+            display: 'grid',
+            gridTemplateColumns: isSubtitleStep ? '72px 1fr' : (isCompact ? '84px 1fr' : '1fr'),
+            gap: isSubtitleStep ? 10 : (isCompact ? 10 : 12),
+            padding: isSubtitleStep ? '8px 12px' : (isCompact ? '10px 10px 12px' : '12px'),
+            background: 'linear-gradient(145deg, rgba(5,10,20,0.94), rgba(13,22,36,0.9))',
+            border: '1px solid rgba(123,184,255,0.30)',
+            borderRadius: 8,
+            fontFamily: 'monospace',
+            color: '#aabbcc',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.55), inset 0 0 24px rgba(123,184,255,0.055)',
+            animation: `${isCompact ? 'astra-panel-enter-mobile' : 'astra-panel-enter'} 0.48s ease-out`,
+            pointerEvents: 'auto',
+            overflow: isSubtitleStep ? 'hidden' : (isCompact ? 'auto' : 'hidden'),
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              pointerEvents: 'none',
+              background: 'linear-gradient(90deg, transparent, rgba(123,184,255,0.18), transparent)',
+              animation: 'astra-scan-line 5.4s ease-in-out infinite',
+            }}
+          />
+          <span style={{ ...ASTRA_CORNER, top: 6, left: 6, borderRight: 0, borderBottom: 0 }} />
+          <span style={{ ...ASTRA_CORNER, top: 6, right: 6, borderLeft: 0, borderBottom: 0 }} />
+          <span style={{ ...ASTRA_CORNER, bottom: 6, left: 6, borderRight: 0, borderTop: 0 }} />
+          <span style={{ ...ASTRA_CORNER, bottom: 6, right: 6, borderLeft: 0, borderTop: 0 }} />
 
-          {/* Fallback Next button for click steps when element not found */}
-          {step.type === 'click' && !targetRect && (
-            <div style={ASTRA_ACTION_ROW_STYLE}>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAdvance();
+          <div
+            style={{
+              position: 'relative',
+              height: isSubtitleStep ? 72 : (isCompact ? 116 : 250),
+              width: isSubtitleStep ? 72 : 'auto',
+              borderRadius: 6,
+              overflow: 'hidden',
+              border: '1px solid rgba(123,184,255,0.22)',
+              background: 'rgba(2,5,16,0.72)',
+            }}
+          >
+            {videoFailed ? (
+              <img
+                src={ASTRA_PORTRAIT_URL}
+                alt={t('tutorial.astra_alt')}
+                draggable={false}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  objectPosition: isCompact ? '50% 18%' : '50% 16%',
+                  display: 'block',
+                  filter: 'saturate(0.88) contrast(0.95) brightness(0.9)',
                 }}
-                style={ASTRA_BUTTON_STYLE}
-              >
-                {t('tutorial.next')}
-              </button>
+              />
+            ) : (
+              <video
+                ref={(el) => {
+                  if (el) {
+                    el.muted = true;
+                    el.volume = 0;
+                  }
+                }}
+                src={ASTRA_VIDEO_URL}
+                poster={ASTRA_PORTRAIT_URL}
+                aria-label={t('tutorial.astra_alt')}
+                autoPlay
+                loop
+                muted
+                playsInline
+                preload="metadata"
+                onError={() => setVideoFailed(true)}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  objectPosition: isCompact ? '50% 18%' : '50% 16%',
+                  display: 'block',
+                  filter: 'saturate(0.88) contrast(0.95) brightness(0.9)',
+                }}
+              />
+            )}
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background: 'linear-gradient(180deg, rgba(2,5,16,0.02), rgba(2,5,16,0.36))',
+                boxShadow: 'inset 0 0 28px rgba(123,184,255,0.10)',
+              }}
+            />
+          </div>
+
+          <div style={{
+            position: 'relative',
+            minWidth: 0,
+            display: isSubtitleStep ? 'flex' : 'block',
+            flexDirection: isSubtitleStep ? 'column' : undefined,
+            justifyContent: isSubtitleStep ? 'space-between' : undefined,
+            height: isSubtitleStep ? '100%' : undefined
+          }}>
+            {/* Коментар українською: Панель індикатора кроків з кнопкою згортання туторіалу */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 8,
+                marginBottom: isSubtitleStep ? 4 : 8,
+                color: '#667788',
+                fontSize: 8,
+                letterSpacing: 1.2,
+                textTransform: 'uppercase',
+              }}
+            >
+              <span>{t('tutorial.astra_unit')}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                {onMinimize && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      playSfx('ui-click', 0.07);
+                      onMinimize();
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#7bb8ff',
+                      cursor: 'pointer',
+                      fontFamily: 'monospace',
+                      fontSize: 8,
+                      letterSpacing: 1.2,
+                      textTransform: 'uppercase',
+                      padding: 0,
+                      animation: 'astra-soft-pulse 2s ease-in-out infinite',
+                    }}
+                  >
+                    [{t('tutorial.only_sound', { defaultValue: 'Only sound' })}]
+                  </button>
+                )}
+                <span>{t('tutorial.step_counter', { step: parseInt(String(STEP_NUMBER_MAP[step.id] ?? 0)) + 1, total: TUTORIAL_STEPS.length })}</span>
+              </div>
+            </div>
+
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+              marginBottom: isSubtitleStep ? 4 : 10,
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 7,
+                minWidth: 0,
+                color: '#7bb8ff',
+                fontSize: 9,
+                letterSpacing: 1.4,
+                textTransform: 'uppercase',
+              }}>
+                <span style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  background: '#7bb8ff',
+                  boxShadow: '0 0 9px rgba(123,184,255,0.65)',
+                  animation: 'astra-soft-pulse 2.4s ease-in-out infinite',
+                }} />
+                {t('tutorial.astra_status')}
+              </div>
+              {voiceSrc && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    playVoice();
+                  }}
+                  title={t('tutorial.astra_voice_replay')}
+                  aria-label={t('tutorial.astra_voice_replay')}
+                  style={{
+                    width: 28,
+                    height: 24,
+                    border: '1px solid rgba(123,184,255,0.30)',
+                    borderRadius: 4,
+                    background: voicePlaying ? 'rgba(123,184,255,0.16)' : 'rgba(68,102,136,0.12)',
+                    color: '#9cc9ee',
+                    cursor: 'pointer',
+                    fontFamily: 'monospace',
+                    fontSize: 11,
+                    lineHeight: 1,
+                  }}
+                >
+                  {voicePlaying ? '||' : '>'}
+                </button>
+              )}
+            </div>
+
+            {/* Text */}
+            <div style={{
+              marginBottom: isSubtitleStep ? 4 : (isInfoStep || isAutoStep || (step.type === 'click' && !targetRect) ? 12 : 0),
+              color: '#c1d4e8',
+              fontSize: isCompact || isSubtitleStep ? 11 : 12,
+              lineHeight: isSubtitleStep ? 1.4 : 1.65,
+            }}>
+              {t(currentText)}
+            </div>
+
+            {/* "Next" button for info steps */}
+            {(isInfoStep || isAutoStep) && currentNextLabel && (
+              <div style={{
+                ...ASTRA_ACTION_ROW_STYLE,
+                ...(step.id === 'astra-handoff' ? { gridTemplateColumns: '1fr' } : {}),
+                gap: isSubtitleStep ? 4 : 8,
+              }}>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAdvance();
+                  }}
+                  style={{
+                    ...ASTRA_BUTTON_STYLE,
+                    padding: isSubtitleStep ? '4px 0' : '8px 0',
+                    fontSize: isSubtitleStep ? 10 : 11,
+                  }}
+                >
+                  {t(currentNextLabel)}
+                </button>
+                {step.id !== 'astra-handoff' && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSkip();
+                    }}
+                    style={{
+                      ...ASTRA_SKIP_BUTTON_STYLE,
+                      padding: isSubtitleStep ? '4px 8px' : '8px 10px',
+                      fontSize: isSubtitleStep ? 9 : 10,
+                    }}
+                  >
+                    {t('tutorial.skip')}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Click hint for click steps */}
+            {step.type === 'click' && targetRect && (
+              <>
+                <div style={{ fontSize: 10, color: '#667788', marginTop: 8, marginBottom: isCompact ? 8 : 0 }}>
+                  {t('tutorial.click_hint')}
+                </div>
+                {isCompact && (
+                  <div style={ASTRA_ACTION_ROW_STYLE}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        triggerTargetAndAdvance();
+                      }}
+                      style={{
+                        ...ASTRA_BUTTON_STYLE,
+                        borderColor: 'rgba(123,184,255,0.55)',
+                        background: 'rgba(68,136,170,0.22)',
+                        color: '#d6efff',
+                        boxShadow: '0 0 14px rgba(68,136,170,0.18)',
+                      }}
+                    >
+                      {t('tutorial.tap_target')}
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSkip();
+                      }}
+                      style={ASTRA_SKIP_BUTTON_STYLE}
+                    >
+                      {t('tutorial.skip')}
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Fallback Next button for click steps when element not found */}
+            {step.type === 'click' && !targetRect && (
+              <div style={ASTRA_ACTION_ROW_STYLE}>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAdvance();
+                  }}
+                  style={ASTRA_BUTTON_STYLE}
+                >
+                  {t('tutorial.next')}
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSkip();
+                  }}
+                  style={ASTRA_SKIP_BUTTON_STYLE}
+                >
+                  {t('tutorial.skip')}
+                </button>
+              </div>
+            )}
+            {step.type === 'click' && targetRect && !isCompact && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onSkip();
                 }}
-                style={ASTRA_SKIP_BUTTON_STYLE}
+                style={{ ...ASTRA_SKIP_BUTTON_STYLE, width: '100%', marginTop: 10 }}
               >
                 {t('tutorial.skip')}
               </button>
-            </div>
-          )}
-          {step.type === 'click' && targetRect && !isCompact && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onSkip();
-              }}
-              style={{ ...ASTRA_SKIP_BUTTON_STYLE, width: '100%', marginTop: 10 }}
-            >
-              {t('tutorial.skip')}
-            </button>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
 }

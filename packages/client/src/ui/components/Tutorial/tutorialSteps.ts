@@ -162,7 +162,7 @@ export const TUTORIAL_STEPS: TutorialStepConfig[] = [
     text: 'tutorial.step_galaxy_intro_text',
     tooltipPos: 'right',
     nextLabel: 'tutorial.next',
-    onActivate: ['go-scene-universe'],
+    onActivate: ['close-archive', 'go-scene-universe'],
   },
   /* Коментар українською: Крок 15 - Зоряний Кластер */
   {

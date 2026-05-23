@@ -1605,6 +1605,7 @@
     "research_progress": "Дослiдження: {{current}}/{{total}}",
     "done": "Готово!",
     "minimize": "ЗГОРНУТИ",
+    "only_sound": "Тільки звук",
     "expand_astra": "Розгорнути навчання A.S.T.R.A.",
     "step_counter": "Крок {{step}} / {{total}}",
     "next": "Далi",

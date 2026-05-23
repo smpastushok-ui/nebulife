@@ -1604,6 +1604,7 @@
     "research_progress": "Research: {{current}}/{{total}}",
     "done": "Done!",
     "minimize": "MINIMIZE",
+    "only_sound": "Only sound",
     "expand_astra": "Expand A.S.T.R.A. tutorial",
     "step_counter": "Step {{step}} / {{total}}",
     "next": "Next",

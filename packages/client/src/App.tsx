@@ -11347,62 +11347,16 @@ function AppInner() {
       )}
 
       {/* Tutorial overlay */}
-      {isTutorialActive && activeTutorialStep?.type !== 'free-task' && activeTutorialStep && !tutorialMinimized && (
+      {isTutorialActive && activeTutorialStep?.type !== 'free-task' && activeTutorialStep && (
         <TutorialOverlay
           step={activeTutorialStep}
           subStepIndex={tutorialSubStep}
           onAdvance={handleTutorialAdvance}
           onSkip={handleTutorialSkip}
+          minimized={tutorialMinimized}
           onMinimize={() => setTutorialMinimized(true)}
+          onExpand={() => setTutorialMinimized(false)}
         />
-      )}
-
-      {/* Коментар українською: Плаваюча кнопка асистента A.S.T.R.A., коли туторіал згорнуто */}
-      {isTutorialActive && tutorialMinimized && (
-        <button
-          onClick={() => {
-            playSfx('ui-click', 0.07);
-            setTutorialMinimized(false);
-          }}
-          style={{
-            position: 'fixed',
-            left: 16,
-            bottom: 'calc(110px + env(safe-area-inset-bottom, 0px))',
-            zIndex: 9999,
-            width: 52,
-            height: 52,
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #0b1a30, #050a14)',
-            border: '2px solid rgba(123, 184, 255, 0.8)',
-            boxShadow: '0 0 15px rgba(123, 184, 255, 0.6), inset 0 0 10px rgba(123, 184, 255, 0.2)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            transition: 'transform 0.2s, border-color 0.2s',
-            animation: 'astra-soft-pulse 2s ease-in-out infinite',
-          }}
-          title={t('tutorial.expand_astra' as any)}
-        >
-          {/* Коментар українською: Космічний голографічний кружок */}
-          <div style={{
-            width: 24,
-            height: 24,
-            borderRadius: '50%',
-            border: '2px solid #7bb8ff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}>
-            <div style={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              background: '#7bb8ff',
-              boxShadow: '0 0 6px #7bb8ff',
-            }} />
-          </div>
-        </button>
       )}
 
       {/* Коментар українською: Космічне діалогове вікно перейменування */}
