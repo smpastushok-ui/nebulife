@@ -2313,6 +2313,7 @@ function AppInner() {
   const [academyMissionChapter, setAcademyMissionChapter] = useState<'surface' | undefined>(undefined);
   const [showSurfaceAstraLesson, setShowSurfaceAstraLesson] = useState(false);
   const [showEncyclopedia, setShowEncyclopedia] = useState(false);
+  const [exosphereLoaded, setExosphereLoaded] = useState(false);
   // Colony Center — opened by tapping the colony_hub building on the surface.
   // Renders ColonyCenterPage (6 tabs: overview / colonies / production /
   // buildings / events / premium). Closes via the page's own Back button.
@@ -8960,6 +8961,13 @@ function AppInner() {
     engineRef.current?.setPlanetVisible(!hidePixi);
   }, [state.scene]);
 
+  /* Коментар українською: Скидання прапорця завантаження екзосфери при зміні сцени */
+  useEffect(() => {
+    if (state.scene !== 'planet-view') {
+      setExosphereLoaded(false);
+    }
+  }, [state.scene]);
+
   // Determine which panel to show for the selected system
   // (panels open via context menu actions, not directly from click)
   const selectedSystem = state.selectedSystem;
@@ -9414,7 +9422,7 @@ function AppInner() {
         timeMultiplier={timeMultiplier}
         accelAt={accelAt}
         gameTimeAtAccel={gameTimeAtAccel}
-        isCountdownPaused={() => surfaceTargetRef.current !== null}
+        isCountdownPaused={() => surfaceTargetRef.current !== null || isTutorialActive}
         onTimerClick={evacuationTarget && evacuationPhase === 'idle' && evacuationPromptDismissed ? () => setEvacuationPromptDismissed(false) : undefined}
         observatoryUsed={researchState.slots.filter(s => s.systemId !== null).length}
         observatoryTotal={researchState.slots.length}
@@ -10488,7 +10496,13 @@ function AppInner() {
             return null;
           })()}
           onDoubleClick={handleGlobeDoubleClick}
+          onSceneLoaded={() => setExosphereLoaded(true)}
         />
+      )}
+
+      {/* Коментар українською: Маркер завантаження екзосфери для затримки озвучки туторіалу */}
+      {exosphereLoaded && (
+        <div data-tutorial-id="exosphere-loaded-marker" style={{ display: 'none' }} />
       )}
 
       {state.scene === 'planet-view' && state.selectedPlanet && state.selectedSystem

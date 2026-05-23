@@ -153,14 +153,26 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, minimiz
   const [transitioning, setTransitioning] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
   const [voicePlaying, setVoicePlaying] = useState(false);
+  const [voiceFinished, setVoiceFinished] = useState(false);
   const rafRef = useRef<number>(0);
-  const prevTargetRef = useRef<string>('');
+  const prevTargetRef = useRef<string | null>('');
   const voiceRef = useRef<HTMLAudioElement | null>(null);
+  const marqueeContainerRef = useRef<HTMLDivElement>(null);
+
+  const voiceClip = getAstraVoiceClip(step.id, subStepIndex, i18n.language);
+
+  useEffect(() => {
+    setVoiceFinished(!voiceClip);
+  }, [step.id, subStepIndex, voiceClip]);
 
   // Determine current target and text based on sub-steps
-  const currentTarget = step.subSteps && step.subSteps.length > 0
+  const baseTarget = step.subSteps && step.subSteps.length > 0
     ? step.subSteps[subStepIndex]?.target ?? step.target
     : step.target;
+
+  const currentTarget = (step.id === 'system-radial-select' && !voiceFinished)
+    ? null
+    : baseTarget;
 
   const currentText = step.subSteps && step.subSteps.length > 0
     ? step.subSteps[subStepIndex]?.text ?? step.text
@@ -179,7 +191,6 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, minimiz
   const isWaiting = step.waitForTarget && !targetRect;
   const shouldBlockClicks = !isWaiting && (targetRect || !step.target);
   const isCompact = typeof window !== 'undefined' && window.innerWidth < 720;
-  const voiceClip = getAstraVoiceClip(step.id, subStepIndex, i18n.language);
   const isAndroid = typeof window !== 'undefined' && Capacitor.getPlatform() === 'android';
   const ext = isAndroid ? 'webm' : 'mp3';
   const voiceSrc = voiceClip
@@ -199,10 +210,18 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, minimiz
     audio.volume = 0.86;
     voiceRef.current = audio;
     setVoicePlaying(true);
-    audio.onended = () => setVoicePlaying(false);
-    audio.onerror = () => setVoicePlaying(false);
+    setVoiceFinished(false);
+    audio.onended = () => {
+      setVoicePlaying(false);
+      setVoiceFinished(true);
+    };
+    audio.onerror = () => {
+      setVoicePlaying(false);
+      setVoiceFinished(true);
+    };
     void audio.play().catch(() => {
       setVoicePlaying(false);
+      setVoiceFinished(true);
     });
   }, [voiceSrc]);
 
@@ -236,6 +255,33 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, minimiz
       setVoicePlaying(false);
     };
   }, [isWaiting, playVoice, voiceSrc]);
+
+  // Synchronized scrolling text effect for single-line ticker steps
+  useEffect(() => {
+    const audio = voiceRef.current;
+    const container = marqueeContainerRef.current;
+    if (!audio || !container || !voicePlaying) return;
+
+    let rafId = 0;
+    const updateScroll = () => {
+      if (audio.duration && audio.duration > 0) {
+        const scrollMax = container.scrollWidth - container.clientWidth;
+        if (scrollMax > 0) {
+          const pct = audio.currentTime / audio.duration;
+          container.scrollLeft = scrollMax * pct;
+        }
+      }
+      rafId = requestAnimationFrame(updateScroll);
+    };
+
+    rafId = requestAnimationFrame(updateScroll);
+    return () => {
+      cancelAnimationFrame(rafId);
+      if (container) {
+        container.scrollLeft = 0;
+      }
+    };
+  }, [voicePlaying, voiceSrc]);
 
   // Track transitions between targets
   useEffect(() => {
@@ -396,6 +442,19 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, minimiz
   }
 
   const getAstraPanelStyle = (): React.CSSProperties => {
+    if (step.id === 'encyclopedia-explain') {
+      return {
+        position: 'fixed',
+        bottom: 'calc(74px + env(safe-area-inset-bottom, 0px))',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: 'calc(100% - 24px)',
+        maxWidth: '820px',
+        maxHeight: '120px',
+        boxSizing: 'border-box',
+      };
+    }
+
     if (isNoDimStep) {
       return {
         position: 'fixed',
@@ -479,19 +538,101 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, minimiz
         display: 'none',
       };
 
+  const useFourBlockers = targetRect && !isInfoStep && !isAutoStep;
+
+  // Global capture click listener to detect target element clicks naturally
+  useEffect(() => {
+    if (isInfoStep || isAutoStep || !currentTarget) return;
+
+    const handleGlobalClick = (e: MouseEvent) => {
+      const el = document.querySelector(`[data-tutorial-id="${currentTarget}"]`);
+      if (el && (el === e.target || el.contains(e.target as Node))) {
+        // The target element was clicked!
+        // Advance the tutorial!
+        setTimeout(() => {
+          onAdvance();
+        }, 120);
+      }
+    };
+
+    document.addEventListener('click', handleGlobalClick, true); // capture phase
+    return () => document.removeEventListener('click', handleGlobalClick, true);
+  }, [currentTarget, isInfoStep, isAutoStep, onAdvance]);
+
   return (
     <>
-      {/* Коментар українською: Блокувальник кліків на весь екран - динамічно активний в залежності від наявності цілі для безпеки та інтерактивності */}
-      <div
-        onClick={handleOverlayClick}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex: 10050,
-          cursor: targetRect && !isInfoStep && !isAutoStep ? 'pointer' : 'default',
-          pointerEvents: shouldBlockClicks ? 'auto' : 'none',
-        }}
-      />
+      {/* Коментар українською: Блокувальники кліків - або 4 блоки навколо цілі, або весь екран */}
+      {useFourBlockers ? (
+        <>
+          {/* Top Blocker */}
+          <div
+            onClick={(e) => { e.stopPropagation(); e.preventDefault(); playSfx('ui_click_disabled'); }}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100vw',
+              height: Math.max(0, targetRect.top - 10),
+              zIndex: 10048,
+              pointerEvents: 'auto',
+              cursor: 'default',
+            }}
+          />
+          {/* Bottom Blocker */}
+          <div
+            onClick={(e) => { e.stopPropagation(); e.preventDefault(); playSfx('ui_click_disabled'); }}
+            style={{
+              position: 'fixed',
+              top: targetRect.bottom + 10,
+              left: 0,
+              width: '100vw',
+              height: `calc(100vh - ${targetRect.bottom + 10}px)`,
+              zIndex: 10048,
+              pointerEvents: 'auto',
+              cursor: 'default',
+            }}
+          />
+          {/* Left Blocker */}
+          <div
+            onClick={(e) => { e.stopPropagation(); e.preventDefault(); playSfx('ui_click_disabled'); }}
+            style={{
+              position: 'fixed',
+              top: Math.max(0, targetRect.top - 10),
+              left: 0,
+              width: Math.max(0, targetRect.left - 10),
+              height: targetRect.height + 20,
+              zIndex: 10048,
+              pointerEvents: 'auto',
+              cursor: 'default',
+            }}
+          />
+          {/* Right Blocker */}
+          <div
+            onClick={(e) => { e.stopPropagation(); e.preventDefault(); playSfx('ui_click_disabled'); }}
+            style={{
+              position: 'fixed',
+              top: Math.max(0, targetRect.top - 10),
+              left: targetRect.right + 10,
+              width: `calc(100vw - ${targetRect.right + 10}px)`,
+              height: targetRect.height + 20,
+              zIndex: 10048,
+              pointerEvents: 'auto',
+              cursor: 'default',
+            }}
+          />
+        </>
+      ) : (
+        <div
+          onClick={handleOverlayClick}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 10048,
+            cursor: 'default',
+            pointerEvents: shouldBlockClicks ? 'auto' : 'none',
+          }}
+        />
+      )}
 
       {/* Dark overlay with spotlight hole */}
       {targetRect && (
@@ -622,16 +763,20 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, minimiz
             </div>
           </div>
 
-          {/* Row 2: Text in exactly one line */}
-          <div style={{
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            fontSize: 11.5,
-            color: '#c1d4e8',
-            lineHeight: 1.3,
-            margin: '2px 0 4px',
-          }} title={t(currentText)}>
+          {/* Row 2: Text in exactly one line (animated scrolling ticker) */}
+          <div
+            ref={marqueeContainerRef}
+            style={{
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              fontSize: 11.5,
+              color: '#c1d4e8',
+              lineHeight: 1.3,
+              margin: '2px 0 4px',
+              width: '100%',
+            }}
+            title={t(currentText)}
+          >
             {t(currentText)}
           </div>
 

@@ -56,6 +56,7 @@ interface PlanetGlobeViewProps {
   mode: 'home' | 'planet-view';
   onDoubleClick?: () => void;
   textureUrl?: string | null;
+  onSceneLoaded?: () => void;
 }
 
 function isIosCapacitorRuntime(): boolean {
@@ -1406,10 +1407,12 @@ function spawnShootingStar(scene: THREE.Scene): ShootingStar {
 // ---------------------------------------------------------------------------
 
 const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
-  ({ planet, star, system, mode, onDoubleClick, textureUrl }, ref) => {
+  ({ planet, star, system, mode, onDoubleClick, textureUrl, onSceneLoaded }, ref) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
     const animFrameRef = useRef<number>(0);
+
+    const [sceneLoaded, setSceneLoaded] = useState(false);
 
     // Mutable refs for imperative handle
     const scanRef = useRef<ScanOverlay | null>(null);
@@ -1848,6 +1851,30 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
 
       animate();
 
+      // Injection of beautiful styles for sci-fi loading overlay
+      const STYLE_ID = 'nebulife-planet-loading-styles';
+      if (!document.getElementById(STYLE_ID)) {
+        const style = document.createElement('style');
+        style.id = STYLE_ID;
+        style.textContent = `
+          @keyframes astra-spin-ring {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+          @keyframes astra-spin-ring-rev {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(-360deg); }
+          }
+        `;
+        document.head.appendChild(style);
+      }
+
+      // Beautiful sci-fi loading delayed trigger
+      const loadTimer = setTimeout(() => {
+        setSceneLoaded(true);
+        onSceneLoaded?.();
+      }, 3500); // 3.5s of beautiful telemetry sync
+
       // --- Resize handler ---
       const onResize = () => {
         if (!container || !renderer) return;
@@ -1861,6 +1888,7 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       window.addEventListener('resize', onResize);
 
       return () => {
+        clearTimeout(loadTimer);
         window.removeEventListener('resize', onResize);
         renderer.domElement.removeEventListener('dblclick', handleDblClick);
         renderer.domElement.removeEventListener('webglcontextlost', handleContextLost);
@@ -1968,6 +1996,72 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
             }}
           >
             {''}
+          </div>
+        )}
+        {!sceneLoaded && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              zIndex: 90,
+              background: '#020510',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontFamily: 'monospace',
+              pointerEvents: 'none',
+            }}
+          >
+            {/* Sci-fi scanner animation */}
+            <div style={{ position: 'relative', width: 120, height: 120, marginBottom: 24 }}>
+              {/* Rotating outer ring */}
+              <div style={{
+                position: 'absolute',
+                inset: 0,
+                borderRadius: '50%',
+                border: '1px dashed rgba(123, 184, 255, 0.42)',
+                animation: 'astra-spin-ring 8s linear infinite',
+              }} />
+              {/* Rotating inner ring */}
+              <div style={{
+                position: 'absolute',
+                inset: 15,
+                borderRadius: '50%',
+                border: '1px solid rgba(123, 184, 255, 0.28)',
+                borderTopColor: '#7bb8ff',
+                animation: 'astra-spin-ring-rev 4s linear infinite',
+              }} />
+              {/* Core pulsing dot */}
+              <div style={{
+                position: 'absolute',
+                inset: 45,
+                borderRadius: '50%',
+                background: 'rgba(123, 184, 255, 0.08)',
+                border: '2px solid #7bb8ff',
+                boxShadow: '0 0 15px rgba(123, 184, 255, 0.6)',
+                animation: 'astra-soft-pulse 1.5s ease-in-out infinite',
+              }} />
+            </div>
+
+            <div style={{
+              color: '#7bb8ff',
+              fontSize: 10,
+              letterSpacing: 1.8,
+              textTransform: 'uppercase',
+              marginBottom: 6,
+              animation: 'astra-soft-pulse 2s ease-in-out infinite',
+            }}>
+              Establishing Orbital Link...
+            </div>
+            <div style={{
+              color: '#667788',
+              fontSize: 8,
+              letterSpacing: 1.4,
+              textTransform: 'uppercase',
+            }}>
+              Syncing exosphere telemetry
+            </div>
           </div>
         )}
       </div>
