@@ -24,6 +24,10 @@ function ensureStyles() {
       0%, 100% { box-shadow: 0 0 0 9999px rgba(0,0,0,0.75), 0 0 0 2px rgba(68,102,136,0.4); }
       50% { box-shadow: 0 0 0 9999px rgba(0,0,0,0.75), 0 0 0 4px rgba(68,136,170,0.7); }
     }
+    @keyframes tut-spotlight-pulse-nodim {
+      0%, 100% { box-shadow: 0 0 0 9999px rgba(0,0,0,0), 0 0 0 2px rgba(123,184,255,0.45); }
+      50% { box-shadow: 0 0 0 9999px rgba(0,0,0,0), 0 0 0 4px rgba(123,184,255,0.85); }
+    }
     @keyframes tut-tooltip-enter {
       from { opacity: 0; transform: translateY(8px); }
       to { opacity: 1; transform: translateY(0); }
@@ -173,6 +177,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, minimiz
   const isInfoStep = step.type === 'info';
   const isAutoStep = step.type === 'auto';
   const isWaiting = step.waitForTarget && !targetRect;
+  const shouldBlockClicks = !isWaiting && (targetRect || !step.target);
   const isCompact = typeof window !== 'undefined' && window.innerWidth < 720;
   const voiceClip = getAstraVoiceClip(step.id, subStepIndex, i18n.language);
   const isAndroid = typeof window !== 'undefined' && Capacitor.getPlatform() === 'android';
@@ -204,10 +209,16 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, minimiz
   const triggerTargetAndAdvance = useCallback(() => {
     if (currentTarget) {
       const el = document.querySelector(`[data-tutorial-id="${currentTarget}"]`) as HTMLElement | null;
-      const actionable = el?.matches('button, [role="button"], a')
-        ? el
-        : el?.querySelector('button, [role="button"], a') as HTMLElement | null;
-      (actionable ?? el)?.click();
+      if (el) {
+        // Try to find the button or closest button if the targeted element is a child
+        const actionable = el.matches('button, [role="button"], a')
+          ? el
+          : (el.querySelector('button, [role="button"], a') as HTMLElement | null)
+            ?? (el.closest('button, [role="button"], a') as HTMLElement | null);
+        
+        playSfx('ui-click', 0.07);
+        (actionable ?? el).click();
+      }
     }
     if (step.id === 'save-gallery') return;
     onAdvance();
@@ -267,16 +278,14 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, minimiz
   // Handle click on overlay — check if within spotlight bounds
   const handleOverlayClick = useCallback(
     (e: React.MouseEvent) => {
-      if (isInfoStep || isAutoStep) {
-        // Info/auto steps: clicks on overlay do nothing (use button)
-        e.stopPropagation();
+      if (!targetRect) {
+        // If there's no targetRect, and we are waiting or there's no target,
+        // we let clicks pass through to the screen (controlled by pointerEvents style on the overlay).
         return;
       }
 
-      if (!targetRect) return;
-
       const { clientX, clientY } = e;
-      const pad = 6;
+      const pad = 12; // generous padding for clicks
       const inBounds =
         clientX >= targetRect.left - pad &&
         clientX <= targetRect.right + pad &&
@@ -284,13 +293,15 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, minimiz
         clientY <= targetRect.bottom + pad;
 
       if (inBounds) {
+        // Trigger the underlying element click and advance
         triggerTargetAndAdvance();
+      } else {
+        // Outside of spotlight bounds: swallow and block the click
+        e.stopPropagation();
+        e.preventDefault();
       }
-      // Otherwise swallow the click
-      e.stopPropagation();
-      e.preventDefault();
     },
-    [targetRect, isInfoStep, isAutoStep, triggerTargetAndAdvance],
+    [targetRect, triggerTargetAndAdvance],
   );
 
   // A.S.T.R.A. panel positioning — side panel on desktop, bottom card on mobile.
@@ -460,7 +471,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, minimiz
           : '0 0 0 9999px rgba(0,0,0,0.75), 0 0 0 3px rgba(123,184,255,0.95), 0 0 22px rgba(123,184,255,0.55)',
         outline: '2px solid rgba(68,255,136,0.85)',
         outlineOffset: 3,
-        animation: 'tut-spotlight-pulse 2s ease-in-out infinite',
+        animation: isNoDimStep ? 'tut-spotlight-pulse-nodim 2s ease-in-out infinite' : 'tut-spotlight-pulse 2s ease-in-out infinite',
         transition: transitioning ? 'top 0.3s, left 0.3s, width 0.3s, height 0.3s' : undefined,
       };
     })()
@@ -468,14 +479,9 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, minimiz
         display: 'none',
       };
 
-  // When waitForTarget is set and target isn't found, hide everything
-  if (isWaiting) {
-    return null;
-  }
-
   return (
     <>
-      {/* Коментар українською: Блокувальник кліків на весь екран - завжди активний (pointerEvents: 'auto') для повної безпеки туторіалу */}
+      {/* Коментар українською: Блокувальник кліків на весь екран - динамічно активний в залежності від наявності цілі для безпеки та інтерактивності */}
       <div
         onClick={handleOverlayClick}
         style={{
@@ -483,7 +489,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, minimiz
           inset: 0,
           zIndex: 10050,
           cursor: targetRect && !isInfoStep && !isAutoStep ? 'pointer' : 'default',
-          pointerEvents: 'auto',
+          pointerEvents: shouldBlockClicks ? 'auto' : 'none',
         }}
       />
 
