@@ -135,7 +135,116 @@ export const TUTORIAL_STEPS: TutorialStepConfig[] = [
     target: 'chat-open-btn',
     text: 'tutorial.step_astra_handoff_text',
     tooltipPos: 'left',
+    nextLabel: 'tutorial.next',
+  },
+  /* Коментар українською: Крок 12 - Пояснення вкладок чату */
+  {
+    id: 'astra-chat-tabs',
+    type: 'info',
+    target: 'chat-tabs-header',
+    text: 'tutorial.step_astra_chat_tabs_text',
+    tooltipPos: 'left',
+    nextLabel: 'tutorial.step_astra_chat_tabs_next',
+  },
+  /* Коментар українською: Крок 13 - Згортання чату */
+  {
+    id: 'astra-chat-close',
+    type: 'click',
+    target: 'chat-close-btn',
+    text: 'tutorial.step_astra_chat_close_text',
+    tooltipPos: 'left',
+  },
+  /* Коментар українською: Крок 14 - Огляд Всесвіту (3D Галактика) */
+  {
+    id: 'galaxy-intro',
+    type: 'info',
+    target: 'screen-switcher-btn',
+    text: 'tutorial.step_galaxy_intro_text',
+    tooltipPos: 'right',
+    nextLabel: 'tutorial.next',
+    onActivate: ['go-scene-universe'],
+  },
+  /* Коментар українською: Крок 15 - Зоряний Кластер */
+  {
+    id: 'cluster-intro',
+    type: 'info',
+    target: 'screen-switcher-btn',
+    text: 'tutorial.step_cluster_intro_text',
+    tooltipPos: 'right',
+    nextLabel: 'tutorial.next',
+    onActivate: ['go-scene-cluster'],
+  },
+  /* Коментар українською: Крок 16 - Карта Галактики (2D Зоряна Група) */
+  {
+    id: 'galaxy-map-intro',
+    type: 'info',
+    target: 'screen-switcher-btn',
+    text: 'tutorial.step_galaxy_map_intro_text',
+    tooltipPos: 'right',
+    nextLabel: 'tutorial.next',
+    onActivate: ['go-scene-galaxy'],
+  },
+  /* Коментар українською: Крок 17 - Центрування карти */
+  {
+    id: 'galaxy-map-center',
+    type: 'click',
+    target: 'center-btn',
+    text: 'tutorial.step_galaxy_map_center_text',
+    tooltipPos: 'right',
+  },
+  /* Коментар українською: Крок 18 - Перехід у систему через радіальне меню */
+  {
+    id: 'system-radial-select',
+    type: 'click',
+    target: 'radial-btn-enter',
+    text: 'tutorial.step_system_radial_select_text',
+    tooltipPos: 'left',
+    waitForTarget: true,
+  },
+  /* Коментар українською: Крок 19 - Огляд системи */
+  {
+    id: 'system-scene-intro',
+    type: 'info',
+    target: '',
+    text: 'tutorial.step_system_scene_intro_text',
+    tooltipPos: 'top',
+    nextLabel: 'tutorial.next',
+  },
+  /* Коментар українською: Крок 20 - Клік по кнопці Екзосфера */
+  {
+    id: 'exosphere-btn-click',
+    type: 'click',
+    target: 'planet-exosphere-btn',
+    text: 'tutorial.step_exosphere_btn_click_text',
+    tooltipPos: 'left',
+    waitForTarget: true,
+  },
+  /* Коментар українською: Крок 21 - Пояснення Екзосфери */
+  {
+    id: 'exosphere-scene-explain',
+    type: 'info',
+    target: '',
+    text: 'tutorial.step_exosphere_scene_explain_text',
+    tooltipPos: 'top',
+    nextLabel: 'tutorial.next',
+  },
+  /* Коментар українською: Крок 22 - Перехід до Космічної Академії */
+  {
+    id: 'academy-intro',
+    type: 'click',
+    target: 'academy-btn',
+    text: 'tutorial.step_academy_intro_text',
+    tooltipPos: 'top',
+  },
+  /* Коментар українською: Крок 23 - Космічна Енциклопедія та завершення */
+  {
+    id: 'encyclopedia-explain',
+    type: 'info',
+    target: 'encyclopedia-title',
+    text: 'tutorial.step_encyclopedia_explain_text',
+    tooltipPos: 'bottom',
     nextLabel: 'tutorial.to_game',
+    waitForTarget: true,
     onComplete: ['complete-tutorial'],
   },
 ];

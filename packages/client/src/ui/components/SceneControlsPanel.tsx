@@ -155,14 +155,16 @@ export function SceneControlsPanel({
       {/* Center */}
       {showCenter && onCenter && (
         <ControlButton onClick={onCenter} title={t('scene_controls.center')}>
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
-            <circle cx="8" cy="8" r="6" />
-            <line x1="8" y1="2" x2="8" y2="5" />
-            <line x1="8" y1="11" x2="8" y2="14" />
-            <line x1="2" y1="8" x2="5" y2="8" />
-            <line x1="11" y1="8" x2="14" y2="8" />
-            <circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none" />
-          </svg>
+          <div data-tutorial-id="center-btn" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
+              <circle cx="8" cy="8" r="6" />
+              <line x1="8" y1="2" x2="8" y2="5" />
+              <line x1="8" y1="11" x2="8" y2="14" />
+              <line x1="2" y1="8" x2="5" y2="8" />
+              <line x1="11" y1="8" x2="14" y2="8" />
+              <circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none" />
+            </svg>
+          </div>
         </ControlButton>
       )}
 
@@ -224,14 +226,16 @@ export function SceneControlsPanel({
       {/* Recovery: last button, returns player to the stable system scene. */}
       {onRecover && (
         <ControlButton onClick={onRecover} title={t('scene_controls.recover')}>
-          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M13.2 5.2A5.4 5.4 0 0 0 3.4 4.1" />
-            <path d="M3.4 4.1H6.2" />
-            <path d="M3.4 4.1V1.3" />
-            <path d="M2.8 10.8A5.4 5.4 0 0 0 12.6 11.9" />
-            <path d="M12.6 11.9H9.8" />
-            <path d="M12.6 11.9V14.7" />
-          </svg>
+          <div data-tutorial-id="recover-btn" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M13.2 5.2A5.4 5.4 0 0 0 3.4 4.1" />
+              <path d="M3.4 4.1H6.2" />
+              <path d="M3.4 4.1V1.3" />
+              <path d="M2.8 10.8A5.4 5.4 0 0 0 12.6 11.9" />
+              <path d="M12.6 11.9H9.8" />
+              <path d="M12.6 11.9V14.7" />
+            </svg>
+          </div>
         </ControlButton>
       )}
     </div>

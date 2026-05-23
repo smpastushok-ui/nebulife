@@ -7,6 +7,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PlanetColonyState } from '@nebulife/core';
 import { BUILDING_DEFS } from '@nebulife/core';
+import { buildingName } from '../../i18n/building-labels.js';
 
 export type ResourceType = 'observatories' | 'research_data' | 'minerals' | 'volatiles' | 'isotopes' | 'quarks' | 'water';
 
@@ -126,9 +127,7 @@ export function ResourceDescriptionModal({ resource, onClose, colonyState }: Res
       if (!rdProd) continue;
       // amount is per tick (60s), so per hour = amount * 60
       const ratePerHour = rdProd.amount * 60;
-      const displayName = isEn
-        ? type.replace(/_/g, ' ').replace(/^./, c => c.toUpperCase())
-        : def.name;
+      const displayName = buildingName(type, t);
       buildingRates.push({
         name: displayName,
         count: g.count,

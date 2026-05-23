@@ -247,12 +247,19 @@ export class ArenaEngine {
     rotSpeed?: { x: number; y: number; z: number };
     scaleSpeed?: number;
     shared?: boolean; // true = geo/mat are shared, skip dispose on cleanup
+    sharedGeo?: boolean; // true = geometry is shared (skip dispose), dispose material
   }[] = [];
 
   // Shared resources for hit-effect (most frequent VFX — ~2-5/sec under fire).
   // Using shared geo+material removes 2 allocations per hit, which adds up on mobile.
   private hitGeoShared: THREE.PlaneGeometry | null = null;
   private hitMatShared: THREE.MeshBasicMaterial | null = null;
+
+  // Shared resources for explosions and debris to avoid per-spawn allocations
+  // Спільні геометрії для спалахів та уламків вибуху, що запобігають мікро-фризам через ініціалізацію буферів WebGL під час бою.
+  private flashGeoShared: THREE.CircleGeometry | null = null;
+  private ringGeoShared: THREE.RingGeometry | null = null;
+  private debrisGeoShared: THREE.ConeGeometry | null = null;
 
   // Engine exhaust particles (InstancedMesh pool)
   private exhaustMesh!: THREE.InstancedMesh;
@@ -3577,9 +3584,26 @@ export class ArenaEngine {
     if (shakeFalloff > 0) {
       this.shakeAmount = Math.max(this.shakeAmount, 6 * shakeFalloff);
     }
+    
+    /* Коментар українською: Використовуємо ліниво ініціалізовані спільні геометрії для спалахів та кілець вибуху */
+    if (!this.flashGeoShared) {
+      this.flashGeoShared = new THREE.CircleGeometry(18, 16);
+      this.flashGeoShared.rotateX(-Math.PI / 2);
+      this.disposables.push(this.flashGeoShared);
+    }
+    if (!this.ringGeoShared) {
+      this.ringGeoShared = new THREE.RingGeometry(12, 20, 24);
+      this.ringGeoShared.rotateX(-Math.PI / 2);
+      this.disposables.push(this.ringGeoShared);
+    }
+    if (!this.debrisGeoShared) {
+      // Стандартний конус одиничного розміру. Окремі уламки масштабуються динамічно за допомогою scale.
+      this.debrisGeoShared = new THREE.ConeGeometry(1, 1, 3);
+      this.debrisGeoShared.rotateX(Math.PI / 2); // орієнтація конуса уздовж осі руху
+      this.disposables.push(this.debrisGeoShared);
+    }
+
     // Central flash — circular
-    const flashGeo = new THREE.CircleGeometry(18, 16);
-    flashGeo.rotateX(-Math.PI / 2);
     const flashMat = new THREE.MeshBasicMaterial({
       color: 0xffaa44,
       transparent: true,
@@ -3587,14 +3611,12 @@ export class ArenaEngine {
       depthWrite: false,
       opacity: 1,
     });
-    const flashMesh = new THREE.Mesh(flashGeo, flashMat);
+    const flashMesh = new THREE.Mesh(this.flashGeoShared, flashMat);
     flashMesh.position.set(x, y, z);
     this.scene.add(flashMesh);
-    this.vfxPool.push({ mesh: flashMesh, age: 0, life: 0.8, type: 'flash', scaleSpeed: 2.0 });
+    this.vfxPool.push({ mesh: flashMesh, age: 0, life: 0.8, type: 'flash', scaleSpeed: 2.0, sharedGeo: true });
 
     // Secondary ring flash
-    const ringGeo = new THREE.RingGeometry(12, 20, 24);
-    ringGeo.rotateX(-Math.PI / 2);
     const ringMat = new THREE.MeshBasicMaterial({
       color: 0xff6622,
       transparent: true,
@@ -3603,22 +3625,22 @@ export class ArenaEngine {
       opacity: 0.7,
       side: THREE.DoubleSide,
     });
-    const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+    const ringMesh = new THREE.Mesh(this.ringGeoShared, ringMat);
     ringMesh.position.set(x, y, z);
     this.scene.add(ringMesh);
-    this.vfxPool.push({ mesh: ringMesh, age: 0, life: 1.0, type: 'flash', scaleSpeed: 3.0 });
+    this.vfxPool.push({ mesh: ringMesh, age: 0, life: 1.0, type: 'flash', scaleSpeed: 3.0, sharedGeo: true });
 
     // Debris — triangular shards
     const debrisCount = 8 + Math.floor(Math.random() * 5);
     for (let i = 0; i < debrisCount; i++) {
       const size = 1 + Math.random() * 2;
-      const debGeo = new THREE.ConeGeometry(size, size * 2, 3);
       const shade = 0.2 + Math.random() * 0.3;
       const debMat = new THREE.MeshBasicMaterial({
         color: new THREE.Color(shade, shade * 0.8, shade * 0.6),
       });
-      const debMesh = new THREE.Mesh(debGeo, debMat);
+      const debMesh = new THREE.Mesh(this.debrisGeoShared, debMat);
       debMesh.position.set(x, y, z);
+      debMesh.scale.set(size, size * 2, size); // зберігаємо вихідне співвідношення сторін
 
       const angle = Math.random() * Math.PI * 2;
       const speed = 50 + Math.random() * 50;
@@ -3630,7 +3652,7 @@ export class ArenaEngine {
       };
 
       this.scene.add(debMesh);
-      this.vfxPool.push({ mesh: debMesh, age: 0, life: 1.5, type: 'debris', vel, rotSpeed });
+      this.vfxPool.push({ mesh: debMesh, age: 0, life: 1.5, type: 'debris', vel, rotSpeed, sharedGeo: true });
     }
   }
 
@@ -3643,8 +3665,11 @@ export class ArenaEngine {
         this.scene.remove(vfx.mesh);
         // Shared geo/mat are lifetime-owned by the engine (tracked in
         // disposables). Only dispose for unique per-spawn resources.
+        /* Коментар українською: Якщо геометрія є спільною (sharedGeo), очищуємо лише унікальний матеріал */
         if (!vfx.shared) {
-          vfx.mesh.geometry.dispose();
+          if (!vfx.sharedGeo) {
+            vfx.mesh.geometry.dispose();
+          }
           (vfx.mesh.material as THREE.Material).dispose();
         }
         this.vfxPool.splice(i, 1);
@@ -3934,6 +3959,9 @@ export class ArenaEngine {
       ? blueAllies + redEnemies
       : this.isMobile ? 5 : TRAINING_BOT_COUNT;
 
+    const allyTeam: 'blue' | 'red' = this.playerTeam === 'red' ? 'red' : 'blue';
+    const enemyTeam: 'blue' | 'red' = allyTeam === 'blue' ? 'red' : 'blue';
+
     const spawnBot = (id: number, team: Team, index: number): BotShip => {
       const name = shuffled[nameIdx++ % shuffled.length];
       let tintColor: THREE.Color;
@@ -3942,7 +3970,7 @@ export class ArenaEngine {
         tintColor = new THREE.Color(0.5, 0.7, 1.0);
         labelColor = '#4499ff';
       } else if (team === 'red') {
-        tintColor = new THREE.Color(1.0, 0.5, 0.5);
+        tintColor = new THREE.Color(1.0, 0.5, 0.6);
         labelColor = '#ff5544';
       } else {
         // neutral — each bot gets a unique tint
@@ -3980,7 +4008,45 @@ export class ArenaEngine {
         this.scene.add(mesh);
       }
 
-      const nickSprite = this.createNickSprite(name, labelColor);
+      /* Коментар українською: Визначаємо складність бота динамічно в залежності від рівня гравця та приналежності до команди */
+      const savedLevel = localStorage.getItem('nebulife_player_level');
+      const playerLevel = savedLevel ? parseInt(savedLevel, 10) : 1;
+
+      let difficulty: 'easy' | 'medium' | 'hard' = 'medium';
+      if (team === enemyTeam) {
+        if (playerLevel < 5) {
+          difficulty = Math.random() < 0.7 ? 'easy' : 'medium';
+        } else if (playerLevel < 15) {
+          const rand = Math.random();
+          difficulty = rand < 0.35 ? 'easy' : rand < 0.9 ? 'medium' : 'hard';
+        } else if (playerLevel < 30) {
+          const rand = Math.random();
+          difficulty = rand < 0.1 ? 'easy' : rand < 0.75 ? 'medium' : 'hard';
+        } else if (playerLevel < 45) {
+          difficulty = Math.random() < 0.4 ? 'medium' : 'hard';
+        } else {
+          difficulty = Math.random() < 0.15 ? 'medium' : 'hard';
+        }
+      } else {
+        if (playerLevel < 15) {
+          difficulty = Math.random() < 0.2 ? 'easy' : 'medium';
+        } else if (playerLevel < 35) {
+          difficulty = 'medium';
+        } else {
+          difficulty = Math.random() < 0.3 ? 'hard' : 'medium';
+        }
+      }
+
+      /* Коментар українською: Додаємо мітку складності до імені бота (якщо він Новачок або Ас) для візуального фідбеку гравцю */
+      const lang = localStorage.getItem('nebulife_lang') || 'uk';
+      let displayName = name;
+      if (difficulty === 'easy') {
+        displayName += lang === 'uk' ? ' (Новачок)' : ' (Rookie)';
+      } else if (difficulty === 'hard') {
+        displayName += lang === 'uk' ? ' (Ас)' : ' (Ace)';
+      }
+
+      const nickSprite = this.createNickSprite(displayName, labelColor);
       this.scene.add(nickSprite);
 
       // Spread spawn positions around the arena (not near center or player)
@@ -3989,7 +4055,9 @@ export class ArenaEngine {
       const spawnX = Math.cos(spawnAngle) * spawnDist;
       const spawnZ = Math.sin(spawnAngle) * spawnDist;
 
-      const difficulty = team === 'neutral' ? 'easy' as const : 'medium' as const;
+      /* Коментар українською: Масштабуємо міцність корпусу (HP) бота в залежності від обраної складності (Аси живучіші, Новачки тонші) */
+      const tankFactor = difficulty === 'easy' ? 0.8 : difficulty === 'hard' ? 1.35 : 1.0;
+      const botHp = Math.round(ARENA_SHIP_MAX_HP * tankFactor);
 
       const bot: BotShip = {
         id,
@@ -3999,8 +4067,8 @@ export class ArenaEngine {
         vel: { x: 0, y: 0, z: 0 },
         rotation: 0,
         pitch: 0,
-        hp: ARENA_SHIP_MAX_HP,
-        maxHp: ARENA_SHIP_MAX_HP,
+        hp: botHp,
+        maxHp: botHp,
         alive: true,
         respawnTimer: 0,
         mesh,
@@ -4027,8 +4095,6 @@ export class ArenaEngine {
       return bot;
     };
 
-    const allyTeam: 'blue' | 'red' = this.playerTeam === 'red' ? 'red' : 'blue';
-    const enemyTeam: 'blue' | 'red' = allyTeam === 'blue' ? 'red' : 'blue';
     let botId = 1000;
     if (this.teamMode) {
       // Team mode: player-selected wing allies + opposite wing enemies.
@@ -4229,7 +4295,7 @@ export class ArenaEngine {
       }
 
       // Arena boundary
-      const dist = Math.sqrt(bot.pos.x * bot.pos.x + bot.pos.z * bot.pos.z);
+      const dist = distFromCenterPost; /* Коментар українською: Оптимізація — перевикористовуємо вже розраховану дистанцію замість повторного виклику Math.sqrt */
       if (dist > ARENA_HALF - SHIP_RADIUS) {
         const nx = bot.pos.x / dist;
         const nz = bot.pos.z / dist;
@@ -4330,15 +4396,20 @@ export class ArenaEngine {
       // pour shots while immune to return fire, which felt unfair.
       if (input.firing && bot.fireCooldown <= 0 && !isInvulnerable) {
         this.fireBotBullet(bot, aimX, aimY, aimZ);
-        bot.fireCooldown = 0.45 + Math.random() * 0.25; // 0.45–0.70s between shots
+        /* Коментар українською: Швидкість стрільби ботів залежить від їхньої складності (Аси стріляють швидше, Новачки повільніше) */
+        const diffMultiplier = bot.brain.difficulty === 'easy' ? 1.4 : bot.brain.difficulty === 'hard' ? 0.75 : 1.0;
+        bot.fireCooldown = (0.45 + Math.random() * 0.25) * diffMultiplier; // 0.45–0.70s base
       }
 
       // Fire missile occasionally — also blocked while invulnerable
       const missileChance = targetDistance < 900 ? 0.045 : 0.018;
       if (input.firing && !isInvulnerable && targetDistance > 180 && (bot.missileAmmo ?? 0) > 0 && bot.missileCooldown <= 0 && Math.random() < missileChance) {
-        this.fireBotMissile(bot, aimX, aimZ);
+        /* Коментар українською: Передаємо також вертикальний напрямок aimY для коректного 3D запуску ракети ботом */
+        this.fireBotMissile(bot, aimX, aimY, aimZ);
         bot.missileAmmo = (bot.missileAmmo ?? 1) - 1;
-        bot.missileCooldown = 4 + Math.random() * 2.5; // 4-6.5s between missiles
+        /* Коментар українською: Перезарядка ракет у Асів швидша, тоді як Новачки використовують ракети вкрай рідко */
+        const missileCooldownBase = bot.brain.difficulty === 'easy' ? 10.0 : bot.brain.difficulty === 'hard' ? 4.5 : 6.0;
+        bot.missileCooldown = missileCooldownBase + Math.random() * 2.5; // adjust cooldown
       }
     }
   }
@@ -4552,19 +4623,24 @@ export class ArenaEngine {
     }
   }
 
-  private fireBotMissile(bot: BotShip, dirX: number, dirZ: number): void {
+  private fireBotMissile(bot: BotShip, dirX: number, dirY: number, dirZ: number): void {
     const idx = this.missileFreeList.pop();
     if (idx === undefined) return;
 
     let dx = dirX;
+    let dy = dirY;
     let dz = dirZ;
-    if (dx === 0 && dz === 0) { dx = 0; dz = -1; }
+    if (dx === 0 && dy === 0 && dz === 0) { dx = 0; dy = 0; dz = -1; }
 
     const m = this.missiles[idx];
     m.angle = Math.atan2(dx, -dz);
+    /* Коментар українською: Ініціалізуємо всі 3 координати позиції запуску ракети на основі поточної позиції бота */
     m.x = bot.pos.x + dx * (SHIP_RADIUS + 5);
+    m.y = bot.pos.y + dy * (SHIP_RADIUS + 5);
     m.z = bot.pos.z + dz * (SHIP_RADIUS + 5);
+    /* Коментар українською: Задаємо тривимірний вектор швидкості для польоту ракети */
     m.vx = dx * this.MISSILE_SPEED;
+    m.vy = dy * this.MISSILE_SPEED;
     m.vz = dz * this.MISSILE_SPEED;
     m.age = 0;
     m.active = true;

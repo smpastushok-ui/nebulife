@@ -1293,6 +1293,11 @@ export class SystemScene {
     return this.shipProgress;
   }
 
+  /** Whether ship flight animation is currently active */
+  isShipFlightActive(): boolean {
+    return this.shipActive;
+  }
+
   /** Stop and cleanup ship flight */
   stopShipFlight() {
     this.shipActive = false;

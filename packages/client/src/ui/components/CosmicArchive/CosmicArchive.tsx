@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { StarSystem, CatalogEntry, Discovery, TechTreeState, TechBranch, Planet, PlacedBuilding, Ship, CargoShipment } from '@nebulife/core';
 import type { PlanetTerraformState, PlanetColonyState, TerraformParamId } from '@nebulife/core';
@@ -204,6 +204,7 @@ export interface CosmicArchiveProps {
   cargoShipments?: CargoShipment[];
   planetSkinStatuses?: Record<string, { system?: PlanetSkinStatus; exosphere?: PlanetSkinStatus }>;
   onGeneratePlanetSkin?: (system: StarSystem, planet: Planet, kind: PlanetSkinKind) => void;
+  visible: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -354,6 +355,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   cargoShipments,
   planetSkinStatuses,
   onGeneratePlanetSkin,
+  visible,
   planetResourceStocks,
 }: CosmicArchiveProps, ref: React.Ref<CosmicArchiveHandle>) {
   const { t } = useTranslation();
@@ -368,7 +370,26 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
     interaction: 'diplomacy',
     log: 'all-events',
   });
-  const [visible, setVisible] = useState(false);
+
+  const [opacityVisible, setOpacityVisible] = useState(false);
+
+  // Entrance animation or visibility change
+  useEffect(() => {
+    if (visible) {
+      const raf = requestAnimationFrame(() => setOpacityVisible(true));
+      return () => cancelAnimationFrame(raf);
+    } else {
+      setOpacityVisible(false);
+    }
+  }, [visible]);
+
+  // Auto-switch to collections/cosmos tab when highlighting a new save and becoming visible
+  useEffect(() => {
+    if (visible && highlightedType) {
+      setMainTab('collections');
+      setSubTabMap((prev) => ({ ...prev, collections: 'cosmos' }));
+    }
+  }, [visible, highlightedType]);
 
   // Terminal-loop mute toggle, persisted per device. Effect at the top of
   // the component applies the volume (0 when muted, 0.4 otherwise).
@@ -378,9 +399,9 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   useEffect(() => {
     // Dynamic import so we don't bloat the initial chunk.
     import('../../../audio/SfxPlayer.js').then(({ setLoopVolume }) => {
-      setLoopVolume('terminal-loop.mp3', terminalMuted ? 0 : 0.3);
+      setLoopVolume('terminal-loop.mp3', (terminalMuted || !visible) ? 0 : 0.3);
     }).catch(() => { /* ignore */ });
-  }, [terminalMuted]);
+  }, [terminalMuted, visible]);
 
   // Expose programmatic navigation for tutorial
   useImperativeHandle(ref, () => ({
@@ -454,23 +475,24 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
     }
   }, [onPinnedSystemsChange]);
 
+  // Filter systems to only those that are fully researched (progress >= 100%)
+  const researchedSystems = useMemo(() => {
+    if (!getResearchProgress) return allSystems;
+    return allSystems.filter((sys) => getResearchProgress(sys.id) >= 100);
+  }, [allSystems, getResearchProgress]);
+
   const currentTabDef = TABS.find((t) => t.id === mainTab)!;
   const currentSubTab = subTabMap[mainTab];
 
-  // Entrance animation
-  useEffect(() => {
-    const raf = requestAnimationFrame(() => setVisible(true));
-    return () => cancelAnimationFrame(raf);
-  }, []);
-
   // Escape to close
   useEffect(() => {
+    if (!visible) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [onClose]);
+  }, [visible, onClose]);
 
   // Tab change with history tracking
   const changeMainTab = useCallback(
@@ -579,7 +601,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
     if (mainTab === 'navigation' && currentSubTab === 'planets') {
       return (
         <PlanetsCatalogV2
-          allSystems={allSystems}
+          allSystems={researchedSystems}
           aliases={aliases}
           onViewPlanet={handleViewPlanet}
           colonyPlanetIds={colonyPlanetIds ?? new Set()}
@@ -643,7 +665,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
     if (mainTab === 'navigation' && currentSubTab === 'favorites') {
       return (
         <PlanetsCatalogV2
-          allSystems={allSystems}
+          allSystems={researchedSystems}
           aliases={aliases}
           onViewPlanet={handleViewPlanet}
           colonyPlanetIds={colonyPlanetIds ?? new Set()}
@@ -742,7 +764,8 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
     <div
       style={{
         ...overlayStyle,
-        opacity: visible ? 1 : 0,
+        display: visible ? 'flex' : 'none',
+        opacity: opacityVisible ? 1 : 0,
         transition: 'opacity 0.35s ease',
       }}
     >

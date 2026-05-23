@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { playSfx, playLoop, stopLoop, setLoopVolume } from './audio/SfxPlayer.js';
+import { playSfx, playLoop, stopLoop, setLoopVolume, setTutorialMute } from './audio/SfxPlayer.js';
+import { tickRateToHourly } from './i18n/format-rate.js';
 import i18n, { LanguageProvider, useT } from './i18n/index.js';
 import type { Language } from '@nebulife/core';
 import { GameEngine } from './game/GameEngine.js';
@@ -38,6 +39,8 @@ import { PlanetNavHeader } from './ui/components/PlanetNavHeader.js';
 import { FloatingInfoButton } from './ui/components/FloatingInfoButton.js';
 import { SystemObjectsPanel } from './ui/components/SystemObjectsPanel.js';
 import { PlanetDetailWindow } from './ui/components/PlanetDetailWindow.js';
+/* Коментар українською: Імпорт компонента діалогового вікна перейменування */
+import { RenameModal } from './ui/components/RenameModal.js';
 import { SceneControlsPanel } from './ui/components/SceneControlsPanel.js';
 import { TelescopeOverlay } from './ui/components/TelescopeOverlay.js';
 import type {
@@ -82,6 +85,7 @@ import {
   hasAvailableTech,
   ALL_NODES,
   runColonyTicks,
+  getBuildingEnergyMultiplier,
   createPlanetColonyState,
   COLONY_TICK_INTERVAL_MS,
   HOME_PLANET_STOCK_FLOOR,
@@ -117,6 +121,9 @@ import {
   generatePlanetStocks,
   depleteStock,
   applyLevelDepletion,
+  computeEnergyBalance,
+  applyEnergyTick,
+  restoreShutdownBuildings,
 } from '@nebulife/core';
 import { MissionTracker } from './ui/components/Terraform/MissionTracker.js';
 import { TerraformPanel } from './ui/components/Terraform/TerraformPanel.js';
@@ -198,6 +205,7 @@ import {
   trackFirstValuableAction,
   trackPaidFeatureOrder,
   trackTutorialComplete,
+  setAnalyticsUserId,
 } from './analytics/firebase-analytics.js';
 
 const planetSkinKey = (systemId: string, planetId: string, kind: PlanetSkinKind | string): string => (
@@ -706,6 +714,7 @@ function AppInner() {
   const universeCanvasRef = useRef<HTMLDivElement>(null);
   const universeEngineRef = useRef<UniverseEngine | null>(null);
   const ambientRef = useRef<SpaceAmbient | null>(null);
+  const onboardingAmbientRef = useRef<SpaceAmbient | null>(null);
   const globalPlayerIndexRef = useRef<number>(0);
   const universeGroupCountRef = useRef<number>(1);
   const [universeVisible, setUniverseVisible] = useState(false);
@@ -848,9 +857,17 @@ function AppInner() {
     const ambient = new SpaceAmbient();
     ambient.start();
     ambientRef.current = ambient;
+
+    const onboardingAmbient = new SpaceAmbient('/music/onboarding.webm');
+    onboardingAmbient.start();
+    onboardingAmbient.pause(0);
+    onboardingAmbientRef.current = onboardingAmbient;
+
     return () => {
       ambientRef.current?.stop();
       ambientRef.current = null;
+      onboardingAmbientRef.current?.stop();
+      onboardingAmbientRef.current = null;
     };
   }, []);
 
@@ -1670,13 +1687,7 @@ function AppInner() {
     | 'stage4-orbit'           // Ship on orbit + colony founding button
     | 'cutscene-landing'       // CutsceneVideo: evac-landing.mp4
     | 'surface';               // Surface view on new planet
-  const [evacuationPhase, setEvacuationPhase] = useState<EvacuationPhase>(() => {
-    try {
-      const saved = localStorage.getItem('nebulife_evac_phase');
-      if (saved && saved !== 'idle') return saved as EvacuationPhase;
-    } catch { /* ignore */ }
-    return 'idle';
-  });
+  const [evacuationPhase, setEvacuationPhase] = useState<EvacuationPhase>('idle');
 
   // Doomsday-clock ticking is now handled by <LiveCountdown> inside
   // ResourceDisplay — it self-updates via ref at 24Hz without re-rendering
@@ -2081,6 +2092,7 @@ function AppInner() {
     const sys = allSystems.find(s => s.id === pending.systemId);
     const planet = sys?.planets.find(p => p.id === pending.planetId);
     if (sys && planet) {
+      setEvacuationPhase('idle');
       setEvacuationTarget({ system: sys, planet });
       setForcedEvacuation(pending.forced);
       pendingEvacRef.current = null;
@@ -2394,35 +2406,7 @@ function AppInner() {
   //      a 300ms ramp scheduled BEFORE AudioContext is actually running);
   //   b) multiple redundant pause/resume calls from unrelated state
   //      updates that happen to trigger this effect via identity changes.
-  const prevAmbientPausedRef = useRef<boolean>(false);
-  useEffect(() => {
-    const ambient = ambientRef.current;
-    if (!ambient) return;
-    const shouldPause = !ambientEnabled || !!surfaceTarget || showCosmicArchive || cinematicVideoPlaying || showHangar || showRaid || needsOnboarding;
-    const wasPaused = prevAmbientPausedRef.current;
-    if (shouldPause && !wasPaused) {
-      ambient.pause();
-    } else if (!shouldPause && wasPaused) {
-      ambient.resume();
-    }
-    prevAmbientPausedRef.current = shouldPause;
-  }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying, showHangar, showRaid, needsOnboarding]);
-
-  useEffect(() => {
-    const shouldPause = !ambientEnabled || !!surfaceTarget || showCosmicArchive || cinematicVideoPlaying || showHangar || showRaid || needsOnboarding;
-    if (shouldPause) return;
-    const unlockSpaceAudio = () => {
-      ambientRef.current?.resume(800);
-    };
-    document.addEventListener('pointerdown', unlockSpaceAudio, { capture: true });
-    document.addEventListener('keydown', unlockSpaceAudio, { capture: true });
-    document.addEventListener('touchstart', unlockSpaceAudio, { capture: true });
-    return () => {
-      document.removeEventListener('pointerdown', unlockSpaceAudio, true);
-      document.removeEventListener('keydown', unlockSpaceAudio, true);
-      document.removeEventListener('touchstart', unlockSpaceAudio, true);
-    };
-  }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying, showHangar, showRaid, needsOnboarding]);
+  // --- Ambient Music Management (Moved lower to avoid forward-declaration issues with activeTutorialStep) ---
 
   // Retain last planet context so colony tick can run passively when surface is closed.
   useEffect(() => {
@@ -2551,6 +2535,69 @@ function AppInner() {
     });
   }, [surfaceTarget?.planet.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const runImmediateEnergyCheck = useCallback((currentColony: PlanetColonyState) => {
+    if (!surfaceTarget) return currentColony;
+    const starLum = surfaceTarget.star.luminositySolar;
+    const planet = surfaceTarget.planet;
+
+    // 1. Recompute energy with multipliers
+    let energy = computeEnergyBalance(currentColony.buildings, techTreeState, currentColony.energy.stored);
+
+    // Apply the exact environmental & tech multipliers that the colony tick does
+    let production = 0;
+    let consumption = 0;
+    const energyOutMult = getEffectValue(techTreeState, 'energy_output_mult', 1);
+    const energyConMult = getEffectValue(techTreeState, 'energy_consumption_mult', 1);
+    for (const b of currentColony.buildings) {
+      if (b.shutdown) continue;
+      const def = BUILDING_DEFS[b.type];
+      const envMult = getBuildingEnergyMultiplier(b.type, planet, undefined, starLum);
+      production += def.energyOutput * energyOutMult * envMult;
+      consumption += def.energyConsumption * energyConMult;
+    }
+    energy.production = production;
+    energy.consumption = consumption;
+    energy.netBalance = production - consumption;
+
+    // 2. Apply energy tick (may trigger shutdowns)
+    const energyResult = applyEnergyTick(energy, currentColony.buildings);
+    currentColony.energy = energyResult.energy;
+
+    // 3. If surplus, try restoring shutdown buildings
+    if (currentColony.energy.netBalance > 0) {
+      // Recompute based on current shutdown state
+      let prod2 = 0;
+      let cons2 = 0;
+      for (const b of currentColony.buildings) {
+        if (b.shutdown) continue;
+        const def = BUILDING_DEFS[b.type];
+        const envMult = getBuildingEnergyMultiplier(b.type, planet, undefined, starLum);
+        prod2 += def.energyOutput * energyOutMult * envMult;
+        cons2 += def.energyConsumption * energyConMult;
+      }
+      currentColony.energy.production = prod2;
+      currentColony.energy.consumption = cons2;
+      currentColony.energy.netBalance = prod2 - cons2;
+
+      const restoredIds = restoreShutdownBuildings(currentColony.energy, currentColony.buildings);
+      if (restoredIds.length > 0) {
+        let prod3 = 0;
+        let cons3 = 0;
+        for (const b of currentColony.buildings) {
+          if (b.shutdown) continue;
+          const def = BUILDING_DEFS[b.type];
+          const envMult = getBuildingEnergyMultiplier(b.type, planet, undefined, starLum);
+          prod3 += def.energyOutput * energyOutMult * envMult;
+          cons3 += def.energyConsumption * energyConMult;
+        }
+        currentColony.energy.production = prod3;
+        currentColony.energy.consumption = cons3;
+        currentColony.energy.netBalance = prod3 - cons3;
+      }
+    }
+    return currentColony;
+  }, [surfaceTarget, techTreeState]);
+
   // Colony tick — runs every 60s, processes passive building production
   useEffect(() => {
     const id = setInterval(() => {
@@ -2630,6 +2677,7 @@ function AppInner() {
   // we pass the slider value through unchanged.
   useEffect(() => {
     ambientRef.current?.setVolume(ambientVolume);
+    onboardingAmbientRef.current?.setVolume(ambientVolume);
   }, [ambientVolume]);
 
   // ── Terraform mission lifecycle tick (5-second cadence) ──────────────────
@@ -3855,6 +3903,78 @@ function AppInner() {
   const isTutorialActive = activeTutorialStep !== null;
   const tutorialCompleteStep = TUTORIAL_STEPS.length;
 
+  /* Коментар українською: Стан згорнутого онбордингу */
+  const [tutorialMinimized, setTutorialMinimized] = useState(false);
+
+  /* Коментар українською: Стан для діалогового вікна перейменування */
+  const [renameTarget, setRenameTarget] = useState<{
+    title: string;
+    initialValue: string;
+    onConfirm: (newValue: string) => void;
+  } | null>(null);
+
+  // --- Ambient Music & Tutorial Sound Management ---
+  const prevAmbientPausedRef = useRef<boolean>(false);
+  const prevOnboardingAmbientPausedRef = useRef<boolean>(true);
+
+  // Normal Ambient Loop
+  useEffect(() => {
+    const ambient = ambientRef.current;
+    if (!ambient) return;
+    const isTutorialInteractiveActive = activeTutorialStep !== null && !tutorialMinimized;
+    const shouldPause = !ambientEnabled || !!surfaceTarget || showCosmicArchive || cinematicVideoPlaying || showHangar || showRaid || isTutorialInteractiveActive;
+    const wasPaused = prevAmbientPausedRef.current;
+    if (shouldPause && !wasPaused) {
+      ambient.pause();
+    } else if (!shouldPause && wasPaused) {
+      ambient.resume();
+    }
+    prevAmbientPausedRef.current = shouldPause;
+  }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying, showHangar, showRaid, activeTutorialStep, tutorialMinimized]);
+
+  // Onboarding Ambient Loop
+  useEffect(() => {
+    const onboardingAmbient = onboardingAmbientRef.current;
+    if (!onboardingAmbient) return;
+    const isTutorialInteractiveActive = activeTutorialStep !== null && !tutorialMinimized;
+    const shouldPlayOnboardingBgm = ambientEnabled && isTutorialInteractiveActive;
+    const shouldPause = !shouldPlayOnboardingBgm;
+    const wasPaused = prevOnboardingAmbientPausedRef.current;
+    if (shouldPause && !wasPaused) {
+      onboardingAmbient.pause();
+    } else if (!shouldPause && wasPaused) {
+      onboardingAmbient.resume();
+    }
+    prevOnboardingAmbientPausedRef.current = shouldPause;
+  }, [ambientEnabled, activeTutorialStep, tutorialMinimized]);
+
+  // Tutorial mute for other sounds (SFX & Loops)
+  useEffect(() => {
+    const isTutorialInteractiveActive = activeTutorialStep !== null && !tutorialMinimized;
+    setTutorialMute(isTutorialInteractiveActive);
+    return () => {
+      // Unmute on cleanup
+      setTutorialMute(false);
+    };
+  }, [activeTutorialStep, tutorialMinimized]);
+
+  useEffect(() => {
+    const isTutorialInteractiveActive = activeTutorialStep !== null && !tutorialMinimized;
+    const shouldPause = !ambientEnabled || !!surfaceTarget || showCosmicArchive || cinematicVideoPlaying || showHangar || showRaid || isTutorialInteractiveActive;
+    if (shouldPause) return;
+    const unlockSpaceAudio = () => {
+      ambientRef.current?.resume(800);
+    };
+    document.addEventListener('pointerdown', unlockSpaceAudio, { capture: true });
+    document.addEventListener('keydown', unlockSpaceAudio, { capture: true });
+    document.addEventListener('touchstart', unlockSpaceAudio, { capture: true });
+    return () => {
+      document.removeEventListener('pointerdown', unlockSpaceAudio, true);
+      document.removeEventListener('keydown', unlockSpaceAudio, true);
+      document.removeEventListener('touchstart', unlockSpaceAudio, true);
+    };
+  }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying, showHangar, showRaid, activeTutorialStep, tutorialMinimized]);
+
   useEffect(() => {
     if (!surfaceTarget || needsOnboarding || isTutorialActive || showAcademy || showCosmicArchive) return;
     try {
@@ -4139,6 +4259,7 @@ function AppInner() {
     planetIndex: number;
     displayName?: string;
   } | null>(null);
+  const [returnToArchiveAfterPlanetDetail, setReturnToArchiveAfterPlanetDetail] = useState(false);
 
   // ── Player aliases (custom names for systems/planets) ──────────────
   const [aliases, setAliases] = useState<Record<string, string>>({});
@@ -5129,6 +5250,9 @@ function AppInner() {
       const isLatest = () => myVersion === authEventSeq;
 
       setFirebaseUser(user);
+      if (user) {
+        setAnalyticsUserId(user.uid);
+      }
 
       if (authNullResolveTimer !== null) {
         clearTimeout(authNullResolveTimer);
@@ -5545,10 +5669,12 @@ function AppInner() {
                   // Only trigger if THIS system contains the paradise planet
                   const colonizable = findColonizablePlanet(system);
                   if (colonizable) {
+                    setEvacuationPhase('idle');
+                    setEvacuationPromptDismissed(false);
                     setEvacuationTarget({ system, planet: colonizable });
                     // Auto-complete research for evacuation target system
                     setResearchState((prev) => completeSystemResearchInstantly(prev, system));
-                    // Trigger the "Hope & Despair" speed-up twist
+                    // Trajectory alert must appear BEFORE the evacuation prompt.
                     activateSpeedUp();
                   }
                 }
@@ -5848,18 +5974,14 @@ function AppInner() {
         const evacSys = allSystems.find(s => s.id === evacSysId);
         const evacPlanet = evacSys?.planets.find(p => p.id === evacPlanetId);
         if (evacSys && evacPlanet) {
+          setEvacuationPhase('idle');
           setEvacuationTarget({ system: evacSys, planet: evacPlanet });
           setForcedEvacuation(evacForced);
         }
       }
 
-      // If evacuation was in progress (not idle) before reload, reset to prompt
-      const savedEvacPhase = localStorage.getItem('nebulife_evac_phase');
-      if (savedEvacPhase && savedEvacPhase !== 'idle') {
-        // Can't resume mid-animation — show prompt so player can restart evacuation
-        setEvacuationPhase('idle');
-        setEvacuationPromptDismissed(false);
-      }
+      // Clear stale mid-animation phase from localStorage — animations cannot resume after reload.
+      try { localStorage.removeItem('nebulife_evac_phase'); } catch { /* ignore */ }
 
       // Returning players always start from the Star Group after boot. Deep
       // scenes are entered intentionally from the galaxy/system UI.
@@ -6472,19 +6594,31 @@ function AppInner() {
 
   const handleSystemMenuRename = useCallback(() => {
     if (!state.selectedSystem) return;
-    const newName = prompt(t('app.rename_prompt'), state.selectedSystem.name);
-    if (newName && newName.trim()) {
-      const sys = state.selectedSystem;
-      setAlias({
-        playerId: playerId.current,
-        entityType: 'system',
-        entityId: sys.id,
-        customName: newName.trim(),
-      }).then(() => {
-        setAliases((prev) => ({ ...prev, [sys.id]: newName.trim() }));
-      }).catch((err) => console.error('Rename failed:', err));
-    }
-  }, [state.selectedSystem]);
+    const sys = state.selectedSystem;
+
+    /* Коментар українською: Закриваємо радіальне меню при перейменуванні */
+    setShowSystemMenu(false);
+    setRadialSystem(null);
+    setRadialGetScreenPos(null);
+
+    /* Коментар українською: Відкриваємо кастомний RenameModal замість стандартного prompt() */
+    setRenameTarget({
+      title: t('app.rename_prompt'),
+      initialValue: aliases[sys.id] || sys.name,
+      onConfirm: (newName) => {
+        setAlias({
+          playerId: playerId.current,
+          entityType: 'system',
+          entityId: sys.id,
+          customName: newName,
+        }).then(() => {
+          setAliases((prev) => ({ ...prev, [sys.id]: newName }));
+          /* Коментар українською: Звуковий сигнал успішного перейменування */
+          playSfx('notify', 0.2);
+        }).catch((err) => console.error('Rename failed:', err));
+      }
+    });
+  }, [state.selectedSystem, aliases, t]);
 
   const handleObjectsList = useCallback(() => {
     if (!state.selectedSystem) return;
@@ -7401,6 +7535,13 @@ function AppInner() {
             }
           } else if (action === 'close-archive') {
             setShowCosmicArchive(false);
+          } else if (action === 'close-colony-center') {
+            /* Коментар українською: Закриваємо панель Colony Center для переходу до Академії */
+            setShowColonyCenter(false);
+          } else if (action.startsWith('go-scene-')) {
+            /* Коментар українською: Програмне перемикання сцен за допомогою breadcrumb навігатора */
+            const sceneName = action.replace('go-scene-', '');
+            handleBreadcrumbNavigate(sceneName);
           }
         }
       }
@@ -7564,6 +7705,7 @@ function AppInner() {
       planetName: evacuationTarget.planet.name,
       currentHome: homeInfo ? { systemId: homeInfo.system.id, planetId: homeInfo.planet.id } : null,
     });
+    setEvacuationPromptDismissed(true);
     playSfx('evac-alarm', 0.25);
     setEvacuationPhase('stage0-launch');
     awardXP(XP_REWARDS.EVACUATION_START, 'evacuation');
@@ -7582,12 +7724,26 @@ function AppInner() {
     if (!evacuationTarget) return;
     engineRef.current?.showSystemScene(evacuationTarget.system);
     setState((prev) => ({ ...prev, scene: 'system', selectedSystem: evacuationTarget.system }));
-    // Start ship flight to target planet
-    setTimeout(() => {
-      engineRef.current?.startSystemShipFlight(evacuationTarget.planet.id);
-    }, 300);
     setEvacuationPhase('stage1-system-flight');
   }, [evacuationTarget]);
+
+  // Wait for SystemScene to mount before starting the ship flight animation.
+  useEffect(() => {
+    if (evacuationPhase !== 'stage1-system-flight' || !evacuationTarget) return;
+    let cancelled = false;
+    let attempts = 0;
+    const tryStart = () => {
+      if (cancelled) return;
+      if (engineRef.current?.isSystemShipFlightActive()) return;
+      engineRef.current?.startSystemShipFlight(evacuationTarget.planet.id);
+      if (engineRef.current?.isSystemShipFlightActive()) return;
+      if (attempts++ < 120) {
+        requestAnimationFrame(tryStart);
+      }
+    };
+    tryStart();
+    return () => { cancelled = true; };
+  }, [evacuationPhase, evacuationTarget]);
 
   // Poll ship progress in stage1 — at 60% fade to black, then switch to explosion
   useEffect(() => {
@@ -7617,11 +7773,26 @@ function AppInner() {
       selectedSystem: evacuationTarget.system,
       selectedPlanet: evacuationTarget.planet,
     }));
-    setTimeout(() => {
-      globeRef.current?.startShipApproach();
-    }, 300);
     setEvacuationPhase('stage3-planet-approach');
   }, [evacuationTarget]);
+
+  // Wait for PlanetGlobeView to mount before starting the orbit approach.
+  useEffect(() => {
+    if (evacuationPhase !== 'stage3-planet-approach' || !evacuationTarget) return;
+    let cancelled = false;
+    let attempts = 0;
+    const tryStart = () => {
+      if (cancelled) return;
+      if (globeRef.current?.isShipApproachActive()) return;
+      globeRef.current?.startShipApproach();
+      if (globeRef.current?.isShipApproachActive()) return;
+      if (attempts++ < 120) {
+        requestAnimationFrame(tryStart);
+      }
+    };
+    tryStart();
+    return () => { cancelled = true; };
+  }, [evacuationPhase, evacuationTarget]);
 
   // Poll ship approach in stage3 — when on orbit, switch to stage4
   useEffect(() => {
@@ -9094,6 +9265,7 @@ function AppInner() {
       label: t('cmd.academy'),
       variant: 'terminal' as const,
       tooltip: t('cmd.academy_tooltip'),
+      tutorialId: 'academy-btn',
       onClick: () => {
         playSfx('ui-click', 0.08);
         setShowEncyclopedia(true);
@@ -9344,7 +9516,7 @@ function AppInner() {
           style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 9800,
+            zIndex: 31000,
             background: 'rgba(2,5,16,0.95)',
             display: 'flex',
             alignItems: 'center',
@@ -10204,8 +10376,8 @@ function AppInner() {
           onKeepOld={handleGalleryKeepOld}
         />
       )}
-      {/* Evacuation Prompt — shown when habitable planet found (not forced) */}
-      {evacuationTarget && evacuationPhase === 'idle' && !evacuationPromptDismissed && !forcedEvacuation && (
+      {/* Evacuation Prompt — shown after trajectory alert is dismissed */}
+      {evacuationTarget && evacuationPhase === 'idle' && !evacuationPromptDismissed && !forcedEvacuation && !showSpeedUpTwist && (
         <EvacuationPrompt
           system={evacuationTarget.system}
           planet={evacuationTarget.planet}
@@ -10237,7 +10409,7 @@ function AppInner() {
           the modal carries its own lightweight SVG system-with-planets
           preview so the background stays visually meaningful without the
           GPU cost of the 3D scene. */}
-      {evacuationPhase === 'stage4-orbit' && evacuationTarget && (
+      {evacuationPhase === 'stage4-orbit' && evacuationTarget && !showSpeedUpTwist && (
         <ColonyFoundingPrompt
           planet={evacuationTarget.planet}
           system={evacuationTarget.system}
@@ -10367,14 +10539,20 @@ function AppInner() {
               });
             }
             awardXP(XP_REWARDS.BUILDING_PLACED, 'building_placed');
-            // Sync building to colony tick state
-            if (type) {
-              setColonyState(prev => {
-                if (!prev) return prev;
-                const b: PlacedBuilding = { id: `build-${Date.now()}`, type, x: 0, y: 0, level: 1, builtAt: new Date().toISOString() };
-                return { ...prev, buildings: [...prev.buildings, b] };
+          }}
+          onBuildingsChanged={(buildings) => {
+            setColonyState((prev) => {
+              if (!prev) return prev;
+              const updatedBuildings = buildings.map((b) => {
+                const prevB = prev.buildings.find((pb) => pb.id === b.id || (pb.type === b.type && pb.x === b.x && pb.y === b.y));
+                return {
+                  ...b,
+                  shutdown: prevB?.shutdown ?? false,
+                };
               });
-            }
+              const nextColony = { ...prev, buildings: updatedBuildings };
+              return runImmediateEnergyCheck(nextColony);
+            });
           }}
           onHarvest={handleHarvest}
           onHarvestFull={handleHarvestFull}
@@ -10458,11 +10636,6 @@ function AppInner() {
           onDismiss={() => {
             try { localStorage.setItem('nebulife_surface_astra_lesson_seen', '1'); } catch { /* ignore */ }
             setShowSurfaceAstraLesson(false);
-          }}
-          onOpenMission={() => {
-            setAcademyInitialTab('mission');
-            setAcademyMissionChapter('surface');
-            setShowAcademy(true);
           }}
         />
       )}
@@ -10667,9 +10840,10 @@ function AppInner() {
       )}
 
       {/* Cosmic Archive */}
-      {showCosmicArchive && playerId.current && (
+      {playerId.current && (
         <CosmicArchive
           ref={cosmicArchiveRef}
+          visible={showCosmicArchive}
           playerId={playerId.current}
           allSystems={engineRef.current?.getAllSystems() ?? []}
           aliases={aliases}
@@ -10689,6 +10863,7 @@ function AppInner() {
             handleEnterSystem(system);
           }}
           onViewPlanetDetail={(system, planetId) => {
+            setReturnToArchiveAfterPlanetDetail(true);
             setShowCosmicArchive(false);
             const pIdx = system.planets.findIndex((p) => p.id === planetId);
             if (pIdx >= 0) handleViewPlanetDetail(system, pIdx, aliases[system.id] ?? undefined);
@@ -11151,20 +11326,90 @@ function AppInner() {
           system={planetDetailTarget.system}
           systemDisplayName={planetDetailTarget.displayName}
           initialPlanetIndex={planetDetailTarget.planetIndex}
-          onClose={() => setPlanetDetailTarget(null)}
+          onClose={() => {
+            setPlanetDetailTarget(null);
+            if (returnToArchiveAfterPlanetDetail) {
+              setShowCosmicArchive(true);
+              setReturnToArchiveAfterPlanetDetail(false);
+            }
+          }}
           destroyedPlanetIds={getDestroyedPlanetIdsForSystem(planetDetailTarget.system.id)}
         />
       )}
 
       {/* Tutorial overlay */}
-      {isTutorialActive && activeTutorialStep?.type !== 'free-task' && activeTutorialStep && (
+      {isTutorialActive && activeTutorialStep?.type !== 'free-task' && activeTutorialStep && !tutorialMinimized && (
         <TutorialOverlay
           step={activeTutorialStep}
           subStepIndex={tutorialSubStep}
           onAdvance={handleTutorialAdvance}
           onSkip={handleTutorialSkip}
+          onMinimize={() => setTutorialMinimized(true)}
         />
       )}
+
+      {/* Коментар українською: Плаваюча кнопка асистента A.S.T.R.A., коли туторіал згорнуто */}
+      {isTutorialActive && tutorialMinimized && (
+        <button
+          onClick={() => {
+            playSfx('ui-click', 0.07);
+            setTutorialMinimized(false);
+          }}
+          style={{
+            position: 'fixed',
+            left: 16,
+            bottom: 'calc(110px + env(safe-area-inset-bottom, 0px))',
+            zIndex: 9999,
+            width: 52,
+            height: 52,
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #0b1a30, #050a14)',
+            border: '2px solid rgba(123, 184, 255, 0.8)',
+            boxShadow: '0 0 15px rgba(123, 184, 255, 0.6), inset 0 0 10px rgba(123, 184, 255, 0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            transition: 'transform 0.2s, border-color 0.2s',
+            animation: 'astra-soft-pulse 2s ease-in-out infinite',
+          }}
+          title={t('tutorial.expand_astra' as any)}
+        >
+          {/* Коментар українською: Космічний голографічний кружок */}
+          <div style={{
+            width: 24,
+            height: 24,
+            borderRadius: '50%',
+            border: '2px solid #7bb8ff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <div style={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              background: '#7bb8ff',
+              boxShadow: '0 0 6px #7bb8ff',
+            }} />
+          </div>
+        </button>
+      )}
+
+      {/* Коментар українською: Космічне діалогове вікно перейменування */}
+      {renameTarget && (
+        <RenameModal
+          isOpen={true}
+          title={renameTarget.title}
+          initialValue={renameTarget.initialValue}
+          onConfirm={(val) => {
+            renameTarget.onConfirm(val);
+            setRenameTarget(null);
+          }}
+          onClose={() => setRenameTarget(null)}
+        />
+      )}
+
       {isTutorialActive && activeTutorialStep?.type === 'free-task' && (
         <FreeTaskHUD current={tutorialFreeCount} total={activeTutorialStep.freeTaskTotal ?? 1} />
       )}
@@ -11224,7 +11469,8 @@ function AppInner() {
           quizAnswers={astraQuizAnswers}
           onQuizAnswer={handleAstraQuizAnswer}
           onDigestSeen={handleAstraDigestSeen}
-          forceCollapsed={isTutorialActive && activeTutorialStep?.id !== 'astra-handoff'}
+          /* Коментар українською: Чат залишається відкритим під час пояснювальних кроків туторіалу про чат */
+          forceCollapsed={isTutorialActive && activeTutorialStep?.id !== 'astra-handoff' && activeTutorialStep?.id !== 'astra-chat-tabs' && activeTutorialStep?.id !== 'astra-chat-close'}
           isPremium={isPremiumActive}
         />
       )}
@@ -11276,14 +11522,19 @@ function AppInner() {
 
         const liveBuildings: PlacedBuilding[] = hexSlots
           .filter((s) => s.state === 'building' && s.buildingType)
-          .map((s) => ({
-            id: `${playerId.current}-${s.id}-${s.buildingType}`,
-            type: s.buildingType as BuildingType,
-            x: s.index,
-            y: s.ring,
-            level: s.buildingLevel ?? 1,
-            builtAt: new Date().toISOString(),
-          }));
+          .map((s) => {
+            const type = s.buildingType as BuildingType;
+            const fallback = colonyState?.buildings.find((b) => b.id === s.id || b.type === type);
+            return {
+              id: `${playerId.current}-${s.id}-${type}`,
+              type,
+              x: s.index,
+              y: s.ring,
+              level: s.buildingLevel ?? 1,
+              builtAt: new Date().toISOString(),
+              shutdown: fallback?.shutdown,
+            };
+          });
 
         // Use the freshly-derived list when present; otherwise fall back to
         // whatever colonyState had (e.g. before any hex_slots were saved).
@@ -11312,6 +11563,8 @@ function AppInner() {
         const perHour = { minerals: 0, volatiles: 0, isotopes: 0, water: 0, researchData: 0, energy: 0 };
         let energyProduced = 0;
         let energyConsumed = 0;
+        const energyOutMult = getEffectValue(techTreeState, 'energy_output_mult', 1);
+        const energyConMult = getEffectValue(techTreeState, 'energy_consumption_mult', 1);
         let populationCapacity = 0;
         let foodSupportCapacity = 0;
         let hasColonyHub = false;
@@ -11321,8 +11574,16 @@ function AppInner() {
           if (!def) continue;
           if (b.shutdown) continue;
           if (b.type === 'colony_hub') hasColonyHub = true;
-          energyProduced += def.energyOutput ?? 0;
-          energyConsumed += def.energyConsumption ?? 0;
+
+          const envMult = getBuildingEnergyMultiplier(
+            b.type,
+            surfaceTarget.planet,
+            undefined,
+            surfaceTarget.star.luminositySolar,
+          );
+
+          energyProduced += tickRateToHourly((def.energyOutput ?? 0) * energyOutMult * envMult);
+          energyConsumed += tickRateToHourly((def.energyConsumption ?? 0) * energyConMult);
           populationCapacity += def.populationCapacityAdd ?? 0;
           for (const p of (def.production ?? []) as Array<{ resource: string; amount: number }>) {
             if (p.resource in perHour) (perHour as any)[p.resource] += p.amount * 60;

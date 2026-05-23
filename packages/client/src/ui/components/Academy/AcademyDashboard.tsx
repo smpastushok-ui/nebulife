@@ -27,8 +27,8 @@ interface AcademyDashboardProps {
   initialMissionChapter?: 'surface';
 }
 
-const TAB_LABEL_KEYS: Record<AcademyTab, string> = {
-  mission: 'academy.tabs.mission',
+// The 'mission' (Philosophy & Mission) tab is temporarily stubbed out/hidden as requested.
+const TAB_LABEL_KEYS: Partial<Record<AcademyTab, string>> = {
   lesson: 'academy.tabs.lesson',
   quest: 'academy.tabs.quest',
   quiz: 'academy.tabs.quiz',
@@ -52,7 +52,10 @@ function getCountdown(): string {
 
 export function AcademyDashboard({ onClose, onNavigateToGalaxy, playerName, sharedLessonInfo, onAwardXP, initialTab, initialMissionChapter }: AcademyDashboardProps) {
   const { t } = useTranslation();
-  const [tab, setTab] = useState<AcademyTab>(() => initialTab ?? (sharedLessonInfo ? 'lesson' : 'mission'));
+  const [tab, setTab] = useState<AcademyTab>(() => {
+    if (initialTab && initialTab !== 'mission') return initialTab;
+    return 'lesson';
+  });
   const [progress, setProgress] = useState<AcademyProgress | null>(null);
   const [lesson, setLesson] = useState<DailyLesson | null>(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
@@ -121,18 +124,22 @@ export function AcademyDashboard({ onClose, onNavigateToGalaxy, playerName, shar
       <div style={styles.container}>
         {/* Sidebar tabs */}
         <div style={styles.sidebar}>
-          {(Object.keys(TAB_LABEL_KEYS) as AcademyTab[]).map((academyTab) => (
-            <button
-              key={academyTab}
-              style={{
-                ...styles.tabButton,
-                ...(tab === academyTab ? styles.tabActive : {}),
-              }}
-              onClick={() => { playSfx('ui-click', 0.07); setTab(academyTab); }}
-            >
-              {t(TAB_LABEL_KEYS[academyTab])}
-            </button>
-          ))}
+          {(Object.keys(TAB_LABEL_KEYS) as AcademyTab[]).map((academyTab) => {
+            const labelKey = TAB_LABEL_KEYS[academyTab];
+            if (!labelKey) return null;
+            return (
+              <button
+                key={academyTab}
+                style={{
+                  ...styles.tabButton,
+                  ...(tab === academyTab ? styles.tabActive : {}),
+                }}
+                onClick={() => { playSfx('ui-click', 0.07); setTab(academyTab); }}
+              >
+                {t(labelKey)}
+              </button>
+            );
+          })}
         </div>
 
         {/* Content area */}

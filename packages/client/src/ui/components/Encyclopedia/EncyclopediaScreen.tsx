@@ -39,7 +39,7 @@ export function EncyclopediaScreen({ onClose }: EncyclopediaScreenProps) {
   const [lessonLoading, setLessonLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [expandedSections, setExpandedSections] = useState<Set<SectionId>>(
-    () => new Set(SECTIONS.slice(0, 3).map((s) => s.id)),
+    () => new Set(),
   );
   const [searchQuery, setSearchQuery] = useState('');
   const needsTopChromeInset = typeof window !== 'undefined'
@@ -165,7 +165,7 @@ export function EncyclopediaScreen({ onClose }: EncyclopediaScreenProps) {
       {/* Header bar */}
       <div style={headerStyle}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
-          <span style={titleStyle}>
+          <span style={titleStyle} data-tutorial-id="encyclopedia-title">
             {lang === 'uk' ? 'Космічна енциклопедія' : 'Cosmic Encyclopedia'}
           </span>
           <span style={metaStyle}>

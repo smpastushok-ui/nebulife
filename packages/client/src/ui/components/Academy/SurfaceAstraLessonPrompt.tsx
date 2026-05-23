@@ -14,7 +14,22 @@ export function SurfaceAstraLessonPrompt({ onDismiss, onOpenMission }: SurfaceAs
   const [voicePlaying, setVoicePlaying] = useState(false);
   const [step, setStep] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const isCompact = typeof window !== 'undefined' && window.innerWidth < 680;
+
+  // Dynamic window size tracking for perfect responsiveness
+  const [width, setWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
+  const [height, setHeight] = useState(typeof window !== 'undefined' ? window.innerHeight : 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setWidth(window.innerWidth);
+      setHeight(window.innerHeight);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isCompact = width < 680 || height < 520;
+
   const voiceSources = useMemo(
     () => {
       const lang = i18n.language.startsWith('uk') ? 'ua' : 'en';
@@ -39,7 +54,8 @@ export function SurfaceAstraLessonPrompt({ onDismiss, onOpenMission }: SurfaceAs
     try { localStorage.setItem('nebulife_surface_astra_lesson_seen', '1'); } catch { /* ignore */ }
     stopVoice();
     onDismiss();
-    onOpenMission?.();
+    // Transition to the philosophy & mission curriculum is temporarily blocked as requested.
+    // onOpenMission?.();
   };
 
   const playVoicePart = (index: number) => {
@@ -81,61 +97,280 @@ export function SurfaceAstraLessonPrompt({ onDismiss, onOpenMission }: SurfaceAs
 
   const handleStartVoice = () => {
     playSfx('ui-click', 0.05);
-    if (voicePlaying) {
-      stopVoice();
-      return;
-    }
     playVoicePart(step);
+  };
+
+  const handleMuteVoice = () => {
+    playSfx('ui-click', 0.05);
+    stopVoice();
   };
 
   return (
     <div style={styles.backdrop}>
+      <style>{`
+        @keyframes astraLivePulse {
+          0% { transform: scale(0.95); opacity: 0.75; }
+          50% { transform: scale(1.15); opacity: 1; box-shadow: 0 0 10px rgba(68, 255, 136, 0.7); }
+          100% { transform: scale(0.95); opacity: 0.75; }
+        }
+        @keyframes astraScanline {
+          0% { transform: translateY(-100%); }
+          100% { transform: translateY(100%); }
+        }
+        
+        .astra-btn-primary {
+          background: rgba(123, 184, 255, 0.12);
+          border: 1px solid rgba(123, 184, 255, 0.45);
+          color: #e3f2ff;
+          border-radius: 4px;
+          font-family: monospace;
+          font-size: 12px;
+          padding: 10px 14px;
+          cursor: pointer;
+          transition: all 0.15s ease-in-out;
+          outline: none;
+        }
+        .astra-btn-primary:hover {
+          background: rgba(123, 184, 255, 0.22);
+          border-color: rgba(123, 184, 255, 0.75);
+          box-shadow: 0 0 12px rgba(123, 184, 255, 0.2);
+        }
+        .astra-btn-primary:active {
+          transform: translateY(1px);
+          background: rgba(123, 184, 255, 0.3);
+        }
+
+        .astra-btn-voice {
+          background: rgba(68, 255, 136, 0.08);
+          border: 1px solid rgba(68, 255, 136, 0.4);
+          color: #bbf9d4;
+          border-radius: 4px;
+          font-family: monospace;
+          font-size: 12px;
+          padding: 10px 14px;
+          cursor: pointer;
+          transition: all 0.15s ease-in-out;
+          outline: none;
+        }
+        .astra-btn-voice:hover {
+          background: rgba(68, 255, 136, 0.16);
+          border-color: rgba(68, 255, 136, 0.65);
+          box-shadow: 0 0 12px rgba(68, 255, 136, 0.15);
+        }
+        .astra-btn-voice:active {
+          transform: translateY(1px);
+          background: rgba(68, 255, 136, 0.24);
+        }
+
+        .astra-btn-voice-icon {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 40px;
+          width: 40px;
+          padding: 10px;
+          flex: 0 0 40px;
+        }
+
+        .astra-btn-secondary {
+          background: transparent;
+          border: 1px solid rgba(102, 119, 136, 0.42);
+          color: #9ab0c5;
+          border-radius: 4px;
+          font-family: monospace;
+          font-size: 12px;
+          padding: 10px 14px;
+          cursor: pointer;
+          transition: all 0.15s ease-in-out;
+          outline: none;
+        }
+        .astra-btn-secondary:hover {
+          background: rgba(102, 119, 136, 0.1);
+          border-color: rgba(102, 119, 136, 0.7);
+          color: #c0d1e5;
+        }
+        .astra-btn-secondary:active {
+          transform: translateY(1px);
+          background: rgba(102, 119, 136, 0.18);
+        }
+        
+        .astra-live-dot {
+          animation: astraLivePulse 1.8s infinite ease-in-out;
+        }
+        
+        .astra-scanline {
+          animation: astraScanline 5s linear infinite;
+        }
+      `}</style>
+
       <div style={{ ...styles.card, ...(isCompact ? styles.cardCompact : {}) }}>
-        <div style={{ ...styles.portraitPanel, ...(isCompact ? styles.portraitPanelCompact : {}) }}>
-          <video
-            src="/astra/astra-video.mp4"
-            poster="/astra/astra-portrait.jpg"
-            autoPlay
-            loop
-            muted
-            playsInline
-            preload="metadata"
-            style={{ ...styles.video, ...(isCompact ? styles.videoCompact : {}) }}
-          />
-          <div style={styles.videoShade} />
-        </div>
+        
+        {/* On desktop, the full-height vertical side-panel for Astra feed */}
+        {!isCompact && (
+          <div style={styles.portraitPanel}>
+            <video
+              ref={(el) => {
+                if (el) {
+                  el.muted = true;
+                  el.volume = 0;
+                }
+              }}
+              src="/astra/astra-video.mp4"
+              poster="/astra/astra-portrait.jpg"
+              autoPlay
+              loop
+              muted
+              playsInline
+              preload="metadata"
+              style={styles.video}
+            />
+            
+            {/* HUD Corner Tech Brackets */}
+            <div style={styles.hudBracketTL} />
+            <div style={styles.hudBracketTR} />
+            <div style={styles.hudBracketBL} />
+            <div style={styles.hudBracketBR} />
 
-        <div style={{ ...styles.content, ...(isCompact ? styles.contentCompact : {}) }}>
-          <div style={styles.eyebrow}>{t('academy.surface_intro.eyebrow')}</div>
-          <h2 style={styles.title}>{t('academy.surface_intro.title')}</h2>
-          <div style={styles.progressRow}>
-            {Array.from({ length: STEP_COUNT }, (_, index) => (
-              <span
-                key={index}
-                style={{
-                  ...styles.stepDot,
-                  ...(index === step ? styles.stepDotActive : {}),
-                  ...(index < step ? styles.stepDotDone : {}),
-                }}
-              />
-            ))}
-            <span style={styles.stepText}>{step + 1}/{STEP_COUNT}</span>
+            {/* Blinking Live Indicator */}
+            <div style={styles.liveIndicator}>
+              <span className="astra-live-dot" style={styles.liveDot} />
+              <span style={styles.liveText}>ASTRA FEED // LIVE</span>
+            </div>
+
+            {/* Scanning line and glass shade */}
+            <div className="astra-scanline" style={styles.scanline} />
+            <div style={styles.videoShade} />
           </div>
-          <p style={styles.body}>{t(`academy.surface_intro.step_${step + 1}`)}</p>
+        )}
 
-          <div style={styles.actions}>
+        {/* Content Panel */}
+        <div style={{ ...styles.content, ...(isCompact ? styles.contentCompact : {}) }}>
+          
+          {/* On mobile, show beautiful split header with larger vertical portrait */}
+          {isCompact ? (
+            <div style={styles.mobileHeaderRow}>
+              {/* Astra Vertical 3:4 portrait (not a squished square anymore) */}
+              <div style={styles.mobilePortraitContainer}>
+                <video
+                  ref={(el) => {
+                    if (el) {
+                      el.muted = true;
+                      el.volume = 0;
+                    }
+                  }}
+                  src="/astra/astra-video.mp4"
+                  poster="/astra/astra-portrait.jpg"
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  preload="metadata"
+                  style={styles.mobileVideo}
+                />
+                
+                {/* HUD Brackets for Mobile Portrait */}
+                <div style={styles.hudBracketTL} />
+                <div style={styles.hudBracketTR} />
+                <div style={styles.hudBracketBL} />
+                <div style={styles.hudBracketBR} />
+
+                {/* Compact Live Indicator for Mobile */}
+                <div style={styles.liveIndicatorMobile}>
+                  <span className="astra-live-dot" style={styles.liveDot} />
+                  <span style={styles.liveTextMobile}>LIVE</span>
+                </div>
+
+                {/* Scanline and shadow */}
+                <div className="astra-scanline" style={styles.scanline} />
+                <div style={styles.videoShade} />
+              </div>
+
+              {/* Text Header column next to portrait on mobile */}
+              <div style={styles.mobileHeaderTextContainer}>
+                <div style={styles.eyebrow}>{t('academy.surface_intro.eyebrow')}</div>
+                <h2 style={styles.titleMobile}>{t('academy.surface_intro.title')}</h2>
+                
+                {/* Progress bar */}
+                <div style={styles.progressRow}>
+                  {Array.from({ length: STEP_COUNT }, (_, index) => (
+                    <span
+                      key={index}
+                      style={{
+                        ...styles.stepDot,
+                        ...(index === step ? styles.stepDotActive : {}),
+                        ...(index < step ? styles.stepDotDone : {}),
+                      }}
+                    />
+                  ))}
+                  <span style={styles.stepText}>{step + 1}/{STEP_COUNT}</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* On desktop, show simple standard header */
+            <>
+              <div style={styles.eyebrow}>{t('academy.surface_intro.eyebrow')}</div>
+              <h2 style={styles.title}>{t('academy.surface_intro.title')}</h2>
+              
+              <div style={styles.progressRow}>
+                {Array.from({ length: STEP_COUNT }, (_, index) => (
+                  <span
+                    key={index}
+                    style={{
+                      ...styles.stepDot,
+                      ...(index === step ? styles.stepDotActive : {}),
+                      ...(index < step ? styles.stepDotDone : {}),
+                    }}
+                  />
+                ))}
+                <span style={styles.stepText}>{step + 1}/{STEP_COUNT}</span>
+              </div>
+            </>
+          )}
+
+          {/* Body message section (spans full width, giving it much needed breathing room!) */}
+          <div style={styles.bodyWrapper}>
+            <p style={{ ...styles.body, ...(isCompact ? styles.bodyCompact : {}) }}>
+              {t(`academy.surface_intro.step_${step + 1}`)}
+            </p>
+          </div>
+
+          {/* Action buttons bar */}
+          <div style={{ ...styles.actions, ...(isCompact ? styles.actionsCompact : {}) }}>
+            {voicePlaying ? (
+              <button
+                type="button"
+                className="astra-btn-voice astra-btn-voice-icon"
+                style={{
+                  ...(isCompact ? styles.iconButtonCompact : {}),
+                  color: '#ff9988',
+                  borderColor: 'rgba(204, 68, 68, 0.45)',
+                  background: 'rgba(204, 68, 68, 0.1)',
+                }}
+                onClick={handleMuteVoice}
+                aria-label={t('common.mute')}
+                title={t('common.mute')}
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M3 6H5L8 3V13L5 10H3Z" />
+                  <line x1="11" y1="6" x2="14" y2="9" />
+                  <line x1="14" y1="6" x2="11" y2="9" />
+                </svg>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="astra-btn-voice"
+                style={isCompact ? styles.buttonCompactVoice : undefined}
+                onClick={handleStartVoice}
+              >
+                {t('academy.surface_intro.listen_voice')}
+              </button>
+            )}
             <button
               type="button"
-              style={styles.voiceButton}
-              onClick={handleStartVoice}
-            >
-              {voicePlaying
-                ? `${t('academy.surface_intro.stop_voice')} ${step + 1}/7`
-                : t('academy.surface_intro.listen_voice')}
-            </button>
-            <button
-              type="button"
-              style={styles.secondaryButton}
+              className="astra-btn-secondary"
+              style={isCompact ? styles.buttonCompact : {}}
               onClick={() => {
                 playSfx('ui-click', 0.06);
                 try { localStorage.setItem('nebulife_surface_astra_lesson_seen', '1'); } catch { /* ignore */ }
@@ -147,7 +382,8 @@ export function SurfaceAstraLessonPrompt({ onDismiss, onOpenMission }: SurfaceAs
             </button>
             <button
               type="button"
-              style={styles.primaryButton}
+              className="astra-btn-primary"
+              style={isCompact ? styles.buttonCompact : {}}
               onClick={handleNext}
             >
               {step >= STEP_COUNT - 1 ? t('academy.surface_intro.to_game') : t('academy.surface_intro.next')}
@@ -169,47 +405,35 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'center',
     padding: 'calc(18px + env(safe-area-inset-top, 0px)) 14px calc(72px + env(safe-area-inset-bottom, 0px))',
     boxSizing: 'border-box',
-    background: 'rgba(1, 3, 10, 0.54)',
-    backdropFilter: 'blur(3px)',
+    background: 'rgba(2, 4, 12, 0.72)',
+    backdropFilter: 'blur(5px)',
     fontFamily: 'monospace',
   },
   card: {
     width: 'min(640px, 94vw)',
-    maxHeight: 'min(430px, 78vh)',
-    display: 'grid',
-    gridTemplateColumns: 'minmax(112px, 0.48fr) minmax(0, 1.52fr)',
+    height: 'min(450px, 80vh)',
+    display: 'flex',
+    flexDirection: 'row',
     overflow: 'hidden',
-    borderRadius: 8,
-    border: '1px solid rgba(123,184,255,0.34)',
-    background: 'linear-gradient(145deg, rgba(5,10,20,0.97), rgba(13,22,36,0.94))',
-    boxShadow: '0 18px 60px rgba(0,0,0,0.62), inset 0 0 34px rgba(123,184,255,0.05)',
+    borderRadius: 10,
+    border: '1px solid rgba(123,184,255,0.28)',
+    background: 'linear-gradient(145deg, rgba(6,12,24,0.98), rgba(12,20,34,0.95))',
+    boxShadow: '0 24px 70px rgba(0,0,0,0.68), inset 0 0 34px rgba(123,184,255,0.05)',
   },
   cardCompact: {
-    position: 'relative',
-    gridTemplateColumns: '1fr',
-    maxHeight: '88vh',
+    flexDirection: 'column',
+    height: 'auto',
+    maxHeight: 'min(580px, 90vh)',
+    width: 'min(420px, 94vw)',
   },
   portraitPanel: {
     position: 'relative',
-    minHeight: 230,
-    background: '#020510',
-    borderRight: '1px solid rgba(68,102,136,0.38)',
-  },
-  portraitPanelCompact: {
-    position: 'absolute',
-    top: 14,
-    left: 14,
-    zIndex: 2,
-    width: 76,
-    height: 76,
-    minHeight: 0,
-    maxHeight: 'none',
+    flex: '0 0 170px',
+    background: '#01030a',
+    borderRight: '1px solid rgba(123,184,255,0.22)',
     overflow: 'hidden',
-    border: '1px solid rgba(123,184,255,0.36)',
-    borderRadius: 6,
-    borderRight: 'none',
-    borderBottom: '1px solid rgba(123,184,255,0.36)',
-    boxShadow: '0 10px 28px rgba(0,0,0,0.42)',
+    display: 'flex',
+    flexDirection: 'column',
   },
   video: {
     width: '100%',
@@ -217,106 +441,252 @@ const styles: Record<string, React.CSSProperties> = {
     objectFit: 'cover',
     objectPosition: '50% 18%',
     display: 'block',
-    filter: 'saturate(0.9) contrast(0.95) brightness(0.86)',
-  },
-  videoCompact: {
-    objectFit: 'contain',
-    objectPosition: '50% 50%',
-    background: '#020510',
+    filter: 'saturate(0.85) contrast(1.05) brightness(0.9)',
   },
   videoShade: {
     position: 'absolute',
     inset: 0,
-    background: 'linear-gradient(180deg, rgba(2,5,16,0.02), rgba(2,5,16,0.42))',
+    background: 'linear-gradient(180deg, rgba(2,5,16,0.12), rgba(2,5,16,0.5))',
     pointerEvents: 'none',
+    zIndex: 4,
+  },
+  scanline: {
+    position: 'absolute',
+    inset: 0,
+    background: 'linear-gradient(to bottom, rgba(123,184,255,0) 0%, rgba(123,184,255,0.08) 10%, rgba(123,184,255,0.08) 12%, rgba(123,184,255,0) 22%)',
+    pointerEvents: 'none',
+    zIndex: 5,
+  },
+  liveIndicator: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    zIndex: 10,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    background: 'rgba(2,5,16,0.7)',
+    padding: '4px 8px',
+    borderRadius: 3,
+    border: '1px solid rgba(123,184,255,0.2)',
+    backdropFilter: 'blur(4px)',
+  },
+  liveIndicatorMobile: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    zIndex: 10,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
+    background: 'rgba(2,5,16,0.75)',
+    padding: '3px 6px',
+    borderRadius: 3,
+    border: '1px solid rgba(123,184,255,0.2)',
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: '50%',
+    backgroundColor: '#44ff88',
+    display: 'inline-block',
+  },
+  liveText: {
+    color: '#88ffaa',
+    fontSize: 9,
+    fontWeight: 'bold',
+    letterSpacing: 1.2,
+  },
+  liveTextMobile: {
+    color: '#88ffaa',
+    fontSize: 8,
+    fontWeight: 'bold',
+    letterSpacing: 0.8,
+  },
+  hudBracketTL: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    width: 12,
+    height: 12,
+    borderTop: '2px solid rgba(123,184,255,0.45)',
+    borderLeft: '2px solid rgba(123,184,255,0.45)',
+    pointerEvents: 'none',
+    zIndex: 6,
+  },
+  hudBracketTR: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 12,
+    height: 12,
+    borderTop: '2px solid rgba(123,184,255,0.45)',
+    borderRight: '2px solid rgba(123,184,255,0.45)',
+    pointerEvents: 'none',
+    zIndex: 6,
+  },
+  hudBracketBL: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    width: 12,
+    height: 12,
+    borderBottom: '2px solid rgba(123,184,255,0.45)',
+    borderLeft: '2px solid rgba(123,184,255,0.45)',
+    pointerEvents: 'none',
+    zIndex: 6,
+  },
+  hudBracketBR: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    width: 12,
+    height: 12,
+    borderBottom: '2px solid rgba(123,184,255,0.45)',
+    borderRight: '2px solid rgba(123,184,255,0.45)',
+    pointerEvents: 'none',
+    zIndex: 6,
   },
   content: {
-    padding: '18px 20px',
+    flex: 1,
+    padding: '24px 24px 20px',
+    display: 'flex',
+    flexDirection: 'column',
     overflowY: 'auto',
   },
   contentCompact: {
-    padding: '16px 18px 16px 106px',
+    padding: '16px 16px 14px',
+  },
+  mobileHeaderRow: {
+    display: 'flex',
+    flexDirection: 'row',
+    gap: 14,
+    marginBottom: 14,
+    alignItems: 'flex-start',
+  },
+  mobilePortraitContainer: {
+    position: 'relative',
+    width: 100,
+    height: 135,
+    flexShrink: 0,
+    background: '#01030a',
+    borderRadius: 6,
+    border: '1px solid rgba(123,184,255,0.3)',
+    boxShadow: '0 4px 14px rgba(0,0,0,0.5)',
+    overflow: 'hidden',
+  },
+  mobileVideo: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+    objectPosition: '50% 18%',
+    display: 'block',
+    filter: 'saturate(0.85) contrast(1.05) brightness(0.9)',
+  },
+  mobileHeaderTextContainer: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    minWidth: 0,
   },
   eyebrow: {
     color: '#7bb8ff',
     fontSize: 10,
-    letterSpacing: 1.6,
+    fontWeight: 'bold',
+    letterSpacing: 1.5,
     textTransform: 'uppercase',
-    marginBottom: 7,
+    marginBottom: 6,
   },
   title: {
     color: '#cdd9e8',
-    fontSize: 'clamp(18px, 3.8vw, 25px)',
+    fontSize: 'clamp(18px, 3.8vw, 24px)',
     fontWeight: 'normal',
     margin: '0 0 10px',
     lineHeight: 1.25,
   },
+  titleMobile: {
+    color: '#cdd9e8',
+    fontSize: 15,
+    fontWeight: 'normal',
+    margin: '0 0 8px',
+    lineHeight: 1.3,
+  },
+  bodyWrapper: {
+    flex: 1,
+    minHeight: 80,
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+  },
   body: {
     color: '#aabbcc',
     fontSize: 13,
-    lineHeight: 1.62,
-    margin: '0 0 10px',
-    minHeight: 86,
+    lineHeight: 1.6,
+    margin: '0 0 12px',
+  },
+  bodyCompact: {
+    fontSize: 12.5,
+    lineHeight: 1.5,
+    margin: '0 0 12px',
   },
   progressRow: {
     display: 'flex',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 12,
+    gap: 5,
+    marginBottom: 8,
   },
   stepDot: {
     width: 6,
     height: 6,
     borderRadius: '50%',
-    background: '#223344',
-    boxShadow: '0 0 0 1px rgba(68,102,136,0.35)',
+    background: '#1d2a3d',
+    boxShadow: '0 0 0 1px rgba(123,184,255,0.15)',
+    transition: 'all 0.3s ease',
   },
   stepDotActive: {
     background: '#7bb8ff',
-    boxShadow: '0 0 10px rgba(123,184,255,0.55)',
+    boxShadow: '0 0 10px rgba(123,184,255,0.7)',
+    transform: 'scale(1.15)',
   },
   stepDotDone: {
     background: '#44ff88',
   },
   stepText: {
-    marginLeft: 4,
-    color: '#667788',
-    fontSize: 10,
+    marginLeft: 6,
+    color: '#556677',
+    fontSize: 10.5,
+    fontWeight: 'bold',
   },
   actions: {
     display: 'flex',
     flexWrap: 'wrap',
     gap: 10,
-    marginTop: 12,
+    marginTop: 10,
+    alignItems: 'center',
   },
-  primaryButton: {
-    background: 'rgba(68,136,170,0.24)',
-    border: '1px solid rgba(123,184,255,0.56)',
-    borderRadius: 4,
-    color: '#d6efff',
-    fontFamily: 'monospace',
-    fontSize: 12,
-    padding: '10px 14px',
-    cursor: 'pointer',
+  actionsCompact: {
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    gap: 8,
   },
-  voiceButton: {
-    background: 'rgba(68,255,136,0.1)',
-    border: '1px solid rgba(68,255,136,0.42)',
-    borderRadius: 4,
-    color: '#aaf5c8',
-    fontFamily: 'monospace',
-    fontSize: 12,
-    padding: '10px 14px',
-    cursor: 'pointer',
+  buttonCompact: {
+    flex: 1,
+    padding: '8px 6px',
+    fontSize: 11,
+    textAlign: 'center',
+    whiteSpace: 'nowrap',
   },
-  secondaryButton: {
-    background: 'transparent',
-    border: '1px solid rgba(68,102,136,0.52)',
-    borderRadius: 4,
-    color: '#8899aa',
-    fontFamily: 'monospace',
-    fontSize: 12,
-    padding: '10px 14px',
-    cursor: 'pointer',
+  buttonCompactVoice: {
+    flex: '0 0 auto',
+    padding: '8px 12px',
+    fontSize: 11,
+    textAlign: 'center',
+    whiteSpace: 'nowrap',
+  },
+  iconButtonCompact: {
+    flex: '0 0 40px',
+    padding: '8px',
   },
 };

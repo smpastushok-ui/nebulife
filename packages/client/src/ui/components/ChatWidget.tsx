@@ -867,7 +867,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
           borderBottom: '1px solid #223344',
           gap: 8,
         }}>
-          <div style={{ display: 'flex', gap: verticalSideLayout ? 4 : 8, minWidth: 0, overflowX: 'auto' }}>
+          <div data-tutorial-id="chat-tabs-header" style={{ display: 'flex', gap: verticalSideLayout ? 4 : 8, minWidth: 0, overflowX: 'auto' }}>
             <TabButton
               active={tab === 'astra'}
               onClick={() => { instantAstraScrollRef.current = true; setTab('astra'); setActiveDM(null); markDigestSeen(latestDigestWeekDate); }}
@@ -896,7 +896,9 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
               badge={unreadSystem + effectiveUnreadSystemMessages > 0 ? unreadSystem + effectiveUnreadSystemMessages : undefined}
             />
           </div>
+          {/* Коментар українською: Кнопка згортання чату для онбордингу */}
           <button
+            data-tutorial-id="chat-close-btn"
             onClick={() => { playSfx('ui-click', 0.07); setCollapsed(true); }}
             style={{
               background: 'none',

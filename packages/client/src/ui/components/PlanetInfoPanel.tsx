@@ -303,7 +303,9 @@ export function PlanetInfoPanel({ planet, onClose, onSurface, surfaceDisabledRea
       {/* --- Surface button (home planet / colonized) --- */}
       {onSurface && (planet.isHomePlanet || planet.isColonizable) && (
         <div style={{ marginTop: 8 }}>
+          {/* Коментар українською: Додаємо ідентифікатор для туторіалу висадки на поверхню */}
           <button
+            data-tutorial-id="planet-surface-btn"
             onClick={surfaceDisabledReason ? undefined : onSurface}
             disabled={!!surfaceDisabledReason}
             title={surfaceDisabledReason}

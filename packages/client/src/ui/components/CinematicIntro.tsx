@@ -318,6 +318,12 @@ function CinematicVideoSlide({
     const handleCanPlay = () => { if (v.readyState >= 4) unlock(); };
     const handlePlay = () => onPlayingChangeRef.current?.(true);
     const handleEnded = () => {
+      try {
+        v.pause();
+        v.volume = 0;
+      } catch (err) {
+        // ignore
+      }
       onPlayingChangeRef.current?.(false);
       setEnded(true);
       onEnded?.();
@@ -672,7 +678,7 @@ function OnboardingSlides({
       </div>
 
       {/* Navigation button */}
-      <div style={{ position: 'absolute', bottom: 48, display: 'flex', gap: 16, alignItems: 'center' }}>
+      <div style={{ position: 'absolute', bottom: 104, display: 'flex', gap: 16, alignItems: 'center' }}>
         {slide < 3 && (
           <button
             onClick={handleNext}
@@ -879,7 +885,7 @@ export function CinematicIntro({
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'flex-end',
-            paddingBottom: 80,
+            paddingBottom: 136,
             fontFamily: 'monospace',
             opacity: fadeOut ? 0 : 1,
             transition: 'opacity 0.6s ease',

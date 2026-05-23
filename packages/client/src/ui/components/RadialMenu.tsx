@@ -419,8 +419,10 @@ export function RadialMenu({
           const isActivePremium = def.isPremium && premiumOpen;
 
           return (
+            /* Коментар українською: Додаємо ідентифікатор кнопки для туторіалу */
             <button
               key={`${def.action}-${i}`}
+              data-tutorial-id={def.isPremium ? 'radial-btn-premium' : `radial-btn-${def.action}`}
               ref={(el) => { btnRefs.current[i] = el; }}
               title={def.dim ? def.tip : undefined}
               onClick={(e) => {

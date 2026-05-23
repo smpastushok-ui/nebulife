@@ -42,6 +42,7 @@ export interface PlanetGlobeViewHandle {
   stopScanning(): void;
   updateScanProgress(progress: number): void;
   startShipApproach(): void;
+  isShipApproachActive(): boolean;
   isShipOnOrbit(): boolean;
   stopShipFlight(): void;
   /** Spin up + zoom in over 2s, then call onComplete */
@@ -1510,6 +1511,9 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
           s.trail = [];
           s.orbitAngle = 0;
         }
+      },
+      isShipApproachActive(): boolean {
+        return shipRef.current?.active ?? false;
       },
       isShipOnOrbit(): boolean {
         return shipRef.current?.onOrbit ?? false;

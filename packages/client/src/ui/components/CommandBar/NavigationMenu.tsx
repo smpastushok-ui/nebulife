@@ -65,8 +65,10 @@ export function NavigationMenu({ items = [], onNavigate, disabled }: NavigationM
   return (
     <div style={{ position: 'relative' }}>
       {/* Trigger button */}
+      {/* Коментар українською: Кнопка перемикання екранів для онбордингу */}
       <button
         ref={btnRef}
+        data-tutorial-id="screen-switcher-btn"
         onClick={handleToggle}
         title={activeItem?.label}
         style={{

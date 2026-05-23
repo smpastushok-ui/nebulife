@@ -145,7 +145,7 @@ const EXTRACTION_BUILDING_TYPES = new Set<string>([
   'alpha_harvester',
 ]);
 
-function getBuildingEnergyMultiplier(
+export function getBuildingEnergyMultiplier(
   buildingType: string,
   planet: Planet,
   tile: SurfaceTile | undefined,

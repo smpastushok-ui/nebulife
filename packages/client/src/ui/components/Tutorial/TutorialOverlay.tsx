@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Capacitor } from '@capacitor/core';
 import { TUTORIAL_STEPS, type TutorialStepConfig } from './tutorialSteps';
+/* Коментар українською: Імпорт програвача звукових ефектів для інтерфейсу */
+import { playSfx } from '../../../audio/SfxPlayer.js';
 
 // ---------------------------------------------------------------------------
 // TutorialOverlay — Spotlight + tooltip overlay for interactive tutorial
@@ -64,6 +67,19 @@ function getAstraVoiceClip(stepId: string, subStepIndex: number, language: strin
       firstPhoto: 'pershe_photo_ua',
       gallery: 'galery_ua',
       handoff: 'peredacha_chat_ua',
+      /* Коментар українською: Файли озвучки для нових кроків розширеного онбордингу */
+      chatTabs: 'chat_tabs_ua',
+      chatClose: 'chat_close_ua',
+      galaxyIntro: 'galaxy_intro_ua',
+      clusterIntro: 'cluster_intro_ua',
+      galaxyMapIntro: 'galaxy_map_intro_ua',
+      galaxyMapCenter: 'galaxy_map_center_ua',
+      systemRadialSelect: 'system_radial_select_ua',
+      systemSceneIntro: 'system_scene_intro_ua',
+      exosphereBtnClick: 'exosphere_btn_click_ua',
+      exosphereSceneExplain: 'exosphere_scene_explain_ua',
+      academyIntro: 'academy_intro_ua',
+      encyclopediaExplain: 'encyclopedia_explain_ua',
     }
     : {
       awakening: 'Awakening_en',
@@ -76,6 +92,19 @@ function getAstraVoiceClip(stepId: string, subStepIndex: number, language: strin
       firstPhoto: 'First_Photo_en',
       gallery: 'gallery_en',
       handoff: 'Chat_Handoff_en',
+      /* Коментар українською: English voice files for new onboarding steps */
+      chatTabs: 'Chat_Tabs_en',
+      chatClose: 'Chat_Close_en',
+      galaxyIntro: 'Galaxy_Intro_en',
+      clusterIntro: 'Cluster_Intro_en',
+      galaxyMapIntro: 'Galaxy_Map_Intro_en',
+      galaxyMapCenter: 'Galaxy_Map_Center_en',
+      systemRadialSelect: 'System_Radial_Select_en',
+      systemSceneIntro: 'System_Scene_Intro_en',
+      exosphereBtnClick: 'Exosphere_Btn_Click_en',
+      exosphereSceneExplain: 'Exosphere_Scene_Explain_en',
+      academyIntro: 'Academy_Intro_en',
+      encyclopediaExplain: 'Encyclopedia_Explain_en',
     };
 
   if (stepId === 'awakening') return clips.awakening;
@@ -88,17 +117,31 @@ function getAstraVoiceClip(stepId: string, subStepIndex: number, language: strin
   if (stepId === 'save-gallery') return clips.firstPhoto;
   if (stepId === 'gallery-final') return clips.gallery;
   if (stepId === 'astra-handoff') return clips.handoff;
+  if (stepId === 'astra-chat-tabs') return clips.chatTabs;
+  if (stepId === 'astra-chat-close') return clips.chatClose;
+  if (stepId === 'galaxy-intro') return clips.galaxyIntro;
+  if (stepId === 'cluster-intro') return clips.clusterIntro;
+  if (stepId === 'galaxy-map-intro') return clips.galaxyMapIntro;
+  if (stepId === 'galaxy-map-center') return clips.galaxyMapCenter;
+  if (stepId === 'system-radial-select') return clips.systemRadialSelect;
+  if (stepId === 'system-scene-intro') return clips.systemSceneIntro;
+  if (stepId === 'exosphere-btn-click') return clips.exosphereBtnClick;
+  if (stepId === 'exosphere-scene-explain') return clips.exosphereSceneExplain;
+  if (stepId === 'academy-intro') return clips.academyIntro;
+  if (stepId === 'encyclopedia-explain') return clips.encyclopediaExplain;
   return null;
 }
 
+/* Коментар українською: Пропси для TutorialOverlay з підтримкою згортання */
 interface TutorialOverlayProps {
   step: TutorialStepConfig;
   subStepIndex: number;
   onAdvance: () => void;
   onSkip: () => void;
+  onMinimize?: () => void;
 }
 
-export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: TutorialOverlayProps) {
+export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, onMinimize }: TutorialOverlayProps) {
   const { t, i18n } = useTranslation();
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [transitioning, setTransitioning] = useState(false);
@@ -130,8 +173,10 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
   const isWaiting = step.waitForTarget && !targetRect;
   const isCompact = typeof window !== 'undefined' && window.innerWidth < 720;
   const voiceClip = getAstraVoiceClip(step.id, subStepIndex, i18n.language);
+  const isAndroid = typeof window !== 'undefined' && Capacitor.getPlatform() === 'android';
+  const ext = isAndroid ? 'webm' : 'mp3';
   const voiceSrc = voiceClip
-    ? `/astra/voice/${voiceClip}.mp3`
+    ? `/astra/voice/${voiceClip}.${ext}`
     : null;
 
   useEffect(() => {
@@ -311,7 +356,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
 
   return (
     <>
-      {/* Full-screen click interceptor (disabled for info/auto steps — tooltip button handles them) */}
+      {/* Коментар українською: Блокувальник кліків на весь екран - завжди активний (pointerEvents: 'auto') для повної безпеки туторіалу */}
       <div
         onClick={handleOverlayClick}
         style={{
@@ -319,7 +364,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
           inset: 0,
           zIndex: 10050,
           cursor: targetRect && !isInfoStep && !isAutoStep ? 'pointer' : 'default',
-          pointerEvents: isInfoStep || isAutoStep ? 'none' : 'auto',
+          pointerEvents: 'auto',
         }}
       />
 
@@ -402,6 +447,12 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
             />
           ) : (
             <video
+              ref={(el) => {
+                if (el) {
+                  el.muted = true;
+                  el.volume = 0;
+                }
+              }}
               src={ASTRA_VIDEO_URL}
               poster={ASTRA_PORTRAIT_URL}
               aria-label={t('tutorial.astra_alt')}
@@ -432,7 +483,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
         </div>
 
         <div style={{ position: 'relative', minWidth: 0 }}>
-          {/* Step indicator */}
+          {/* Коментар українською: Панель індикатора кроків з кнопкою згортання туторіалу */}
           <div
             style={{
               display: 'flex',
@@ -447,7 +498,33 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip }: Tutor
             }}
           >
             <span>{t('tutorial.astra_unit')}</span>
-            <span>{t('tutorial.step_counter', { step: parseInt(String(STEP_NUMBER_MAP[step.id] ?? 0)) + 1, total: TUTORIAL_STEPS.length })}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              {onMinimize && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    playSfx('ui-click', 0.07);
+                    onMinimize();
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#7bb8ff',
+                    cursor: 'pointer',
+                    fontFamily: 'monospace',
+                    fontSize: 8,
+                    letterSpacing: 1.2,
+                    textTransform: 'uppercase',
+                    padding: 0,
+                    animation: 'astra-soft-pulse 2s ease-in-out infinite',
+                  }}
+                >
+                  [{t('tutorial.minimize', { defaultValue: 'ЗГОРНУТИ' })}]
+                </button>
+              )}
+              <span>{t('tutorial.step_counter', { step: parseInt(String(STEP_NUMBER_MAP[step.id] ?? 0)) + 1, total: TUTORIAL_STEPS.length })}</span>
+            </div>
           </div>
 
           <div style={{
@@ -665,7 +742,7 @@ const ASTRA_ACTION_ROW_STYLE: React.CSSProperties = {
   alignItems: 'stretch',
 };
 
-/** Map step id to its 0-based number for display */
+/** Коментар українською: Мапа номерів кроків туторіалу для коректного відображення лічильника */
 const STEP_NUMBER_MAP: Record<string, number> = {
   'awakening': 0,
   'terminal': 1,
@@ -678,4 +755,16 @@ const STEP_NUMBER_MAP: Record<string, number> = {
   'save-gallery': 8,
   'gallery-final': 9,
   'astra-handoff': 10,
+  'astra-chat-tabs': 11,
+  'astra-chat-close': 12,
+  'galaxy-intro': 13,
+  'cluster-intro': 14,
+  'galaxy-map-intro': 15,
+  'galaxy-map-center': 16,
+  'system-radial-select': 17,
+  'system-scene-intro': 18,
+  'exosphere-btn-click': 19,
+  'exosphere-scene-explain': 20,
+  'academy-intro': 21,
+  'encyclopedia-explain': 22,
 };

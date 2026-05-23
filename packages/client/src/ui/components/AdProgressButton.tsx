@@ -52,18 +52,15 @@ export function AdProgressButton({
   const [error, setError] = useState<string | null>(null);
   const [noFill, setNoFill] = useState(false);
 
-  // Check ad availability on mount
+  // Check ad availability on mount to preload AdMob cache
   useEffect(() => {
-    let cancelled = false;
-    checkAdAvailability().then((available) => {
-      if (!cancelled) setNoFill(!available);
-    });
-    return () => { cancelled = true; };
+    checkAdAvailability();
   }, []);
 
   const handleClick = useCallback(async () => {
-    if (adWatching || disabled || noFill) return;
+    if (adWatching || disabled) return;
     setError(null);
+    setNoFill(false);
     setAdWatching(true);
 
     const result = await watchAdsWithProgress(
@@ -92,7 +89,7 @@ export function AdProgressButton({
     .replace('{done}', String(adProgress))
     .replace('{total}', String(requiredAds));
 
-  const isDisabled = disabled || adWatching || noFill;
+  const isDisabled = disabled || adWatching;
   const activeBorder = hover && !isDisabled ? hoverBorderColor : borderColor;
 
   if (variant === 'menu') {

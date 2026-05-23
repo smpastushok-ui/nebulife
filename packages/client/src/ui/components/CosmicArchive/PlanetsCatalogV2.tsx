@@ -792,7 +792,15 @@ function PlanetCard({
         }}
       >
         {statusIcons.map((icon, index) => {
-          const angle = (-90 + index * (360 / Math.max(1, statusIcons.length))) * Math.PI / 180;
+          // Arrange status icons in a semi-circle over the top half of the planet card,
+          // sweeping from -200 deg (left-ish) to +20 deg (right-ish).
+          // This keeps the bottom quadrant completely free of icons so they never overlap
+          // with the resource counts or terraform progress text below the card.
+          const total = statusIcons.length;
+          const angleDeg = total <= 1
+            ? -90
+            : -200 + index * (220 / (total - 1));
+          const angle = (angleDeg * Math.PI) / 180;
           const orbitR = 50;
           return (
             <span
@@ -1732,32 +1740,6 @@ function ExpandedDetailPanel({
               >
                 {t('nav.surface_btn')}
               </button>
-            )}
-            {onGeneratePlanetSkin && (
-              <>
-                <button
-                  disabled={skinBusy || planetSkinStatus?.exosphere === 'succeed' || !canAffordExosphereSkin}
-                  onClick={() => onGeneratePlanetSkin(system, planet, 'exosphere')}
-                  style={{
-                    padding: '9px 12px',
-                    background: 'rgba(40,55,25,0.45)',
-                    border: '1px solid #665533',
-                    borderRadius: 4,
-                    color: planetSkinStatus?.exosphere === 'succeed' ? '#88ccaa' : canAffordExosphereSkin ? '#ddaa44' : '#445566',
-                    fontFamily: 'monospace',
-                    fontSize: 11,
-                    cursor: skinBusy || planetSkinStatus?.exosphere === 'succeed' || !canAffordExosphereSkin ? 'default' : 'pointer',
-                    opacity: skinBusy || planetSkinStatus?.exosphere === 'succeed' || !canAffordExosphereSkin ? 0.65 : 1,
-                    textAlign: 'left',
-                  }}
-                >
-                  {planetSkinStatus?.exosphere === 'succeed'
-                    ? t('planet.skin_exosphere_ready')
-                    : skinBusy
-                      ? t('planet.skin_generating')
-                      : t('planet.skin_exosphere_label', { cost: 50 })}
-                </button>
-              </>
             )}
           </div>
         )}

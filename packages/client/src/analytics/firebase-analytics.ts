@@ -1,6 +1,8 @@
 import { getApp } from 'firebase/app';
-import { getAnalytics, isSupported, logEvent, type Analytics } from 'firebase/analytics';
+import { getAnalytics, isSupported, logEvent, setUserId as fbSetUserId, type Analytics } from 'firebase/analytics';
 import { isFirebaseConfigured } from '../auth/firebase-config.js';
+import { Capacitor } from '@capacitor/core';
+import { FirebaseAnalytics } from '@capacitor-firebase/analytics';
 
 type AnalyticsParams = Record<string, string | number | boolean | null | undefined>;
 
@@ -34,6 +36,11 @@ export async function trackEvent(name: string, params: AnalyticsParams = {}): Pr
   ) as Record<string, string | number | boolean>;
 
   try {
+    if (Capacitor.isNativePlatform()) {
+      await FirebaseAnalytics.logEvent({ name, params: cleaned });
+      return;
+    }
+
     const analytics = await getWebAnalytics();
     if (analytics) {
       logEvent(analytics, name, cleaned);
@@ -75,6 +82,22 @@ export function trackPaidFeatureOrder(feature: string, costQuarks: number, param
     cost_quarks: costQuarks,
     ...params,
   });
+}
+
+export async function setAnalyticsUserId(userId: string): Promise<void> {
+  try {
+    if (Capacitor.isNativePlatform()) {
+      await FirebaseAnalytics.setUserId({ userId });
+      return;
+    }
+
+    const analytics = await getWebAnalytics();
+    if (analytics) {
+      fbSetUserId(analytics, userId);
+    }
+  } catch {
+    // Ignore errors
+  }
 }
 
 export function trackLogin(method: string, isNewUser: boolean): void {

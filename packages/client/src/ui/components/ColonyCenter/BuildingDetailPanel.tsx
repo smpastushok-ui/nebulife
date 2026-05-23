@@ -4,6 +4,8 @@ import type { BuildingType, FleetState, ObservatorySearchDuration, ObservatorySe
 import { BUILDING_DEFS, PRODUCIBLE_ASSET_PATHS, PRODUCIBLE_DEFS, getAvailableObservatoryPrograms, getCatalogEntry, getCatalogName, getObservatoryLevel, getObservatoryMaxActiveSearches, getObservatorySearchChance, getObservatoryXpProgress, isShipProducible } from '@nebulife/core';
 
 import { ResourceIcon, RESOURCE_COLORS } from '../ResourceIcon.js';
+import { buildingName, buildingDesc } from '../../../i18n/building-labels.js';
+import { formatSignedRatePerHour, formatHourlyAmount, tickRateToHourly } from '../../../i18n/format-rate.js';
 import { watchAdsWithProgress } from '../../../services/ads-service.js';
 import {
   deriveBuildingDetailStats,
@@ -45,32 +47,6 @@ const CARD_BG = 'rgba(10,15,25,0.62)';
 const BORDER = '#233344';
 const ACTIVE_BORDER = '#446688';
 
-function formatRate(row: RateRow): string {
-  return formatPerHour(row.perHour);
-}
-
-function formatPerHour(perHour: number): string {
-  const sign = perHour > 0 ? '+' : '';
-  return `${sign}${perHour.toFixed(perHour % 1 === 0 ? 0 : 1)}/h`;
-}
-
-function ResourceLabel({ resource }: { resource: string }) {
-  const { t } = useTranslation();
-  const resourceKey = resource === 'researchData' ? 'researchData' : resource;
-  if (resourceKey === 'energy') {
-    return <span>{t('building_detail.resource.energy')}</span>;
-  }
-  if (resourceKey === 'minerals' || resourceKey === 'volatiles' || resourceKey === 'isotopes' || resourceKey === 'water') {
-    return (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-        <ResourceIcon type={resourceKey} size={11} />
-        {t(`colony_center.resource.${resourceKey}`)}
-      </span>
-    );
-  }
-  return <span>{t(`building_detail.resource.${resourceKey}`, { defaultValue: resourceKey })}</span>;
-}
-
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -98,7 +74,26 @@ function MetricCard({ label, value, accent, sub }: { label: string; value: strin
   );
 }
 
+function ResourceLabel({ resource }: { resource: string }) {
+  const { t } = useTranslation();
+  const resourceKey = resource === 'researchData' ? 'researchData' : resource;
+  if (resourceKey === 'energy') {
+    return <span>{t('building_detail.resource.energy')}</span>;
+  }
+  if (resourceKey === 'minerals' || resourceKey === 'volatiles' || resourceKey === 'isotopes' || resourceKey === 'water') {
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <ResourceIcon type={resourceKey} size={11} />
+        {t(`colony_center.resource.${resourceKey}`)}
+      </span>
+    );
+  }
+  return <span>{t(`building_detail.resource.${resourceKey}`, { defaultValue: resourceKey })}</span>;
+}
+
 function RateList({ rows, empty }: { rows: RateRow[]; empty: string }) {
+  const { t, i18n } = useTranslation();
+  const formatRate = (row: RateRow) => formatSignedRatePerHour(row.perHour, t, i18n.language);
   if (rows.length === 0) {
     return <div style={{ color: '#556677', fontSize: 11 }}>{empty}</div>;
   }
@@ -137,7 +132,8 @@ function BuildingFlowPanel({
   consumption: RateRow[];
   accent: string;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const formatRate = (row: RateRow) => formatSignedRatePerHour(row.perHour, t, i18n.language);
   const firstInput = consumption[0];
   const firstOutput = production[0];
   return (
@@ -788,7 +784,7 @@ export function BuildingDetailPanel({
   onResearchDataChange,
   onDemolish,
 }: BuildingDetailPanelProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [confirmDemolish, setConfirmDemolish] = useState(false);
   const [observatoryProgram, setObservatoryProgram] = useState<ObservatorySearchProgram>('routine_sky_watch');
   const [observatoryNow, setObservatoryNow] = useState(() => Date.now());
@@ -814,15 +810,19 @@ export function BuildingDetailPanel({
   const economyProfile = getBuildingEconomyProfile(type);
   const compact = typeof window !== 'undefined' && window.innerWidth < 700;
   const sideControlInset = 'calc(66px + env(safe-area-inset-left, 0px))';
-  const energyOutputPerHour = stats.energyOutput * 60;
-  const energyConsumptionPerHour = -stats.energyConsumption * 60;
+  const energyOutputPerHour = tickRateToHourly(stats.energyOutput);
+  const energyConsumptionPerHour = -tickRateToHourly(stats.energyConsumption);
   const energyNetPerHour = energyOutputPerHour + energyConsumptionPerHour;
-  const colonyEnergyProduced = buildings
-    .filter((item) => !item.shutdown)
-    .reduce((sum, item) => sum + (BUILDING_DEFS[item.type]?.energyOutput ?? 0), 0);
-  const colonyEnergyConsumed = buildings
-    .filter((item) => !item.shutdown)
-    .reduce((sum, item) => sum + (BUILDING_DEFS[item.type]?.energyConsumption ?? 0), 0);
+  const colonyEnergyProducedPerHour = tickRateToHourly(
+    buildings
+      .filter((item) => !item.shutdown)
+      .reduce((sum, item) => sum + (BUILDING_DEFS[item.type]?.energyOutput ?? 0), 0),
+  );
+  const colonyEnergyConsumedPerHour = tickRateToHourly(
+    buildings
+      .filter((item) => !item.shutdown)
+      .reduce((sum, item) => sum + (BUILDING_DEFS[item.type]?.energyConsumption ?? 0), 0),
+  );
   const colonyPopulationCapacity = buildings
     .filter((item) => !item.shutdown)
     .reduce((sum, item) => sum + (BUILDING_DEFS[item.type]?.populationCapacityAdd ?? 0), 0);
@@ -916,7 +916,7 @@ export function BuildingDetailPanel({
         </button>
         <div style={{ flex: 1, minWidth: 0, textAlign: 'center' }}>
           <div style={{ fontSize: 15, color: '#aabbcc', letterSpacing: 3, textTransform: 'uppercase' }}>
-            {t(`buildings.${type}.name`, { defaultValue: def.name })}
+            {buildingName(type, t)}
           </div>
           <div style={{ fontSize: 9, color: '#667788', letterSpacing: 1 }}>
             {aggregateMode
@@ -955,7 +955,7 @@ export function BuildingDetailPanel({
             {t(`colony_center.building_category.${def.category}`)}
           </div>
           <div style={{ fontSize: 12, color: '#8899aa', lineHeight: 1.5 }}>
-            {t(`buildings.${type}.desc`, { defaultValue: def.description })}
+            {buildingDesc(type, t)}
           </div>
         </div>
 
@@ -988,11 +988,13 @@ export function BuildingDetailPanel({
           />
           <MetricCard
             label={t('building_detail.energy')}
-            value={type === 'colony_hub' ? `${colonyEnergyProduced} / ${colonyEnergyConsumed}` : formatPerHour(energyNetPerHour)}
+            value={type === 'colony_hub'
+              ? `${formatHourlyAmount(colonyEnergyProducedPerHour, t, i18n.language)} / ${formatHourlyAmount(colonyEnergyConsumedPerHour, t, i18n.language)}`
+              : formatSignedRatePerHour(energyNetPerHour, t, i18n.language)}
             sub={type === 'colony_hub'
               ? t('building_detail.colony_energy_desc')
-              : `${t('building_detail.output')} ${formatPerHour(energyOutputPerHour)} / ${t('building_detail.consumes')} ${formatPerHour(energyConsumptionPerHour)}`}
-            accent={type === 'colony_hub' && colonyEnergyProduced < colonyEnergyConsumed ? '#cc7777' : '#ffaa66'}
+              : `${t('building_detail.output')} ${formatSignedRatePerHour(energyOutputPerHour, t, i18n.language)} / ${t('building_detail.consumes')} ${formatSignedRatePerHour(energyConsumptionPerHour, t, i18n.language)}`}
+            accent={type === 'colony_hub' && colonyEnergyProducedPerHour < colonyEnergyConsumedPerHour ? '#cc7777' : '#ffaa66'}
           />
           {type === 'colony_hub' && (
             <MetricCard

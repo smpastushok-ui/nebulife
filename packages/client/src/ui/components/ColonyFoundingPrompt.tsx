@@ -105,7 +105,7 @@ export function ColonyFoundingPrompt({ planet, system, onFoundColony }: ColonyFo
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 500,
+        zIndex: 10100,
         background: '#020510',
         display: 'flex',
         alignItems: 'center',

@@ -128,7 +128,7 @@ export {
 } from './energy.js';
 
 // Colony tick
-export { runColonyTicks } from './colony-tick.js';
+export { runColonyTicks, getBuildingEnergyMultiplier } from './colony-tick.js';
 export type { ColonyTickResult } from './colony-tick.js';
 
 // Production system

@@ -91,7 +91,7 @@ const itemHoverBg = 'rgba(40,60,90,0.4)';
 
 /* ────────── Subcomponents ────────── */
 
-function MenuItem({ label, onClick, color, icon, right, disabled, title }: {
+function MenuItem({ label, onClick, color, icon, right, disabled, title, tutorialId }: {
   label: React.ReactNode;
   onClick?: () => void;
   color?: string;
@@ -99,11 +99,13 @@ function MenuItem({ label, onClick, color, icon, right, disabled, title }: {
   right?: React.ReactNode;
   disabled?: boolean;
   title?: string;
+  tutorialId?: string;
 }) {
   const [hover, setHover] = useState(false);
   if (disabled) {
     return (
       <div
+        data-tutorial-id={tutorialId}
         style={{ ...itemStyle, cursor: 'help', color: '#445566' }}
         title={title}
         onClick={() => {
@@ -118,6 +120,7 @@ function MenuItem({ label, onClick, color, icon, right, disabled, title }: {
   }
   return (
     <button
+      data-tutorial-id={tutorialId}
       style={{
         ...itemStyle,
         background: hover ? itemHoverBg : 'none',
@@ -1091,7 +1094,7 @@ export function PlanetContextMenu({
         <div style={{ padding: '4px 0', minHeight: 80 }}>
           {activeTab === 'actions' && (
             <>
-              <MenuItem icon="◎" label={t('nav.exosphere')} onClick={itemsActive ? onViewPlanet : undefined} color="#88ccaa" />
+              <MenuItem icon="◎" label={t('nav.exosphere')} onClick={itemsActive ? onViewPlanet : undefined} color="#88ccaa" tutorialId="planet-exosphere-btn" />
               {onToggleFavorite && (
                 <MenuItem
                   icon={isFavorite ? '★' : '☆'}

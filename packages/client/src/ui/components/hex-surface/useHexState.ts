@@ -31,6 +31,7 @@ import {
   computeZone,
   getAdjacentIds,
   getHexPositions,
+  HEX_RESOURCE_TO_COLONY,
 } from './hex-utils.js';
 import { getPlanetSize } from '@nebulife/core';
 import { parseCompactNumber } from '../../../utils/formatNumber.js';
@@ -84,12 +85,7 @@ export interface HexStateResult {
 // ---------------------------------------------------------------------------
 
 const RESOURCE_TO_COLONY: Record<ResourceType, keyof { minerals: number; volatiles: number; isotopes: number; water: number }> = {
-  ore:        'minerals',
-  tree:       'isotopes',   // trees produce isotopes (biomass fuel)
-  vent:       'volatiles',
-  water:      'water',
-  crystal:    'isotopes',   // abiotic mineral crystals → isotope group (rare energy minerals)
-  bio_fossil: 'isotopes',   // preserved organics → isotope group (ancient biomass fuel traces)
+  ...HEX_RESOURCE_TO_COLONY,
 };
 
 // ---------------------------------------------------------------------------

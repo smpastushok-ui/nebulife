@@ -54,6 +54,7 @@ interface HexSurfaceProps {
   onClose:                () => void;
   onBuildingCountChange?: (count: number) => void;
   onBuildingPlaced?:      (type?: BuildingType) => void;
+  onBuildingsChanged?:    (buildings: PlacedBuilding[]) => void;
   onPhaseChange?:         (phase: SurfacePhase) => void;
   onBuildPanelChange?:    (open: boolean) => void;
   onHarvest?:             (objectType: SurfaceObjectType) => void;
@@ -184,6 +185,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       onClose,
       onBuildingCountChange,
       onBuildingPlaced,
+      onBuildingsChanged,
       onPhaseChange,
       onBuildPanelChange,
       onHarvest,
@@ -375,6 +377,26 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       ).length;
       onBuildingCountChange?.(count);
     }, [hexState.slots, onBuildingCountChange]);
+
+    // ── Notify parent of building layout changes ─────────────────────────────
+    const lastBldgsRef = useRef<string>('');
+    useEffect(() => {
+      const rawList = hexState.slots
+        .filter((s) => s.state === 'building' && s.buildingType)
+        .map((s) => ({
+          id: `${playerId}-${s.id}-${s.buildingType}`,
+          type: s.buildingType as BuildingType,
+          x: s.index,
+          y: s.ring,
+          level: s.buildingLevel ?? 1,
+          builtAt: new Date().toISOString(),
+        }));
+      const key = JSON.stringify(rawList.map((b) => `${b.id}-${b.level}`));
+      if (key !== lastBldgsRef.current) {
+        lastBldgsRef.current = key;
+        onBuildingsChanged?.(rawList);
+      }
+    }, [hexState.slots, playerId, onBuildingsChanged]);
 
     // ── Direct DOM transform (shared by pan, zoom, wheel) ──────────────────
     const rootRef = useRef<HTMLDivElement | null>(null);

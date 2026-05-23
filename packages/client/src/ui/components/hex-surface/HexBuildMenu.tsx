@@ -5,6 +5,8 @@ import { BUILDING_DEFS } from '@nebulife/core';
 import { ResourceIcon, type ResourceType } from '../ResourceIcon.js';
 import { QuarksIcon } from '../ResourceDisplay.js';
 import { PremiumHelpButton } from '../PremiumHelp.js';
+import { buildingName, buildingDesc, buildingCategoryLabel } from '../../../i18n/building-labels.js';
+import { formatRatePerHour } from '../../../i18n/format-rate.js';
 
 // Alpha harvester escalating quarks price
 const ALPHA_HARVESTER_PRICES = [50, 103, 206]; // 1st=$1.20, 2nd=$2.50, 3rd+=$5.00
@@ -46,9 +48,8 @@ function CostIcons({ cost }: { cost: { resource: string; amount: number }[] }) {
   );
 }
 
-function formatRateAmount(amountPerTick: number): string {
-  const perHour = amountPerTick * 60;
-  return `${perHour % 1 === 0 ? perHour.toFixed(0) : perHour.toFixed(1)}/год`;
+function formatRateAmount(amountPerTick: number, t: ReturnType<typeof useTranslation>['t'], language: string): string {
+  return formatRatePerHour(amountPerTick, t, language);
 }
 
 function resourceLabel(resource: string, t: ReturnType<typeof useTranslation>['t']): string {
@@ -57,7 +58,7 @@ function resourceLabel(resource: string, t: ReturnType<typeof useTranslation>['t
   if (resource === 'habitability') return t('building_detail.resource.habitability');
   if (resource === 'food') return t('building_detail.resource.food');
   if (resource === 'minerals' || resource === 'volatiles' || resource === 'isotopes' || resource === 'water') {
-    return t(`colony_center.resource.${resource}`);
+    return t(`colony_center.resource.${resource}`, { defaultValue: resource });
   }
   return resource;
 }
@@ -159,7 +160,7 @@ export function HexBuildMenu({
   onSelect,
   onClose,
 }: HexBuildMenuProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const menuRef = useRef<HTMLDivElement>(null);
   const [infoType, setInfoType] = useState<BuildingType | null>(null);
 
@@ -253,7 +254,7 @@ export function HexBuildMenu({
                 borderBottom: `1px solid ${CATEGORY_COLORS[cat] ?? '#334455'}22`,
                 marginBottom: 4,
               }}>
-                {t(`hex.cat_${cat}`, cat)}
+                {buildingCategoryLabel(cat, t)}
               </div>
 
               {/* 3-column grid */}
@@ -297,7 +298,7 @@ export function HexBuildMenu({
                       }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
                           <strong style={{ color: '#9fd0ff', letterSpacing: 1, textTransform: 'uppercase' }}>
-                            {t(`building.${type}.name`, def.name)}
+                            {buildingName(type, t)}
                           </strong>
                           <button
                             type="button"
@@ -307,19 +308,19 @@ export function HexBuildMenu({
                             x
                           </button>
                         </div>
-                        <div>{t(`building.${type}.desc`, def.description)}</div>
+                        <div>{buildingDesc(type, t)}</div>
                         <div style={{ marginTop: 7, display: 'grid', gap: 4 }}>
                           <div>{t('building_detail.production')}: {[
                             ...(def.energyOutput > 0
-                              ? [`${resourceLabel('energy', t)} +${formatRateAmount(def.energyOutput)}`]
+                              ? [`${resourceLabel('energy', t)} +${formatRateAmount(def.energyOutput, t, i18n.language)}`]
                               : []),
-                            ...def.production.map((p) => `${resourceLabel(p.resource, t)} +${formatRateAmount(p.amount)}`),
+                            ...def.production.map((p) => `${resourceLabel(p.resource, t)} +${formatRateAmount(p.amount, t, i18n.language)}`),
                           ].join(', ') || t('building_detail.no_production')}</div>
                           <div>{t('building_detail.consumption')}: {[
                             ...(def.energyConsumption > 0
-                              ? [`${resourceLabel('energy', t)} -${formatRateAmount(def.energyConsumption)}`]
+                              ? [`${resourceLabel('energy', t)} -${formatRateAmount(def.energyConsumption, t, i18n.language)}`]
                               : []),
-                            ...def.consumption.map((c) => `${resourceLabel(c.resource, t)} -${formatRateAmount(c.amount)}`),
+                            ...def.consumption.map((c) => `${resourceLabel(c.resource, t)} -${formatRateAmount(c.amount, t, i18n.language)}`),
                           ].join(', ') || t('building_detail.no_consumption')}</div>
                           <div>{t('academy.needs_level', { level: def.levelRequired, defaultValue: `L${def.levelRequired}` })}</div>
                         </div>
@@ -398,7 +399,7 @@ export function HexBuildMenu({
                         whiteSpace: 'nowrap',
                         marginBottom: 2,
                       }}>
-                        {t(`building.${type}.name`, def.name)}
+                        {buildingName(type, t)}
                       </div>
 
                       {/* Cost icons or lock reason */}
@@ -419,7 +420,7 @@ export function HexBuildMenu({
                       )}
                       {isotopeDepleted && (
                         <span style={{ marginTop: 2, fontSize: 7, color: '#ff8844', textAlign: 'center' }}>
-                          {t('hex.isotope_depleted_warning', 'Ізотопи вичерпані')}
+                          {t('hex.isotope_depleted_warning')}
                         </span>
                       )}
                     </div>

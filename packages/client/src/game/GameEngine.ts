@@ -431,6 +431,11 @@ export class GameEngine {
     return this.systemScene?.getShipProgress() ?? 0;
   }
 
+  /** Whether the system scene ship flight animation is running */
+  isSystemShipFlightActive(): boolean {
+    return this.systemScene?.isShipFlightActive() ?? false;
+  }
+
   /** Stop system scene ship flight */
   stopSystemShipFlight() {
     this.systemScene?.stopShipFlight();

@@ -18,6 +18,23 @@ export type HexState = 'hidden' | 'locked' | 'resource' | 'empty' | 'building' |
 export type ResourceType = 'tree' | 'ore' | 'vent' | 'water' | 'crystal' | 'bio_fossil';
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 
+export type ColonyResourceKey = 'minerals' | 'volatiles' | 'isotopes' | 'water';
+
+/** Hex deposit type -> colony inventory resource shown in UI. */
+export const HEX_RESOURCE_TO_COLONY: Record<ResourceType, ColonyResourceKey> = {
+  ore: 'minerals',
+  tree: 'isotopes',
+  vent: 'volatiles',
+  water: 'water',
+  crystal: 'isotopes',
+  bio_fossil: 'isotopes',
+};
+
+export function hexResourceUILabel(resourceType: ResourceType, t: (key: string, options?: { defaultValue?: string }) => string): string {
+  const colonyKey = HEX_RESOURCE_TO_COLONY[resourceType];
+  return t(`colony_center.resource.${colonyKey}`, { defaultValue: colonyKey });
+}
+
 /**
  * Minimal planet context passed to rollResourceType for planet-aware slot generation.
  * Uses optional fields for backward compatibility with existing planet objects

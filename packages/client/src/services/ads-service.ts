@@ -20,7 +20,7 @@ import { trackEvent } from '../analytics/firebase-analytics.js';
 // **TO RESTORE ADS:** set this flag to `false` (and the identical flag in
 // interstitial-manager.ts). Nothing else needs to change.
 // =============================================================================
-const ADS_DISABLED_FOR_TESTING = Capacitor.getPlatform() === 'android';
+const ADS_DISABLED_FOR_TESTING = false;
 
 // Ad Unit IDs
 // TEST mode: use Google test IDs during development/testing to avoid AdMob violations

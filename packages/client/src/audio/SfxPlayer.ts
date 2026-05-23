@@ -101,11 +101,41 @@ if (typeof document !== 'undefined') {
 // sound finishes, and the orphaned Audio element gets garbage-collected.
 const activeOneShots = new Set<HTMLAudioElement>();
 
+let tutorialMuteActive = false;
+
+/** Mute or unmute all SFX and loops during the onboarding tutorial. */
+export function setTutorialMute(muted: boolean): void {
+  tutorialMuteActive = muted;
+  if (muted) {
+    stopAllLoops();
+    // Also pause any active one-shots
+    for (const audio of activeOneShots) {
+      try { audio.pause(); } catch { /* ignore */ }
+    }
+    activeOneShots.clear();
+  }
+}
+
+/** Stop an in-flight one-shot sound by its name/pattern. */
+export function stopSfx(name: string): void {
+  const targetSrcPart = name.split('.')[0] || '';
+  for (const audio of activeOneShots) {
+    if (audio.src.includes(targetSrcPart)) {
+      try {
+        audio.pause();
+        audio.currentTime = 0;
+      } catch { /* ignore */ }
+      activeOneShots.delete(audio);
+    }
+  }
+}
+
 /** Play a one-shot sound effect. Creates a new Audio element each time.
  *  Optional `rate` param shifts pitch (0.5 = octave down, 2.0 = octave up).
  *  `name` may include an explicit extension (e.g. "quantum-focus.mp3");
  *  otherwise .webm is assumed to match the existing sound library. */
 export function playSfx(name: string, volume = 0.5, rate = 1): void {
+  if (tutorialMuteActive) return;
   try {
     const src = resolveSfxSrc(name);
     const audio = new Audio(src);
@@ -131,6 +161,7 @@ const loops = new Map<string, HTMLAudioElement>();
 /** Start a looping sound. No-op if already playing. `name` may include an
  *  explicit extension (e.g. "quantum-focus.mp3"); otherwise .webm is used. */
 export function playLoop(name: string, volume = 0.3): void {
+  if (tutorialMuteActive) return;
   if (loops.has(name)) return;
   try {
     const src = resolveSfxSrc(name);

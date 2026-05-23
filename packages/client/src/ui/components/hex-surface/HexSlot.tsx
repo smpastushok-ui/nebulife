@@ -9,8 +9,10 @@ import {
   isResourceReady,
   getAccumulatedYield,
   respawnTimeRemaining,
+  hexResourceUILabel,
 } from './hex-utils';
 import { playSfx } from '../../../audio/SfxPlayer.js';
+import { tickRateToHourly } from '../../../i18n/format-rate.js';
 import { BUILDING_DEFS } from '@nebulife/core';
 
 // Resource icons matching ResourceDisplay (top HUD)
@@ -182,17 +184,13 @@ const RESOURCE_WEBP_TEMPLATES: Record<string, (n: number) => string> = {
   vent:  (n) => `/buildings/gas${n}.webp`,
   water: (n) => `/buildings/water${n}.webp`,
 };
-const RESOURCE_LABEL_KEYS: Record<string, string> = {
-  ore: 'surface.resource_ore',
-  tree: 'surface.resource_tree',
-  vent: 'surface.resource_vent',
-  water: 'surface.resource_water',
-};
 
 function ResourceContent({
   slot,
+  resourceLabel,
 }: {
   slot: HexSlotData;
+  resourceLabel: string;
 }) {
   const resourceType = slot.resourceType!;
   const rarity = slot.rarity!;
@@ -239,7 +237,7 @@ function ResourceContent({
       <img
         ref={imgRef}
         src={webpSrc}
-        alt={resourceType}
+        alt={resourceLabel}
         style={{
           width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 82%',
           position: 'absolute', inset: 0,
@@ -247,15 +245,35 @@ function ResourceContent({
         }}
       />
 
+      {/* Dark overlay for respawning state to ensure the timer is readable on top of bright/yellow resource icons */}
+      {!ready && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'rgba(2, 5, 16, 0.65)',
+            clipPath: HEX_CLIP,
+            zIndex: 0,
+          }}
+        />
+      )}
+
       {/* Respawn timer — direct DOM textContent, no React state */}
       {!ready && (
         <div
           ref={timerRef}
           style={{
-            position: 'relative', zIndex: 1,
+            position: 'relative',
+            zIndex: 1,
             fontSize: 9,
             color: '#ddeeff',
-            textShadow: '0 1px 4px rgba(0,0,0,0.9)',
+            background: 'rgba(3, 8, 14, 0.88)',
+            border: '1px solid rgba(68, 136, 170, 0.4)',
+            borderRadius: 3,
+            padding: '2px 5px',
+            fontFamily: 'monospace',
+            fontWeight: 'bold',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.85)',
           }}
         />
       )}
@@ -423,7 +441,7 @@ export const HexSlot = React.memo(function HexSlot({
   const [resourceHint, setResourceHint] = useState(false);
   const buildingRef = useRef<HTMLDivElement>(null);
   const resourceLabel = slot.resourceType
-    ? t(RESOURCE_LABEL_KEYS[slot.resourceType] ?? 'surface.resource_unknown')
+    ? hexResourceUILabel(slot.resourceType, t)
     : '';
 
   // Main click handler — uses id to call stable parent callbacks
@@ -606,7 +624,7 @@ export const HexSlot = React.memo(function HexSlot({
         <LockedContent slot={slot} canAfford={canAfford} />
       )}
       {slot.state === 'resource' && (
-        <ResourceContent slot={slot} />
+        <ResourceContent slot={slot} resourceLabel={resourceLabel} />
       )}
       {slot.state === 'resource' && resourceHint && (
         <div style={{
@@ -656,7 +674,7 @@ export const HexSlot = React.memo(function HexSlot({
             <line x1="4" y1="4" x2="20" y2="20" stroke="#cc4444" strokeWidth="2" />
           </svg>
           <span style={{ fontSize: 7, color: '#cc4444', fontFamily: 'monospace', fontWeight: 'bold' }}>
-            {BUILDING_DEFS[slot.buildingType as keyof typeof BUILDING_DEFS]?.energyConsumption ?? '?'}
+            {tickRateToHourly(BUILDING_DEFS[slot.buildingType as keyof typeof BUILDING_DEFS]?.energyConsumption ?? 0)}
           </span>
         </div>
       )}

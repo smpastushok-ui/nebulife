@@ -17,6 +17,8 @@ import { BUILDING_DEFS, getDepletionEfficiency } from '@nebulife/core';
 import { getDeviceTier } from '../../../utils/device-tier.js';
 import { playSfx } from '../../../audio/SfxPlayer.js';
 import { ResourceIcon, RESOURCE_COLORS } from '../ResourceIcon.js';
+import { buildingName } from '../../../i18n/building-labels.js';
+import { formatHourlyAmount } from '../../../i18n/format-rate.js';
 import { BuildingDetailPanel } from './BuildingDetailPanel.js';
 import { PremiumHelpButton } from '../PremiumHelp.js';
 
@@ -347,9 +349,12 @@ function OverviewTab({
   researchData,
   planetStocks,
 }: ColonyCenterPageProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const habPct = Math.round((active.habitability ?? 0) * 100);
   const population = active.population ?? { current: 0, capacity: 0 };
+  const energyProducedLabel = formatHourlyAmount(energyBalance.produced, t, i18n.language);
+  const energyConsumedLabel = formatHourlyAmount(energyBalance.consumed, t, i18n.language);
+  const energyShortfallLabel = formatHourlyAmount(Math.abs(energyBalance.consumed - energyBalance.produced), t, i18n.language);
 
   // Aggregated view — merges EVERY colony this player owns.
   const agg = useMemo(() => {
@@ -417,12 +422,12 @@ function OverviewTab({
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
         <StatCard
           label={t('colony_center.overview.energy')}
-          value={`${energyBalance.produced} / ${energyBalance.consumed}`}
+          value={`${energyProducedLabel} / ${energyConsumedLabel}`}
           accent={energyShortfall > 0 ? '#cc4444' : '#44ff88'}
           sub={`${t('colony_center.overview.energy_ratio_hint')} · ${
             energyShortfall > 0
-              ? t('colony_center.overview.shortfall', { amount: energyShortfall })
-              : t('colony_center.overview.surplus', { amount: -energyShortfall })
+              ? t('colony_center.overview.shortfall', { amount: energyShortfallLabel })
+              : t('colony_center.overview.surplus', { amount: energyShortfallLabel })
           }`}
         />
         <StatCard
@@ -733,7 +738,7 @@ function BuildingBreakdown({ buildings, resourceKey, extractionPerHour = 0 }: {
       {producers.map(([type, data]) => (
         <div key={type} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', fontSize: 10 }}>
           <span style={{ color: '#aabbcc' }}>
-            ×{data.count} {t(`building.${type}.name`, type)}
+            ×{data.count} {buildingName(type, t)}
           </span>
           <span style={{ color: '#88bb99' }}>
             +{data.perHour.toFixed(1)}/h
@@ -794,7 +799,7 @@ function BuildingsTab({ active, onInspectBuilding }: ColonyCenterPageProps & { o
                     cursor: 'pointer',
                     textAlign: 'left',
                   }}>
-                    <span>{t(`buildings.${type}.name`, { defaultValue: def.name })}</span>
+                    <span>{buildingName(type, t)}</span>
                     <span style={{ fontSize: 10, color: built ? '#44ff88' : '#445566' }}>
                       {count} / {def.maxPerPlanet ?? '∞'}
                     </span>
@@ -818,19 +823,20 @@ function EventsTab({
   planetStocks,
   explorationProductionQueue,
 }: ColonyCenterPageProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const localEvents = useMemo(() => {
     const rows: Array<{ id: string; tone: 'ok' | 'warn' | 'info'; text: string; meta: string }> = [];
     const population = active.population ?? { current: 0, capacity: 0 };
     const energyShortfall = Math.max(0, energyBalance.consumed - energyBalance.produced);
+    const energyShortfallLabel = formatHourlyAmount(energyShortfall, t, i18n.language);
     rows.push({
       id: 'energy',
       tone: energyShortfall > 0 ? 'warn' : 'ok',
       text: energyShortfall > 0
-        ? t('colony_center.events.energy_shortfall', { amount: energyShortfall })
+        ? t('colony_center.events.energy_shortfall', { amount: energyShortfallLabel })
         : t('colony_center.events.energy_ok'),
-      meta: `${energyBalance.produced}/${energyBalance.consumed}`,
+      meta: `${formatHourlyAmount(energyBalance.produced, t, i18n.language)} / ${formatHourlyAmount(energyBalance.consumed, t, i18n.language)}`,
     });
 
     const fullResources = (['minerals', 'volatiles', 'isotopes', 'water'] as const)
@@ -911,7 +917,7 @@ function EventsTab({
     }
 
     return rows;
-  }, [active.planet.id, active.population, colonyResources, energyBalance, explorationProductionQueue, planetStocks, productionPerHour, storageCapacity, t]);
+  }, [active.planet.id, active.population, colonyResources, energyBalance, explorationProductionQueue, planetStocks, productionPerHour, storageCapacity, t, i18n.language]);
 
   if (localEvents.length === 0) {
     return (
@@ -1210,7 +1216,9 @@ export const ColonyCenterPage: React.FC<ColonyCenterPageProps> = (props) => {
         {TABS.map((tabDef) => {
           const isActive = tab === tabDef.id;
           return (
+            /* Коментар українською: Ідентифікатор вкладки керування для онбордингу */
             <button
+              data-tutorial-id={`colony-tab-${tabDef.id}`}
               key={tabDef.id}
               onClick={() => handleTabChange(tabDef.id)}
               style={{

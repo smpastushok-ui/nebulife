@@ -53,6 +53,12 @@ export function CutsceneVideo({ src, onComplete, onPlayingChange }: CutsceneVide
     const handleCanPlay = () => setLoaded(true);
     const handlePlay = () => onPlayingChangeRef.current?.(true);
     const handleEnded = () => {
+      try {
+        v.pause();
+        v.volume = 0;
+      } catch (err) {
+        // ignore
+      }
       onPlayingChangeRef.current?.(false);
       setEnded(true);
       // Wait for the 1s CSS fade-to-black, then auto-advance

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
-import { playSfx } from '../../audio/SfxPlayer.js';
+import { playSfx, stopSfx } from '../../audio/SfxPlayer.js';
 
 // ---------------------------------------------------------------------------
 // PixelReveal — two-phase image reveal on canvas
@@ -272,6 +272,7 @@ export function PixelReveal({
     return () => {
       stateRef.current.running = false;
       if (animId) cancelAnimationFrame(animId);
+      stopSfx('pixel-reveal');
     };
   }, [imageBlob, duration, seed, skip, loadImage, buildOrder, onProgress, onComplete]);
 

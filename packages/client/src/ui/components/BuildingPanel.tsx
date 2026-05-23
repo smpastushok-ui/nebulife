@@ -1,7 +1,9 @@
 import React, { useRef, useEffect } from 'react';
+import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import type { BuildingType, BuildingDef } from '@nebulife/core';
 import { BUILDING_DEFS } from '@nebulife/core';
+import { buildingName, buildingDesc } from '../../i18n/building-labels.js';
 
 interface BuildingPanelProps {
   selectedBuilding: BuildingType | null;
@@ -234,11 +236,11 @@ function BuildingCard({
   type: BuildingType;
   isSelected: boolean;
   onClick: () => void;
-  t: (key: string) => string;
+  t: TFunction;
 }) {
   const previewSrc = BUILDING_PREVIEW[type];
-  const name = t(`building.${type}.name`);
-  const desc = t(`building.${type}.desc`);
+  const name = buildingName(type, t);
+  const desc = buildingDesc(type, t);
   return (
     <button
       onClick={onClick}
@@ -287,7 +289,7 @@ function BuildingCard({
           <div style={{ fontWeight: isSelected ? 'bold' : 'normal', marginBottom: 2 }}>{name}</div>
           <div style={{ fontSize: 9, color: '#667788', lineHeight: 1.35 }}>{desc}</div>
           <div style={{ fontSize: 9, color: '#886644', marginTop: 2 }}>
-            {def.cost.map((c) => `${c.amount} ${c.resource}`).join(', ')}
+            {def.cost.map((c) => `${c.amount} ${t(`colony_center.resource.${c.resource}`, { defaultValue: c.resource })}`).join(', ')}
           </div>
           {(def.sizeW ?? 1) > 1 && (
             <div style={{ fontSize: 9, color: '#445566', marginTop: 2 }}>

@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { buildingName, buildingDesc } from '../../i18n/building-labels.js';
 import type { BuildingType, PlacedBuilding, TechTreeState } from '@nebulife/core';
 import type { Planet } from '@nebulife/core';
 import { BUILDING_DEFS, canBuildOnPlanet, createTechTreeState } from '@nebulife/core';
@@ -336,7 +337,7 @@ function BuildingCard({
               color: selected ? '#cce8ff' : '#aabbcc',
               fontSize: 12, lineHeight: 1.3,
             }}>
-              {t(`building.${type}.name`, def.name)}
+            {buildingName(type, t)}
             </span>
             {/* ? toggles description inline */}
             <span
@@ -362,7 +363,7 @@ function BuildingCard({
           {descOpen && (
             <div style={{ marginBottom: 6 }}>
               <div style={{ color: '#667788', fontSize: 10, lineHeight: 1.5 }}>
-                {t(`building.${type}.desc`, def.description)}
+                {buildingDesc(type, t)}
               </div>
               <div style={{ color: '#3a4e5e', fontSize: 9, marginTop: 3 }}>
                 {terrainStr}&nbsp;&nbsp;{def.sizeW}&times;{def.sizeH}
@@ -591,7 +592,7 @@ function PlacementHint({ type, onCancel }: { type: BuildingType; onCancel: () =>
       pointerEvents: 'auto', whiteSpace: 'nowrap', zIndex: 10,
     }}>
       <span style={{ color: col, fontSize: 13, lineHeight: 1 }}>+</span>
-      <span style={{ color: '#aabbcc' }}>{t(`building.${type}.name`, def.name)}</span>
+      <span style={{ color: '#aabbcc' }}>{buildingName(type, t)}</span>
       <span style={{ color: '#445566' }}>—</span>
       <span style={{ color: '#556677' }}>{t('surface_panel.select_cell')}</span>
       <button
@@ -733,7 +734,7 @@ function BuildingListContent({
           }}>
             <BuildingIcon type={b.type} size={20} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ color: '#aabbcc', fontSize: 11 }}>{t(`building.${b.type}.name`, def.name)}</div>
+              <div style={{ color: '#aabbcc', fontSize: 11 }}>{buildingName(b.type, t)}</div>
               <div style={{ color: '#445566', fontSize: 9 }}>x:{b.x}  y:{b.y}</div>
             </div>
             <div style={{
