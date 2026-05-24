@@ -1,11 +1,9 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Capacitor } from '@capacitor/core';
 
 // ---------------------------------------------------------------------------
 // FreeTaskHUD — Floating counter for free-task tutorial step
-// ---------------------------------------------------------------------------
-// Shows "Дослiдження: 0/2" during tutorial step 8 (free task).
-// Positioned top-center, z-index 10051.
 // ---------------------------------------------------------------------------
 
 interface FreeTaskHUDProps {
@@ -14,9 +12,25 @@ interface FreeTaskHUDProps {
 }
 
 export function FreeTaskHUD({ current, total }: FreeTaskHUDProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const voiceRef = useRef<HTMLAudioElement | null>(null);
   const isComplete = current >= total;
   const markers = Array.from({ length: total }, (_, index) => index < current);
+
+  useEffect(() => {
+    const isUkrainian = i18n.language.startsWith('uk');
+    const clip = isUkrainian ? 'free_task_ua' : 'Free_Task_en';
+    const ext = Capacitor.getPlatform() === 'android' ? 'webm' : 'mp3';
+    const audio = new Audio(`/astra/voice/${clip}.${ext}`);
+    audio.preload = 'auto';
+    audio.volume = 0.86;
+    voiceRef.current = audio;
+    void audio.play().catch(() => { /* autoplay blocked */ });
+    return () => {
+      voiceRef.current?.pause();
+      voiceRef.current = null;
+    };
+  }, [i18n.language]);
 
   return (
     <div

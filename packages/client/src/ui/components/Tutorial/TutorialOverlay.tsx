@@ -67,6 +67,8 @@ function getAstraVoiceClip(stepId: string, subStepIndex: number, language: strin
       firstChoice: 'pershii_vybir_ua',
       firstScan: 'pershe_scanuvannya_ua',
       firstResult: 'pershi_rezultat_ua',
+      researchData: 'research_data_ua',
+      freeTask: 'free_task_ua',
       firstDiscovery: 'persha_znahidka_ua',
       quantum: 'quantum_focus_ua',
       firstPhoto: 'pershe_photo_ua',
@@ -92,6 +94,8 @@ function getAstraVoiceClip(stepId: string, subStepIndex: number, language: strin
       firstChoice: 'First_Choice_en',
       firstScan: 'First_Scan_en',
       firstResult: 'First_Result_en',
+      researchData: 'Research_Data_en',
+      freeTask: 'Free_Task_en',
       firstDiscovery: 'First_Discovery_en',
       quantum: 'Quantum_Focus_en',
       firstPhoto: 'First_Photo_en',
@@ -116,7 +120,8 @@ function getAstraVoiceClip(stepId: string, subStepIndex: number, language: strin
   if (stepId === 'terminal') return clips.terminal;
   if (stepId === 'go-systems') return clips.firstChoice;
   if (stepId === 'first-research') return clips.firstScan;
-  if (stepId === 'hud-info') return clips.firstResult;
+  if (stepId === 'hud-info') return subStepIndex === 1 ? clips.researchData : clips.firstResult;
+  if (stepId === 'free-task') return clips.freeTask;
   if (stepId === 'anomaly') return clips.firstDiscovery;
   if (stepId === 'quantum') return clips.quantum;
   if (stepId === 'save-gallery') return clips.firstPhoto;

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Capacitor } from '@capacitor/core';
 import { playSfx } from '../../../audio/SfxPlayer.js';
 
 interface SurfaceAstraLessonPromptProps {
@@ -33,7 +34,8 @@ export function SurfaceAstraLessonPrompt({ onDismiss, onOpenMission }: SurfaceAs
   const voiceSources = useMemo(
     () => {
       const lang = i18n.language.startsWith('uk') ? 'ua' : 'en';
-      return Array.from({ length: 7 }, (_, index) => `/astra/voice/surface/${index + 1}-${lang}.mp3`);
+      const ext = Capacitor.getPlatform() === 'android' ? 'webm' : 'mp3';
+      return Array.from({ length: 7 }, (_, index) => `/astra/voice/surface/${index + 1}-${lang}.${ext}`);
     },
     [i18n.language],
   );
