@@ -151,6 +151,7 @@ import { getCurrentUser, onAuthChange, signOut } from './auth/auth-service.js';
 import { authFetch, apiFetch } from './auth/api-client.js';
 import { isFirebaseConfigured } from './auth/firebase-config.js';
 import { AuthScreen } from './ui/components/AuthScreen.js';
+import { WebAccessGate } from './ui/components/WebAccessGate.js';
 import { CallsignModal } from './ui/components/CallsignModal.js';
 import { LinkAccountModal } from './ui/components/LinkAccountModal.js';
 import { CinematicIntro } from './ui/components/CinematicIntro.js';
@@ -565,7 +566,7 @@ function getDestroyedPlanetIdsForSystem(systemId: string): Set<string> | undefin
   return ids.size > 0 ? ids : undefined;
 }
 
-type CommandModeIconKind = 'surface' | 'terminal' | 'academy' | 'arena';
+type CommandModeIconKind = 'surface' | 'terminal' | 'academy' | 'arena' | 'web';
 
 function CommandModeIcon({
   kind,
@@ -628,6 +629,16 @@ function CommandModeIcon({
           <path d="M14 8.2 L17.8 16 L14 14.2 L10.2 16 Z" fill="currentColor" fillOpacity="0.16" />
           <path d="M4.5 7.5 C7.2 3.8 12.4 2.7 16.5 4.7" opacity="0.35" />
           <path d="M23.5 16.5 C20.8 20.2 15.6 21.3 11.5 19.3" opacity="0.35" />
+        </svg>
+      )}
+      {kind === 'web' && (
+        <svg style={iconStyle} viewBox="0 0 28 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="14" cy="12" r="7.5" opacity="0.65" />
+          <path d="M6.5 12 H21.5" opacity="0.5" />
+          <path d="M14 4.5 C11.8 7.2 10.8 9.7 10.8 12 C10.8 14.3 11.8 16.8 14 19.5" opacity="0.65" />
+          <path d="M14 4.5 C16.2 7.2 17.2 9.7 17.2 12 C17.2 14.3 16.2 16.8 14 19.5" opacity="0.65" />
+          <path d="M8.8 7.2 C12.1 8.4 15.9 8.4 19.2 7.2" opacity="0.35" />
+          <path d="M8.8 16.8 C12.1 15.6 15.9 15.6 19.2 16.8" opacity="0.35" />
         </svg>
       )}
     </span>
@@ -721,6 +732,7 @@ function AppInner() {
   const [warpActive, setWarpActive] = useState(false);
   const warpTargetRef = useRef<'universe' | 'galaxy' | 'home-intro' | 'system'>('universe');
   const warpSystemTargetRef = useRef<StarSystem | null>(null);
+  const pendingUniverseActionRef = useRef<'cluster' | null>(null);
   const telescopePhotoRef = useRef<(sys: StarSystem) => void>(() => {});
   const [darkLevelTransition, setDarkLevelTransition] = useState({ visible: false, opacity: 0 });
   const darkLevelTransitionTimersRef = useRef<number[]>([]);
@@ -946,6 +958,7 @@ function AppInner() {
     }
   });
   const [needsCallsign, setNeedsCallsign] = useState(false);
+  const [webAccessAllowed, setWebAccessAllowed] = useState(false);
   const [isGuest, setIsGuest] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
   // Initialize synchronously from localStorage so needsOnboarding=true is set
@@ -2149,7 +2162,7 @@ function AppInner() {
   // Timer expired — force evacuation if no target found yet
   const timerExpiredHandledRef = useRef(false);
   useEffect(() => {
-    if (!isExodusPhase || clockPhase !== 'visible' || timerExpiredHandledRef.current || gameStartedAt === null || evacuationPhase !== 'idle') return;
+    if (!isExodusPhase || timerExpiredHandledRef.current || gameStartedAt === null || evacuationPhase !== 'idle') return;
     const startedAt = gameStartedAt; // narrowed to number
     const checkExpired = () => {
       const gameSecs = remainingGameSeconds(
@@ -2181,7 +2194,7 @@ function AppInner() {
     const id = setInterval(checkExpired, 1000);
     checkExpired(); // Check immediately
     return () => clearInterval(id);
-  }, [isExodusPhase, clockPhase, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, homeInfo, evacuationPhase]);
+  }, [isExodusPhase, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, homeInfo, evacuationPhase]);
 
   /** Globally memoized destroyed planet IDs (parsed once from localStorage) */
   const destroyedPlanetIdsSet = useMemo(() => {
@@ -3902,6 +3915,10 @@ function AppInner() {
     ? TUTORIAL_STEPS[tutorialStep]
     : null;
   const isTutorialActive = activeTutorialStep !== null;
+  const tutorialStepRef = useRef(tutorialStep);
+  tutorialStepRef.current = tutorialStep;
+  const isTutorialActiveRef = useRef(isTutorialActive);
+  isTutorialActiveRef.current = isTutorialActive;
   const tutorialCompleteStep = TUTORIAL_STEPS.length;
 
   /* Коментар українською: Ефект синхронізації активного кроку туторіалу для решти компонентів через CustomEvent та атрибут body */
@@ -4028,6 +4045,10 @@ function AppInner() {
     }
   }, [clockPhase]);
 
+  const playCountdownAlarm = useCallback(() => {
+    playSfx('alarm', 0.25);
+  }, []);
+
   // Play alarm 3x when the countdown timer first becomes visible (after onboarding videos).
   // Pre-mark as played if clock was already visible on mount (returning player / page refresh)
   // so the alarm only fires during the actual first reveal animation, not on every page load.
@@ -4037,11 +4058,11 @@ function AppInner() {
   useEffect(() => {
     if (clockPhase !== 'visible' || alarmPlayedRef.current) return;
     alarmPlayedRef.current = true;
-    playSfx('alarm', 0.25);
-    const t1 = setTimeout(() => playSfx('alarm', 0.25), 2000);
-    const t2 = setTimeout(() => playSfx('alarm', 0.25), 4000);
+    playCountdownAlarm();
+    const t1 = setTimeout(playCountdownAlarm, 2000);
+    const t2 = setTimeout(playCountdownAlarm, 4000);
     return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, [clockPhase]);
+  }, [clockPhase, playCountdownAlarm]);
 
   // Start tutorial after clock reveal completes (so timer and tutorial don't overlap)
   // Only for fresh onboarding — onboardingJustCompleted ref prevents triggering for existing players
@@ -5262,6 +5283,7 @@ function AppInner() {
       setFirebaseUser(user);
       if (user) {
         setAnalyticsUserId(user.uid);
+          if (Capacitor.isNativePlatform()) setWebAccessAllowed(true);
       }
 
       if (authNullResolveTimer !== null) {
@@ -5272,6 +5294,7 @@ function AppInner() {
       if (user) {
         setAuthLoading(false);
       } else {
+        setWebAccessAllowed(false);
         authNullResolveTimer = setTimeout(() => {
           setAuthLoading(false);
           authNullResolveTimer = null;
@@ -5870,6 +5893,13 @@ function AppInner() {
         }
       },
       onPlanetSelect: (planet, screenPos) => {
+        const currentTutorialIndex = tutorialStepRef.current;
+        const currentTutorial = TUTORIAL_STEPS[currentTutorialIndex];
+        if (isTutorialActiveRef.current && (currentTutorial?.id === 'system-scene-intro' || currentTutorial?.id === 'exosphere-btn-click')) {
+          const exosphereStep = TUTORIAL_STEPS.findIndex((step) => step.id === 'exosphere-btn-click');
+          setTutorialStep(exosphereStep >= 0 ? exosphereStep : currentTutorialIndex + 1);
+          setTutorialSubStep(0);
+        }
         setState((prev) => {
           // If context menu is already showing for this same planet, ignore the tap.
           // This prevents PixiJS's capture-phase events from re-firing when the user
@@ -6224,6 +6254,10 @@ function AppInner() {
         universeEngineRef.current?.setVisible(true);
         engineRef.current?.pause();
         setState(prev => ({ ...prev, scene: 'universe' }));
+        if (pendingUniverseActionRef.current === 'cluster') {
+          pendingUniverseActionRef.current = null;
+          setTimeout(() => universeEngineRef.current?.flyToMyCluster(), 250);
+        }
       });
     } else {
       // Transitioning FROM universe (to PixiJS) — destroy Three.js renderer to free GPU
@@ -7472,6 +7506,22 @@ function AppInner() {
     unblockPopupQueue(2000); // Show next popup 2s after closing telemetry
   }, [unblockPopupQueue]);
 
+  const completeTutorialFlow = useCallback(() => {
+    setShowAcademy(false);
+    setAcademyInitialTab(undefined);
+    setAcademyMissionChapter(undefined);
+    setShowEncyclopedia(false);
+    setShowCosmicArchive(false);
+    setShowColonyCenter(false);
+    setTutorialMinimized(false);
+    setTutorialStep(tutorialCompleteStep);
+    setTutorialSubStep(0);
+    setTimeout(() => {
+      handleBackToGalaxy();
+      playCountdownAlarm();
+    }, 120);
+  }, [handleBackToGalaxy, playCountdownAlarm, tutorialCompleteStep]);
+
   // ── Tutorial advance handler ─────────────────────────────────────────
   const handleTutorialAdvance = useCallback(() => {
     if (!isTutorialActive) return;
@@ -7508,7 +7558,7 @@ function AppInner() {
             setDiscoveryQueue(q => [{ discovery: fakeDiscovery, system: nonHomeSys }, ...q]);
           }
         } else if (action === 'complete-tutorial') {
-          setTutorialStep(tutorialCompleteStep);
+          completeTutorialFlow();
           return;
         }
       }
@@ -7520,7 +7570,7 @@ function AppInner() {
 
     if (nextStep >= TUTORIAL_STEPS.length) {
       // Tutorial complete
-      setTutorialStep(tutorialCompleteStep);
+      completeTutorialFlow();
       return;
     }
 
@@ -7552,6 +7602,20 @@ function AppInner() {
             /* Коментар українською: Програмне перемикання сцен за допомогою breadcrumb навігатора */
             const sceneName = action.replace('go-scene-', '');
             handleBreadcrumbNavigate(sceneName);
+          } else if (action === 'open-home-radial') {
+            /* Коментар українською: Програмне відкриття радіального меню для домашньої зірки */
+            if (homeInfo) {
+              const sys = homeInfo.system;
+              handleBackToGalaxy();
+              const openRadial = () => {
+                const fallbackPos = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+                setRadialSystem(sys);
+                setRadialGetScreenPos(() => () => engineRef.current?.getSystemScreenPosition(sys.id) ?? fallbackPos);
+                setState((prev) => ({ ...prev, selectedSystem: sys }));
+              };
+              openRadial();
+              setTimeout(openRadial, 350);
+            }
           }
         }
       }
@@ -7563,11 +7627,11 @@ function AppInner() {
     } else {
       activateStep(nextStep);
     }
-  }, [isTutorialActive, tutorialStep, tutorialSubStep, tutorialCompleteStep]);
+  }, [completeTutorialFlow, homeInfo, isTutorialActive, tutorialStep, tutorialSubStep]);
 
   const handleTutorialSkip = useCallback(() => {
-    setTutorialStep(tutorialCompleteStep);
-  }, [tutorialCompleteStep]);
+    completeTutorialFlow();
+  }, [completeTutorialFlow]);
 
   const handleSaveToGallery = useCallback((discoveryId: string, imageUrl: string) => {
     // Find the active discovery (from observatory or telemetry)
@@ -8906,8 +8970,8 @@ function AppInner() {
         if (universeVisible) {
           universeEngineRef.current?.flyToMyCluster();
         } else {
+          pendingUniverseActionRef.current = 'cluster';
           switchToUniverse();
-          // After warp midpoint, fly to cluster
         }
         break;
       case 'galaxy':
@@ -9018,7 +9082,7 @@ function AppInner() {
 
   // Research progress for current system (home is always 100%)
   const currentSystemProgress = state.scene === 'system' && state.selectedSystem
-    ? (state.selectedSystem.ownerPlayerId !== null
+    ? (state.selectedSystem.ownerPlayerId !== null || (evacuationTarget && state.selectedSystem.id === evacuationTarget.system.id)
         ? 100
         : getResearchProgress(researchState, state.selectedSystem.id))
     : 100;
@@ -9187,7 +9251,8 @@ function AppInner() {
   // floating in the corner during the planet-approach phase, breaking the
   // cinematic. Stage 1 (system flight) intentionally hides it too so both
   // ship-flight stages have the same chrome-free background.
-  const hideLeftPanel = !!(showArena || showRaid || showHangar || cinematicActive || needsOnboarding || evacuationPhase !== 'idle');
+  const hideLeftPanel = !!(showArena || showRaid || showHangar || cinematicActive || needsOnboarding || evacuationPhase !== 'idle')
+    || (isTutorialActive && activeTutorialStep?.id !== 'cluster-intro');
 
   const toolGroups: ToolGroup[] = [];
   const ARENA_MIN_LEVEL = 10;
@@ -9313,6 +9378,20 @@ function AppInner() {
     }],
   });
 
+  toolGroups.push({
+    type: 'buttons',
+    items: [{
+      id: 'web',
+      label: t('cmd.web'),
+      variant: 'terminal' as const,
+      tooltip: t('cmd.web_tooltip'),
+      badge: t('cmd.soon'),
+      disabled: true,
+      onClick: () => {},
+      icon: <CommandModeIcon kind="web" disabled />,
+    }],
+  });
+
   // Surface already owns the "surface" state, so that button disappears there.
   // Keep the remaining trio composed around Terminal instead of leaving a
   // lopsided gap: Academy | Terminal | Arena.
@@ -9370,6 +9449,13 @@ function AppInner() {
   // QuantumSeedLoader is an intro cinematic, not a generic route/loading
   // placeholder. Returning players should not see it flash on every refresh.
   const showBootLoader = !bootLoaderDone;
+  const shouldShowWebAccessGate = isFirebaseConfigured
+    && !Capacitor.isNativePlatform()
+    && !authLoading
+    && !showBootLoader
+    && !!firebaseUser
+    && serverHydrated
+    && !webAccessAllowed;
 
   return (
     <>
@@ -9400,7 +9486,7 @@ function AppInner() {
       />
 
       {/* Resource HUD — top center (hidden in arena, hangar, and during intro) */}
-      {!showArena && !showRaid && !showHangar && !cinematicActive && !needsOnboarding && (<ResourceDisplay
+      {!shouldShowWebAccessGate && !showArena && !showRaid && !showHangar && !cinematicActive && !needsOnboarding && (<ResourceDisplay
         researchData={Math.floor(researchData)}
         quarks={quarks}
         isExodusPhase={isExodusPhase}
@@ -10127,7 +10213,14 @@ function AppInner() {
           screenPosition={state.planetClickPos}
           quarks={quarks}
           playerLevel={playerLevel}
-          onViewPlanet={handleViewPlanet}
+          onViewPlanet={() => {
+            handleViewPlanet();
+            if (isTutorialActiveRef.current && TUTORIAL_STEPS[tutorialStepRef.current]?.id === 'exosphere-btn-click') {
+              const nextStep = TUTORIAL_STEPS.findIndex((step) => step.id === 'exosphere-scene-explain');
+              setTutorialStep(nextStep >= 0 ? nextStep : tutorialStepRef.current + 1);
+              setTutorialSubStep(0);
+            }
+          }}
           onClose={handleClosePlanetMenu}
           onSurface={isExodusPhase || canLandOnPlanet(state.selectedPlanet).hidden ? undefined : handleOpenSurface}
           isFavorite={favoritePlanets.has(state.selectedPlanet.id)}
@@ -10502,7 +10595,20 @@ function AppInner() {
 
       {/* Коментар українською: Маркер завантаження екзосфери для затримки озвучки туторіалу */}
       {exosphereLoaded && (
-        <div data-tutorial-id="exosphere-loaded-marker" style={{ display: 'none' }} />
+        <div
+          data-tutorial-id="exosphere-loaded-marker"
+          style={{
+            position: 'fixed',
+            left: '50%',
+            top: '50%',
+            width: 220,
+            height: 220,
+            transform: 'translate(-50%, -50%)',
+            pointerEvents: 'none',
+            opacity: 0,
+            zIndex: 2,
+          }}
+        />
       )}
 
       {state.scene === 'planet-view' && state.selectedPlanet && state.selectedSystem
@@ -10931,6 +11037,7 @@ function AppInner() {
           onFavoritesChange={(newFavs) => { setFavoritePlanets(newFavs); scheduleSyncToServer(); }}
           pinnedSystems={pinnedSystems}
           onPinnedSystemsChange={(systems) => { setPinnedSystems(systems); scheduleSyncToServer(); }}
+          tutorialResearchTargetCount={isTutorialActive && activeTutorialStep?.id === 'free-task' ? 2 : 1}
           systemPhotos={systemPhotos}
           colonyResources={totalResources()}
           chemicalInventory={chemicalInventory}
@@ -11671,8 +11778,18 @@ function AppInner() {
         />
       )}
 
+      {shouldShowWebAccessGate && (
+        <WebAccessGate
+          onAllowed={() => {
+            setWebAccessAllowed(true);
+            setIsPremiumActive(true);
+            interstitialManager.setPremium(true);
+          }}
+        />
+      )}
+
       {/* Auth: Callsign selection */}
-      {isFirebaseConfigured && !authLoading && !showBootLoader && firebaseUser && needsCallsign && (
+      {isFirebaseConfigured && !authLoading && !showBootLoader && firebaseUser && needsCallsign && !shouldShowWebAccessGate && (
         <CallsignModal
           onComplete={(callsign) => {
             setNeedsCallsign(false);
@@ -11682,7 +11799,7 @@ function AppInner() {
       )}
 
       {/* Cinematic intro (new players) — only after auth is resolved */}
-      {!authLoading && !showBootLoader && needsOnboarding && !needsCallsign && homeInfo && (!isFirebaseConfigured || !!firebaseUser) && (
+      {!authLoading && !showBootLoader && !shouldShowWebAccessGate && needsOnboarding && !needsCallsign && homeInfo && (!isFirebaseConfigured || !!firebaseUser) && (
         <CinematicIntro
           homeInfo={homeInfo}
           engineRef={engineRef}

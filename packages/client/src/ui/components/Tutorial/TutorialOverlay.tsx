@@ -21,8 +21,8 @@ function ensureStyles() {
   style.id = STYLE_ID;
   style.textContent = `
     @keyframes tut-spotlight-pulse {
-      0%, 100% { box-shadow: 0 0 0 9999px rgba(0,0,0,0.75), 0 0 0 2px rgba(68,102,136,0.4); }
-      50% { box-shadow: 0 0 0 9999px rgba(0,0,0,0.75), 0 0 0 4px rgba(68,136,170,0.7); }
+      0%, 100% { box-shadow: 0 0 0 9999px rgba(0,0,0,0), 0 0 0 2px rgba(123,184,255,0.45); }
+      50% { box-shadow: 0 0 0 9999px rgba(0,0,0,0), 0 0 0 4px rgba(123,184,255,0.85); }
     }
     @keyframes tut-spotlight-pulse-nodim {
       0%, 100% { box-shadow: 0 0 0 9999px rgba(0,0,0,0), 0 0 0 2px rgba(123,184,255,0.45); }
@@ -189,7 +189,11 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, minimiz
   const isInfoStep = step.type === 'info';
   const isAutoStep = step.type === 'auto';
   const isWaiting = step.waitForTarget && !targetRect;
-  const shouldBlockClicks = !isWaiting && (targetRect || !step.target);
+  const shouldBlockClicks = !isWaiting && (
+    targetRect || 
+    (!step.target && !voiceFinished) || 
+    (step.id === 'system-radial-select' && !voiceFinished)
+  );
   const isCompact = typeof window !== 'undefined' && window.innerWidth < 720;
   const isAndroid = typeof window !== 'undefined' && Capacitor.getPlatform() === 'android';
   const ext = isAndroid ? 'webm' : 'mp3';
@@ -242,6 +246,15 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, minimiz
     if (step.id === 'save-gallery') return;
     onAdvance();
   }, [currentTarget, onAdvance, step.id]);
+
+  // Unconditionally stop previous voiceover on step or substep change to prevent audio overlapping
+  useEffect(() => {
+    return () => {
+      voiceRef.current?.pause();
+      voiceRef.current = null;
+      setVoicePlaying(false);
+    };
+  }, [step.id, subStepIndex]);
 
   useEffect(() => {
     if (!voiceSrc || isWaiting) return;
@@ -366,80 +379,6 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, minimiz
 
   const isSubtitleStep = ['galaxy-intro', 'cluster-intro', 'galaxy-map-intro', 'system-scene-intro', 'exosphere-scene-explain'].includes(step.id);
 
-  if (minimized) {
-    return (
-      <button
-        onClick={() => {
-          playSfx('ui-click', 0.07);
-          onExpand?.();
-        }}
-        style={{
-          position: 'fixed',
-          right: 16,
-          top: 'calc(76px + env(safe-area-inset-top, 0px))', // upper right under resources menu
-          zIndex: 10051,
-          width: 54,
-          height: 54,
-          borderRadius: '50%',
-          background: 'rgba(5, 10, 20, 0.94)',
-          border: '2px solid rgba(123, 184, 255, 0.8)',
-          boxShadow: '0 0 15px rgba(123, 184, 255, 0.6), inset 0 0 10px rgba(123, 184, 255, 0.2)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          padding: 0,
-          overflow: 'hidden',
-          transition: 'transform 0.2s, border-color 0.2s',
-          animation: 'astra-soft-pulse 2s ease-in-out infinite',
-          pointerEvents: 'auto',
-        }}
-        title={t('tutorial.expand_astra' as any)}
-      >
-        {videoFailed ? (
-          <img
-            src={ASTRA_PORTRAIT_URL}
-            alt={t('tutorial.astra_alt')}
-            draggable={false}
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              objectPosition: '50% 16%',
-              display: 'block',
-              filter: 'saturate(0.88) contrast(0.95) brightness(0.9)',
-            }}
-          />
-        ) : (
-          <video
-            ref={(el) => {
-              if (el) {
-                el.muted = true;
-                el.volume = 0;
-              }
-            }}
-            src={ASTRA_VIDEO_URL}
-            poster={ASTRA_PORTRAIT_URL}
-            aria-label={t('tutorial.astra_alt')}
-            autoPlay
-            loop
-            muted
-            playsInline
-            preload="metadata"
-            onError={() => setVideoFailed(true)}
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              objectPosition: '50% 16%',
-              display: 'block',
-              filter: 'saturate(0.88) contrast(0.95) brightness(0.9)',
-            }}
-          />
-        )}
-      </button>
-    );
-  }
 
   const getAstraPanelStyle = (): React.CSSProperties => {
     if (step.id === 'encyclopedia-explain') {
@@ -525,12 +464,10 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, minimiz
         borderRadius: 8,
         zIndex: 10050,
         pointerEvents: 'none',
-        boxShadow: isNoDimStep
-          ? '0 0 0 9999px rgba(0,0,0,0), 0 0 0 3px rgba(123,184,255,0.95), 0 0 22px rgba(123,184,255,0.55)'
-          : '0 0 0 9999px rgba(0,0,0,0.75), 0 0 0 3px rgba(123,184,255,0.95), 0 0 22px rgba(123,184,255,0.55)',
+        boxShadow: '0 0 0 9999px rgba(0,0,0,0), 0 0 0 3px rgba(123,184,255,0.95), 0 0 22px rgba(123,184,255,0.55)',
         outline: '2px solid rgba(68,255,136,0.85)',
         outlineOffset: 3,
-        animation: isNoDimStep ? 'tut-spotlight-pulse-nodim 2s ease-in-out infinite' : 'tut-spotlight-pulse 2s ease-in-out infinite',
+        animation: 'tut-spotlight-pulse-nodim 2s ease-in-out infinite',
         transition: transitioning ? 'top 0.3s, left 0.3s, width 0.3s, height 0.3s' : undefined,
       };
     })()
@@ -538,6 +475,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, minimiz
         display: 'none',
       };
 
+  const allowsSceneInteraction = step.id === 'cluster-intro';
   const useFourBlockers = targetRect && !isInfoStep && !isAutoStep;
 
   // Global capture click listener to detect target element clicks naturally
@@ -559,10 +497,90 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, minimiz
     return () => document.removeEventListener('click', handleGlobalClick, true);
   }, [currentTarget, isInfoStep, isAutoStep, onAdvance]);
 
+  if (isWaiting) {
+    return null;
+  }
+
+  if (minimized) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          playSfx('ui-click', 0.07);
+          onExpand?.();
+        }}
+        style={{
+          position: 'fixed',
+          right: 16,
+          top: 'calc(76px + env(safe-area-inset-top, 0px))', // upper right under resources menu
+          zIndex: 10051,
+          width: 54,
+          height: 54,
+          borderRadius: '50%',
+          background: 'rgba(5, 10, 20, 0.94)',
+          border: '2px solid rgba(123, 184, 255, 0.8)',
+          boxShadow: '0 0 15px rgba(123, 184, 255, 0.6), inset 0 0 10px rgba(123, 184, 255, 0.2)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          padding: 0,
+          overflow: 'hidden',
+          transition: 'transform 0.2s, border-color 0.2s',
+          animation: 'astra-soft-pulse 2s ease-in-out infinite',
+          pointerEvents: 'auto',
+        }}
+        title={t('tutorial.expand_astra' as any)}
+      >
+        {videoFailed ? (
+          <img
+            src={ASTRA_PORTRAIT_URL}
+            alt={t('tutorial.astra_alt')}
+            draggable={false}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              objectPosition: '50% 16%',
+              display: 'block',
+              filter: 'saturate(0.88) contrast(0.95) brightness(0.9)',
+            }}
+          />
+        ) : (
+          <video
+            ref={(el) => {
+              if (el) {
+                el.muted = true;
+                el.volume = 0;
+              }
+            }}
+            src={ASTRA_VIDEO_URL}
+            poster={ASTRA_PORTRAIT_URL}
+            aria-label={t('tutorial.astra_alt')}
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="metadata"
+            onError={() => setVideoFailed(true)}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              objectPosition: '50% 16%',
+              display: 'block',
+              filter: 'saturate(0.88) contrast(0.95) brightness(0.9)',
+            }}
+          />
+        )}
+      </button>
+    );
+  }
+
   return (
     <>
       {/* Коментар українською: Блокувальники кліків - або 4 блоки навколо цілі, або весь екран */}
-      {useFourBlockers ? (
+      {allowsSceneInteraction ? null : useFourBlockers ? (
         <>
           {/* Top Blocker */}
           <div
@@ -646,7 +664,7 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, minimiz
             position: 'fixed',
             inset: 0,
             zIndex: 10049,
-            background: isNoDimStep ? 'transparent' : 'rgba(0, 0, 0, 0.75)',
+            background: 'transparent',
             pointerEvents: 'none',
           }}
         />

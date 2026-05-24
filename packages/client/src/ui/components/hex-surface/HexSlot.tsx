@@ -233,7 +233,7 @@ function ResourceContent({
         pointerEvents: 'none',
       }}
     >
-      {/* Resource WebP image — bright when ready, dimmed when respawning */}
+      {/* Resource WebP image — bright when ready, gently muted while respawning */}
       <img
         ref={imgRef}
         src={webpSrc}
@@ -241,21 +241,52 @@ function ResourceContent({
         style={{
           width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 82%',
           position: 'absolute', inset: 0,
-          opacity: ready ? 1 : 0.4,
+          opacity: ready ? 1 : 0.78,
+          filter: ready ? undefined : 'saturate(0.92) brightness(0.86) contrast(1.06)',
         }}
       />
 
-      {/* Dark overlay for respawning state to ensure the timer is readable on top of bright/yellow resource icons */}
+      {/* Український коментар: легкий stasis-шар замість грубого затемнення гекса респавну */}
       {!ready && (
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background: 'rgba(2, 5, 16, 0.65)',
-            clipPath: HEX_CLIP,
-            zIndex: 0,
-          }}
-        />
+        <>
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: [
+                'radial-gradient(circle at 50% 42%, rgba(2,5,16,0.04) 0%, rgba(2,5,16,0.16) 42%, rgba(2,5,16,0.42) 100%)',
+                'linear-gradient(135deg, rgba(123,184,255,0.16) 0%, transparent 34%, rgba(68,255,136,0.08) 100%)',
+              ].join(', '),
+              clipPath: HEX_CLIP,
+              zIndex: 0,
+              boxShadow: 'inset 0 0 18px rgba(2,5,16,0.72), inset 0 0 0 1px rgba(123,184,255,0.18)',
+            }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              left: '18%',
+              right: '18%',
+              top: '28%',
+              height: 1,
+              zIndex: 1,
+              background: 'linear-gradient(90deg, transparent, rgba(123,184,255,0.52), transparent)',
+              boxShadow: '0 0 8px rgba(123,184,255,0.22)',
+            }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              left: '22%',
+              right: '22%',
+              bottom: '28%',
+              height: 1,
+              zIndex: 1,
+              background: 'linear-gradient(90deg, transparent, rgba(68,255,136,0.34), transparent)',
+              boxShadow: '0 0 8px rgba(68,255,136,0.14)',
+            }}
+          />
+        </>
       )}
 
       {/* Respawn timer — direct DOM textContent, no React state */}
@@ -265,15 +296,21 @@ function ResourceContent({
           style={{
             position: 'relative',
             zIndex: 1,
-            fontSize: 9,
-            color: '#ddeeff',
-            background: 'rgba(3, 8, 14, 0.88)',
-            border: '1px solid rgba(68, 136, 170, 0.4)',
-            borderRadius: 3,
-            padding: '2px 5px',
+            fontSize: 8.5,
+            color: '#e6f4ff',
+            letterSpacing: 0.7,
+            background: 'linear-gradient(180deg, rgba(10,18,30,0.94), rgba(3,8,14,0.86))',
+            border: '1px solid rgba(123, 184, 255, 0.52)',
+            borderRadius: 4,
+            padding: '2px 6px',
             fontFamily: 'monospace',
             fontWeight: 'bold',
-            boxShadow: '0 2px 6px rgba(0,0,0,0.85)',
+            textShadow: '0 0 6px rgba(123,184,255,0.42), 0 1px 2px rgba(0,0,0,0.9)',
+            boxShadow: [
+              '0 2px 8px rgba(0,0,0,0.82)',
+              '0 0 12px rgba(68,136,170,0.18)',
+              'inset 0 0 8px rgba(123,184,255,0.08)',
+            ].join(', '),
           }}
         />
       )}

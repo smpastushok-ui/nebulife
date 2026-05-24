@@ -5,6 +5,10 @@ import {
   updatePaymentIntentStatus,
   creditQuarks,
 } from '../../packages/server/src/db.js';
+import {
+  getWebPremiumPlanByPurpose,
+  grantWebPremium,
+} from '../../packages/server/src/premium-service.js';
 
 /**
  * POST /api/payment/callback
@@ -13,6 +17,7 @@ import {
  * Intent-based flow:
  *   - 'topup' → creditQuarks
  *   - 'purchase_surface' → creditQuarks (surface endpoint handles generation)
+ *   - 'premium_web_*' → grant Premium entitlement
  */
 
 // Cache for Monobank public key (refreshed every 60 min)
@@ -96,7 +101,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (paymentStatus === 'success') {
       if (intent) {
         // New intent-based flow
-        return await handleIntentSuccess(intent.reference, intent, res);
+        return await handleIntentSuccess(intent.reference, intent, invoiceId, res);
       }
 
       // Legacy fallback: no active intent found — log and acknowledge
@@ -124,23 +129,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
  */
 async function handleIntentSuccess(
   reference: string,
-  intent: { player_id: string; amount_quarks: number; purpose: string; purchase_meta: Record<string, unknown> | null },
+  intent: { player_id: string; amount_quarks: number; purpose: string; purchase_meta: Record<string, unknown> | null; status: string },
+  invoiceId: string | undefined,
   res: VercelResponse,
 ) {
-  // Credit quarks from payment
-  await creditQuarks(intent.player_id, intent.amount_quarks);
-  await updatePaymentIntentStatus(reference, 'completed');
+  if (intent.status === 'completed') {
+    return res.status(200).json({ status: 'already_completed' });
+  }
 
   if (intent.purpose === 'topup') {
+    await creditQuarks(intent.player_id, intent.amount_quarks);
+    await updatePaymentIntentStatus(reference, 'completed');
     // Simple top-up — done
     console.log(`Topup completed: ${intent.player_id} +${intent.amount_quarks} quarks`);
     return res.status(200).json({ status: 'ok', type: 'topup' });
   }
 
   if (intent.purpose === 'purchase_surface') {
+    await creditQuarks(intent.player_id, intent.amount_quarks);
+    await updatePaymentIntentStatus(reference, 'completed');
     // Surface generation purchase — just credit quarks (surface endpoint handles the rest)
     console.log(`Surface purchase top-up completed: ${intent.player_id} +${intent.amount_quarks} quarks`);
     return res.status(200).json({ status: 'ok', type: 'purchase_surface' });
+  }
+
+  const premiumPlan = getWebPremiumPlanByPurpose(intent.purpose);
+  if (premiumPlan) {
+    const email = typeof intent.purchase_meta?.email === 'string' ? intent.purchase_meta.email : null;
+    await grantWebPremium({
+      playerId: intent.player_id,
+      email,
+      plan: premiumPlan,
+      reference,
+      invoiceId: invoiceId ?? null,
+    });
+    await updatePaymentIntentStatus(reference, 'completed');
+    console.log(`Web Premium completed: ${intent.player_id} ${premiumPlan.id}`);
+    return res.status(200).json({ status: 'ok', type: premiumPlan.purpose });
   }
 
   return res.status(200).json({ status: 'ok' });

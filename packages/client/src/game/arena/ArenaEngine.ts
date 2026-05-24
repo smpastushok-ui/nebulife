@@ -486,7 +486,9 @@ export class ArenaEngine {
   private readonly BOT_BULLET_SPEED = 700;
   private readonly BOT_BULLET_LIFETIME = 0.8;
   private readonly BOT_BULLET_RADIUS = 1.5;
-  private readonly BOT_BULLET_DAMAGE = 8;
+  /* Коментар українською: Глобальний множник сили ботів — за фідбеком гравця робимо їх приблизно на 30% слабшими. */
+  private readonly BOT_POWER_MULT = 0.7;
+  private readonly BOT_BULLET_DAMAGE = 8 * this.BOT_POWER_MULT;
 
   // Player HP for team mode
   private playerHp = ARENA_SHIP_MAX_HP;
@@ -2103,8 +2105,8 @@ export class ArenaEngine {
     let bestDist = AUTO_AIM_RANGE;
     for (const bot of this.botShips) {
       if (!bot.alive) continue;
-      // In team mode: skip allies. In training (neutral): all bots are enemies.
-      if (this.teamMode && bot.team === this.playerTeam) continue;
+      // Коментар українською: Training теж має союзників, тому автоціль не повинна вести лазер/ракети в синіх.
+      if (bot.team === this.playerTeam) continue;
       const dx = bot.pos.x - this.playerPos.x;
       const dz = bot.pos.z - this.playerPos.z;
       const d = Math.sqrt(dx * dx + dz * dz);
@@ -4057,7 +4059,7 @@ export class ArenaEngine {
 
       /* Коментар українською: Масштабуємо міцність корпусу (HP) бота в залежності від обраної складності (Аси живучіші, Новачки тонші) */
       const tankFactor = difficulty === 'easy' ? 0.8 : difficulty === 'hard' ? 1.35 : 1.0;
-      const botHp = Math.round(ARENA_SHIP_MAX_HP * tankFactor);
+      const botHp = Math.round(ARENA_SHIP_MAX_HP * tankFactor * this.BOT_POWER_MULT);
 
       const bot: BotShip = {
         id,
@@ -4246,9 +4248,10 @@ export class ArenaEngine {
 
       // Clamp speed (XZ)
       const speed = Math.sqrt(bot.vel.x * bot.vel.x + bot.vel.z * bot.vel.z);
-      if (speed > SHIP_MAX_SPEED) {
-        bot.vel.x = (bot.vel.x / speed) * SHIP_MAX_SPEED;
-        bot.vel.z = (bot.vel.z / speed) * SHIP_MAX_SPEED;
+      const botMaxSpeed = SHIP_MAX_SPEED * this.BOT_POWER_MULT;
+      if (speed > botMaxSpeed) {
+        bot.vel.x = (bot.vel.x / speed) * botMaxSpeed;
+        bot.vel.z = (bot.vel.z / speed) * botMaxSpeed;
       }
 
       // Warp/dash — activate when AI requests and cooldown is ready
@@ -4264,7 +4267,7 @@ export class ArenaEngine {
           bot.dashTimer = 0;
         } else {
           // Override velocity to 2x max speed in aim direction
-          const warpSpeed = SHIP_MAX_SPEED * 2;
+          const warpSpeed = SHIP_MAX_SPEED * 2 * this.BOT_POWER_MULT;
           bot.vel.x = input.aimDir.x * warpSpeed;
           bot.vel.z = input.aimDir.z * warpSpeed;
         }
@@ -4398,17 +4401,17 @@ export class ArenaEngine {
         this.fireBotBullet(bot, aimX, aimY, aimZ);
         /* Коментар українською: Швидкість стрільби ботів залежить від їхньої складності (Аси стріляють швидше, Новачки повільніше) */
         const diffMultiplier = bot.brain.difficulty === 'easy' ? 1.4 : bot.brain.difficulty === 'hard' ? 0.75 : 1.0;
-        bot.fireCooldown = (0.45 + Math.random() * 0.25) * diffMultiplier; // 0.45–0.70s base
+        bot.fireCooldown = (0.45 + Math.random() * 0.25) * diffMultiplier / this.BOT_POWER_MULT; // 0.45–0.70s base
       }
 
       // Fire missile occasionally — also blocked while invulnerable
-      const missileChance = targetDistance < 900 ? 0.045 : 0.018;
+      const missileChance = (targetDistance < 900 ? 0.045 : 0.018) * this.BOT_POWER_MULT;
       if (input.firing && !isInvulnerable && targetDistance > 180 && (bot.missileAmmo ?? 0) > 0 && bot.missileCooldown <= 0 && Math.random() < missileChance) {
         /* Коментар українською: Передаємо також вертикальний напрямок aimY для коректного 3D запуску ракети ботом */
         this.fireBotMissile(bot, aimX, aimY, aimZ);
         bot.missileAmmo = (bot.missileAmmo ?? 1) - 1;
         /* Коментар українською: Перезарядка ракет у Асів швидша, тоді як Новачки використовують ракети вкрай рідко */
-        const missileCooldownBase = bot.brain.difficulty === 'easy' ? 10.0 : bot.brain.difficulty === 'hard' ? 4.5 : 6.0;
+        const missileCooldownBase = (bot.brain.difficulty === 'easy' ? 10.0 : bot.brain.difficulty === 'hard' ? 4.5 : 6.0) / this.BOT_POWER_MULT;
         bot.missileCooldown = missileCooldownBase + Math.random() * 2.5; // adjust cooldown
       }
     }
@@ -4801,8 +4804,9 @@ export class ArenaEngine {
 
       for (const bot of this.botShips) {
         if (!bot.alive) continue;
-        // In team mode: skip allies; in FFA (neutral): all bots are targets
-        if (this.teamMode && bot.team === this.playerTeam) continue;
+        // Коментар українською: Training теж командний (сині союзники проти червоних),
+        // тому союзників треба пропускати завжди, інакше їхні смерті рахуються як kills гравця.
+        if (bot.team === this.playerTeam) continue;
 
         const dx = b.x - bot.pos.x;
         const dy = b.y - bot.pos.y;
@@ -4925,6 +4929,7 @@ export class ArenaEngine {
 
     for (const bot of this.botShips) {
       if (!bot.alive) continue;
+      const sameTeam = bot.team === this.playerTeam;
 
       const dx = this.playerPos.x - bot.pos.x;
       const dy = this.playerPos.y - bot.pos.y;
@@ -4962,8 +4967,8 @@ export class ArenaEngine {
           const playerVulnerable = now >= this.invulnerableUntil;
           const botVulnerable = now >= bot.invulnerableUntil;
 
-          if (playerVulnerable) this.playerHp = Math.max(0, this.playerHp - dmg);
-          if (botVulnerable) bot.hp = Math.max(0, bot.hp - dmg);
+          if (!sameTeam && playerVulnerable) this.playerHp = Math.max(0, this.playerHp - dmg);
+          if (!sameTeam && botVulnerable) bot.hp = Math.max(0, bot.hp - dmg);
 
           const playerDies = playerVulnerable && this.playerHp <= 0;
           const botDies = botVulnerable && bot.hp <= 0;

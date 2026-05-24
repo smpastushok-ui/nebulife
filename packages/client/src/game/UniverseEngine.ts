@@ -1566,6 +1566,7 @@ export class UniverseEngine {
           this.myRing.position.set(gp.x, gp.y, gp.z);
           this.myRing.visible = true;
           this.highlightGroup(this.myGroupIndex);
+          this.expandCluster(this.myGroupIndex);
         }
         this.flyTarget = null;
       }

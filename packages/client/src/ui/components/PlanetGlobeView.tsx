@@ -1143,6 +1143,27 @@ const DOOMSDAY_SHIP_GLB = '/arena_ships/blue_ship.glb';
 const DOOMSDAY_SHIP_SIZE = 0.12;
 let _doomsdayShipCache: THREE.Group | null = null;
 let _doomsdayShipLoading: Promise<void> | null = null;
+let _glowTextureCache: THREE.Texture | null = null;
+
+/* Коментар українською: Генерація гарної текстури круглого світіння сопла двигуна за допомогою Canvas-градієнта */
+function getGlowTexture(): THREE.Texture {
+  if (_glowTextureCache) return _glowTextureCache;
+  const canvas = document.createElement('canvas');
+  canvas.width = 32;
+  canvas.height = 32;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    const grad = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+    grad.addColorStop(0, 'rgba(255, 255, 255, 1.0)');
+    grad.addColorStop(0.2, 'rgba(123, 184, 255, 0.9)');
+    grad.addColorStop(0.5, 'rgba(68, 136, 255, 0.5)');
+    grad.addColorStop(1, 'rgba(68, 136, 255, 0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 32, 32);
+  }
+  _glowTextureCache = new THREE.CanvasTexture(canvas);
+  return _glowTextureCache;
+}
 
 function preloadDoomsdayShip(): Promise<void> {
   if (_doomsdayShipCache) return Promise.resolve();
@@ -1222,7 +1243,7 @@ function updateShipVisuals(ship: ShipState, deltaMs: number) {
   while (ship.group.children.length > 0) {
     const child = ship.group.children[0];
     ship.group.remove(child);
-    if (child instanceof THREE.Line || child instanceof THREE.Mesh) {
+    if (child instanceof THREE.Line || child instanceof THREE.Mesh || child instanceof THREE.Sprite) {
       child.geometry.dispose();
       if (child.material instanceof THREE.Material) child.material.dispose();
     }
@@ -1268,29 +1289,42 @@ function updateShipVisuals(ship: ShipState, deltaMs: number) {
     shipMesh.lookAt(nextPos);
     ship.group.add(shipMesh);
 
-    // Engine glow
+    /* Коментар українською: Справжнє світіння сопла двигуна, зміщене трохи назад */
     const glowMat = new THREE.SpriteMaterial({
-      color: SHIP_BLUE,
+      map: getGlowTexture(),
+      color: 0xffffff,
       transparent: true,
-      opacity: 0.5,
+      opacity: 0.85,
       blending: THREE.AdditiveBlending,
     });
     const glow = new THREE.Sprite(glowMat);
-    glow.scale.setScalar(0.08);
-    glow.position.copy(pos);
+    glow.scale.setScalar(0.09);
+    // Зсув назад від сопла корабля (протилежний вектору швидкості)
+    const backDir = pos.clone().sub(nextPos).normalize().multiplyScalar(0.065);
+    glow.position.copy(pos).add(backDir);
     ship.group.add(glow);
 
     // Trail
     ship.trail.push(pos.clone());
     if (ship.trail.length > 50) ship.trail.shift();
+    
+    /* Коментар українською: Плавний згасаючий шлейф за кораблем, аналогічно 2D-сцені */
     if (ship.trail.length > 1) {
-      const trailGeo = new THREE.BufferGeometry().setFromPoints(ship.trail);
-      const trailMat = new THREE.LineBasicMaterial({
-        color: SHIP_BLUE,
-        transparent: true,
-        opacity: 0.3,
-      });
-      ship.group.add(new THREE.Line(trailGeo, trailMat));
+      const trailLen = ship.trail.length;
+      for (let i = 1; i < trailLen; i++) {
+        const pct = i / trailLen;
+        const segmentGeo = new THREE.BufferGeometry().setFromPoints([
+          ship.trail[i - 1],
+          ship.trail[i]
+        ]);
+        const segmentMat = new THREE.LineBasicMaterial({
+          color: SHIP_BLUE,
+          transparent: true,
+          opacity: pct * 0.42, // Плавне згасання до кінця шлейфу
+          linewidth: 1.5,
+        } as THREE.LineBasicMaterialParameters);
+        ship.group.add(new THREE.Line(segmentGeo, segmentMat));
+      }
     }
 
     if (ship.progress >= 1) {
@@ -1320,16 +1354,22 @@ function updateShipVisuals(ship: ShipState, deltaMs: number) {
     shipMesh.rotation.y = -ship.orbitAngle;
     ship.group.add(shipMesh);
 
-    // Engine glow
+    /* Коментар українською: Світіння сопла на орбіті, зміщене трохи назад по дотичній орбіти */
     const glowMat = new THREE.SpriteMaterial({
-      color: SHIP_BLUE,
+      map: getGlowTexture(),
+      color: 0xffffff,
       transparent: true,
-      opacity: 0.4,
+      opacity: 0.85,
       blending: THREE.AdditiveBlending,
     });
     const glow = new THREE.Sprite(glowMat);
-    glow.scale.setScalar(0.06);
-    glow.position.set(x, y, z);
+    glow.scale.setScalar(0.075);
+    
+    // Кут трохи позаду по орбіті
+    const backAngle = ship.orbitAngle - 0.045;
+    const bx = Math.cos(backAngle) * orbitR;
+    const bz = Math.sin(backAngle) * orbitR * ecc;
+    glow.position.set(bx, y, bz);
     ship.group.add(glow);
 
     // Orbit path (dotted)

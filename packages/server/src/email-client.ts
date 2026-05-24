@@ -80,6 +80,11 @@ const WELCOME_SUBJECTS: Record<string, string> = {
   en: 'Nebulife — your star terminal is active',
 };
 
+const WEB_ACCESS_SUBJECTS: Record<string, string> = {
+  uk: 'Nebulife — веб-версія доступна для Premium',
+  en: 'Nebulife — web access is available for Premium',
+};
+
 // ---------------------------------------------------------------------------
 // Shared helpers
 // ---------------------------------------------------------------------------
@@ -304,6 +309,54 @@ function buildWelcomeHtml(payload: ServiceEmailPayload): string {
 </html>`;
 }
 
+function buildWebAccessHtml(payload: ServiceEmailPayload): string {
+  const lang = payload.lang ?? 'uk';
+  const playerName = payload.playerName ? escapeHtml(payload.playerName) : '';
+  const baseUrl = process.env.APP_BASE_URL ?? 'https://www.nebulife.space';
+  const playUrl = `${baseUrl}/play`;
+  const title = lang === 'uk'
+    ? 'Веб-версія Nebulife доступна'
+    : 'Nebulife web version is available';
+  const greeting = lang === 'uk'
+    ? `Привіт${playerName ? `, <span style="color:#7bb8ff">${playerName}</span>` : ''}.`
+    : `Hello${playerName ? `, <span style="color:#7bb8ff">${playerName}</span>` : ''}.`;
+  const body = lang === 'uk'
+    ? 'Ваш Premium вже відкриває доступ до веб-версії Nebulife. Перейдіть за посиланням і увійдіть з цією ж поштою.'
+    : 'Your Premium now unlocks the Nebulife web version. Open the link and log in with the same email address.';
+  const cta = lang === 'uk' ? 'Почати у веб-версії' : 'Start on web';
+  return `<!DOCTYPE html>
+<html lang="${lang}">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>${title}</title>
+</head>
+<body style="margin:0;padding:0;background:#020510;font-family:monospace;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#020510;padding:24px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;border:1px solid #334455;border-radius:6px;padding:24px;background:rgba(10,15,25,0.94);">
+          <tr><td style="font-size:10px;color:#44ff88;letter-spacing:3px;text-transform:uppercase;padding-bottom:8px;">NEBULIFE WEB PREMIUM</td></tr>
+          <tr><td style="font-size:20px;color:#ccddee;font-weight:bold;padding-bottom:14px;">${title}</td></tr>
+          <tr><td style="font-size:12px;color:#8899aa;line-height:1.7;padding-bottom:8px;">${greeting}</td></tr>
+          <tr><td style="font-size:12px;color:#8899aa;line-height:1.7;padding-bottom:24px;">${body}</td></tr>
+          <tr>
+            <td align="center" style="padding-bottom:14px;">
+              <a href="${playUrl}"
+                 style="display:inline-block;padding:12px 28px;background:rgba(68,136,170,0.16);border:1px solid #4488aa;color:#7bb8ff;font-family:monospace;font-size:13px;text-decoration:none;border-radius:4px;letter-spacing:1px;">
+                ${cta}
+              </a>
+            </td>
+          </tr>
+          <tr><td style="font-size:10px;color:#667788;text-align:center;">${playUrl}</td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
 // ---------------------------------------------------------------------------
 // Admin alert — used by cron/moderate when Gemini moderation is unavailable
 // so the admin (nebulife owner) can manually review pending reports.
@@ -419,5 +472,14 @@ export async function sendWelcomeEmail(payload: ServiceEmailPayload): Promise<vo
       'List-Unsubscribe': `<${unsubscribeUrl}>`,
       'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
     },
+  });
+}
+
+export async function sendWebAccessEmail(payload: ServiceEmailPayload): Promise<void> {
+  const lang = payload.lang ?? 'uk';
+  await sendResendEmail({
+    to: payload.to,
+    subject: WEB_ACCESS_SUBJECTS[lang] ?? WEB_ACCESS_SUBJECTS.uk,
+    html: buildWebAccessHtml(payload),
   });
 }

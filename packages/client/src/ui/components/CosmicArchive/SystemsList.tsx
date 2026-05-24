@@ -66,6 +66,10 @@ function ensureStyles() {
       50%  { opacity: 0.65; }
       to   { transform: translateX(260%); opacity: 0.08; }
     }
+    @keyframes sys-tutorial-research-pulse {
+      0%, 100% { transform: scale(1); opacity: 0.82; }
+      50%      { transform: scale(1.08); opacity: 1; }
+    }
   `;
   document.head.appendChild(style);
 }
@@ -121,6 +125,7 @@ interface SystemsListProps {
   pinnedSystems?: Set<string>;
   /** Callback when pinned systems change. */
   onPinnedSystemsChange?: (systems: Set<string>) => void;
+  tutorialResearchTargetCount?: number;
 }
 
 export function SystemsList({
@@ -145,6 +150,7 @@ export function SystemsList({
   onOpenTopUp,
   pinnedSystems,
   onPinnedSystemsChange,
+  tutorialResearchTargetCount = 1,
 }: SystemsListProps) {
   const { t } = useTranslation();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -295,11 +301,20 @@ export function SystemsList({
     });
   }, []);
 
-  // Track first non-home system for tutorial target
-  const firstNonHomeId = useMemo(() => {
-    const sys = sorted.find((s) => !s.planets.some((p) => p.isHomePlanet));
-    return sys?.id ?? null;
-  }, [sorted]);
+  // Track first available non-home systems for tutorial target highlighting.
+  const tutorialResearchTargetIds = useMemo(() => {
+    const ids: string[] = [];
+    for (const s of sorted) {
+      if (s.planets.some((p) => p.isHomePlanet)) continue;
+      const ringLocked = isRingLocked?.(s.ringIndex ?? 0) ?? false;
+      const quarkUnlocked = isQuarkUnlocked?.(s.id) ?? false;
+      const locked = ringLocked && !quarkUnlocked;
+      const progress = Math.max(0, Math.min(100, getResearchProgress?.(s.id) ?? (isFullyResearched?.(s.id) ? 100 : 0)));
+      if (!locked && progress < 100 && (canStartResearch?.(s.id) ?? false)) ids.push(s.id);
+      if (ids.length >= tutorialResearchTargetCount) break;
+    }
+    return new Set(ids);
+  }, [canStartResearch, getResearchProgress, isFullyResearched, isQuarkUnlocked, isRingLocked, sorted, tutorialResearchTargetCount]);
 
   if (sorted.length === 0) {
     return (
@@ -356,10 +371,9 @@ export function SystemsList({
     handleResearchClick(system);
   };
 
-  // Grid column template — no left quark column any more (⚛ is absolutely
-  // positioned outside the row's right edge when visible).
-  const gridColsMobile    = hasResearchCol ? 'minmax(0,1fr) 30px 28px 28px 78px' : 'minmax(0,1fr) 30px 28px 28px';
-  const gridColsDesktop   = hasResearchCol ? 'minmax(0,1fr) 36px 36px 36px 88px' : 'minmax(0,1fr) 36px 36px 36px';
+  // Шаблон колонок сітки — 6-колонковий макет з кнопкою улюбленого (Pin) як Колонка 1
+  const gridColsMobile    = hasResearchCol ? '24px minmax(0,1fr) 28px 28px 28px 78px' : '24px minmax(0,1fr) 28px 28px 28px';
+  const gridColsDesktop   = hasResearchCol ? '32px minmax(0,1fr) 42px 42px 42px 88px' : '32px minmax(0,1fr) 42px 42px 42px';
 
   const renderSystemRow = (system: StarSystem, keyPrefix = 'system') => {
     const isHome = system.planets.some((p) => p.isHomePlanet);
@@ -379,7 +393,7 @@ export function SystemsList({
     const canResearch = locked || fullyResearched ? false : (canStartResearch?.(system.id) ?? false);
     const dataCost = getResearchDataCost?.(system) ?? researchDataCost;
     const hasResearchData = Math.floor(researchData) >= dataCost;
-    const isFirstNonHome = system.id === firstNonHomeId;
+    const isTutorialResearchTarget = tutorialResearchTargetIds.has(system.id);
     const statusLabel = fullyResearched
       ? t('archive.status_complete')
       : researching
@@ -413,91 +427,40 @@ export function SystemsList({
           display: 'grid',
           gridTemplateColumns: isMobile ? gridColsMobile : gridColsDesktop,
           gap: isMobile ? 4 : 8,
-          padding: isMobile ? '7px 8px' : '8px 12px',
+          padding: isMobile ? '8px 10px' : '10px 14px',
           background: fullyResearched
-            ? 'linear-gradient(90deg, rgba(96,180,130,0.035), rgba(5,10,20,0.18))'
+            ? 'linear-gradient(90deg, rgba(68,180,130,0.02), rgba(10,15,25,0.2))'
             : researching
-              ? undefined
+              ? 'linear-gradient(90deg, rgba(68,136,170,0.03), rgba(10,15,25,0.2))'
               : canResearch
-                ? 'linear-gradient(90deg, rgba(215,179,106,0.035), rgba(5,10,20,0.18))'
+                ? 'linear-gradient(90deg, rgba(215,179,106,0.02), rgba(10,15,25,0.2))'
                 : isHovered
-                  ? 'rgba(20, 38, 58, 0.42)'
+                  ? 'rgba(20, 38, 58, 0.45)'
                   : 'rgba(5, 10, 20, 0.18)',
-          border: isMobile
-            ? 'none'
-            : researching
-              ? '1px solid rgba(68, 136, 170, 0.35)'
-              : `1px solid ${fullyResearched ? 'rgba(127,217,166,0.16)' : canResearch ? 'rgba(215,179,106,0.15)' : 'rgba(51, 68, 85, 0.18)'}`,
-          borderBottom: isMobile ? '1px solid rgba(51, 68, 85, 0.14)' : undefined,
-          borderRadius: isMobile ? 0 : 3,
+          borderLeft: isHovered
+            ? `3px solid ${fullyResearched ? '#44ff88' : canResearch ? '#ffd2a1' : '#7bb8ff'}`
+            : '3px solid transparent',
+          borderTop: '1px solid rgba(51, 68, 85, 0.08)',
+          borderBottom: '1px solid rgba(51, 68, 85, 0.16)',
+          borderRight: '1px solid rgba(51, 68, 85, 0.08)',
+          borderRadius: 4,
           fontFamily: 'monospace',
           fontSize: 11,
           color: locked ? '#556677' : '#aabbcc',
           textAlign: 'left',
           alignItems: 'center',
-          transition: 'background 0.15s',
+          transition: 'all 0.18s cubic-bezier(0.4, 0, 0.2, 1)',
           animation: researching ? 'sys-row-research-pulse 2.5s ease-in-out infinite' : undefined,
           position: 'relative',
-          opacity: locked ? 0.6 : 1,
+          opacity: locked ? 0.65 : 1,
           cursor: canResearch && !researching && !fullyResearched ? 'copy' : undefined,
           overflow: 'visible',
+          boxShadow: isHovered ? 'inset 0 0 12px rgba(123, 184, 255, 0.06)' : 'none',
+          marginBottom: 3,
         }}
       >
-
-        <div style={{ minWidth: 0, cursor: 'pointer' }} onClick={() => onNavigate(system)}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-            <span
-              style={{
-                width: 7,
-                height: 7,
-                borderRadius: '50%',
-                background: starColor,
-                flexShrink: 0,
-                boxShadow: isHome
-                  ? '0 0 0 2px rgba(127,217,166,0.20), 0 0 10px rgba(127,217,166,0.28)'
-                  : `0 0 10px ${starColor}44`,
-              }}
-            />
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: locked ? '#667788' : '#c6d8ee' }}>
-              {name}
-            </span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 6 }}>
-            <div style={{
-              position: 'relative',
-              flex: 1,
-              height: 3,
-              overflow: 'hidden',
-              borderRadius: 999,
-              background: 'rgba(51,68,85,0.16)',
-            }}>
-              <div style={{
-                width: `${progressPct}%`,
-                height: '100%',
-                borderRadius: 999,
-                background: 'linear-gradient(90deg, rgba(68,136,170,0.28), rgba(123,184,255,0.48))',
-                boxShadow: progressPct > 0 ? '0 0 4px rgba(123,184,255,0.14)' : undefined,
-                transition: 'width 0.25s ease',
-              }} />
-              {researching && (
-                <span style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '32%',
-                  height: '100%',
-                  background: 'linear-gradient(90deg, transparent, rgba(180,215,245,0.16), transparent)',
-                  animation: getDeviceTier() === 'low' ? undefined : 'sys-scan-flow 1.9s ease-in-out infinite',
-                }} />
-              )}
-            </div>
-            <span style={{ color: '#7bb8ff', opacity: 0.66, fontSize: 10, minWidth: 34, textAlign: 'right' }}>
-              {Math.round(progressPct)}%
-            </span>
-          </div>
-        </div>
-
-        <span style={{ color: '#667788', fontSize: 10, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+        {/* Column 1: Pinned / Favorite Toggle */}
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           {onPinnedSystemsChange && (
             <button
               type="button"
@@ -508,36 +471,144 @@ export function SystemsList({
                 togglePinnedSystem(system.id);
               }}
               style={{
-                width: 18,
-                height: 18,
+                width: 24,
+                height: 24,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 padding: 0,
-                border: '1px solid transparent',
+                border: 'none',
                 background: 'transparent',
-                color: isPinned ? '#7bb8ff' : '#445566',
+                color: isPinned ? '#ffb844' : isHovered ? '#667788' : '#334455',
+                filter: isPinned ? 'drop-shadow(0 0 4px rgba(255, 184, 68, 0.4))' : 'none',
                 cursor: 'pointer',
+                transition: 'color 0.15s, transform 0.1s, filter 0.15s',
               }}
+              onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.85)'; }}
+              onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
             >
               <PinIcon active={isPinned} />
             </button>
           )}
-          <span>{system.star.spectralClass}</span>
-        </span>
+        </div>
 
-        <span style={{ color: '#667788', fontSize: 10, textAlign: 'center' }}>
+        {/* Column 2: Star dot, Name, Progress Bar */}
+        <div style={{ minWidth: 0, cursor: 'pointer' }} onClick={() => onNavigate(system)}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: starColor,
+                flexShrink: 0,
+                boxShadow: isHome
+                  ? '0 0 0 2px rgba(127,217,166,0.30), 0 0 10px rgba(127,217,166,0.5)'
+                  : `0 0 10px ${starColor}88`,
+                display: 'inline-block',
+              }}
+            />
+            <span style={{ 
+              overflow: 'hidden', 
+              textOverflow: 'ellipsis', 
+              whiteSpace: 'nowrap', 
+              color: locked ? '#556677' : isHome ? '#44ff88' : '#e1f0ff',
+              fontWeight: isHome || isHovered ? 'bold' : 'normal',
+              fontSize: 12,
+              letterSpacing: 0.5,
+              transition: 'color 0.12s',
+            }}>
+              {name}
+              {isHome && <span style={{ fontSize: 8, color: '#44ff88', opacity: 0.8, marginLeft: 6, fontWeight: 'normal', border: '1px solid rgba(68, 255, 136, 0.3)', padding: '0px 4px', borderRadius: 2 }}>HOME</span>}
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 6 }}>
+            <div style={{
+              position: 'relative',
+              flex: 1,
+              height: 4,
+              overflow: 'hidden',
+              borderRadius: 2,
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.02)',
+            }}>
+              <div style={{
+                width: `${progressPct}%`,
+                height: '100%',
+                borderRadius: 2,
+                background: fullyResearched 
+                  ? 'linear-gradient(90deg, #2b8855, #44ff88)' 
+                  : researching 
+                    ? 'linear-gradient(90deg, #1f6aa5, #3eb0ff)' 
+                    : 'linear-gradient(90deg, #8c6a2f, #ffd2a1)',
+                boxShadow: progressPct > 0 ? `0 0 6px ${fullyResearched ? 'rgba(68,255,136,0.3)' : researching ? 'rgba(62,176,255,0.3)' : 'rgba(255,210,161,0.2)'}` : undefined,
+                transition: 'width 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+              }} />
+              {researching && (
+                <span style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '32%',
+                  height: '100%',
+                  background: 'linear-gradient(90deg, transparent, rgba(180,215,245,0.22), transparent)',
+                  animation: getDeviceTier() === 'low' ? undefined : 'sys-scan-flow 1.9s ease-in-out infinite',
+                }} />
+              )}
+            </div>
+            <span style={{ 
+              color: fullyResearched ? '#44ff88' : researching ? '#7bb8ff' : '#8899aa', 
+              opacity: 0.85, 
+              fontSize: 10, 
+              minWidth: 34, 
+              textAlign: 'right',
+              fontWeight: progressPct > 0 ? 'bold' : 'normal'
+            }}>
+              {Math.round(progressPct)}%
+            </span>
+          </div>
+        </div>
+
+        {/* Column 3: Star Spectral Class Badged */}
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <span style={{ 
+            color: starColor, 
+            fontSize: 10, 
+            fontWeight: 'bold',
+            textAlign: 'center', 
+            background: `${starColor}15`, 
+            border: `1px solid ${starColor}35`,
+            borderRadius: 3,
+            padding: '2px 6px',
+            minWidth: 20,
+            display: 'inline-block',
+            boxShadow: `inset 0 0 4px ${starColor}10`
+          }}>
+            {system.star.spectralClass}
+          </span>
+        </div>
+
+        {/* Column 4: Planet Count */}
+        <span style={{ 
+          color: fullyResearched ? '#7bb8ff' : '#8899aa', 
+          fontSize: 11, 
+          fontWeight: fullyResearched ? 'bold' : 'normal',
+          textAlign: 'center' 
+        }}>
           {system.planets.length}
         </span>
 
-        <span style={{ color: '#556677', fontSize: 10, textAlign: 'center' }}>
+        {/* Column 5: Ring Index */}
+        <span style={{ color: '#667788', fontSize: 11, textAlign: 'center' }}>
           {system.ringIndex ?? '-'}
         </span>
 
+        {/* Column 6: Action Button / Research Progress */}
         {hasResearchCol && (
-          <div style={{ display: 'flex', justifyContent: 'center', position: 'relative', overflow: 'visible' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, position: 'relative', overflow: 'visible' }}>
             {isHome ? (
-              <span style={{ color: '#334455', fontSize: 10 }} />
+              <span style={{ color: '#334455', fontSize: 10 }}>&mdash;</span>
             ) : locked ? (
               onUnlockViaQuarks ? (
                 <button
@@ -557,9 +628,10 @@ export function SystemsList({
                     color: quarksBalance >= quarkUnlockCost ? '#7bb8ff' : '#445566',
                     fontFamily: 'monospace',
                     fontSize: 9,
-                    padding: '2px 6px',
+                    padding: '3px 8px',
                     cursor: quarksBalance >= quarkUnlockCost ? 'pointer' : 'not-allowed',
                     letterSpacing: 0.5,
+                    transition: 'all 0.15s',
                   }}
                 >
                   {quarkUnlockCost} ⚛
@@ -571,14 +643,15 @@ export function SystemsList({
                 </svg>
               )
             ) : fullyResearched || researching || !locked ? (
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <ResearchProgressIcon
                   state={fullyResearched ? 'complete' : researching ? 'researching' : 'idle'}
                   progress={progressPct}
                   seedId={system.id}
                   disabled={!fullyResearched && !researching && !canResearch}
                   tooltip={!fullyResearched && !researching && !canResearch ? statusLabel : undefined}
-                  tutorialId={canResearch && !researching && !fullyResearched && isFirstNonHome ? 'research-btn-first' : undefined}
+                  tutorialId={canResearch && !researching && !fullyResearched && isTutorialResearchTarget ? 'research-btn-first' : undefined}
+                  tutorialHighlight={canResearch && !researching && !fullyResearched && isTutorialResearchTarget}
                   onClick={(e) => {
                     e.stopPropagation();
                     if (fullyResearched) {
@@ -597,18 +670,26 @@ export function SystemsList({
                     title={t('archive.instant_research_tooltip', { cost: instantResearchCost }) as string}
                     aria-label={t('archive.instant_research_tooltip', { cost: instantResearchCost }) as string}
                     style={{
-                      position: 'absolute',
-                      right: -22,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      width: 18, height: 18, borderRadius: '50%',
-                      background: 'rgba(68,136,255,0.10)',
-                      border: '1px solid rgba(123,184,255,0.45)',
+                      width: 22, height: 22, borderRadius: '50%',
+                      background: 'rgba(68,136,255,0.12)',
+                      border: '1px solid rgba(123,184,255,0.5)',
                       color: '#7bb8ff',
                       cursor: 'pointer',
                       fontFamily: 'monospace',
-                      fontSize: 11,
+                      fontSize: 12,
                       lineHeight: 1,
                       padding: 0,
+                      transition: 'all 0.15s',
+                      boxShadow: '0 0 6px rgba(123,184,255,0.15)',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(68,136,255,0.22)';
+                      e.currentTarget.style.borderColor = '#7bb8ff';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(68,136,255,0.12)';
+                      e.currentTarget.style.borderColor = 'rgba(123,184,255,0.5)';
                     }}
                   >
                     ⚛
@@ -630,15 +711,14 @@ export function SystemsList({
                     padding: '4px 8px',
                     zIndex: 10,
                     pointerEvents: 'none',
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
                   }}>
                     {t('research.panel_insufficient_data')}
                   </div>
                 )}
               </div>
             ) : (
-              <span style={{ color: '#334455', fontSize: 10 }}>
-                {'\u2014'}
-              </span>
+              <span style={{ color: '#334455', fontSize: 10 }}>&mdash;</span>
             )}
           </div>
         )}
@@ -653,18 +733,26 @@ export function SystemsList({
         style={{
           display: 'grid',
           gridTemplateColumns: isMobile ? gridColsMobile : gridColsDesktop,
-          gap: isMobile ? 4 : 4,
-          padding: isMobile ? '5px 8px 7px' : '6px 10px 8px',
+          gap: isMobile ? 4 : 8,
+          padding: isMobile ? '5px 10px 7px' : '6px 14px 8px',
           alignItems: 'center',
           borderBottom: '1px solid rgba(51, 68, 85, 0.24)',
           background: 'rgba(5, 10, 20, 0.28)',
           marginBottom: 6,
         }}
       >
-        <span style={{ fontSize: 9, color: '#445566', textTransform: 'uppercase', letterSpacing: 1 }}>{t('archive.col_name')}</span>
+        {/* Column 1: Pin Column Header */}
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', opacity: 0.25 }}>
+          <PinIcon active={false} />
+        </div>
+
+        {/* Column 2: Name Column Header */}
+        <span style={{ fontSize: 9, color: '#445566', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 'bold' }}>{t('archive.col_name')}</span>
+
+        {/* Column 3: Spectral Class Icon Header */}
         <div style={{ display: 'flex', justifyContent: 'center' }}>
           <HeaderIcon tooltip={t('archive.tooltip_spectral_class')}>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.2">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.25">
               <circle cx="8" cy="8" r="4" />
               <line x1="8" y1="0.5" x2="8" y2="3" />
               <line x1="8" y1="13" x2="8" y2="15.5" />
@@ -673,22 +761,28 @@ export function SystemsList({
             </svg>
           </HeaderIcon>
         </div>
+
+        {/* Column 4: Planet Count Icon Header */}
         <div style={{ display: 'flex', justifyContent: 'center' }}>
           <HeaderIcon tooltip={t('archive.tooltip_planet_count')}>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.2">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.25">
               <circle cx="8" cy="8" r="5" />
               <ellipse cx="8" cy="8" rx="7.5" ry="2.5" transform="rotate(-30 8 8)" />
             </svg>
           </HeaderIcon>
         </div>
+
+        {/* Column 5: Ring Index Icon Header */}
         <div style={{ display: 'flex', justifyContent: 'center' }}>
           <HeaderIcon tooltip={t('archive.tooltip_ring')}>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.2">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#556677" strokeWidth="1.25">
               <circle cx="8" cy="8" r="3" />
               <circle cx="8" cy="8" r="6" strokeDasharray="2 2" />
             </svg>
           </HeaderIcon>
         </div>
+
+        {/* Column 6: Actions / Research Header */}
         {hasResearchCol && (
           <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'visible' }}>
             {/* Magnifier as active filter button — filters to unresearched (progress < 100) */}
@@ -841,297 +935,7 @@ export function SystemsList({
               const hiddenCount = Math.max(0, filteredSystems.length - visibleSystems.length);
 
               return visibleSystems.map((system) => {
-              const isHome = system.planets.some((p) => p.isHomePlanet);
-              const isHovered = hoveredId === system.id;
-              const name = aliases[system.id] || system.name;
-              const starColor =
-                SPECTRAL_COLORS[system.star.spectralClass?.[0] ?? 'G'] ?? '#fff4e8';
-              const researching = isResearching?.(system.id) ?? false;
-              const progressPct = Math.max(
-                0,
-                Math.min(100, getResearchProgress?.(system.id) ?? (isFullyResearched?.(system.id) ? 100 : 0)),
-              );
-              const fullyResearched = progressPct >= 100 || (isFullyResearched?.(system.id) ?? false);
-              const canResearch = locked || fullyResearched ? false : (canStartResearch?.(system.id) ?? false);
-              const dataCost = getResearchDataCost?.(system) ?? researchDataCost;
-              const hasResearchData = Math.floor(researchData) >= dataCost;
-              const isFirstNonHome = system.id === firstNonHomeId;
-              const statusLabel = fullyResearched
-                ? t('archive.status_complete')
-                : researching
-                  ? t('archive.status_scanning')
-                  : canResearch
-                    ? t('archive.status_ready')
-                    : locked
-                      ? t('archive.status_locked')
-                  : !hasResearchData
-                    ? t('archive.status_need_data')
-                    : t('archive.status_no_slots');
-              const showInsufficientData = insufficientDataId === system.id;
-              const isPinned = pinned.has(system.id);
-
-              return (
-                <div
-                  key={system.id}
-                  onMouseEnter={() => setHoveredId(system.id)}
-                  onMouseLeave={() => setHoveredId(null)}
-                  onDoubleClick={() => handleSystemRowResearch(system, canResearch, researching, fullyResearched)}
-                  onTouchEnd={(e) => {
-                    const now = Date.now();
-                    const prev = lastSystemTapRef.current;
-                    lastSystemTapRef.current = { id: system.id, at: now };
-                    if (prev?.id === system.id && now - prev.at < 360) {
-                      e.preventDefault();
-                      handleSystemRowResearch(system, canResearch, researching, fullyResearched);
-                    }
-                  }}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: isMobile ? gridColsMobile : gridColsDesktop,
-                    gap: isMobile ? 4 : 8,
-                    padding: isMobile ? '7px 8px' : '8px 12px',
-                    background: fullyResearched
-                      ? 'linear-gradient(90deg, rgba(96,180,130,0.035), rgba(5,10,20,0.18))'
-                      : researching
-                        ? undefined
-                        : canResearch
-                          ? 'linear-gradient(90deg, rgba(215,179,106,0.035), rgba(5,10,20,0.18))'
-                          : isHovered
-                            ? 'rgba(20, 38, 58, 0.42)'
-                            : 'rgba(5, 10, 20, 0.18)',
-                    border: isMobile
-                      ? 'none'
-                      : researching
-                        ? '1px solid rgba(68, 136, 170, 0.35)'
-                        : `1px solid ${fullyResearched ? 'rgba(127,217,166,0.16)' : canResearch ? 'rgba(215,179,106,0.15)' : 'rgba(51, 68, 85, 0.18)'}`,
-                    borderBottom: isMobile ? '1px solid rgba(51, 68, 85, 0.14)' : undefined,
-                    borderRadius: isMobile ? 0 : 3,
-                    fontFamily: 'monospace',
-                    fontSize: 11,
-                    color: locked ? '#556677' : '#aabbcc',
-                    textAlign: 'left',
-                    alignItems: 'center',
-                    transition: 'background 0.15s',
-                    animation: researching ? 'sys-row-research-pulse 2.5s ease-in-out infinite' : undefined,
-                    position: 'relative',
-                    opacity: locked ? 0.6 : 1,
-                    cursor: canResearch && !researching && !fullyResearched ? 'copy' : undefined,
-                    // Allow the absolutely-positioned ⚛ icon to overflow the right edge.
-                    overflow: 'visible',
-                  }}
-                >
-
-                  {/* Name + research state */}
-                  <div style={{ minWidth: 0, cursor: 'pointer' }} onClick={() => onNavigate(system)}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                      <span
-                        style={{
-                          width: 7,
-                          height: 7,
-                          borderRadius: '50%',
-                          background: starColor,
-                          flexShrink: 0,
-                          boxShadow: isHome
-                            ? '0 0 0 2px rgba(127,217,166,0.20), 0 0 10px rgba(127,217,166,0.28)'
-                            : `0 0 10px ${starColor}44`,
-                        }}
-                      />
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: locked ? '#667788' : '#c6d8ee' }}>
-                        {name}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 6 }}>
-                      <div style={{
-                        position: 'relative',
-                        flex: 1,
-                        height: 3,
-                        overflow: 'hidden',
-                        borderRadius: 999,
-                        background: 'rgba(51,68,85,0.16)',
-                      }}>
-                        <div style={{
-                          width: `${progressPct}%`,
-                          height: '100%',
-                          borderRadius: 999,
-                          background: 'linear-gradient(90deg, rgba(68,136,170,0.28), rgba(123,184,255,0.48))',
-                          boxShadow: progressPct > 0 ? '0 0 4px rgba(123,184,255,0.14)' : undefined,
-                          transition: 'width 0.25s ease',
-                        }} />
-                        {researching && (
-                          <span style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            width: '32%',
-                            height: '100%',
-                            background: 'linear-gradient(90deg, transparent, rgba(180,215,245,0.16), transparent)',
-                            animation: getDeviceTier() === 'low' ? undefined : 'sys-scan-flow 1.9s ease-in-out infinite',
-                          }} />
-                        )}
-                      </div>
-                      <span style={{ color: '#7bb8ff', opacity: 0.66, fontSize: 10, minWidth: 34, textAlign: 'right' }}>
-                        {Math.round(progressPct)}%
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Spectral class */}
-                  <span style={{ color: '#667788', fontSize: 10, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                    {onPinnedSystemsChange && (
-                      <button
-                        type="button"
-                        title={isPinned ? t('archive.system_unpin') : t('archive.system_pin')}
-                        aria-label={isPinned ? t('archive.system_unpin') : t('archive.system_pin')}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          togglePinnedSystem(system.id);
-                        }}
-                        style={{
-                          width: 18,
-                          height: 18,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          padding: 0,
-                          border: '1px solid transparent',
-                          background: 'transparent',
-                          color: isPinned ? '#7bb8ff' : '#445566',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <PinIcon active={isPinned} />
-                      </button>
-                    )}
-                    <span>{system.star.spectralClass}</span>
-                  </span>
-
-                  {/* Planet count */}
-                  <span style={{ color: '#667788', fontSize: 10, textAlign: 'center' }}>
-                    {system.planets.length}
-                  </span>
-
-                  {/* Ring index */}
-                  <span style={{ color: '#556677', fontSize: 10, textAlign: 'center' }}>
-                    {system.ringIndex ?? '-'}
-                  </span>
-
-                  {/* Research action button */}
-                  {hasResearchCol && (
-                    <div style={{ display: 'flex', justifyContent: 'center', position: 'relative', overflow: 'visible' }}>
-                      {isHome ? (
-                        <span style={{ color: '#334455', fontSize: 10 }} />
-                      ) : locked && !(isQuarkUnlocked?.(system.id) ?? false) ? (
-                        // Ring-locked system — show premium Q-pay shortcut if
-                        // it's wired in, otherwise a plain lock icon. Price
-                        // is the fixed SLOT_UNLOCK_QUARKS_COST equivalent.
-                        onUnlockViaQuarks ? (
-                          <button
-                            title={t('archive.unlock_via_quarks_tooltip', { cost: quarkUnlockCost }) as string}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (quarksBalance >= quarkUnlockCost) {
-                                onUnlockViaQuarks(system.id);
-                              }
-                            }}
-                            disabled={quarksBalance < quarkUnlockCost}
-                            style={{
-                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3,
-                              background: quarksBalance >= quarkUnlockCost ? 'rgba(68,136,255,0.14)' : 'rgba(10,15,25,0.4)',
-                              border: `1px solid ${quarksBalance >= quarkUnlockCost ? '#446688' : '#223344'}`,
-                              borderRadius: 3,
-                              color: quarksBalance >= quarkUnlockCost ? '#7bb8ff' : '#445566',
-                              fontFamily: 'monospace',
-                              fontSize: 9,
-                              padding: '2px 6px',
-                              cursor: quarksBalance >= quarkUnlockCost ? 'pointer' : 'not-allowed',
-                              letterSpacing: 0.5,
-                            }}
-                          >
-                            {quarkUnlockCost} ⚛
-                          </button>
-                        ) : (
-                          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#445566" strokeWidth="1.2" strokeLinecap="round">
-                            <rect x="3" y="7" width="10" height="8" rx="1.5" />
-                            <path d="M5 7V5a3 3 0 0 1 6 0v2" />
-                          </svg>
-                        )
-                      ) : fullyResearched || researching || !locked ? (
-                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                          <ResearchProgressIcon
-                            state={fullyResearched ? 'complete' : researching ? 'researching' : 'idle'}
-                            progress={progressPct}
-                            seedId={system.id}
-                            disabled={!fullyResearched && !researching && !canResearch}
-                            tooltip={!fullyResearched && !researching && !canResearch ? statusLabel : undefined}
-                            tutorialId={canResearch && !researching && !fullyResearched && isFirstNonHome ? 'research-btn-first' : undefined}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (fullyResearched) {
-                                onNavigate(system);
-                              } else if (canResearch && !researching) {
-                                handleResearchClick(system);
-                              }
-                            }}
-                          />
-                          {/* ⚛ quark-shortcut: absolutely positioned to the right of the
-                              dial so it doesn't affect the column width. Visible only when
-                              the master toggle is ON and the system is researchable. */}
-                          {onInstantResearch && quarkShortcutsVisible && canResearch && !researching && !fullyResearched && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setInstantTargetId(system.id);
-                              }}
-                              title={t('archive.instant_research_tooltip', { cost: instantResearchCost }) as string}
-                              aria-label={t('archive.instant_research_tooltip', { cost: instantResearchCost }) as string}
-                              style={{
-                                position: 'absolute',
-                                right: -22,
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                width: 18, height: 18, borderRadius: '50%',
-                                background: 'rgba(68,136,255,0.10)',
-                                border: '1px solid rgba(123,184,255,0.45)',
-                                color: '#7bb8ff',
-                                cursor: 'pointer',
-                                fontFamily: 'monospace',
-                                fontSize: 11,
-                                lineHeight: 1,
-                                padding: 0,
-                              }}
-                            >
-                              ⚛
-                            </button>
-                          )}
-                          {showInsufficientData && (
-                            <div style={{
-                              position: 'absolute',
-                              bottom: '100%',
-                              left: '50%',
-                              transform: 'translateX(-50%)',
-                              marginBottom: 4,
-                              whiteSpace: 'nowrap',
-                              fontSize: 10,
-                              color: '#cc8844',
-                              background: 'rgba(10, 15, 25, 0.95)',
-                              border: '1px solid rgba(204, 136, 68, 0.3)',
-                              borderRadius: 3,
-                              padding: '4px 8px',
-                              zIndex: 10,
-                              pointerEvents: 'none',
-                            }}>
-                              {t('research.panel_insufficient_data')}
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <span style={{ color: '#334455', fontSize: 10 }}>
-                          {'\u2014'}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
+                return renderSystemRow(system, `ring-${group.ringIndex}`);
               }).concat(hiddenCount > 0 ? [
                 <button
                   key={`more-${group.ringIndex}`}
@@ -1280,6 +1084,7 @@ function ResearchProgressIcon({
   disabled = false,
   tooltip: tooltipOverride,
   tutorialId,
+  tutorialHighlight = false,
   onClick,
 }: {
   state: 'idle' | 'researching' | 'complete';
@@ -1288,6 +1093,7 @@ function ResearchProgressIcon({
   disabled?: boolean;
   tooltip?: string;
   tutorialId?: string;
+  tutorialHighlight?: boolean;
   onClick: (e: React.MouseEvent) => void;
 }) {
   const { t } = useTranslation();
@@ -1336,14 +1142,20 @@ function ResearchProgressIcon({
         width: 30,
         height: 30,
         borderRadius: isComplete ? 3 : '50%',
-        background: isComplete
+        background: tutorialHighlight
+          ? 'radial-gradient(circle, rgba(255,210,120,0.18), rgba(68,136,170,0.06) 62%, transparent 72%)'
+          : isComplete
           ? 'transparent'
           : hover && !disabled ? 'rgba(123,168,216,0.08)' : 'transparent',
-        border: '1px solid transparent',
+        border: tutorialHighlight ? '1px solid rgba(255,210,120,0.92)' : '1px solid transparent',
         cursor: disabled ? 'default' : 'pointer',
         padding: 0,
         transition: 'background 0.15s, border-color 0.15s',
         opacity: disabled ? 0.62 : 1,
+        boxShadow: tutorialHighlight
+          ? '0 0 0 3px rgba(255,210,120,0.16), 0 0 18px rgba(255,210,120,0.45), inset 0 0 10px rgba(123,184,255,0.14)'
+          : undefined,
+        animation: tutorialHighlight ? 'sys-tutorial-research-pulse 1.25s ease-in-out infinite' : undefined,
       }}
     >
       {/* Progress arc only: no extra outer button ring around the magnifier. */}

@@ -15,6 +15,9 @@ export const en: Record<TranslationKey, string> = {
 
   // ─── CommandBar buttons ───────────────────────────────────────────────────
   'cmd.terminal':        'TERMINAL',
+  'cmd.web':             'WEB',
+  'cmd.soon':            'soon',
+  'cmd.web_tooltip':     'Nebulife web version opens with Premium access',
   'cmd.academy':         'ACADEMY',
   'cmd.control_center':  'Control Center',
   'cmd.academy_tooltip': 'Space Academy',

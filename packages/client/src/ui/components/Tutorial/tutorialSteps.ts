@@ -110,6 +110,7 @@ export const TUTORIAL_STEPS: TutorialStepConfig[] = [
     target: 'quantum-focus-btn',
     text: 'tutorial.step_quantum_text',
     tooltipPos: 'left',
+    waitForTarget: true,
   },
   {
     id: 'save-gallery',
@@ -157,27 +158,32 @@ export const TUTORIAL_STEPS: TutorialStepConfig[] = [
   /* Коментар українською: Крок 14 - Огляд Всесвіту (3D Галактика) */
   {
     id: 'galaxy-intro',
-    type: 'click',
-    target: 'nav-item-universe',
+    type: 'info',
+    target: '',
     text: 'tutorial.step_galaxy_intro_text',
-    tooltipPos: 'right',
-    onActivate: ['close-archive'],
+    tooltipPos: 'top',
+    nextLabel: 'tutorial.next',
+    onActivate: ['close-archive', 'go-scene-universe'],
   },
   /* Коментар українською: Крок 15 - Зоряний Кластер */
   {
     id: 'cluster-intro',
-    type: 'click',
-    target: 'nav-item-cluster',
+    type: 'info',
+    target: '',
     text: 'tutorial.step_cluster_intro_text',
-    tooltipPos: 'right',
+    tooltipPos: 'top',
+    nextLabel: 'tutorial.next',
+    onActivate: ['go-scene-cluster'],
   },
   /* Коментар українською: Крок 16 - Карта Галактики (2D Зоряна Група) */
   {
     id: 'galaxy-map-intro',
-    type: 'click',
-    target: 'nav-item-galaxy',
+    type: 'info',
+    target: '',
     text: 'tutorial.step_galaxy_map_intro_text',
-    tooltipPos: 'right',
+    tooltipPos: 'top',
+    nextLabel: 'tutorial.next',
+    onActivate: ['go-scene-galaxy'],
   },
   /* Коментар українською: Крок 17 - Центрування карти */
   {
@@ -194,7 +200,7 @@ export const TUTORIAL_STEPS: TutorialStepConfig[] = [
     target: 'radial-btn-enter',
     text: 'tutorial.step_system_radial_select_text',
     tooltipPos: 'left',
-    waitForTarget: true,
+    onActivate: ['open-home-radial'],
   },
   /* Коментар українською: Крок 19 - Огляд системи */
   {

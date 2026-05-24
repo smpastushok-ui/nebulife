@@ -197,7 +197,7 @@ const STARS: CatalogEntry[] = [
     nameUk: 'Нейтронна зірка', nameEn: 'Neutron Star',
     descriptionUk: 'Надзвичайно щільний залишок після вибуху наднової. Маса Сонця стиснута до сфери діаметром 20 км.',
     descriptionEn: 'An extraordinarily dense stellar remnant formed in a supernova explosion, packing a solar mass into a sphere just 20 km across. Surface gravity is 200 billion times that of Earth.',
-    promptTemplate: 'A neutron star with an extremely intense gravitational field visibly bending light around it, hot surface glowing in X-rays, magnetic field lines, thin accretion of surrounding matter',
+    promptTemplate: 'A breathtaking deep space telescope photograph of a highly magnetized, rapidly rotating neutron star (pulsar). At the center is a tiny, incredibly bright, blue-white glowing sphere of pure compressed neutron matter, shining with blinding intensity. Two colossal, highly concentrated columns of brilliant blue-violet radiation and plasma (pulsar jets) shoot out from the magnetic poles in opposite directions, carving through deep space. A glowing accretion disk of ultra-heated matter swirls around the neutron star\'s equator, casting intense shades of electric blue, magenta, and violent violet light. Strong gravitational lensing effects warp the background starlight around the star\'s hyper-dense core, creating a dramatic Einstein ring / space-time warping illusion. Deep space void of space with delicate purple and magenta nebula clouds.',
     scientificFacts: ['Чайна ложка нейтронної зоряної речовини важить 6 мільярдів тонн', 'Поверхнева гравітація у 200 мільярдів разів більша за земну', 'Обертається зі швидкістю до сотень обертів на секунду'],
   },
   {

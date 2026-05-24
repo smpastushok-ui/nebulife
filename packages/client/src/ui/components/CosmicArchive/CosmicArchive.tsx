@@ -204,6 +204,7 @@ export interface CosmicArchiveProps {
   cargoShipments?: CargoShipment[];
   planetSkinStatuses?: Record<string, { system?: PlanetSkinStatus; exosphere?: PlanetSkinStatus }>;
   onGeneratePlanetSkin?: (system: StarSystem, planet: Planet, kind: PlanetSkinKind) => void;
+  tutorialResearchTargetCount?: number;
   visible: boolean;
 }
 
@@ -355,6 +356,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   cargoShipments,
   planetSkinStatuses,
   onGeneratePlanetSkin,
+  tutorialResearchTargetCount,
   visible,
   planetResourceStocks,
 }: CosmicArchiveProps, ref: React.Ref<CosmicArchiveHandle>) {
@@ -659,6 +661,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           onOpenTopUp={onOpenTopUp}
           pinnedSystems={pinnedSystems}
           onPinnedSystemsChange={handlePinnedSystemsChange}
+          tutorialResearchTargetCount={tutorialResearchTargetCount}
         />
       );
     }

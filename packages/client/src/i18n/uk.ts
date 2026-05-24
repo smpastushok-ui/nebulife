@@ -13,6 +13,9 @@ export const uk = {
 
   // ─── CommandBar buttons ───────────────────────────────────────────────────
   'cmd.terminal':        'ТЕРМІНАЛ',
+  'cmd.web':             'WEB',
+  'cmd.soon':            'скоро',
+  'cmd.web_tooltip':     'Веб-версія Nebulife відкриється після преміум-доступу',
   'cmd.academy':         'АКАДЕМІЯ',
   'cmd.control_center':  'Центр управлiння',
   'cmd.academy_tooltip': 'Космічна Академія',

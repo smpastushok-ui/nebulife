@@ -47,8 +47,14 @@ export function buildPrompt(
   // 1. Target object from catalog
   parts.push(entry.promptTemplate);
 
-  // 2. System catalog context
-  parts.push(buildSystemCatalog(system));
+  // 2. System catalog context — skip detailed planet list if we are describing a star/anomaly/galaxy,
+  // because describing "rocky, temperate planets" often confuses Kling into generating a planet instead of the stellar object.
+  const isStellarOrCosmic = ['stars', 'nebulae', 'galaxies', 'phenomena', 'dark-objects', 'star-forming', 'binaries', 'rogues'].includes(entry.category);
+  if (!isStellarOrCosmic || planet) {
+    parts.push(buildSystemCatalog(system));
+  } else {
+    parts.push(`observed within the ${system.name} system in deep space`);
+  }
 
   // 3. Star lighting context
   parts.push(buildStarContext(system, rng));

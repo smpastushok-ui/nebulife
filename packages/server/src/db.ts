@@ -49,6 +49,8 @@ export interface PlayerRow {
   premium_source: string | null;
   premium_updated_at: string | null;
   premium_daily_quarks_claimed_on: string | null;
+  premium_web_access_email: string | null;
+  premium_web_invite_sent_at: string | null;
   player_xp: number;
   player_level: number;
   last_seen_at: string | null;
@@ -134,6 +136,56 @@ export async function updatePlayerPremium(
     RETURNING *
   `;
   return rowToPremiumStatus((rows[0] as PlayerRow) ?? null);
+}
+
+export async function updatePlayerPremiumWebAccessEmail(
+  playerId: string,
+  email: string | null,
+): Promise<void> {
+  const sql = getSQL();
+  await sql`
+    UPDATE players
+    SET premium_web_access_email = ${email ? email.trim().toLowerCase() : null}
+    WHERE id = ${playerId}
+  `;
+}
+
+export async function markPremiumWebInviteSent(playerId: string): Promise<void> {
+  const sql = getSQL();
+  await sql`
+    UPDATE players
+    SET premium_web_invite_sent_at = COALESCE(premium_web_invite_sent_at, NOW())
+    WHERE id = ${playerId}
+  `;
+}
+
+export async function savePremiumEntitlementEvent(event: {
+  id?: string;
+  playerId: string;
+  eventType: string;
+  source: string;
+  productId?: string | null;
+  expiresAt?: string | null;
+  reference?: string | null;
+  meta?: Record<string, unknown>;
+}): Promise<void> {
+  const sql = getSQL();
+  await sql`
+    INSERT INTO premium_entitlement_events (
+      id, player_id, event_type, source, product_id, expires_at, reference, meta
+    )
+    VALUES (
+      ${event.id ?? randomUUID()},
+      ${event.playerId},
+      ${event.eventType},
+      ${event.source},
+      ${event.productId ?? null},
+      ${event.expiresAt ?? null},
+      ${event.reference ?? null},
+      ${JSON.stringify(event.meta ?? {})}::jsonb
+    )
+    ON CONFLICT DO NOTHING
+  `;
 }
 
 export async function updatePlayer(

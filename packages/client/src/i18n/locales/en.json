@@ -34,6 +34,9 @@
   },
   "cmd": {
     "terminal": "TERMINAL",
+    "web": "WEB",
+    "soon": "soon",
+    "web_tooltip": "Nebulife web version opens with Premium access",
     "surface_title": "Surface",
     "arena": "ARENA",
     "planet_icons": "STATUSES",
@@ -1734,6 +1737,17 @@
     "lifetime_label": "Lifetime",
     "lifetime_desc": "One purchase, permanent access",
     "lifetime_save": "One time"
+  },
+  "web_access": {
+    "kicker": "WEB PREMIUM",
+    "title": "Nebulife Web Version",
+    "checking": "Checking Premium access...",
+    "no_access": "You do not have access. Purchase a Premium package to enter the Nebulife web version.",
+    "email_mismatch": "Premium was found, but the login email does not match the Premium account email. Log in with the same email or purchase a Premium package for this account.",
+    "payment_pending": "The payment is open in MonoPay. After payment, check access again.",
+    "refresh_access": "Check access",
+    "payment_error": "Could not create the Premium payment. Please try again.",
+    "native_hint": "If you already have Premium on iOS or Android, log in on web with the same email."
   },
   "premium_help": {
     "common": {

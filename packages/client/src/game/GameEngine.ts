@@ -247,14 +247,14 @@ export class GameEngine {
 
     // Enable camera zoom/pan for galaxy hex grid
     this.camera.attach(this.galaxyScene.container);
-    // Min scale lowered to 0.045 so mobile portrait (600px wide) can zoom
-    // out enough to see the WHOLE 50-player cluster (~6500 px world-radius).
-    // Was 0.12 which only covered ~40%. Formula: halfScreen / cluster_radius
-    // = 300 / 6516 ≈ 0.046.
-    this.camera.setMinScale(0.045);
+    // Коментар українською: мобільний CSS viewport часто ~390px, тому старий
+    // minScale 0.045 не вміщував крайні зорі 50-player кластера.
+    const galaxyClusterRadius = 8200;
+    const galaxyMinScale = Math.min(0.045, (Math.min(this.app.screen.width, this.app.screen.height) * 0.82) / (galaxyClusterRadius * 2));
+    this.camera.setMinScale(galaxyMinScale);
     // Pan bounds widened so player can pan across the entire cluster —
-    // including far neighbors (~6500 px from own home).
-    this.camera.setPanBounds(6000);
+    // including far neighbors and core-entry stars.
+    this.camera.setPanBounds(galaxyClusterRadius);
     // Position HOME inside the mobile safe area: below the resource HUD and
     // above the bottom CommandBar/chat controls so stars do not start under UI.
     const isPortraitMobile = window.innerWidth < 700 && window.innerHeight > window.innerWidth;
