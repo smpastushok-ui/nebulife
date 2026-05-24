@@ -15,6 +15,7 @@ import {
 } from '../../api/messages-api.js';
 import { askAstra, type AstraMessage } from '../../api/ai-api.js';
 import { NewDMModal } from './NewDMModal.js';
+import { AstraFabButton, getAstraFabPosition, isVerticalSideChatLayout } from './AstraFabButton.js';
 import type { LogEntry, LogCategory } from './CosmicArchive/SystemLog.js';
 
 // ---------------------------------------------------------------------------
@@ -77,6 +78,8 @@ interface ChatWidgetProps {
   forceCollapsed?: boolean;
   /** When true, force the widget into expanded/open state. */
   forceExpanded?: boolean;
+  /** Hide the collapsed FAB (e.g. tutorial sound-only mode uses its own ASTRA button). */
+  hideCollapsedButton?: boolean;
   /** Premium unlock state for A.S.T.R.A. chat. */
   isPremium?: boolean;
 }
@@ -129,7 +132,7 @@ const CHAT_PULSE_KEYFRAMES = `
 // research ticks, countdown, etc.) previously forced a full re-render of
 // the entire chat tree. Memo blocks those; real chat updates come from
 // this component's own internal polling + setState so they still render.
-function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = [], logEntries = [], onSystemNotifRead, onNavigateToPlanet, onNavigateToSystem, onOpenPlanetMissionReport, onOpenSystemReport, onOpenLogDiscovery, lastDigestSeen, latestDigestWeekDate, preferredLanguage, onAwardXP, quizAnswers = {}, onQuizAnswer, onDigestSeen, playerLevel = 1, forceCollapsed = false, forceExpanded = false, isPremium = false }: ChatWidgetProps) {
+function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = [], logEntries = [], onSystemNotifRead, onNavigateToPlanet, onNavigateToSystem, onOpenPlanetMissionReport, onOpenSystemReport, onOpenLogDiscovery, lastDigestSeen, latestDigestWeekDate, preferredLanguage, onAwardXP, quizAnswers = {}, onQuizAnswer, onDigestSeen, playerLevel = 1, forceCollapsed = false, forceExpanded = false, hideCollapsedButton = false, isPremium = false }: ChatWidgetProps) {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(true);
   const [viewport, setViewport] = useState(() => ({
@@ -148,7 +151,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
     };
   }, []);
 
-  const verticalSideLayout = viewport.width >= 560 && viewport.height > viewport.width * 1.18;
+  const verticalSideLayout = isVerticalSideChatLayout(viewport.width, viewport.height);
 
   // When the tutorial (or another external gate) activates, collapse the chat
   // so it stops covering the tutorial UI. We only react to the rising edge so
@@ -766,33 +769,25 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
   // ── Collapsed state ──
   if (collapsed) {
     const totalUnread = effectiveUnreadGlobal + unreadSystem + effectiveUnreadSystemMessages + effectiveUnreadAstra + effectiveUnreadDm;
-    const chatIcon = (
-      <svg width="23" height="21" viewBox="0 0 24 22" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M8.5 14.5 L12 5 L15.5 14.5" />
-        <path d="M10.2 10.2 H13.8" />
-        <path d="M6.2 7.8 C4.8 9.1 4 10.9 4 12.8" opacity="0.5" />
-        <path d="M17.8 7.8 C19.2 9.1 20 10.9 20 12.8" opacity="0.5" />
-        <path d="M3.3 4.8 C1.9 6.9 1.2 9.3 1.2 11.9" opacity="0.32" />
-        <path d="M20.7 4.8 C22.1 6.9 22.8 9.3 22.8 11.9" opacity="0.32" />
-        <path d="M7 17 H17" opacity="0.7" />
-      </svg>
-    );
+    if (hideCollapsedButton) return null;
     return (
-      <button
-        data-tutorial-id="chat-open-btn"
+      <AstraFabButton
+        tutorialId="chat-open-btn"
         title={t('chat.title')}
-        aria-label={t('chat.title')}
+        unreadCount={totalUnread}
+        pulse={totalUnread > 0}
+        size={verticalSideLayout ? 48 : 52}
+        style={getAstraFabPosition(verticalSideLayout, verticalSideLayout ? 48 : 52)}
         onClick={() => {
           playSfx('ui-click', 0.07);
           clearUnreadIndicators();
-          // Auto-select the tab with unread messages (priority: system > astra > DM > global)
           if (unreadSystem + effectiveUnreadSystemMessages > 0) {
             instantSystemScrollRef.current = true;
             setTab('system');
           } else if (effectiveUnreadAstra > 0) {
             instantAstraScrollRef.current = true;
             setTab('astra');
-            markDigestSeen(latestDigestWeekDate); // mark as read immediately
+            markDigestSeen(latestDigestWeekDate);
           } else if (effectiveUnreadDm > 0) {
             setTab('dm-list');
           } else if (effectiveUnreadGlobal > 0) {
@@ -802,50 +797,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
           if (tab === 'global' || unreadGlobal > 0) setUnreadGlobal(0);
           setCollapsed(false);
         }}
-        style={{
-          position: 'fixed',
-          top: verticalSideLayout ? 'calc(50% - 24px)' : undefined,
-          bottom: verticalSideLayout ? undefined : 'calc(62px + env(safe-area-inset-bottom, 0px))',
-          right: verticalSideLayout ? 'calc(8px + env(safe-area-inset-right, 0px))' : 'calc(16px + env(safe-area-inset-right, 0px))',
-          zIndex: 9700,
-          width: verticalSideLayout ? 44 : 48,
-          height: verticalSideLayout ? 58 : 48,
-          boxSizing: 'border-box',
-          background: totalUnread > 0
-            ? 'linear-gradient(180deg, rgba(18, 38, 58, 0.62), rgba(5, 10, 20, 0.58))'
-            : 'linear-gradient(180deg, rgba(12, 24, 40, 0.50), rgba(5, 10, 20, 0.50))',
-          border: `1px solid ${totalUnread > 0 ? 'rgba(120, 184, 255, 0.62)' : 'rgba(68, 102, 136, 0.5)'}`,
-          borderRadius: 3,
-          color: totalUnread > 0 ? '#88bbff' : '#9fb8d0',
-          fontFamily: 'monospace',
-          padding: 0,
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: '0 2px 10px rgba(0, 0, 0, 0.24)',
-          ...(totalUnread > 0 ? { animation: 'chat-neon-pulse 2s ease-in-out infinite' } : {}),
-        }}
-      >
-        {chatIcon}
-        {totalUnread > 0 && (
-          <span style={{
-            position: 'absolute',
-            top: 4,
-            right: 4,
-            background: unreadSystem + effectiveUnreadSystemMessages > 0 ? '#4488aa' : effectiveUnreadAstra > 0 ? '#44ffaa' : '#44ff88',
-            color: '#020510',
-            fontSize: 8,
-            fontWeight: 'bold',
-            borderRadius: 8,
-            padding: '1px 4px',
-            minWidth: 14,
-            textAlign: 'center',
-          }}>
-            {totalUnread > 99 ? '99+' : totalUnread}
-          </span>
-        )}
-      </button>
+      />
     );
   }
 

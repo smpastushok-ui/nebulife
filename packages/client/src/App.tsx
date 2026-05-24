@@ -9251,8 +9251,7 @@ function AppInner() {
   // floating in the corner during the planet-approach phase, breaking the
   // cinematic. Stage 1 (system flight) intentionally hides it too so both
   // ship-flight stages have the same chrome-free background.
-  const hideLeftPanel = !!(showArena || showRaid || showHangar || cinematicActive || needsOnboarding || evacuationPhase !== 'idle')
-    || (isTutorialActive && activeTutorialStep?.id !== 'cluster-intro');
+  const hideLeftPanel = !!(showArena || showRaid || showHangar || cinematicActive || needsOnboarding || evacuationPhase !== 'idle');
 
   const toolGroups: ToolGroup[] = [];
   const ARENA_MIN_LEVEL = 10;
@@ -11565,6 +11564,7 @@ function AppInner() {
           /* Коментар українською: Чат залишається відкритим та примусово розширюється під час пояснювальних кроків туторіалу про чат */
           forceCollapsed={isTutorialActive && activeTutorialStep?.id !== 'astra-handoff' && activeTutorialStep?.id !== 'astra-chat-tabs' && activeTutorialStep?.id !== 'astra-chat-close'}
           forceExpanded={isTutorialActive && (activeTutorialStep?.id === 'astra-handoff' || activeTutorialStep?.id === 'astra-chat-tabs' || activeTutorialStep?.id === 'astra-chat-close')}
+          hideCollapsedButton={tutorialMinimized}
           isPremium={isPremiumActive}
         />
       )}

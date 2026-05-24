@@ -8,10 +8,45 @@ export function LandingPage() {
   const [igniteComplete, setIgniteComplete] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [showNextHint, setShowNextHint] = useState(false);
+  const [musicEnabled, setMusicEnabled] = useState(() => localStorage.getItem('nebulife_landing_music_enabled') !== '0');
   const isScrollingRef = useRef(false);
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onboardingMusicRef = useRef<HTMLAudioElement | null>(null);
+  const spaceMusicRef = useRef<HTMLAudioElement | null>(null);
   const TOTAL_STEPS = 8;
   const currentLanguage = i18n.language.startsWith('uk') ? 'uk' : 'en';
+
+  const syncLandingMusic = (enabled: boolean) => {
+    const tracks = [
+      { ref: onboardingMusicRef, src: '/music/onboarding.mp3', volume: 0.8 },
+      { ref: spaceMusicRef, src: '/music/space.mp3', volume: 0.1 },
+    ];
+
+    tracks.forEach(({ ref, src, volume }) => {
+      if (!ref.current) {
+        const audio = new Audio(src);
+        audio.loop = true;
+        audio.preload = 'auto';
+        ref.current = audio;
+      }
+
+      const audio = ref.current;
+      audio.volume = enabled ? volume : 0;
+      if (enabled) {
+        void audio.play().catch(() => {
+          // Коментар українською: браузер дозволить звук після першого кліку/тапу.
+        });
+      } else {
+        audio.pause();
+      }
+    });
+  };
+
+  const toggleMusic = () => {
+    const nextEnabled = !musicEnabled;
+    setMusicEnabled(nextEnabled);
+    syncLandingMusic(nextEnabled);
+  };
 
   const resetInactivityTimer = (hideHint = false) => {
     if (hideHint) setShowNextHint(false);
@@ -29,6 +64,28 @@ export function LandingPage() {
       if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
     };
   }, [currentStep, igniteComplete]);
+
+  useEffect(() => {
+    localStorage.setItem('nebulife_landing_music_enabled', musicEnabled ? '1' : '0');
+    syncLandingMusic(musicEnabled);
+  }, [musicEnabled]);
+
+  useEffect(() => {
+    const handleFirstInteraction = () => {
+      if (musicEnabled) syncLandingMusic(true);
+    };
+
+    window.addEventListener('pointerdown', handleFirstInteraction, { passive: true });
+    window.addEventListener('keydown', handleFirstInteraction);
+    return () => {
+      window.removeEventListener('pointerdown', handleFirstInteraction);
+      window.removeEventListener('keydown', handleFirstInteraction);
+      onboardingMusicRef.current?.pause();
+      spaceMusicRef.current?.pause();
+      onboardingMusicRef.current = null;
+      spaceMusicRef.current = null;
+    };
+  }, [musicEnabled]);
 
   useEffect(() => {
     // Inject global styles to override the game's default overflow:hidden
@@ -160,6 +217,7 @@ export function LandingPage() {
   }, [currentStep, igniteComplete]);
 
   const handleIgnite = () => {
+    if (musicEnabled) syncLandingMusic(true);
     setIsIgnited(true);
   };
 
@@ -230,6 +288,36 @@ export function LandingPage() {
 
       {/* Navigation / Language */}
       <div style={{ position: 'fixed', top: 20, right: 30, zIndex: 50, display: 'flex', gap: '15px', alignItems: 'center' }}>
+        <button
+          onClick={toggleMusic}
+          aria-label={musicEnabled ? t('landing.music_turn_off') : t('landing.music_turn_on')}
+          title={musicEnabled ? t('landing.music_turn_off') : t('landing.music_turn_on')}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 7,
+            height: 30,
+            padding: '0 10px',
+            background: musicEnabled ? 'rgba(68, 136, 170, 0.14)' : 'rgba(10, 15, 25, 0.48)',
+            border: `1px solid ${musicEnabled ? 'rgba(123,184,255,0.5)' : 'rgba(68,85,102,0.65)'}`,
+            borderRadius: 999,
+            color: musicEnabled ? '#7bb8ff' : '#667788',
+            cursor: 'pointer',
+            fontFamily: 'monospace',
+            fontSize: 10,
+            letterSpacing: 1.2,
+            textTransform: 'uppercase',
+            boxShadow: musicEnabled ? '0 0 14px rgba(123,184,255,0.22)' : 'none',
+            backdropFilter: 'blur(8px)',
+          }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M2.5 6.1H5L8.2 3.4v9.2L5 9.9H2.5z" />
+            {musicEnabled ? <path d="M11 5.1c.7.7 1 1.7 1 2.9s-.3 2.2-1 2.9" /> : <path d="M11 6l3 3m0-3l-3 3" />}
+          </svg>
+          <span>{t('landing.music_label')}</span>
+          <span style={{ opacity: 0.72 }}>{musicEnabled ? t('landing.music_on') : t('landing.music_off')}</span>
+        </button>
         <button onClick={() => setLanguage('uk')} style={{ background: 'none', border: 'none', color: currentLanguage === 'uk' ? '#fff' : '#666', cursor: 'pointer', fontFamily: 'monospace', fontSize: '14px' }}>UK</button>
         <button onClick={() => setLanguage('en')} style={{ background: 'none', border: 'none', color: currentLanguage === 'en' ? '#fff' : '#666', cursor: 'pointer', fontFamily: 'monospace', fontSize: '14px' }}>EN</button>
       </div>
@@ -422,6 +510,19 @@ export function LandingPage() {
                     <span style={{ fontSize: '18px', fontWeight: 'bold', letterSpacing: '0px' }}>Google Play</span>
                   </div>
                 </a>
+                <div aria-disabled="true" style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '220px', height: '64px', background: 'rgba(10, 15, 25, 0.62)', border: '1px solid #446688', color: '#aabbcc', fontSize: '16px', textDecoration: 'none', borderRadius: '12px', transition: 'all 0.3s', boxShadow: '0 0 15px rgba(68,136,170,0.22), inset 0 0 10px rgba(68,136,170,0.08)', backdropFilter: 'blur(10px)', opacity: 0.88, cursor: 'default' }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 28 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '14px', color: '#7bb8ff' }}>
+                    <circle cx="14" cy="12" r="7.5" opacity="0.7" />
+                    <path d="M6.5 12 H21.5" opacity="0.55" />
+                    <path d="M14 4.5 C11.8 7.2 10.8 9.7 10.8 12 C10.8 14.3 11.8 16.8 14 19.5" opacity="0.75" />
+                    <path d="M14 4.5 C16.2 7.2 17.2 9.7 17.2 12 C17.2 14.3 16.2 16.8 14 19.5" opacity="0.75" />
+                  </svg>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: '10px', opacity: 0.8, letterSpacing: '1px', textTransform: 'uppercase' }}>WEB</span>
+                    <span style={{ fontSize: '18px', fontWeight: 'bold', letterSpacing: '0px' }}>Nebulife</span>
+                  </div>
+                  <span style={{ position: 'absolute', top: '-9px', right: '12px', padding: '2px 8px', borderRadius: '999px', border: '1px solid rgba(123,184,255,0.45)', background: 'rgba(5,10,20,0.92)', color: '#7bb8ff', fontSize: '10px', letterSpacing: '1px', textTransform: 'uppercase', boxShadow: '0 0 12px rgba(123,184,255,0.28)' }}>soon</span>
+                </div>
               </div>
             </div>
           </>

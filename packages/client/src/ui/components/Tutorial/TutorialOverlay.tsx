@@ -4,6 +4,7 @@ import { Capacitor } from '@capacitor/core';
 import { TUTORIAL_STEPS, type TutorialStepConfig } from './tutorialSteps';
 /* Коментар українською: Імпорт програвача звукових ефектів для інтерфейсу */
 import { playSfx } from '../../../audio/SfxPlayer.js';
+import { AstraFabButton, getAstraFabPosition, isVerticalSideChatLayout } from '../AstraFabButton.js';
 
 // ---------------------------------------------------------------------------
 // TutorialOverlay — Spotlight + tooltip overlay for interactive tutorial
@@ -115,7 +116,7 @@ function getAstraVoiceClip(stepId: string, subStepIndex: number, language: strin
   if (stepId === 'terminal') return clips.terminal;
   if (stepId === 'go-systems') return clips.firstChoice;
   if (stepId === 'first-research') return clips.firstScan;
-  if (stepId === 'hud-info') return subStepIndex === 0 ? clips.firstResult : null;
+  if (stepId === 'hud-info') return clips.firstResult;
   if (stepId === 'anomaly') return clips.firstDiscovery;
   if (stepId === 'quantum') return clips.quantum;
   if (stepId === 'save-gallery') return clips.firstPhoto;
@@ -502,78 +503,23 @@ export function TutorialOverlay({ step, subStepIndex, onAdvance, onSkip, minimiz
   }
 
   if (minimized) {
+    ensureStyles();
+    const verticalSideLayout = typeof window !== 'undefined'
+      && isVerticalSideChatLayout(window.innerWidth, window.innerHeight);
     return (
-      <button
-        type="button"
+      <AstraFabButton
+        title={t('tutorial.expand_astra' as any)}
+        size={verticalSideLayout ? 48 : 52}
+        zIndex={10051}
+        style={{
+          ...getAstraFabPosition(verticalSideLayout, verticalSideLayout ? 48 : 52),
+          animation: 'astra-soft-pulse 2s ease-in-out infinite',
+        }}
         onClick={() => {
           playSfx('ui-click', 0.07);
           onExpand?.();
         }}
-        style={{
-          position: 'fixed',
-          right: 16,
-          top: 'calc(76px + env(safe-area-inset-top, 0px))', // upper right under resources menu
-          zIndex: 10051,
-          width: 54,
-          height: 54,
-          borderRadius: '50%',
-          background: 'rgba(5, 10, 20, 0.94)',
-          border: '2px solid rgba(123, 184, 255, 0.8)',
-          boxShadow: '0 0 15px rgba(123, 184, 255, 0.6), inset 0 0 10px rgba(123, 184, 255, 0.2)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          padding: 0,
-          overflow: 'hidden',
-          transition: 'transform 0.2s, border-color 0.2s',
-          animation: 'astra-soft-pulse 2s ease-in-out infinite',
-          pointerEvents: 'auto',
-        }}
-        title={t('tutorial.expand_astra' as any)}
-      >
-        {videoFailed ? (
-          <img
-            src={ASTRA_PORTRAIT_URL}
-            alt={t('tutorial.astra_alt')}
-            draggable={false}
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              objectPosition: '50% 16%',
-              display: 'block',
-              filter: 'saturate(0.88) contrast(0.95) brightness(0.9)',
-            }}
-          />
-        ) : (
-          <video
-            ref={(el) => {
-              if (el) {
-                el.muted = true;
-                el.volume = 0;
-              }
-            }}
-            src={ASTRA_VIDEO_URL}
-            poster={ASTRA_PORTRAIT_URL}
-            aria-label={t('tutorial.astra_alt')}
-            autoPlay
-            loop
-            muted
-            playsInline
-            preload="metadata"
-            onError={() => setVideoFailed(true)}
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              objectPosition: '50% 16%',
-              display: 'block',
-              filter: 'saturate(0.88) contrast(0.95) brightness(0.9)',
-            }}
-          />
-        )}
-      </button>
+      />
     );
   }
 
