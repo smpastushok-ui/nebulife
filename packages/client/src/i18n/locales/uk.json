@@ -1701,7 +1701,7 @@
     "astra_placeholder": "Запит до A.S.T.R.A....",
     "astra_placeholder_premium": "A.S.T.R.A. доступна з Premium...",
     "astra_placeholder_depleted": "A.S.T.R.A. на зарядці...",
-    "astra_premium_required": "A.S.T.R.A. доступна лише з Premium: 10 тематичних повідомлень про гру на годину.",
+    "astra_premium_required": "A.S.T.R.A. доступна лише для Альфа-гравців.",
     "astra_hourly_messages": "{{count}}/10 повідомлень за годину",
     "astra_hourly_limit": "A.S.T.R.A. на зарядці. Ліміт повідомлень вичерпано — поверніться в нову годину.",
     "weekly_digest_available": "Тижневий космічний дайджест доступний",

@@ -1276,24 +1276,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
         {/* A.S.T.R.A. tab */}
         {tab === 'astra' && (
           <>
-            {/* Premium badge / hourly A.S.T.R.A. charge */}
-            {isPremium ? (
-              <div style={{
-                padding: '3px 12px',
-                borderBottom: '1px solid #223344',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                gap: 6,
-              }}>
-                <span style={{ color: '#7bb8ff', fontSize: 9, fontFamily: 'monospace', letterSpacing: 0.5 }}>
-                  PREMIUM
-                </span>
-                <span style={{ color: astraLimitReached ? '#ff8844' : '#556677', fontSize: 9, fontFamily: 'monospace' }}>
-                  {t('chat.astra_hourly_messages', { count: astraMsgsThisHour })}
-                </span>
-              </div>
-            ) : (
+            {!isPremium && (
               <div style={{
                 padding: '7px 12px',
                 borderBottom: '1px solid #223344',
@@ -1374,22 +1357,6 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
               )}
               <div ref={astraEndRef} />
             </div>
-
-            {/* Limit reached banner */}
-            {isPremium && astraLimitReached && (
-              <div style={{
-                padding: '8px 12px',
-                borderTop: '1px solid #223344',
-                background: 'rgba(5,10,20,0.7)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 6,
-              }}>
-                <span style={{ color: '#ff8844', fontSize: 10, fontFamily: 'monospace' }}>
-                  {t('chat.astra_hourly_limit')}
-                </span>
-              </div>
-            )}
 
             <div style={{
               padding: '8px 12px',

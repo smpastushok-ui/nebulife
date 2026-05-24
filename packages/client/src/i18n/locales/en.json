@@ -1700,7 +1700,7 @@
     "astra_placeholder": "Query A.S.T.R.A....",
     "astra_placeholder_premium": "A.S.T.R.A. requires Premium...",
     "astra_placeholder_depleted": "A.S.T.R.A. is recharging...",
-    "astra_premium_required": "A.S.T.R.A. is Premium-only: 10 game-themed messages per hour.",
+    "astra_premium_required": "A.S.T.R.A. is available for Alpha players only.",
     "astra_hourly_messages": "{{count}}/10 messages this hour",
     "astra_hourly_limit": "A.S.T.R.A. is recharging. The message limit is used up — come back in the next hour.",
     "weekly_digest_available": "Weekly space digest available",

@@ -251,6 +251,10 @@ function getMissionAlphaPhotoKey(report: PlanetReportSummary): string {
   return `planet-${getMissionAlphaPhotoKind(report)}-${report.systemId}__${report.planetId}__${report.missionId}`;
 }
 
+function getLocalizedTechName(techId: string, fallback: string): string {
+  return i18n.t(`tech.${techId}.name`, { defaultValue: fallback });
+}
+
 function MissionPhotoReceiveOverlay({ imageDataUrl, planetName, startedAt }: { imageDataUrl: string; planetName: string; startedAt: number }) {
   const { t } = useTranslation();
   const [now, setNow] = useState(() => Date.now());
@@ -6431,7 +6435,7 @@ function AppInner() {
 
     const newState = researchTech(techTreeState, techId);
     setTechTreeState(newState);
-    addLogEntry('system', t('app.log.tech_researched').replace('{name}', node.name));
+    addLogEntry('system', t('app.log.tech_researched').replace('{name}', getLocalizedTechName(node.id, node.name)));
 
     // Queue toast notification (will appear after any active level-up banner)
     setPendingResearchToasts((q) => [
@@ -8332,7 +8336,7 @@ function AppInner() {
           setTechTreeState(currentTech);
           techTreeStateRef.current = currentTech;
           for (const nd of newlyResearched) {
-            addLogEntry('system', t('app.log.tech_integrated').replace('{name}', nd.name));
+            addLogEntry('system', t('app.log.tech_integrated').replace('{name}', getLocalizedTechName(nd.id, nd.name)));
           }
           // Queue a toast for every newly-unlocked tech — they'll be shown
           // one at a time (see the pendingResearchToasts useEffect, ~2-3s
@@ -9374,20 +9378,6 @@ function AppInner() {
         setShowHangar(true);
       },
       icon: <CommandModeIcon kind="arena" disabled={!arenaUnlocked} />,
-    }],
-  });
-
-  toolGroups.push({
-    type: 'buttons',
-    items: [{
-      id: 'web',
-      label: t('cmd.web'),
-      variant: 'terminal' as const,
-      tooltip: t('cmd.web_tooltip'),
-      badge: t('cmd.soon'),
-      disabled: true,
-      onClick: () => {},
-      icon: <CommandModeIcon kind="web" disabled />,
     }],
   });
 
