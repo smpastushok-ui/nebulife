@@ -9456,6 +9456,15 @@ function AppInner() {
     && !!firebaseUser
     && serverHydrated
     && !webAccessAllowed;
+  /* Коментар українською: Туторіал не повинен оживати зі старого localStorage
+   * до входу / premium-gate, інакше гості бачать кроки гри поверх AuthScreen. */
+  const canShowTutorialOverlay = isTutorialActive
+    && !authLoading
+    && !showBootLoader
+    && (!isFirebaseConfigured || !!firebaseUser)
+    && !shouldShowWebAccessGate
+    && !needsCallsign
+    && !needsOnboarding;
 
   return (
     <>
@@ -11468,7 +11477,7 @@ function AppInner() {
       )}
 
       {/* Tutorial overlay */}
-      {isTutorialActive && activeTutorialStep?.type !== 'free-task' && activeTutorialStep && (
+      {canShowTutorialOverlay && activeTutorialStep?.type !== 'free-task' && activeTutorialStep && (
         <TutorialOverlay
           step={activeTutorialStep}
           subStepIndex={tutorialSubStep}
@@ -11494,7 +11503,7 @@ function AppInner() {
         />
       )}
 
-      {isTutorialActive && activeTutorialStep?.type === 'free-task' && (
+      {canShowTutorialOverlay && activeTutorialStep?.type === 'free-task' && (
         <FreeTaskHUD current={tutorialFreeCount} total={activeTutorialStep.freeTaskTotal ?? 1} />
       )}
 
