@@ -6,6 +6,7 @@ import {
   getWebPremiumPlans,
   hasMatchingWebAccessEmail,
   isPremiumActive,
+  isWebAccessTemporarilyOpen,
 } from '../../packages/server/src/premium-service.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -19,6 +20,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const player = await getPlayer(auth.playerId);
   if (!player) {
     return res.status(404).json({ error: 'player_not_found' });
+  }
+
+  if (isWebAccessTemporarilyOpen()) {
+    return res.status(200).json({
+      allowed: true,
+      reason: 'temporarily_open',
+      premiumSource: null,
+      expiresAt: null,
+      plans: getWebPremiumPlans().map((plan) => ({
+        id: plan.id,
+        productId: plan.productId,
+        amountUah: plan.amountUah,
+      })),
+    });
   }
 
   const premium = await getServerPremiumStatus(auth.playerId);

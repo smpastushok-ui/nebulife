@@ -186,6 +186,7 @@ import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import { canShowAd, isNativePlatform, requestAppTrackingTransparencyIfNeeded, watchAdsWithProgress } from './services/ads-service.js';
 import { setAdsUnlockedAfterSettlement } from './services/ad-release-gate.js';
+import { isWebAccessTemporarilyOpen } from './services/web-access-gate.js';
 import { interstitialManager } from './services/interstitial-manager.js';
 import {
   generateSystemPhoto, pollSystemPhotoStatus,
@@ -5287,7 +5288,7 @@ function AppInner() {
       setFirebaseUser(user);
       if (user) {
         setAnalyticsUserId(user.uid);
-          if (Capacitor.isNativePlatform()) setWebAccessAllowed(true);
+          if (Capacitor.isNativePlatform() || isWebAccessTemporarilyOpen()) setWebAccessAllowed(true);
       }
 
       if (authNullResolveTimer !== null) {
@@ -9440,6 +9441,7 @@ function AppInner() {
   const showBootLoader = !bootLoaderDone;
   const shouldShowWebAccessGate = isFirebaseConfigured
     && !Capacitor.isNativePlatform()
+    && !isWebAccessTemporarilyOpen()
     && !authLoading
     && !showBootLoader
     && !!firebaseUser

@@ -68,6 +68,12 @@ export function isPremiumActive(status: PremiumStatus): boolean {
   return status.active && (!status.expiresAt || new Date(status.expiresAt).getTime() > Date.now());
 }
 
+/** Temporary bypass for web demo / video capture. Set WEB_ACCESS_OPEN=1 on Vercel. */
+export function isWebAccessTemporarilyOpen(): boolean {
+  const flag = process.env.WEB_ACCESS_OPEN;
+  return flag === '1' || flag === 'true';
+}
+
 export function normalizeEmail(email: string | null | undefined): string | null {
   const normalized = email?.trim().toLowerCase();
   return normalized || null;
