@@ -12,6 +12,7 @@ import {
 import { getDiscoveries } from '../../../api/player-api';
 import type { DiscoveryData } from '../../../api/player-api';
 import { PhotoModal } from '../PhotoModal';
+import { useReliableImage } from '../../hooks/useReliableImage.js';
 
 // ---------------------------------------------------------------------------
 // CosmosGallery — Grid of all 116 cosmic catalog entries
@@ -422,16 +423,7 @@ function CatalogCell({
       }}
     >
       {/* Photo thumbnail */}
-      <img
-        src={discovery.photo_url!}
-        alt={displayName}
-        style={{
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
-          display: 'block',
-        }}
-      />
+      <GalleryThumbnail src={discovery.photo_url!} alt={displayName} />
 
       {/* Bottom name overlay */}
       <div
@@ -465,5 +457,30 @@ function CatalogCell({
         }}
       />
     </div>
+  );
+}
+
+function GalleryThumbnail({ src, alt }: { src: string; alt: string }) {
+  const { displayUrl } = useReliableImage(src);
+
+  if (!displayUrl) return null;
+
+  return (
+    <img
+      key={displayUrl}
+      src={displayUrl}
+      alt={alt}
+      loading="lazy"
+      decoding="async"
+      style={{
+        width: '100%',
+        height: '100%',
+        objectFit: 'cover',
+        display: 'block',
+      }}
+      onLoad={(e) => {
+        void e.currentTarget.decode().catch(() => undefined);
+      }}
+    />
   );
 }

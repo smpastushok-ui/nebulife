@@ -578,9 +578,9 @@ export class UniverseEngine {
     this.container = container;
     this.callbacks = callbacks;
     this.globalPlayerIndex = globalPlayerIndex;
-    this.groupCount = groupCount;
     this.myGroupIndex = Math.floor(globalPlayerIndex / 50);
     this.myPlayerInCluster = globalPlayerIndex % 50;
+    this.groupCount = Math.max(groupCount, this.myGroupIndex + 1);
   }
 
   // ── Public API ──────────────────────────────────────────────
@@ -633,8 +633,12 @@ export class UniverseEngine {
   }
 
   flyToMyCluster(durationMs: number = 2500): void {
-    if (this.groups.length <= this.myGroupIndex) return;
+    if (this.lodState === 'cluster' && this.lodClusterIndex === this.myGroupIndex) {
+      this.flyToMyClusterCenter(Math.min(durationMs, 1600));
+      return;
+    }
     if (this.lodState === 'cluster') this.collapseCluster();
+    this.ensureMyClusterExists();
 
     const target = this.getGroupWorldPos(this.myGroupIndex);
     const dist = 350;
@@ -647,6 +651,23 @@ export class UniverseEngine {
       to: { pos: arrivalPos, target },
     };
     this.flyTarget = 'cluster';
+    this.controls.autoRotate = false;
+  }
+
+  flyToMyClusterCenter(durationMs: number = 1600): void {
+    this.ensureMyClusterExists();
+    if (this.lodState !== 'cluster') this.expandCluster(this.myGroupIndex);
+
+    const target = this.getGroupWorldPos(this.myGroupIndex);
+    const arrivalPos = target.clone().add(new THREE.Vector3(0, 42, 72));
+
+    this.flyAnimation = {
+      startTime: performance.now(),
+      duration: durationMs,
+      from: { pos: this.camera.position.clone(), target: this.controls.target.clone() },
+      to: { pos: arrivalPos, target },
+    };
+    this.flyTarget = null;
     this.controls.autoRotate = false;
   }
 
@@ -701,6 +722,7 @@ export class UniverseEngine {
    * fixing the race condition where the engine was constructed with groupCount=1.
    */
   updateGroupCount(newCount: number): void {
+    newCount = Math.max(newCount, this.myGroupIndex + 1);
     if (newCount === this.groupCount) return;
     this.groupCount = newCount;
 
@@ -1302,6 +1324,11 @@ export class UniverseEngine {
     return new THREE.Vector3(g.position.x * SCALE, g.position.z * SCALE, g.position.y * SCALE);
   }
 
+  private ensureMyClusterExists(): void {
+    if (this.groups.length > this.myGroupIndex) return;
+    this.updateGroupCount(this.myGroupIndex + 1);
+  }
+
   /** Write group world position into existing vector (zero-alloc for hot loops) */
   private getGroupWorldPosInto(idx: number, out: THREE.Vector3): void {
     if (idx < 0 || idx >= this.groups.length) { out.set(0, 0, 0); return; }
@@ -1567,6 +1594,7 @@ export class UniverseEngine {
           this.myRing.visible = true;
           this.highlightGroup(this.myGroupIndex);
           this.expandCluster(this.myGroupIndex);
+          this.flyToMyClusterCenter(1600);
         }
         this.flyTarget = null;
       }

@@ -1,8 +1,10 @@
 import React, { useCallback, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Capacitor } from '@capacitor/core';
 import type { Discovery, CatalogEntry } from '@nebulife/core';
 import { RARITY_COLORS, getRarityLabel, getCatalogEntry, getCatalogName, getCatalogDescription } from '@nebulife/core';
+import { useReliableImage } from '../hooks/useReliableImage.js';
 
 // ---------------------------------------------------------------------------
 // PhotoModal — fullscreen photo view with share & save buttons
@@ -116,6 +118,7 @@ export function PhotoModal({
   const [shared, setShared] = useState(false);
   const [saved, setSaved] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
+  const { displayUrl, loading: imageLoading } = useReliableImage(imageUrl);
 
   const handleShare = useCallback(async () => {
     try {
@@ -272,12 +275,12 @@ export function PhotoModal({
     setSaved(true);
   }, [onSaveToGallery]);
 
-  return (
+  const modal = (
     <div
       style={{
-        position: 'absolute',
+        position: 'fixed',
         inset: 0,
-        zIndex: 300,
+        zIndex: 9900,
         background: 'rgba(0, 0, 0, 0.92)',
         display: 'flex',
         flexDirection: 'column',
@@ -308,16 +311,26 @@ export function PhotoModal({
             boxShadow: `0 0 40px ${color}33`,
           }}
         >
-          <img
-            src={imageUrl}
-            alt={name}
-            style={{
-              maxWidth: '85vw',
-              maxHeight: '60vh',
-              display: 'block',
-              objectFit: 'contain',
-            }}
-          />
+          {displayUrl && (
+            <img
+              key={displayUrl}
+              src={displayUrl}
+              alt={name}
+              loading="eager"
+              decoding="async"
+              style={{
+                maxWidth: '85vw',
+                maxHeight: '60vh',
+                display: 'block',
+                objectFit: 'contain',
+                opacity: imageLoading ? 0 : 1,
+                transition: 'opacity 0.2s ease',
+              }}
+              onLoad={(e) => {
+                void e.currentTarget.decode().catch(() => undefined);
+              }}
+            />
+          )}
 
           {/* Overlay info at bottom of image */}
           <div
@@ -431,6 +444,9 @@ export function PhotoModal({
       </div>
     </div>
   );
+
+  if (typeof document === 'undefined') return modal;
+  return createPortal(modal, document.body);
 }
 
 // ---------------------------------------------------------------------------
