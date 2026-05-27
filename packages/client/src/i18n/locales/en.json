@@ -1749,6 +1749,24 @@
     "payment_error": "Could not create the Premium payment. Please try again.",
     "native_hint": "If you already have Premium on iOS or Android, log in on web with the same email."
   },
+  "review_prompt": {
+    "kicker": "Colony signal received",
+    "title": "How does your first colony feel?",
+    "body": "Nebulife is built by one creator, and early feedback matters a lot. If the first surface lesson felt clear and atmospheric, a short store review helps the project grow.",
+    "good": "Leave a review on {{store}}",
+    "problem": "Send feedback instead",
+    "later": "Maybe later",
+    "feedback_title": "Tell me what felt unclear",
+    "feedback_body": "Your player ID and device model will be attached automatically, so technical problems are easier to trace.",
+    "feedback_placeholder": "What confused you, broke immersion, lagged, or should be improved?",
+    "send_feedback": "Send feedback",
+    "sending": "Sending...",
+    "feedback_error": "Could not send feedback. Please try again later.",
+    "thanks_title": "Signal accepted",
+    "thanks_body": "Thank you. This goes directly into the Nebulife support channel and helps tune the first colony experience.",
+    "google_play": "Google Play",
+    "app_store": "the App Store"
+  },
   "premium_help": {
     "common": {
       "kicker": "Alpha / Premium explainer",

@@ -103,8 +103,19 @@ const PREMIUM_PLAN_BY_PRODUCT_ID: Record<string, PremiumPlan> = Object.fromEntri
   Object.entries(PREMIUM_PRODUCT_IDS).map(([plan, productId]) => [productId, plan]),
 ) as Record<string, PremiumPlan>;
 
+/** Play Store subscriptions use `subscriptionId:basePlanId`; App Store uses plain IDs. */
+function normalizePremiumProductId(productId: string): string {
+  if (PREMIUM_PLAN_BY_PRODUCT_ID[productId]) return productId;
+  const subscriptionId = productId.split(':')[0];
+  return PREMIUM_PLAN_BY_PRODUCT_ID[subscriptionId] ? subscriptionId : productId;
+}
+
+function resolvePremiumPlan(productId: string): PremiumPlan | null {
+  return PREMIUM_PLAN_BY_PRODUCT_ID[normalizePremiumProductId(productId)] ?? null;
+}
+
 function isPremiumProductId(productId: string | null | undefined): boolean {
-  return !!productId && !!PREMIUM_PLAN_BY_PRODUCT_ID[productId];
+  return !!productId && resolvePremiumPlan(productId) !== null;
 }
 
 let configured = false;
@@ -182,12 +193,12 @@ export interface PremiumPackagesResult {
 
 function toPremiumPackage(pkg: RevenueCatPackage): PremiumPackage | null {
   const productId = pkg.product.identifier;
-  const plan = PREMIUM_PLAN_BY_PRODUCT_ID[productId];
+  const plan = resolvePremiumPlan(productId);
   if (!plan) return null;
 
   return {
     identifier: pkg.identifier,
-    productIdentifier: productId,
+    productIdentifier: normalizePremiumProductId(productId),
     plan,
     titleKey: `premium.${plan}_label`,
     descriptionKey: `premium.${plan}_desc`,
@@ -234,13 +245,13 @@ export async function initIAP(userId: string): Promise<void> {
 /** Fetch available quark packs from RevenueCat. Native builds must not show
  * hardcoded fallback prices because App Review treats them as inaccurate
  * commerce metadata. */
-export async function fetchIAPPackages(): Promise<IAPPackage[]> {
-  const result = await fetchIAPPackagesWithStatus();
+export async function fetchIAPPackages(userId?: string): Promise<IAPPackage[]> {
+  const result = await fetchIAPPackagesWithStatus(userId);
   return result.configured && result.packages.length > 0 ? result.packages : FALLBACK_IAP_PACKAGES;
 }
 
-export async function fetchIAPPackagesWithStatus(): Promise<IAPPackagesResult> {
-  if (!await ensureIAPConfigured()) return { packages: [], configured: false };
+export async function fetchIAPPackagesWithStatus(userId?: string): Promise<IAPPackagesResult> {
+  if (!await ensureIAPConfigured(userId)) return { packages: [], configured: false };
 
   try {
     const { Purchases } = await import('@revenuecat/purchases-capacitor');
@@ -262,8 +273,8 @@ export async function fetchIAPPackagesWithStatus(): Promise<IAPPackagesResult> {
   }
 }
 
-export async function fetchPremiumPackagesWithStatus(): Promise<PremiumPackagesResult> {
-  if (!await ensureIAPConfigured()) return { packages: [], configured: false };
+export async function fetchPremiumPackagesWithStatus(userId?: string): Promise<PremiumPackagesResult> {
+  if (!await ensureIAPConfigured(userId)) return { packages: [], configured: false };
 
   try {
     const { Purchases } = await import('@revenuecat/purchases-capacitor');
@@ -271,7 +282,7 @@ export async function fetchPremiumPackagesWithStatus(): Promise<PremiumPackagesR
     const offering = offerings.current ?? offerings.all[DEFAULT_OFFERING_ID] ?? Object.values(offerings.all)[0];
     const nativePackages = offering?.availablePackages ?? [];
     premiumPackageCache = new Map(nativePackages
-      .filter((pkg) => PREMIUM_PLAN_BY_PRODUCT_ID[pkg.product.identifier])
+      .filter((pkg) => resolvePremiumPlan(pkg.product.identifier))
       .map((pkg) => [pkg.identifier, pkg]));
 
     const packages = nativePackages
@@ -324,15 +335,58 @@ function entitlementProductId(entitlement: unknown): string | null {
   return record.productIdentifier ?? record.product_identifier ?? null;
 }
 
-function activeProductIds(customerInfo: CustomerInfo): string[] {
+function entitlementExpirationDate(entitlement: unknown): string | null {
+  if (!entitlement || typeof entitlement !== 'object') return null;
+  const record = entitlement as {
+    expirationDate?: string | null;
+    expires_date?: string | null;
+  };
+  return record.expirationDate ?? record.expires_date ?? null;
+}
+
+function activeSubscriptionIds(customerInfo: CustomerInfo): string[] {
   const record = customerInfo as unknown as {
     activeSubscriptions?: string[] | null;
-    allPurchasedProductIdentifiers?: string[] | null;
   };
-  return [
-    ...(Array.isArray(record.activeSubscriptions) ? record.activeSubscriptions : []),
-    ...(Array.isArray(record.allPurchasedProductIdentifiers) ? record.allPurchasedProductIdentifiers : []),
-  ];
+  return Array.isArray(record.activeSubscriptions) ? record.activeSubscriptions : [];
+}
+
+function getLocalPremiumStatus(customerInfo: CustomerInfo): PremiumStatus {
+  const activeEntitlements = customerInfo.entitlements.active;
+  const direct = activeEntitlements[PREMIUM_ENTITLEMENT_ID];
+  if (direct?.isActive === true) {
+    return {
+      active: true,
+      expiresAt: entitlementExpirationDate(direct),
+      productId: normalizePremiumProductId(entitlementProductId(direct) ?? ''),
+      source: 'revenuecat_local',
+    };
+  }
+
+  const premiumEntitlement = Object.values(activeEntitlements).find((entitlement) => {
+    const isActive = entitlement?.isActive !== false;
+    return isActive && isPremiumProductId(entitlementProductId(entitlement));
+  });
+  if (premiumEntitlement) {
+    return {
+      active: true,
+      expiresAt: entitlementExpirationDate(premiumEntitlement),
+      productId: normalizePremiumProductId(entitlementProductId(premiumEntitlement) ?? ''),
+      source: 'revenuecat_local',
+    };
+  }
+
+  const activeSubscriptionId = activeSubscriptionIds(customerInfo).find(isPremiumProductId);
+  if (activeSubscriptionId) {
+    return {
+      active: true,
+      expiresAt: null,
+      productId: normalizePremiumProductId(activeSubscriptionId),
+      source: 'revenuecat_local',
+    };
+  }
+
+  return { active: false, expiresAt: null, productId: null, source: 'revenuecat_local' };
 }
 
 /**
@@ -340,15 +394,20 @@ function activeProductIds(customerInfo: CustomerInfo): string[] {
  * First checks RevenueCat entitlements, falls back to localStorage flag
  * `nebulife_premium` for dev/testing purposes.
  */
-export async function checkPremiumStatus(): Promise<PremiumStatus> {
-  if (await ensureIAPConfigured()) {
+export async function checkPremiumStatus(userId?: string): Promise<PremiumStatus> {
+  if (await ensureIAPConfigured(userId)) {
     try {
       const { Purchases } = await import('@revenuecat/purchases-capacitor');
       const { customerInfo } = await Purchases.getCustomerInfo();
-      const active = hasPremium(customerInfo);
-      if (active) {
-        const server = await syncServerPremiumStatus().catch(() => ({ active }) as PremiumStatus);
-        const status = { ...server, active: server.active || active };
+      const localStatus = getLocalPremiumStatus(customerInfo);
+      if (localStatus.active) {
+        const server = await syncServerPremiumStatus().catch(() => localStatus);
+        const status = {
+          ...server,
+          active: server.active || localStatus.active,
+          expiresAt: server.expiresAt ?? localStatus.expiresAt ?? null,
+          productId: server.productId ?? localStatus.productId ?? null,
+        };
         cachePremiumStatus(status.active);
         return status;
       }
@@ -376,7 +435,7 @@ export async function purchasePremium(
 
   try {
     const { Purchases } = await import('@revenuecat/purchases-capacitor');
-    if (premiumPackageCache.size === 0) await fetchPremiumPackagesWithStatus();
+    if (premiumPackageCache.size === 0) await fetchPremiumPackagesWithStatus(playerId);
 
     const nativePackage = premiumPackageCache.get(packageIdentifier);
     if (!nativePackage) {
@@ -384,7 +443,7 @@ export async function purchasePremium(
     }
 
     const purchase = await Purchases.purchasePackage({ aPackage: nativePackage });
-    const activePremium = hasPremium(purchase.customerInfo) || isPremiumProductId(nativePackage.product.identifier);
+    const activePremium = getLocalPremiumStatus(purchase.customerInfo).active || isPremiumProductId(nativePackage.product.identifier);
     if (!activePremium) {
       return { success: false, error: 'Premium entitlement was not activated' };
     }
@@ -397,14 +456,14 @@ export async function purchasePremium(
       transaction_id: purchase.transaction?.transactionIdentifier ?? nativePackage.product.identifier,
       item_id: nativePackage.product.identifier,
       item_name: 'premium',
-      premium_plan: PREMIUM_PLAN_BY_PRODUCT_ID[nativePackage.product.identifier] ?? 'unknown',
+      premium_plan: resolvePremiumPlan(nativePackage.product.identifier) ?? 'unknown',
     });
     return { success: status.active, status };
   } catch (err) {
     if (isPurchaseCancelled(err)) return { success: false, error: 'cancelled' };
     if (isNetworkError(err)) return { success: false, error: 'network' };
     if (isAlreadyPurchasedError(err)) {
-      const status = await checkPremiumStatus().catch(() => ({ active: false }) as PremiumStatus);
+      const status = await checkPremiumStatus(playerId).catch(() => ({ active: false }) as PremiumStatus);
       return status.active
         ? { success: true, status }
         : { success: false, status, error: 'already-purchased' };
@@ -434,7 +493,7 @@ export async function purchaseQuarkPack(
 
   try {
     const { Purchases } = await import('@revenuecat/purchases-capacitor');
-    if (packageCache.size === 0) await fetchIAPPackages();
+    if (packageCache.size === 0) await fetchIAPPackages(playerId);
 
     const nativePackage = packageCache.get(packageIdentifier);
     if (!nativePackage) {
@@ -483,13 +542,13 @@ export async function purchaseQuarkPack(
   }
 }
 
-export async function restoreIAPPurchases(): Promise<{ restored: boolean }> {
-  if (!await ensureIAPConfigured()) return { restored: false };
+export async function restoreIAPPurchases(playerId?: string): Promise<{ restored: boolean }> {
+  if (!await ensureIAPConfigured(playerId)) return { restored: false };
 
   try {
     const { Purchases } = await import('@revenuecat/purchases-capacitor');
     const { customerInfo } = await Purchases.restorePurchases();
-    const activePremium = hasPremium(customerInfo);
+    const activePremium = getLocalPremiumStatus(customerInfo).active;
     const server = activePremium
       ? await syncServerPremiumStatus().catch(() => ({ active: activePremium }) as PremiumStatus)
       : await fetchServerPremiumStatus().catch(() => ({ active: false }) as PremiumStatus);
@@ -502,15 +561,3 @@ export async function restoreIAPPurchases(): Promise<{ restored: boolean }> {
   }
 }
 
-function hasPremium(customerInfo: CustomerInfo): boolean {
-  const activeEntitlements = customerInfo.entitlements.active;
-  if (activeEntitlements[PREMIUM_ENTITLEMENT_ID]?.isActive === true) return true;
-
-  const entitlementHasPremiumProduct = Object.values(activeEntitlements).some((entitlement) => {
-    const isActive = entitlement?.isActive !== false;
-    return isActive && isPremiumProductId(entitlementProductId(entitlement));
-  });
-  if (entitlementHasPremiumProduct) return true;
-
-  return activeProductIds(customerInfo).some(isPremiumProductId);
-}

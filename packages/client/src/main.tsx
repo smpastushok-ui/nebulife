@@ -4,6 +4,7 @@ import './i18n/index.js';
 import { App } from './App.js';
 import { getDeviceTier } from './utils/device-tier.js';
 import { LandingPage } from './ui/landing/LandingPage.js';
+import { AppReviewPrompt } from './ui/components/AppReviewPrompt.js';
 
 // ---------------------------------------------------------------------------
 // Perf-tier root attribute + global CSS kill-switch
@@ -136,6 +137,10 @@ function RootRouter() {
     window.addEventListener('popstate', onPopstate);
     return () => window.removeEventListener('popstate', onPopstate);
   }, []);
+
+  if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('review_prompt_preview') === '1') {
+    return <AppReviewPrompt onClose={() => { /* preview only */ }} />;
+  }
 
   if (shouldRenderGame(window.location.pathname, window.location.search)) {
     return <App key={`app:${routeKey}`} />;

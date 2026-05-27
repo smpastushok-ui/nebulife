@@ -274,8 +274,22 @@ async function grantRevenueCatPromotionalEntitlement(
   });
 }
 
+function normalizePremiumProductId(productId: string): string {
+  const known = Object.values(PREMIUM_PRODUCT_IDS);
+  if (known.includes(productId as typeof PREMIUM_PRODUCT_IDS[keyof typeof PREMIUM_PRODUCT_IDS])) {
+    return productId;
+  }
+  const subscriptionId = productId.split(':')[0];
+  if (known.includes(subscriptionId as typeof PREMIUM_PRODUCT_IDS[keyof typeof PREMIUM_PRODUCT_IDS])) {
+    return subscriptionId;
+  }
+  return productId;
+}
+
 function isPremiumProductId(productId: string | null | undefined): boolean {
-  return !!productId && Object.values(PREMIUM_PRODUCT_IDS).includes(productId as typeof PREMIUM_PRODUCT_IDS[keyof typeof PREMIUM_PRODUCT_IDS]);
+  if (!productId) return false;
+  const normalized = normalizePremiumProductId(productId);
+  return Object.values(PREMIUM_PRODUCT_IDS).includes(normalized as typeof PREMIUM_PRODUCT_IDS[keyof typeof PREMIUM_PRODUCT_IDS]);
 }
 
 function isRevenueCatEntitlementActive(entitlement: RevenueCatEntitlement | undefined): boolean {

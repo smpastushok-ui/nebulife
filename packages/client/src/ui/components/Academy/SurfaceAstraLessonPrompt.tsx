@@ -6,11 +6,12 @@ import { playSfx } from '../../../audio/SfxPlayer.js';
 interface SurfaceAstraLessonPromptProps {
   onDismiss: () => void;
   onOpenMission?: () => void;
+  onComplete?: () => void;
 }
 
 const STEP_COUNT = 7;
 
-export function SurfaceAstraLessonPrompt({ onDismiss, onOpenMission }: SurfaceAstraLessonPromptProps) {
+export function SurfaceAstraLessonPrompt({ onDismiss, onOpenMission, onComplete }: SurfaceAstraLessonPromptProps) {
   const { t, i18n } = useTranslation();
   const [voicePlaying, setVoicePlaying] = useState(false);
   const [step, setStep] = useState(0);
@@ -56,6 +57,7 @@ export function SurfaceAstraLessonPrompt({ onDismiss, onOpenMission }: SurfaceAs
     try { localStorage.setItem('nebulife_surface_astra_lesson_seen', '1'); } catch { /* ignore */ }
     stopVoice();
     onDismiss();
+    onComplete?.();
     // Transition to the philosophy & mission curriculum is temporarily blocked as requested.
     // onOpenMission?.();
   };

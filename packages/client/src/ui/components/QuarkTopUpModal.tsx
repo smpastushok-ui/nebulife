@@ -158,27 +158,27 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted, 
   const [adsRunning, setAdsRunning] = useState(false);
 
   useEffect(() => {
-    fetchIAPPackagesWithStatus()
+    fetchIAPPackagesWithStatus(playerId)
       .then((result) => {
         setPackages(result.packages);
         setStoreConfigured(result.configured);
       })
       .finally(() => setLoadingPkgs(false));
-    fetchPremiumPackagesWithStatus()
+    fetchPremiumPackagesWithStatus(playerId)
       .then((result) => {
         setPremiumPackages(result.packages);
         setPremiumStoreConfigured(result.configured);
       })
       .finally(() => setLoadingPremiumPkgs(false));
     // Check premium status when modal opens
-    checkPremiumStatus().then(status => {
+    checkPremiumStatus(playerId).then(status => {
       setIsPremiumActive(status.active);
       setPremiumExpiresAt(status.expiresAt ?? null);
       setPremiumProductId(status.productId ?? null);
       interstitialManager.setPremium(status.active);
       onPremiumChanged?.(status);
     });
-  }, [onPremiumChanged]);
+  }, [onPremiumChanged, playerId]);
 
   const handleBuy = async (pkg: IAPPackage) => {
     if (purchasing) return;
@@ -216,7 +216,7 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted, 
       } else if (result.error === 'cancelled') {
         setMessage({ text: t('topup.iap_cancelled'), ok: false });
       } else if (result.error === 'already-purchased') {
-        const status = await checkPremiumStatus().catch(() => ({ active: false }) as PremiumStatus);
+        const status = await checkPremiumStatus(playerId).catch(() => ({ active: false }) as PremiumStatus);
         if (status.active) {
           setIsPremiumActive(true);
           setPremiumExpiresAt(status.expiresAt ?? null);
@@ -266,9 +266,9 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted, 
     setRestoring(true);
     setMessage(null);
     try {
-      const result = await restoreIAPPurchases();
+      const result = await restoreIAPPurchases(playerId);
       if (result.restored) {
-        const status = await checkPremiumStatus().catch(() => ({ active: true }) as PremiumStatus);
+        const status = await checkPremiumStatus(playerId).catch(() => ({ active: true }) as PremiumStatus);
         setIsPremiumActive(status.active);
         setPremiumExpiresAt(status.expiresAt ?? null);
         setPremiumProductId(status.productId ?? null);

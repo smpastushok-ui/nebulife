@@ -2,6 +2,9 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LivingOrreryHero } from './LivingOrreryHero.js';
 
+const APP_STORE_URL = 'https://apps.apple.com/us/app/nebulife-space-survival/id6761056355';
+const GOOGLE_PLAY_URL = 'https://play.google.com/store/apps/details?id=app.nebulife.game';
+
 export function LandingPage() {
   const { t, i18n } = useTranslation();
   const [isIgnited, setIsIgnited] = useState(false);
@@ -486,7 +489,7 @@ export function LandingPage() {
               <p style={{ color: '#8899aa', maxWidth: '600px', margin: '0 auto 40px', lineHeight: 1.6, textShadow: '0 2px 8px rgba(0,0,0,0.9), 0 0 15px rgba(0,0,0,0.8)' }}>{t('landing.cluster.body')}</p>
               
               <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                <a href="https://testflight.apple.com/join/HkeRMK2D" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '220px', height: '64px', background: 'rgba(10, 15, 25, 0.8)', border: '1px solid #7bb8ff', color: '#fff', fontSize: '16px', textDecoration: 'none', borderRadius: '12px', transition: 'all 0.3s', boxShadow: '0 0 15px rgba(123,184,255,0.3), inset 0 0 10px rgba(123,184,255,0.1)', backdropFilter: 'blur(10px)' }}
+                <a href={APP_STORE_URL} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '220px', height: '64px', background: 'rgba(10, 15, 25, 0.8)', border: '1px solid #7bb8ff', color: '#fff', fontSize: '16px', textDecoration: 'none', borderRadius: '12px', transition: 'all 0.3s', boxShadow: '0 0 15px rgba(123,184,255,0.3), inset 0 0 10px rgba(123,184,255,0.1)', backdropFilter: 'blur(10px)' }}
                    onMouseOver={(e) => { e.currentTarget.style.boxShadow = '0 0 25px rgba(123,184,255,0.6), inset 0 0 15px rgba(123,184,255,0.3)'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.background = 'rgba(15, 25, 40, 0.9)'; }}
                    onMouseOut={(e) => { e.currentTarget.style.boxShadow = '0 0 15px rgba(123,184,255,0.3), inset 0 0 10px rgba(123,184,255,0.1)'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.background = 'rgba(10, 15, 25, 0.8)'; }}
                 >
@@ -498,7 +501,7 @@ export function LandingPage() {
                     <span style={{ fontSize: '18px', fontWeight: 'bold', letterSpacing: '0px' }}>App Store</span>
                   </div>
                 </a>
-                <a href="https://play.google.com/apps/testing/app.nebulife.game" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '220px', height: '64px', background: 'rgba(10, 15, 25, 0.8)', border: '1px solid #44ff88', color: '#fff', fontSize: '16px', textDecoration: 'none', borderRadius: '12px', transition: 'all 0.3s', boxShadow: '0 0 15px rgba(68,255,136,0.3), inset 0 0 10px rgba(68,255,136,0.1)', backdropFilter: 'blur(10px)' }}
+                <a href={GOOGLE_PLAY_URL} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '220px', height: '64px', background: 'rgba(10, 15, 25, 0.8)', border: '1px solid #44ff88', color: '#fff', fontSize: '16px', textDecoration: 'none', borderRadius: '12px', transition: 'all 0.3s', boxShadow: '0 0 15px rgba(68,255,136,0.3), inset 0 0 10px rgba(68,255,136,0.1)', backdropFilter: 'blur(10px)' }}
                    onMouseOver={(e) => { e.currentTarget.style.boxShadow = '0 0 25px rgba(68,255,136,0.6), inset 0 0 15px rgba(68,255,136,0.3)'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.background = 'rgba(15, 30, 20, 0.9)'; }}
                    onMouseOut={(e) => { e.currentTarget.style.boxShadow = '0 0 15px rgba(68,255,136,0.3), inset 0 0 10px rgba(68,255,136,0.1)'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.background = 'rgba(10, 15, 25, 0.8)'; }}
                 >

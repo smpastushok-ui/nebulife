@@ -168,6 +168,7 @@ import { CosmicArchive } from './ui/components/CosmicArchive/CosmicArchive.js';
 import { AcademyDashboard } from './ui/components/Academy/AcademyDashboard.js';
 import type { AcademyTab } from './ui/components/Academy/AcademyDashboard.js';
 import { SurfaceAstraLessonPrompt } from './ui/components/Academy/SurfaceAstraLessonPrompt.js';
+import { AppReviewPrompt } from './ui/components/AppReviewPrompt.js';
 import { EncyclopediaScreen } from './ui/components/Encyclopedia/EncyclopediaScreen.js';
 import { SpaceArena } from './ui/components/SpaceArena/SpaceArena.js';
 import { HangarPage } from './ui/components/Hangar/HangarPage.js';
@@ -2330,6 +2331,7 @@ function AppInner() {
   const [academyInitialTab, setAcademyInitialTab] = useState<AcademyTab | undefined>(undefined);
   const [academyMissionChapter, setAcademyMissionChapter] = useState<'surface' | undefined>(undefined);
   const [showSurfaceAstraLesson, setShowSurfaceAstraLesson] = useState(false);
+  const [showAppReviewPrompt, setShowAppReviewPrompt] = useState(false);
   const [showEncyclopedia, setShowEncyclopedia] = useState(false);
   const [exosphereLoaded, setExosphereLoaded] = useState(false);
   // Colony Center — opened by tapping the colony_hub building on the surface.
@@ -4018,6 +4020,16 @@ function AppInner() {
     return () => window.clearTimeout(timer);
   }, [surfaceTarget, needsOnboarding, isTutorialActive, showAcademy, showCosmicArchive]);
 
+  const maybeShowAppReviewPrompt = useCallback(() => {
+    try {
+      if (localStorage.getItem('nebulife_app_review_prompt_done') === '1') return;
+      localStorage.setItem('nebulife_app_review_prompt_done', '1');
+    } catch {
+      // If storage is blocked, still show the prompt once for this completion.
+    }
+    window.setTimeout(() => setShowAppReviewPrompt(true), 700);
+  }, []);
+
   // Reset clock state when entering onboarding (account reset scenario)
   useEffect(() => {
     if (!needsOnboarding) return;
@@ -5208,7 +5220,7 @@ function AppInner() {
             setState((prev) => ({ ...prev, playerName: existing.callsign || existing.name || 'Explorer' }));
             // Initialize RevenueCat IAP (no-op on web)
             initIAP(id!).catch(() => { /* non-critical */ });
-            checkPremiumStatus()
+            checkPremiumStatus(id!)
               .then((status) => {
                 setIsPremiumActive(status.active);
                 setPremiumExpiresAt(status.expiresAt ?? null);
@@ -8870,8 +8882,33 @@ function AppInner() {
   }, [state.selectedPlanet, state.selectedSystem, canLandOnPlanet, enqueueIfArena]);
 
   const handleCloseSurface = useCallback(() => {
+    const target = surfaceTargetRef.current;
     setSurfaceTarget(null);
-    // Zoom exosphere out to maximum distance after surface unmounts
+    setShowColonyCenter(false);
+    setShowCosmicArchive(false);
+
+    if (target) {
+      setUniverseVisible(false);
+      engineRef.current?.resume();
+      engineRef.current?.showPlanetViewScene(target.system, target.planet, true);
+      setState((prev) => ({
+        ...prev,
+        scene: 'planet-view' as const,
+        selectedSystem: target.system,
+        selectedPlanet: target.planet,
+        showPlanetMenu: false,
+        showPlanetInfo: false,
+        planetClickPos: null,
+        error: null,
+      }));
+      try {
+        localStorage.setItem('nebulife_scene', 'planet-view');
+        localStorage.setItem('nebulife_nav_system', target.system.id);
+        localStorage.setItem('nebulife_nav_planet', target.planet.id);
+      } catch { /* ignore */ }
+    }
+
+    // Zoom exosphere out to maximum distance after surface unmounts.
     setTimeout(() => {
       for (let i = 0; i < 30; i++) globeRef.current?.zoomOut();
     }, 100);
@@ -10766,6 +10803,14 @@ function AppInner() {
             try { localStorage.setItem('nebulife_surface_astra_lesson_seen', '1'); } catch { /* ignore */ }
             setShowSurfaceAstraLesson(false);
           }}
+          onComplete={() => {
+            maybeShowAppReviewPrompt();
+          }}
+        />
+      )}
+      {showAppReviewPrompt && (
+        <AppReviewPrompt
+          onClose={() => setShowAppReviewPrompt(false)}
         />
       )}
       {/* ── Fly-to-HUD resource dots ──────────────────────────────────────── */}
