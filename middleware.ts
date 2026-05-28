@@ -1,26 +1,36 @@
 // ---------------------------------------------------------------------------
-// Vercel Edge Middleware — CORS for Capacitor native apps
-// ---------------------------------------------------------------------------
-// Android/iOS Capacitor WebView serves the bundle from https://localhost and
-// makes fetch() calls to the backend. Browsers block those cross-origin calls
-// unless the server responds with the correct CORS headers. This middleware
-// handles the preflight OPTIONS request and adds CORS response headers to
-// every /api/* response.
-//
-// Vercel Edge runtime provides global `Request`/`Response` (Web Fetch API),
-// so no framework imports are required.
+// Vercel Edge Middleware — CORS for Capacitor native apps + AdMob crawl files
 // ---------------------------------------------------------------------------
 
 export const config = {
-  matcher: '/api/:path*',
+  matcher: ['/app-ads.txt', '/robots.txt', '/api/:path*'],
+};
+
+const APP_ADS_TXT = 'google.com, pub-3504252081237345, DIRECT, f08c47fec0942fa0\n';
+
+const ROBOTS_TXT = `User-agent: Google-adstxt
+Disallow:
+
+User-agent: Mediapartners-Google
+Disallow:
+
+User-agent: Googlebot
+Disallow:
+`;
+
+const NO_CACHE_HEADERS: Record<string, string> = {
+  'Content-Type': 'text/plain; charset=utf-8',
+  'Cache-Control': 'no-cache, no-store, must-revalidate',
+  'CDN-Cache-Control': 'no-store',
+  'Vercel-CDN-Cache-Control': 'no-store',
+  Pragma: 'no-cache',
+  Expires: '0',
 };
 
 const STATIC_ALLOWED = new Set<string>([
-  // Capacitor native Android & iOS
   'https://localhost',
   'capacitor://localhost',
   'ionic://localhost',
-  // Web (production + dev)
   'https://www.nebulife.space',
   'https://nebulife.space',
   'https://nebulife.vercel.app',
@@ -50,18 +60,28 @@ function corsHeaders(origin: string | null): Record<string, string> {
   };
 }
 
+function plainTextResponse(body: string): Response {
+  return new Response(body, { status: 200, headers: NO_CACHE_HEADERS });
+}
+
 export default function middleware(req: Request): Response {
+  const url = new URL(req.url);
+
+  if (url.pathname === '/app-ads.txt') {
+    return plainTextResponse(APP_ADS_TXT);
+  }
+
+  if (url.pathname === '/robots.txt') {
+    return plainTextResponse(ROBOTS_TXT);
+  }
+
   const origin = req.headers.get('origin');
   const headers = corsHeaders(origin);
 
-  // Preflight request — short-circuit with 204 + CORS headers
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers });
   }
 
-  // Let the request continue to the actual endpoint. Vercel Edge Middleware
-  // uses the `x-middleware-next` response header to signal pass-through; any
-  // other headers set here are merged into the final response.
   return new Response(null, {
     headers: {
       ...headers,
