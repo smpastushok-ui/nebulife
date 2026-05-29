@@ -108,6 +108,13 @@ export const RATE_LIMITS = {
   search: (ip: string) => checkRateLimit(`search:${ip}`, 10, 60_000),
   /** Global: 60 requests per minute per IP */
   global: (ip: string) => checkRateLimit(`global:${ip}`, 60, 60_000),
+  /**
+   * Polling/read endpoints: 150 requests per minute per player, SHARED across
+   * messages list/channels/read-state/unread-summary, cluster presence and
+   * player GET. Legit play stays well under ~30/min; this throttles runaway
+   * client loops / scrapers (the 2026-05 anomaly hit ~330/min from one IP).
+   */
+  poll: (playerId: string) => checkRateLimit(`poll:${playerId}`, 150, 60_000),
 } as const;
 
 /** Extract client IP from Vercel request headers. */

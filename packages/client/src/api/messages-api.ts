@@ -34,6 +34,13 @@ export interface MessageReadState {
   updated_at: string;
 }
 
+export interface UnreadSummary {
+  global: number;
+  system: number;
+  astra: number;
+  dm: number;
+}
+
 // ---------------------------------------------------------------------------
 // Messages
 // ---------------------------------------------------------------------------
@@ -83,6 +90,22 @@ export async function getDMChannels(): Promise<DMChannelInfo[]> {
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'Unknown error' }));
     throw new Error(err.error ?? `Get channels failed: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+/**
+ * Aggregated unread counts for all of the player's channels in one request.
+ * Use this for the collapsed-chat unread poll instead of fanning out to
+ * read-state + list ×N + channels.
+ */
+export async function getUnreadSummary(): Promise<UnreadSummary> {
+  const res = await authFetch(`${API_BASE}/messages/unread-summary`);
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(err.error ?? `Get unread summary failed: ${res.status}`);
   }
 
   return res.json();

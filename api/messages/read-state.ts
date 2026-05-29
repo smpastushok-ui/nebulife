@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
 import { getMessageReadStates } from '../../packages/server/src/db.js';
+import { RATE_LIMITS } from '../../packages/server/src/rate-limiter.js';
 
 function isAllowedChannel(channel: string, playerId: string): boolean {
   if (channel === 'global') return true;
@@ -25,6 +26,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const auth = await authenticate(req, res);
     if (!auth) return;
+
+    if (!await RATE_LIMITS.poll(auth.playerId)) {
+      return res.status(429).json({ error: 'Too many requests' });
+    }
 
     const rawChannels = typeof req.query.channels === 'string' ? req.query.channels : '';
     const channels = rawChannels

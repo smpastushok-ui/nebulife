@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getPlayer, updatePlayer } from '../../packages/server/src/db.js';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
+import { RATE_LIMITS } from '../../packages/server/src/rate-limiter.js';
 import { SUPPORTED_LANGUAGES } from '@nebulife/core';
 
 function isGameStateRegression(current: unknown, incoming: unknown): boolean {
@@ -38,6 +39,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!auth) return; // 401 already sent
 
   if (req.method === 'GET') {
+    // Throttle reads by the CALLER's id (not the target) so a single token
+    // can't enumerate / hammer player records. Shared 'poll' budget with the
+    // chat/presence polling endpoints.
+    if (!await RATE_LIMITS.poll(auth.playerId)) {
+      return res.status(429).json({ error: 'Too many requests' });
+    }
     try {
       const player = await getPlayer(playerId);
       if (!player) {

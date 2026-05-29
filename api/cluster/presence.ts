@@ -5,6 +5,7 @@ import {
   getClusterOnlineMembers,
 } from '../../packages/server/src/db.js';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
+import { RATE_LIMITS } from '../../packages/server/src/rate-limiter.js';
 
 /**
  * POST /api/cluster/presence
@@ -20,6 +21,10 @@ import { authenticate } from '../../packages/server/src/auth-middleware.js';
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const auth = await authenticate(req, res);
   if (!auth) return;
+
+  if (!await RATE_LIMITS.poll(auth.playerId)) {
+    return res.status(429).json({ error: 'Too many requests' });
+  }
 
   const player = await getPlayer(auth.playerId);
 

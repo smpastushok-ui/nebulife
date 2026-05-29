@@ -8,7 +8,7 @@ import {
   getDMChannels,
   dmChannelId,
   reportMessage,
-  getMessageReadStates,
+  getUnreadSummary,
   markMessageChannelRead,
   type MessageData,
   type DMChannelInfo,
@@ -253,15 +253,6 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
     localStorage.setItem(readKeyForChannel(channel), lastReadAt);
   }, [readKeyForChannel]);
 
-  const getLastReadAt = useCallback(async (channel: string): Promise<string | null> => {
-    const [state] = await getMessageReadStates([channel]);
-    if (state?.last_read_at) {
-      updateLocalReadState(channel, state.last_read_at);
-      return state.last_read_at;
-    }
-    return localStorage.getItem(readKeyForChannel(channel));
-  }, [readKeyForChannel, updateLocalReadState]);
-
   const clearUnreadIndicators = useCallback(() => {
     setUnreadGlobal(0);
     setUnreadAstraMessages(0);
@@ -411,60 +402,29 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
     fetchAstra();
   }, [collapsed, tab, playerId]);
 
-  // Unread count polling (when collapsed)
+  // Unread count polling (when collapsed). Single aggregated request per tick
+  // (/api/messages/unread-summary) instead of fanning out to read-state +
+  // list ×N + channels. Deps are intentionally limited to [collapsed, playerId]
+  // so the effect is NOT torn down/recreated on unrelated re-renders — that
+  // churn previously fired an immediate burst of requests every render.
   useEffect(() => {
     if (!collapsed) return;
 
     let iv: ReturnType<typeof setInterval> | null = null;
     let stopped = false;
-    const countUnreadChannel = async (channel: string, setCount: (count: number) => void) => {
-      const lastRead = await getLastReadAt(channel);
-      if (!lastRead) {
-        const latest = await getMessages(channel, 1);
-        const latestTs = latest[latest.length - 1]?.created_at;
-        if (latestTs) markChannelRead(channel, latestTs);
-        setCount(0);
-        return;
-      }
-      const msgs = await getMessages(channel, 50, lastRead || undefined);
-      const unreadFromOthers = msgs.filter((msg) => msg.sender_id !== playerId);
-      setCount(unreadFromOthers.length);
-    };
 
     const checkUnread = async () => {
       if (stopped) return;
       try {
-        const lastRead = await getLastReadAt('global');
-        if (!lastRead) {
-          const latest = await getMessages('global', 1);
-          const latestTs = latest[latest.length - 1]?.created_at;
-          if (latestTs) markChannelRead('global', latestTs);
-          setUnreadGlobal(0);
-        } else {
-          const msgs = await getMessages('global', 50, lastRead || undefined);
-          const unreadFromOthers = msgs.filter((msg) => msg.sender_id !== playerId);
-          setUnreadGlobal(unreadFromOthers.length);
-        }
-
-        await countUnreadChannel(`astra:${playerId}`, setUnreadAstraMessages);
-        await countUnreadChannel(`system:${playerId}`, setUnreadSystemMessages);
-
-        const channels = await getDMChannels();
-        let dmUnread = 0;
-        for (const channel of channels) {
-          const lastReadDm = await getLastReadAt(channel.channel);
-          if (!lastReadDm) {
-            const latestDm = await getMessages(channel.channel, 1);
-            if (latestDm.some((msg) => msg.sender_id !== playerId)) dmUnread += 1;
-            continue;
-          }
-          if (channel.last_at > lastReadDm) {
-            const unreadMsgs = await getMessages(channel.channel, 50, lastReadDm);
-            dmUnread += unreadMsgs.filter((msg) => msg.sender_id !== playerId).length;
-          }
-        }
-        setUnreadDm(dmUnread);
+        const summary = await getUnreadSummary();
+        if (stopped) return;
+        setUnreadGlobal(summary.global);
+        setUnreadAstraMessages(summary.astra);
+        setUnreadSystemMessages(summary.system);
+        setUnreadDm(summary.dm);
       } catch (err) {
+        // Stop polling on auth errors (401/403). 429 (rate limit) just skips
+        // this tick and retries on the next interval.
         if (err instanceof Error && /40[13]/.test(err.message)) {
           stopped = true;
           if (iv) clearInterval(iv);
@@ -474,8 +434,8 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
 
     checkUnread();
     iv = setInterval(checkUnread, 10000);
-    return () => { if (iv) clearInterval(iv); };
-  }, [collapsed, getLastReadAt, markChannelRead, playerId]);
+    return () => { stopped = true; if (iv) clearInterval(iv); };
+  }, [collapsed, playerId]);
 
   // Notify parent of all unread chat activity so the collapsed comms button
   // does not look idle while global messages are waiting.

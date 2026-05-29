@@ -1599,6 +1599,94 @@ export async function getMessageReadStates(
   `) as MessageReadRow[];
 }
 
+/**
+ * Aggregate unread message counts for every channel the player participates in,
+ * in a SINGLE query. Replaces the per-channel polling the client used to do
+ * (read-state + list ×N + channels), collapsing ~6+ HTTP round-trips into one.
+ *
+ * Semantics (mirrors the old ChatWidget client logic):
+ *   - global / system / astra: counted only AFTER a read state exists for the
+ *     channel (a brand-new device shows 0 until it opens chat once). global is
+ *     additionally floored at the player's join date.
+ *   - dm: counted even with no read state, so a fresh incoming DM thread still
+ *     surfaces as unread.
+ *   - Own messages never count.
+ */
+export interface UnreadSummary {
+  global: number;
+  system: number;
+  astra: number;
+  dm: number;
+}
+
+export async function getUnreadSummary(playerId: string): Promise<UnreadSummary> {
+  const sql = getSQL();
+  const systemCh = `system:${playerId}`;
+  const astraCh = `astra:${playerId}`;
+  const dmStart = `dm:${playerId}:%`;
+  const dmEnd = `%:${playerId}`;
+
+  const rows = (await sql`
+    WITH reads AS (
+      SELECT channel, last_read_at
+      FROM message_reads
+      WHERE player_id = ${playerId}
+    ),
+    player AS (
+      SELECT created_at FROM players WHERE id = ${playerId}
+    ),
+    classified AS (
+      SELECT
+        m.channel,
+        m.created_at,
+        CASE
+          WHEN m.channel = 'global'      THEN 'global'
+          WHEN m.channel = ${systemCh}   THEN 'system'
+          WHEN m.channel = ${astraCh}    THEN 'astra'
+          WHEN m.channel LIKE ${dmStart} OR m.channel LIKE ${dmEnd} THEN 'dm'
+          ELSE 'other'
+        END AS grp
+      FROM messages m
+      WHERE m.sender_id <> ${playerId}
+        AND (
+          m.channel = 'global'
+          OR m.channel = ${systemCh}
+          OR m.channel = ${astraCh}
+          OR m.channel LIKE ${dmStart}
+          OR m.channel LIKE ${dmEnd}
+        )
+    )
+    SELECT c.grp, COUNT(*)::int AS cnt
+    FROM classified c
+    LEFT JOIN reads rd ON rd.channel = c.channel
+    LEFT JOIN player p ON TRUE
+    WHERE c.grp <> 'other'
+      AND (
+        (
+          c.grp IN ('global', 'system', 'astra')
+          AND rd.last_read_at IS NOT NULL
+          AND c.created_at > rd.last_read_at
+          AND (c.grp <> 'global' OR p.created_at IS NULL OR c.created_at >= p.created_at)
+        )
+        OR (
+          c.grp = 'dm'
+          AND (rd.last_read_at IS NULL OR c.created_at > rd.last_read_at)
+        )
+      )
+    GROUP BY c.grp
+  `) as Array<{ grp: string; cnt: number }>;
+
+  const summary: UnreadSummary = { global: 0, system: 0, astra: 0, dm: 0 };
+  for (const row of rows) {
+    const n = typeof row.cnt === 'number' ? row.cnt : parseInt(String(row.cnt), 10);
+    if (row.grp === 'global') summary.global = n;
+    else if (row.grp === 'system') summary.system = n;
+    else if (row.grp === 'astra') summary.astra = n;
+    else if (row.grp === 'dm') summary.dm += n;
+  }
+  return summary;
+}
+
 /** Persist a channel read timestamp, never moving it backwards. */
 export async function markMessageChannelRead(
   playerId: string,
