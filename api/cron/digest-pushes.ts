@@ -41,6 +41,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const queued = await enqueueDigestReadyPush({
             playerId: player.id,
             weekDate: digest.week_date,
+            favoriteHourUtc: player.favorite_hour_utc,
           });
           if (queued) {
             totalQueued++;

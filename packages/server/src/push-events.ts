@@ -72,9 +72,35 @@ export async function enqueueDailySpaceReminderPush(input: PushEventBase & {
   });
 }
 
+/**
+ * Next future UTC instant at the given hour (with a +10 min offset to avoid
+ * landing exactly on the hour). If that time already passed today, rolls to
+ * tomorrow. Used to deliver broadcasts during the player's active hours.
+ */
+function nextUtcHour(hourUtc: number): string {
+  const now = new Date();
+  const target = new Date(Date.UTC(
+    now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), hourUtc, 10, 0, 0,
+  ));
+  if (target.getTime() <= now.getTime()) {
+    target.setUTCDate(target.getUTCDate() + 1);
+  }
+  return target.toISOString();
+}
+
 export async function enqueueDigestReadyPush(input: PushEventBase & {
   weekDate: string;
+  /** Player's most-active UTC hour (timezone proxy). null = send immediately. */
+  favoriteHourUtc?: number | null;
 }): Promise<boolean> {
+  // Schedule for the player's active hour so the digest doesn't arrive in the
+  // middle of their night. Falls back to immediate delivery when we have no
+  // activity data (can't infer a sensible local time).
+  const scheduledAt =
+    typeof input.favoriteHourUtc === 'number' && input.favoriteHourUtc >= 0 && input.favoriteHourUtc <= 23
+      ? nextUtcHour(input.favoriteHourUtc)
+      : undefined;
+
   return enqueueSafe({
     playerId: input.playerId,
     type: 'digest_ready',
@@ -88,6 +114,7 @@ export async function enqueueDigestReadyPush(input: PushEventBase & {
       link: `/?action=open-digest&weekDate=${encodeURIComponent(input.weekDate)}`,
     },
     priority: 10,
+    scheduledAt,
     dedupeKey: `digest_ready:${input.playerId}:${input.weekDate}`,
   });
 }

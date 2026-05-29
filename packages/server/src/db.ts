@@ -2044,15 +2044,38 @@ export async function getDigestEmailRecipients(lang: string): Promise<PlayerRow[
 }
 
 /** Players with FCM token + push notifications enabled for the given language. */
-export async function getDigestPushRecipients(lang: string): Promise<PlayerRow[]> {
+export type DigestPushRecipient = PlayerRow & { favorite_hour_utc: number | null };
+
+export async function getDigestPushRecipients(lang: string): Promise<DigestPushRecipient[]> {
   const sql = getSQL();
+  // Join each player's most-active UTC hour (proxy for their timezone, derived
+  // from the last 30 days of activity). Used to schedule the digest push at a
+  // sensible local time instead of blasting everyone at the same UTC instant.
   const rows = await sql`
-    SELECT * FROM players
-    WHERE preferred_language = ${lang}
-      AND fcm_token IS NOT NULL
-      AND push_notifications = TRUE
+    WITH hour_preference AS (
+      SELECT player_id, hour_utc
+      FROM (
+        SELECT
+          player_id,
+          hour_utc,
+          ROW_NUMBER() OVER (
+            PARTITION BY player_id
+            ORDER BY SUM(hits) DESC, MAX(last_seen) DESC
+          ) AS rank
+        FROM player_activity_hours
+        WHERE activity_date >= (CURRENT_DATE - INTERVAL '30 days')
+        GROUP BY player_id, hour_utc
+      ) ranked
+      WHERE rank = 1
+    )
+    SELECT p.*, hp.hour_utc AS favorite_hour_utc
+    FROM players p
+    LEFT JOIN hour_preference hp ON hp.player_id = p.id
+    WHERE p.preferred_language = ${lang}
+      AND p.fcm_token IS NOT NULL
+      AND p.push_notifications = TRUE
   `;
-  return rows as PlayerRow[];
+  return rows as DigestPushRecipient[];
 }
 
 /** Mark a digest as having had emails sent. */
