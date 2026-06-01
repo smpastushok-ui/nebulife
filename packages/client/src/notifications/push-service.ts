@@ -129,6 +129,61 @@ export async function requestPushPermission(): Promise<string | null> {
 }
 
 /**
+ * Silently fetch the FCM token IFF permission was ALREADY granted — never
+ * prompts the user. Use this on every launch (after auth) so players who once
+ * granted permission always have a fresh token saved server-side, even though
+ * the explicit opt-in toggle only ran once. This closes the #1 push gap: a
+ * token that was never persisted (or rotated) → the server has nothing to send.
+ * Returns the token, or null when permission is not granted / unsupported.
+ */
+export async function ensurePushTokenIfGranted(): Promise<string | null> {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const permission = await FirebaseMessaging.checkPermissions();
+      if (permission.receive !== 'granted') return null;
+      const { token } = await FirebaseMessaging.getToken();
+      return token || null;
+    } catch (err) {
+      console.warn('[push] silent native token fetch failed:', err);
+      return null;
+    }
+  }
+
+  if (!('Notification' in window) || Notification.permission !== 'granted') return null;
+  if (!('serviceWorker' in navigator)) return null;
+  if (!(await isSupported().catch(() => false))) return null;
+
+  const app = getFirebaseApp();
+  if (!app || !VAPID_KEY) return null;
+
+  try {
+    const messaging = getMessaging(app);
+    const registration = await navigator.serviceWorker.ready;
+    const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: registration });
+    return token || null;
+  } catch (err) {
+    console.warn('[push] silent getToken failed:', err);
+    return null;
+  }
+}
+
+/**
+ * Native FCM token rotation listener. The OS/Firebase can mint a new token at
+ * any time; without this the server keeps a stale token and silently fails to
+ * deliver. Returns an unsubscribe fn (or null on web / when unsupported).
+ */
+export function startTokenRefreshListener(onToken: (token: string) => void): (() => void) | null {
+  if (!Capacitor.isNativePlatform()) return null;
+  let remove: (() => void) | null = null;
+  FirebaseMessaging.addListener('tokenReceived', ({ token }) => {
+    if (token) onToken(token);
+  })
+    .then((handle) => { remove = () => { void handle.remove(); }; })
+    .catch(() => { /* ignore */ });
+  return () => { remove?.(); };
+}
+
+/**
  * Listen for foreground push messages (app open).
  * Fires a custom DOM event so App.tsx can handle it.
  */

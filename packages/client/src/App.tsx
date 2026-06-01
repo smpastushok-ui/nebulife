@@ -146,7 +146,7 @@ import { EvacuationPrompt } from './ui/components/EvacuationPrompt.js';
 import { ColonyFoundingPrompt } from './ui/components/ColonyFoundingPrompt.js';
 import { getPlayer, createPlayer, getDiscoveries, saveDiscoveryToServer, updatePlayer, updateFcmToken, sendTestPush, fetchUniverseInfo, uploadPlayerAvatar, removePlayerAvatar } from './api/player-api.js';
 import type { DiscoveryData } from './api/player-api.js';
-import { requestPushPermissionDetailed, startForegroundListener } from './notifications/push-service.js';
+import { requestPushPermissionDetailed, startForegroundListener, ensurePushTokenIfGranted, startTokenRefreshListener } from './notifications/push-service.js';
 import { getCurrentUser, onAuthChange, signOut } from './auth/auth-service.js';
 import { authFetch, apiFetch } from './auth/api-client.js';
 import { isFirebaseConfigured } from './auth/firebase-config.js';
@@ -155,7 +155,7 @@ import { WebAccessGate } from './ui/components/WebAccessGate.js';
 import { CallsignModal } from './ui/components/CallsignModal.js';
 import { LinkAccountModal } from './ui/components/LinkAccountModal.js';
 import { CinematicIntro } from './ui/components/CinematicIntro.js';
-import { QuantumSeedLoader } from './ui/components/QuantumSeedLoader.js';
+import { PlanetFormationLoader, type FormationResult } from './ui/components/PlanetFormationLoader.js';
 import { PerfTierSelectScreen } from './ui/components/PerfTierSelectScreen.js';
 import { getDeviceTier, setPerfTierChoice } from './utils/device-tier.js';
 import { parseCompactNumber } from './utils/formatNumber.js';
@@ -205,6 +205,7 @@ import {
 import { saveMissionPhoto } from './api/mission-photo-api.js';
 import {
   trackEvent,
+  trackEventOnce,
   trackFirstValuableAction,
   trackPaidFeatureOrder,
   trackTutorialComplete,
@@ -235,7 +236,6 @@ const KLING_PHOTO_COST = 25;
 const GEMINI_PHOTO_COST = 50;
 const MISSION_CARRIER_RETURN_MS = 60 * 60_000;
 const MISSION_PHOTO_REVEAL_MS = 15_000;
-const MIN_BOOT_LOADER_MS = 4200;
 
 function getPlanetPhotoCost(photoKind: PlanetPhotoKind): number {
   return photoKind === 'exosphere' ? KLING_PHOTO_COST : GEMINI_PHOTO_COST;
@@ -696,24 +696,6 @@ function canRunCarrierRaidOnDevice(): boolean {
   return tier === 'ultra' || !isMobile;
 }
 
-function shouldForceFirstRunPerfPicker(): boolean {
-  if (typeof window === 'undefined') return false;
-  // Mobile Safari/iOS WKWebView can lose the Capacitor bridge briefly during
-  // first boot. Treat iPhone/iPad as picker-required even if the bridge is late.
-  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    || Boolean((window as any).Capacitor?.isNativePlatform?.());
-}
-
-function hasValidPerfTierChoice(): boolean {
-  try {
-    const tier = localStorage.getItem('nebulife_perf_tier');
-    return tier === 'simple' || tier === 'standard' || tier === 'full';
-  } catch {
-    return false;
-  }
-}
-
 function isPlanetTextureMapUrl(url: string | null | undefined): url is string {
   if (!url) return false;
   try {
@@ -721,6 +703,29 @@ function isPlanetTextureMapUrl(url: string | null | undefined): url is string {
     return parsed.pathname.endsWith('.webp') && parsed.pathname.includes('/planet-skins/textures/');
   } catch {
     return url.endsWith('.webp') && url.includes('/planet-skins/textures/');
+  }
+}
+
+// Crash guard for the WebGL boot intro. A shader/WebGL failure must never
+// trap the player on a black screen — we log it (intro_crash) and fall through
+// to the normal flow via onError.
+class IntroErrorBoundary extends React.Component<
+  { onError: (message: string) => void; children: React.ReactNode },
+  { failed: boolean }
+> {
+  constructor(props: { onError: (message: string) => void; children: React.ReactNode }) {
+    super(props);
+    this.state = { failed: false };
+  }
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch(error: Error) {
+    this.props.onError(error?.message ?? 'unknown intro error');
+  }
+  render() {
+    if (this.state.failed) return null;
+    return this.props.children;
   }
 }
 
@@ -963,6 +968,8 @@ function AppInner() {
       return false;
     }
   });
+  // Manual graphics + language picker — only reached via the intro SKIP button.
+  const [manualSetup, setManualSetup] = useState(false);
   const [needsCallsign, setNeedsCallsign] = useState(false);
   const [webAccessAllowed, setWebAccessAllowed] = useState(false);
   const [isGuest, setIsGuest] = useState(false);
@@ -977,16 +984,82 @@ function AppInner() {
   const [cinematicVideoPlaying, setCinematicVideoPlaying] = useState(false);
   const [showGuestReminder, setShowGuestReminder] = useState(false);
 
-  useEffect(() => {
-    if (bootLoaderDone) return;
-    const timer = window.setTimeout(() => setBootLoaderDone(true), MIN_BOOT_LOADER_MS);
-    return () => window.clearTimeout(timer);
-  }, [bootLoaderDone]);
+  // Boot loader completion is now driven by PlanetFormationLoader.onComplete
+  // (the formation cinematic + FPS benchmark), not a blind timer. Returning
+  // players initialize bootLoaderDone=true and never see it.
 
   useEffect(() => {
     if (!bootLoaderDone) return;
     try { localStorage.setItem('nebulife_quantum_seed_seen', '1'); } catch { /* ignore */ }
   }, [bootLoaderDone]);
+
+  // Step 0 funnel: React bundle parsed + mounted. Marks the end of the
+  // "blank screen" window so GA4 can separate pre-mount churn from in-app drop.
+  useEffect(() => {
+    trackEventOnce('app_js_loaded', 'app_js_loaded', {
+      returning: bootLoaderDone,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Step 0 funnel: the formation loader is on screen (new players only — for
+  // returning players bootLoaderDone is already true at mount and it's skipped).
+  useEffect(() => {
+    if (bootLoaderDone) return;
+    trackEventOnce('boot_loader_shown', 'boot_loader_shown');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Step 0 funnel: the login screen became visible (same gate as the JSX
+  // render below). Lets GA4 measure intro → auth_screen_shown drop.
+  useEffect(() => {
+    if (isFirebaseConfigured && !authLoading && bootLoaderDone && !manualSetup && !firebaseUser) {
+      trackEventOnce('auth_screen_shown', 'auth_screen_shown');
+    }
+  }, [authLoading, bootLoaderDone, manualSetup, firebaseUser]);
+
+  // Intro genesis cinematic finished. Watched to the end → trust the auto
+  // benchmark + locale, go straight to login (no pickers). SKIP → route to the
+  // manual graphics + language picker (PerfTierSelectScreen).
+  const handleIntroComplete = useCallback((result: FormationResult) => {
+    void trackEvent('boot_loader_done', {
+      fps: result.fps,
+      tier: result.tier ?? 'none',
+      skipped: result.skipped,
+      duration_ms: Math.round(result.durationMs),
+    });
+    if (result.skipped) {
+      void trackEvent('intro_skipped', { fps: result.fps, duration_ms: Math.round(result.durationMs) });
+      setManualSetup(true);
+      return;
+    }
+    void trackEvent('intro_completed', {
+      fps: result.fps,
+      tier: result.tier ?? 'none',
+      duration_ms: Math.round(result.durationMs),
+    });
+    setBootLoaderDone(true);
+  }, []);
+
+  // Crash inside the WebGL intro — log it, then proceed so the player is never
+  // trapped on a black screen.
+  const handleIntroCrash = useCallback((message: string) => {
+    void trackEvent('intro_crash', { message: message.slice(0, 180) });
+    setBootLoaderDone(true);
+  }, []);
+
+  // Manual picker submit (reached via SKIP). Persist both choices + mark the
+  // intro as seen, then reload so device-tier cache + kill-switch CSS resync.
+  const handleManualSetupSubmit = useCallback((lang: Language, tier: PerfTierChoice) => {
+    try {
+      localStorage.setItem('nebulife_lang', lang);
+      localStorage.setItem('nebulife_lang_chosen', '1');
+      setPerfTierChoice(tier);
+      localStorage.setItem('nebulife_perf_tier_chosen', '1');
+      localStorage.setItem('nebulife_quantum_seed_seen', '1');
+    } catch { /* ignore */ }
+    window.location.reload();
+  }, []);
 
   // ── Discovery system state ──────────────────────────────────────────────
   const playerId = useRef<string>('');
@@ -3956,7 +4029,11 @@ function AppInner() {
     const ambient = ambientRef.current;
     if (!ambient) return;
     const isTutorialInteractiveActive = activeTutorialStep !== null && !tutorialMinimized;
-    const shouldPause = !ambientEnabled || !!surfaceTarget || showCosmicArchive || cinematicVideoPlaying || showHangar || showRaid || isTutorialInteractiveActive;
+    // No background music at the very start: stay silent through the genesis
+    // intro and the auth screen, only easing in once the player is actually in
+    // the game (logged in, guest, or legacy no-Firebase mode).
+    const preGame = !bootLoaderDone || (isFirebaseConfigured && !firebaseUser && !isGuest);
+    const shouldPause = preGame || !ambientEnabled || !!surfaceTarget || showCosmicArchive || cinematicVideoPlaying || showHangar || showRaid || isTutorialInteractiveActive;
     const wasPaused = prevAmbientPausedRef.current;
     if (shouldPause && !wasPaused) {
       ambient.pause();
@@ -3964,7 +4041,7 @@ function AppInner() {
       ambient.resume();
     }
     prevAmbientPausedRef.current = shouldPause;
-  }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying, showHangar, showRaid, activeTutorialStep, tutorialMinimized]);
+  }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying, showHangar, showRaid, activeTutorialStep, tutorialMinimized, bootLoaderDone, firebaseUser, isGuest]);
 
   // Onboarding Ambient Loop
   useEffect(() => {
@@ -3994,7 +4071,10 @@ function AppInner() {
 
   useEffect(() => {
     const isTutorialInteractiveActive = activeTutorialStep !== null && !tutorialMinimized;
-    const shouldPause = !ambientEnabled || !!surfaceTarget || showCosmicArchive || cinematicVideoPlaying || showHangar || showRaid || isTutorialInteractiveActive;
+    // Do not unlock/resume audio on the very first taps during the intro or
+    // auth screen — those interactions must stay silent (see Normal Ambient Loop).
+    const preGame = !bootLoaderDone || (isFirebaseConfigured && !firebaseUser && !isGuest);
+    const shouldPause = preGame || !ambientEnabled || !!surfaceTarget || showCosmicArchive || cinematicVideoPlaying || showHangar || showRaid || isTutorialInteractiveActive;
     if (shouldPause) return;
     const unlockSpaceAudio = () => {
       ambientRef.current?.resume(800);
@@ -4007,7 +4087,7 @@ function AppInner() {
       document.removeEventListener('keydown', unlockSpaceAudio, true);
       document.removeEventListener('touchstart', unlockSpaceAudio, true);
     };
-  }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying, showHangar, showRaid, activeTutorialStep, tutorialMinimized]);
+  }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying, showHangar, showRaid, activeTutorialStep, tutorialMinimized, bootLoaderDone, firebaseUser, isGuest]);
 
   useEffect(() => {
     if (!surfaceTarget || needsOnboarding || isTutorialActive || showAcademy || showCosmicArchive) return;
@@ -8301,6 +8381,45 @@ function AppInner() {
     };
   }, []);
 
+  // ── FCM token acquisition + (re)registration ──────────────────────────
+  // Root-cause fix for "I get no pushes": the FCM token was saved ONLY when a
+  // player manually toggled push ON in settings — so in production only 3 of
+  // 622 players had a token (and those were stale). With no token there is
+  // literally nothing to deliver to. Now, once the player is in the game we:
+  //   1. silently refresh the token if permission was already granted, and
+  //   2. ask for permission ONCE (guarded by localStorage) if it was never
+  //      requested — this is what actually collects tokens so daily / digest /
+  //      inactivity pushes can reach players who don't open the app.
+  // Plus we listen for native token rotation. Denials are respected (asked once).
+  useEffect(() => {
+    if (isFirebaseConfigured && !serverHydrated) return;
+    if (needsOnboarding) return; // wait until past the intro/cinematic
+    const pid = playerId.current;
+    if (!pid) return;
+    let cancelled = false;
+
+    void (async () => {
+      let token = await ensurePushTokenIfGranted();
+      if (!token && localStorage.getItem('nebulife_push_prompted') !== '1') {
+        localStorage.setItem('nebulife_push_prompted', '1');
+        const res = await requestPushPermissionDetailed();
+        token = res.token;
+        if (token) {
+          setPushNotifications(true);
+          updatePlayer(pid, { push_notifications: true }).catch(() => { /* ignore */ });
+        }
+      }
+      if (cancelled || !token) return;
+      updateFcmToken(pid, token).catch(() => { /* ignore */ });
+    })();
+
+    const unsub = startTokenRefreshListener((newToken) => {
+      const id = playerId.current;
+      if (id && newToken) updateFcmToken(id, newToken).catch(() => { /* ignore */ });
+    });
+    return () => { cancelled = true; unsub?.(); };
+  }, [serverHydrated, firebaseUser, needsOnboarding]);
+
   // ── Fetch latest digest (for new-digest indicator) ────────────────────
   useEffect(() => {
     const token = localStorage.getItem('nebulife_firebase_token') ?? '';
@@ -9473,7 +9592,7 @@ function AppInner() {
     return blocked;
   })();
 
-  // QuantumSeedLoader is an intro cinematic, not a generic route/loading
+  // PlanetFormationLoader is an intro cinematic, not a generic route/loading
   // placeholder. Returning players should not see it flash on every refresh.
   const showBootLoader = !bootLoaderDone;
   const shouldShowWebAccessGate = isFirebaseConfigured
@@ -11807,9 +11926,21 @@ function AppInner() {
         );
       })()}
 
-      {/* Auth: Loading screen */}
-      {showBootLoader && (
-        <QuantumSeedLoader />
+      {/* Boot cinematic: procedural "world genesis" + silent FPS benchmark.
+          Watched to the end → straight to login (auto tier + locale). SKIP →
+          manual graphics + language picker. Crashes are caught and bypassed. */}
+      {showBootLoader && !manualSetup && (
+        <IntroErrorBoundary onError={handleIntroCrash}>
+          <PlanetFormationLoader onComplete={handleIntroComplete} />
+        </IntroErrorBoundary>
+      )}
+
+      {/* Manual graphics + language picker — only via the intro SKIP button. */}
+      {manualSetup && (
+        <PerfTierSelectScreen
+          initialLang={i18n.language === 'uk' ? 'uk' : 'en'}
+          onSubmit={handleManualSetupSubmit}
+        />
       )}
 
       {/* Auth: Login screen (only when Firebase is configured) */}
@@ -12031,60 +12162,17 @@ export function App() {
     }
   }, []);
 
-  // First-launch combined picker (language + graphics tier). Gate is a
-  // single localStorage flag — once set, the screen never appears again
-  // until either the player opens Settings → Reset or localStorage gets
-  // cleared. Existing users upgrading from a previous build (no flag
-  // set yet) WILL see the picker once — considered acceptable because
-  // the auto-detect was unreliable on midrange phones anyway.
-  const [needsFirstRunSetup, setNeedsFirstRunSetup] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem('nebulife_perf_tier_chosen') !== '1'
-        || (shouldForceFirstRunPerfPicker() && !hasValidPerfTierChoice());
-    }
-    catch { return false; }
-  });
-
+  // No first-run pickers by default. Language is auto (English, or Ukrainian
+  // when the device locale is Ukrainian — see detectDeviceLanguage); graphics
+  // tier is auto-detected by the boot FPS benchmark (PlanetFormationLoader).
+  // The ONLY path to manual language + graphics selection is the SKIP button
+  // on the intro, which routes to PerfTierSelectScreen (handled in AppInner).
   const handleLanguageChange = useCallback((lang: Language) => {
     localStorage.setItem('nebulife_lang', lang);
     void i18n.changeLanguage(lang);
   }, []);
 
-  const handleFirstRunSubmit = useCallback((lang: Language, tier: PerfTierChoice) => {
-    // Persist both choices.
-    localStorage.setItem('nebulife_lang', lang);
-    localStorage.setItem('nebulife_lang_chosen', '1');
-    setPerfTierChoice(tier);
-    localStorage.setItem('nebulife_perf_tier_chosen', '1');
-    // Full reload so device-tier.ts cache, <html data-perf-tier> and
-    // the injected kill-switch CSS all pick up the new tier. Without
-    // this the scene below would be half-configured from the old tier.
-    window.location.reload();
-  }, []);
-
-  // Desktop web → auto-detect is always correct (`ultra`). Skip the
-  // picker entirely; no override needed. Dev-only `?force_picker=1`
-  // query-string escape hatch lets us preview the screen in a browser.
-  const forcePicker = typeof window !== 'undefined'
-    && /[?&]force_picker=1\b/.test(window.location.search);
-  const skipPicker = !forcePicker && !shouldForceFirstRunPerfPicker();
-
-  if (needsFirstRunSetup && !skipPicker) {
-    // Native first-run picker should respect the detected device language.
-    // The player can still override with the UK/EN pills before continuing.
-    return (
-      <PerfTierSelectScreen
-        initialLang={savedLang}
-        onSubmit={handleFirstRunSubmit}
-      />
-    );
-  }
-
-  // Reference setSavedLang so TS doesn't complain about the setter being
-  // unused — kept around for future "reopen picker from Settings" flow.
-  void setSavedLang;
-  void needsFirstRunSetup;
-  void setNeedsFirstRunSetup;
+  void setSavedLang; // setter retained for a future "reopen picker" flow
 
   return (
     <LanguageProvider initial={savedLang} onLanguageChange={handleLanguageChange}>

@@ -1541,6 +1541,16 @@
       "step_inflation": "space is unfolding",
       "step_web": "gravity gathers the first filaments",
       "step_cluster": "A.S.T.R.A. synchronizing your cluster"
+    },
+    "formation": {
+      "eyebrow": "NEBULIFE · WORLD GENESIS",
+      "title": "A world is forming",
+      "accretion": "gravity gathers dust and rock",
+      "molten": "the core ignites · volcanoes erupt",
+      "cooling": "the crust cools · oceans gather",
+      "paradise": "life takes hold · a living world",
+      "reveal": "This is your home planet",
+      "skip": "Skip"
     }
   },
   "gallery": {

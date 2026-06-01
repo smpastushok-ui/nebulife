@@ -57,6 +57,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (errors.length === 0) {
+      // Mark sent even when totalQueued === 0 so a tokenless cohort doesn't loop
+      // forever and block newer digests (LIMIT 1). But surface it loudly: zero
+      // queued almost always means no players have an FCM token saved — the
+      // real gap that silent token (re)registration on the client now closes.
+      if (totalQueued === 0) {
+        console.warn(`[digest-pushes] 0 recipients for ${digest.week_date} — likely no players have an FCM token (push delivery blind spot)`);
+      }
       await markDigestPushesSent(digest.week_date);
     }
     console.log(`[digest-pushes] Queued ${totalQueued} pushes for ${digest.week_date}`);

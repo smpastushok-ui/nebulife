@@ -2268,6 +2268,87 @@ export async function getDueDailyReminderCandidates(options: {
   return rows as DailyReminderCandidate[];
 }
 
+export interface InactiveReminderCandidate {
+  player_id: string;
+  threshold_days: number;
+  /** YYYYMMDD of the player's last activity — identifies the idle "episode". */
+  episode: string;
+  favorite_hour_utc: number | null;
+}
+
+/**
+ * Players who have gone idle for a re-engagement threshold (default 2/7/30
+ * days) since their last activity, opted into push, and have a token. Picks
+ * the LARGEST threshold each player currently exceeds and dedupes per
+ * (player, threshold, idle-episode) so each new idle episode re-triggers and
+ * a returning player resets the cycle. This is true inactivity detection based
+ * on last_seen_at — distinct from the signup-day `daily-reminders` cron.
+ */
+export async function getInactiveReminderCandidates(options: {
+  limit?: number;
+} = {}): Promise<InactiveReminderCandidate[]> {
+  const sql = getSQL();
+  const limit = options.limit ?? 200;
+
+  const rows = await sql`
+    WITH hour_preference AS (
+      SELECT player_id, hour_utc
+      FROM (
+        SELECT
+          player_id,
+          hour_utc,
+          ROW_NUMBER() OVER (
+            PARTITION BY player_id
+            ORDER BY SUM(hits) DESC, MAX(last_seen) DESC
+          ) AS rank
+        FROM player_activity_hours
+        WHERE activity_date >= (CURRENT_DATE - INTERVAL '30 days')
+        GROUP BY player_id, hour_utc
+      ) ranked
+      WHERE rank = 1
+    ),
+    base AS (
+      SELECT
+        p.id AS player_id,
+        COALESCE(p.last_seen_at, p.last_login, p.created_at) AS last_active,
+        FLOOR(EXTRACT(EPOCH FROM (NOW() - COALESCE(p.last_seen_at, p.last_login, p.created_at))) / 86400)::int AS idle_days,
+        hp.hour_utc AS favorite_hour_utc
+      FROM players p
+      LEFT JOIN hour_preference hp ON hp.player_id = p.id
+      WHERE p.fcm_token IS NOT NULL
+        AND p.push_notifications = TRUE
+    ),
+    chosen AS (
+      SELECT
+        player_id,
+        last_active,
+        favorite_hour_utc,
+        CASE
+          WHEN idle_days >= 30 THEN 30
+          WHEN idle_days >= 7 THEN 7
+          WHEN idle_days >= 2 THEN 2
+          ELSE 0
+        END AS threshold_days
+      FROM base
+    )
+    SELECT
+      player_id,
+      threshold_days,
+      to_char(last_active, 'YYYYMMDD') AS episode,
+      favorite_hour_utc
+    FROM chosen
+    WHERE threshold_days > 0
+      AND NOT EXISTS (
+        SELECT 1 FROM push_queue q
+        WHERE q.dedupe_key =
+          'inactivity:' || player_id || ':' || threshold_days || ':' || to_char(last_active, 'YYYYMMDD')
+      )
+    ORDER BY threshold_days DESC
+    LIMIT ${limit}
+  `;
+  return rows as InactiveReminderCandidate[];
+}
+
 async function recordPlayerActivityHour(playerId: string): Promise<void> {
   const sql = getSQL();
   await sql`

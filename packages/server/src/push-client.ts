@@ -18,6 +18,32 @@ interface ServiceAccount {
   private_key: string;
 }
 
+/**
+ * Load the FCM service account. Prefers the full `FIREBASE_SERVICE_ACCOUNT_JSON`
+ * blob, but falls back to the discrete `FIREBASE_PROJECT_ID` /
+ * `FIREBASE_CLIENT_EMAIL` / `FIREBASE_PRIVATE_KEY` vars (already used for
+ * server-side Firebase Auth). This matters because production only has the
+ * discrete vars set — without this fallback every `sendPush` throws
+ * "FIREBASE_SERVICE_ACCOUNT_JSON is not set" and NO push is ever delivered.
+ */
+function loadServiceAccount(): ServiceAccount {
+  const saJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  if (saJson) {
+    return JSON.parse(saJson) as ServiceAccount;
+  }
+
+  const project_id = process.env.FIREBASE_PROJECT_ID;
+  const client_email = process.env.FIREBASE_CLIENT_EMAIL;
+  const private_key = process.env.FIREBASE_PRIVATE_KEY;
+  if (project_id && client_email && private_key) {
+    return { project_id, client_email, private_key };
+  }
+
+  throw new Error(
+    'FCM credentials missing: set FIREBASE_SERVICE_ACCOUNT_JSON, or FIREBASE_PROJECT_ID + FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY',
+  );
+}
+
 let cachedToken: { value: string; expiresAt: number } | null = null;
 
 /** Create a short-lived OAuth2 access token from the service account. */
@@ -127,12 +153,7 @@ const PUSH_BODIES: Record<string, string> = {
  * Returns true on success, false on token-expired/invalid (token should be cleared).
  */
 export async function sendPush(payload: PushPayload): Promise<boolean> {
-  const saJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  if (!saJson) {
-    throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON is not set');
-  }
-
-  const sa = JSON.parse(saJson) as ServiceAccount;
+  const sa = loadServiceAccount();
   const token = await getAccessToken(sa);
 
   const body = {
@@ -184,8 +205,10 @@ export async function sendPush(payload: PushPayload): Promise<boolean> {
   const errData = await res.json().catch(() => ({})) as { error?: { status?: string } };
   const status = errData?.error?.status;
 
-  // Token expired or invalid — caller should clear it
-  if (status === 'UNREGISTERED' || status === 'INVALID_ARGUMENT') return false;
+  // Token expired/invalid/unregistered — caller should clear it. NOT_FOUND
+  // (HTTP 404) means the token no longer maps to a device (app uninstalled or
+  // token rotated); without clearing it the same dead token keeps failing.
+  if (status === 'UNREGISTERED' || status === 'INVALID_ARGUMENT' || status === 'NOT_FOUND') return false;
 
   throw new Error(`FCM send failed: ${res.status} ${JSON.stringify(errData)}`);
 }

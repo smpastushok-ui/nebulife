@@ -74,6 +74,12 @@ function computeAuto(): DeviceTier {
 // tier's settings.
 
 const OVERRIDE_KEY = 'nebulife_perf_tier';
+// Tier measured by the boot-time PlanetFormationLoader FPS benchmark. Stored
+// as a raw DeviceTier (low|mid|high|ultra) in its own key so it never clobbers
+// an explicit user choice (OVERRIDE_KEY) but still beats the crude RAM/cores
+// heuristic. Priority: explicit user choice > measured benchmark > heuristic.
+const BENCHMARK_KEY = 'nebulife_perf_benchmark_tier';
+const CHOSEN_FLAG = 'nebulife_perf_tier_chosen';
 
 /** Human-friendly choice that maps onto DeviceTier. */
 export type PerfTierChoice = 'simple' | 'standard' | 'full';
@@ -109,14 +115,36 @@ export function clearPerfTierChoice(): void {
   catch { /* ignore */ }
 }
 
-/** What did auto-detect pick? Useful for pre-selecting a card in the
- *  first-run chooser. Ignores any saved override. */
+function readBenchmarkTier(): DeviceTier | null {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(BENCHMARK_KEY);
+    if (raw === 'low' || raw === 'mid' || raw === 'high' || raw === 'ultra') return raw;
+  } catch { /* storage unavailable */ }
+  return null;
+}
+
+/**
+ * Persist the tier measured by the boot FPS benchmark. No-op when the player
+ * has made an explicit graphics choice (their pick always wins). Takes effect
+ * on the NEXT launch — getDeviceTier()/<html data-perf-tier>/kill-switch CSS
+ * are all resolved once at module load, exactly like the user-override flow.
+ */
+export function setBenchmarkTier(tier: DeviceTier): void {
+  try {
+    if (localStorage.getItem(CHOSEN_FLAG) === '1') return; // user chose manually
+    localStorage.setItem(BENCHMARK_KEY, tier);
+  } catch { /* ignore */ }
+}
+
+/** What did we pick for this device? Prefers the measured benchmark over the
+ *  crude heuristic. Useful for pre-selecting a card in the first-run chooser. */
 export function getAutoDetectedTier(): DeviceTier {
-  return computeAuto();
+  return readBenchmarkTier() ?? computeAuto();
 }
 
 function compute(): DeviceTier {
-  return readOverride() ?? computeAuto();
+  return readOverride() ?? readBenchmarkTier() ?? computeAuto();
 }
 
 let cached: DeviceTier | null = null;

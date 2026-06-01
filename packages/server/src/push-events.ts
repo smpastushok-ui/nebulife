@@ -72,6 +72,59 @@ export async function enqueueDailySpaceReminderPush(input: PushEventBase & {
   });
 }
 
+// Escalating re-engagement copy keyed by idle-threshold (days). Tone warms up
+// from "we miss you" → "a lot happened" → "your colony needs you".
+const INACTIVITY_COPY: Record<number, { titleUk: string; bodyUk: string; titleEn: string; bodyEn: string }> = {
+  2: {
+    titleUk: 'Твоя колонія сумує',
+    bodyUk: 'Минуло кілька днів. Обсерваторія зібрала свіжі сигнали — зайди подивитися, що нового у твоєму секторі.',
+    titleEn: 'Your colony misses you',
+    bodyEn: 'A couple of days passed. The observatory gathered fresh signals — drop in and see what changed in your sector.',
+  },
+  7: {
+    titleUk: 'За тиждень багато сталося',
+    bodyUk: 'Нові орбіти, місії та відкриття чекають. Повернися й продовж шлях до нової домівки.',
+    titleEn: 'A week brought a lot',
+    bodyEn: 'New orbits, missions and discoveries are waiting. Come back and continue the journey to a new home.',
+  },
+  30: {
+    titleUk: 'Космос усе ще чекає на тебе',
+    bodyUk: 'Твоя колонія збереглася. Один запуск дослідження — і ти знову в грі. Повернися до Nebulife.',
+    titleEn: 'The cosmos still waits for you',
+    bodyEn: 'Your colony is safe and saved. One scan and you are back in the game. Return to Nebulife.',
+  },
+};
+
+export async function enqueueInactivityReminderPush(input: PushEventBase & {
+  thresholdDays: number;
+  /** YYYYMMDD of the idle episode — keeps dedupe stable within one absence. */
+  episode: string;
+  favoriteHourUtc?: number | null;
+}): Promise<boolean> {
+  const copy = INACTIVITY_COPY[input.thresholdDays] ?? INACTIVITY_COPY[2];
+  const scheduledAt =
+    typeof input.favoriteHourUtc === 'number' && input.favoriteHourUtc >= 0 && input.favoriteHourUtc <= 23
+      ? nextUtcHour(input.favoriteHourUtc)
+      : undefined;
+  return enqueueSafe({
+    playerId: input.playerId,
+    type: 'inactivity_reminder',
+    titleUk: copy.titleUk,
+    bodyUk: copy.bodyUk,
+    titleEn: copy.titleEn,
+    bodyEn: copy.bodyEn,
+    data: {
+      action: 'open-game',
+      idleDays: String(input.thresholdDays),
+      link: '/?action=open-game',
+    },
+    priority: 5,
+    scheduledAt,
+    maxAttempts: 2,
+    dedupeKey: `inactivity:${input.playerId}:${input.thresholdDays}:${input.episode}`,
+  });
+}
+
 /**
  * Next future UTC instant at the given hour (with a +10 min offset to avoid
  * landing exactly on the hour). If that time already passed today, rolls to
