@@ -109,6 +109,11 @@ function QuarkIcon() {
 
 const PREMIUM_LIFETIME_PRODUCT_ID = 'nebulife_pro_lifetime';
 
+// Community group — discussion / feedback only (no purchases, to stay clear of
+// App Store / Play anti-steering rules). Opened in the system browser, which
+// then hands off to the Telegram app if installed.
+const TELEGRAM_COMMUNITY_URL = 'https://t.me/+IT3QjV5a-tQ0ZDZi';
+
 function formatPremiumExpiresAt(expiresAt: string | null | undefined, productId: string | null | undefined, locale: string): string | null {
   if (productId === PREMIUM_LIFETIME_PRODUCT_ID) return '4ever';
   if (!expiresAt) return null;
@@ -171,11 +176,11 @@ export function PlayerPage({
   const panelStyle: React.CSSProperties = {
     width: '100%',
     boxSizing: 'border-box',
-    padding: '14px 16px',
+    padding: '11px 13px',
     background: 'linear-gradient(180deg, rgba(10, 18, 32, 0.72), rgba(5, 10, 20, 0.66))',
     border: '1px solid rgba(68, 102, 136, 0.42)',
     borderRadius: 5,
-    boxShadow: '0 8px 28px rgba(0, 0, 0, 0.22)',
+    boxShadow: '0 6px 20px rgba(0, 0, 0, 0.2)',
   };
   const sectionLabelStyle: React.CSSProperties = {
     fontSize: 10,
@@ -318,12 +323,12 @@ export function PlayerPage({
 
       {/* Content card */}
       <div style={{
-        maxWidth: 420,
+        maxWidth: 400,
         width: '100%',
         boxSizing: 'border-box',
-        marginTop: 'calc(44px + env(safe-area-inset-top, 0px))',
-        marginBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
-        padding: '22px 20px',
+        marginTop: 'calc(40px + env(safe-area-inset-top, 0px))',
+        marginBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))',
+        padding: '16px 16px',
         background: 'linear-gradient(180deg, rgba(5, 10, 20, 0.72), rgba(5, 10, 20, 0.48))',
         border: '1px solid rgba(51, 68, 85, 0.62)',
         borderRadius: 8,
@@ -331,7 +336,7 @@ export function PlayerPage({
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: 16,
+        gap: 11,
       }}>
         {/* Avatar */}
         <button
@@ -341,8 +346,8 @@ export function PlayerPage({
           title={t('player.avatar_upload')}
           style={{
             position: 'relative',
-            width: 78,
-            height: 78,
+            width: 64,
+            height: 64,
             padding: 0,
             border: 'none',
             borderRadius: '50%',
@@ -356,8 +361,8 @@ export function PlayerPage({
               src={avatarUrl}
               alt={t('player.avatar_section')}
               style={{
-                width: 72,
-                height: 72,
+                width: 60,
+                height: 60,
                 borderRadius: '50%',
                 objectFit: 'cover',
                 border: `1px solid ${accentColor}`,
@@ -512,7 +517,7 @@ export function PlayerPage({
           ...panelStyle,
           display: 'flex',
           flexDirection: 'column',
-          gap: 12,
+          gap: 10,
         }}>
           <div style={{
             display: 'flex',
@@ -590,9 +595,6 @@ export function PlayerPage({
           </div>
         )}
 
-        {/* Divider */}
-        <div style={{ width: '100%', height: 1, background: 'rgba(51,68,85,0.3)' }} />
-
         {/* Logout button */}
         <button
           onClick={() => { playSfx('ui-click', 0.07); onLogout(); }}
@@ -654,7 +656,6 @@ export function PlayerPage({
         {/* Notification preferences */}
         {(onToggleEmailNotif || onTogglePushNotif) && (
           <>
-            <div style={{ width: '100%', height: 1, background: 'rgba(51,68,85,0.3)' }} />
             <div style={{
               ...panelStyle,
               display: 'flex',
@@ -738,7 +739,6 @@ export function PlayerPage({
             {onChangeAmbientVolume && (
               <div style={{
                 ...panelStyle,
-                marginTop: 12,
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 10,
@@ -784,13 +784,57 @@ export function PlayerPage({
           </>
         )}
 
+        {/* Community — external Telegram group (discussion / feedback only) */}
+        <div style={{
+          ...panelStyle,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 9,
+        }}>
+          <div style={sectionLabelStyle}>{t('player.community_section')}</div>
+          <div style={{ fontSize: 10, color: '#667788', lineHeight: 1.45 }}>
+            {t('player.community_hint')}
+          </div>
+          <button
+            onClick={() => {
+              playSfx('ui-click', 0.07);
+              window.open(TELEGRAM_COMMUNITY_URL, '_blank', 'noopener,noreferrer');
+            }}
+            style={{
+              ...actionButtonStyle,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 7,
+              color: '#7bb8ff',
+              borderColor: 'rgba(123, 184, 255, 0.42)',
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.background = 'rgba(68,136,170,0.25)';
+              (e.currentTarget as HTMLElement).style.borderColor = 'rgba(123, 184, 255, 0.7)';
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.background = actionButtonStyle.background as string;
+              (e.currentTarget as HTMLElement).style.borderColor = 'rgba(123, 184, 255, 0.42)';
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
+              <path d="M21.94 4.66a1 1 0 0 0-1.05-.16L3.36 11.6c-.78.32-.74 1.45.06 1.71l4.32 1.4 1.67 5.03c.2.6.97.77 1.42.32l2.4-2.36 4.32 3.16c.5.37 1.22.1 1.36-.5l3.06-14.6a1 1 0 0 0-.49-1.1ZM9.6 14.2l8.2-5.6-6.7 6.13c-.16.15-.27.36-.3.58l-.24 2.02-.96-3.13Z"/>
+            </svg>
+            {t('player.community_telegram')}
+          </button>
+          <div style={{ fontSize: 9, color: '#556677', lineHeight: 1.4 }}>
+            {t('player.community_disclaimer')}
+          </div>
+        </div>
+
         {/* Start over — danger zone */}
         <div style={{
           width: '100%',
           display: 'flex',
           flexDirection: 'column',
           gap: 8,
-          marginTop: 16,
+          marginTop: 8,
         }}>
           <button
             onClick={handleStartOver}

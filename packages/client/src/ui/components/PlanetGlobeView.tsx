@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useImperativeHandle, forwardRef, useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import * as THREE from 'three';
+import { OrbitLoader } from './OrbitLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -1448,6 +1450,7 @@ function spawnShootingStar(scene: THREE.Scene): ShootingStar {
 
 const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
   ({ planet, star, system, mode, onDoubleClick, textureUrl, onSceneLoaded }, ref) => {
+    const { t } = useTranslation();
     const containerRef = useRef<HTMLDivElement>(null);
     const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
     const animFrameRef = useRef<number>(0);
@@ -1579,10 +1582,33 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
     }), []);
 
     useEffect(() => {
+      // Switching star systems re-runs this effect: the previous scene is torn
+      // down and a new one is built (deferred two frames + a short grace timer).
+      // If `sceneLoaded` stays true from the previous planet, the OrbitLoader
+      // overlay stays hidden during the rebuild and the player sees a bare
+      // deep-space-blue container ("blue screen") instead of the loader. Reset
+      // it synchronously here so the loader paints from the very first frame of
+      // every system switch — before the heavy WebGL build begins.
+      setSceneLoaded(false);
+
       const container = containerRef.current;
       if (!container) return;
       if (waitingForSkinTexture) return;
-      setRenderFallback(false);
+
+      // Defer the heavy WebGL build by one painted frame. The scene construction
+      // (geometry + shader compilation) runs synchronously and can block the main
+      // thread for 5–7s on mid-tier tablets. As a plain effect body it executes
+      // in the SAME task as React's commit, before the browser ever paints — so
+      // the player just stared at a blank blue screen while the OrbitLoader sat
+      // un-painted. Yielding two animation frames lets the loader paint and START
+      // its compositor-thread spin first; it then keeps animating smoothly through
+      // the whole build (transform/opacity → compositor, immune to main-thread jank).
+      let cancelled = false;
+      let teardown: (() => void) | null = null;
+
+      const build = () => {
+        if (cancelled || !containerRef.current) return;
+        setRenderFallback(false);
 
       // --- Scene ---
       const scene = new THREE.Scene();
@@ -1677,7 +1703,7 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
 
       // 3. Planet sphere
       const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
-      const { uniforms: planetUniforms } = createPlanetSphere(scene, planet, star, lod, maxAnisotropy, validatedTextureUrl);
+      const { mesh: planetMesh, uniforms: planetUniforms } = createPlanetSphere(scene, planet, star, lod, maxAnisotropy, validatedTextureUrl);
 
       // 4. Cloud layer. Valid 2:1 skins are diffuse maps; atmosphere/clouds
       // remain physical overlays so generated planets match procedural ones.
@@ -1803,6 +1829,19 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
         if (planetUniforms.uTime) planetUniforms.uTime.value = elapsed;
         if (planetUniforms.time) planetUniforms.time.value = elapsed;
 
+        // Low/mid keep a fully static CAMERA (autoRotate/drag/zoom disabled
+        // above) so the GPU caches the view transform, but a dead-still globe
+        // looked lifeless — testers said "не крутяться". Spin the planet MESH
+        // itself instead: the camera stays on the lit hemisphere and the star
+        // light is fixed in world space, so surface features rotate through a
+        // natural day/night terminator. Result: the world is alive AND always
+        // lit, no dark backside parking. Cheap — only the model matrix changes,
+        // no geometry re-upload. High/ultra still use camera autoRotate.
+        if (weakTier) {
+          planetMesh.rotation.y += 0.10 * deltaMs * 0.001;
+          if (cloudResult) cloudResult.mesh.rotation.y += 0.13 * deltaMs * 0.001;
+        }
+
         // Update cloud time
         if (cloudResult) {
           cloudResult.uniform.value = elapsed;
@@ -1909,11 +1948,21 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
         document.head.appendChild(style);
       }
 
-      // Beautiful sci-fi loading delayed trigger
+      // Beautiful sci-fi loading delayed trigger. In 'home' mode this view
+      // mounts immediately after the boot StarBirthIntro (which already played
+      // its own "establishing orbit" loader), so a second 3.5s scanner here
+      // read as a duplicate/flickering orbital animation. Home mode therefore
+      // resolves almost instantly (and hides the scanner rings below); the full
+      // telemetry-sync scanner is kept for normal exosphere opens.
+      // By the time `build()` returns, the scene is fully constructed and the
+      // first frame has already rendered (animate() ran once above). Keep the
+      // loader up for a short, fixed grace window so it never just flashes, then
+      // reveal the live exosphere. (Was a blind 3.5s — far longer than needed and
+      // unrelated to actual readiness.)
       const loadTimer = setTimeout(() => {
         setSceneLoaded(true);
         onSceneLoaded?.();
-      }, 3500); // 3.5s of beautiful telemetry sync
+      }, mode === 'home' ? 400 : 700);
 
       // --- Resize handler ---
       const onResize = () => {
@@ -1927,7 +1976,7 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       };
       window.addEventListener('resize', onResize);
 
-      return () => {
+      teardown = () => {
         clearTimeout(loadTimer);
         window.removeEventListener('resize', onResize);
         renderer.domElement.removeEventListener('dblclick', handleDblClick);
@@ -1975,6 +2024,17 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
         if (container.contains(renderer.domElement)) {
           container.removeChild(renderer.domElement);
         }
+      };
+      }; // end build()
+
+      // Two rAFs ≈ one painted frame: React commit → browser paints the
+      // OrbitLoader (and starts its spin) → THEN we build the heavy scene.
+      const raf1 = requestAnimationFrame(() => requestAnimationFrame(build));
+
+      return () => {
+        cancelled = true;
+        cancelAnimationFrame(raf1);
+        teardown?.();
       };
     }, [planet.id, star.id, validatedTextureUrl, waitingForSkinTexture]); // Re-create scene when planet/star/skin changes
 
@@ -2038,7 +2098,7 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
             {''}
           </div>
         )}
-        {!sceneLoaded && (
+        {!sceneLoaded && mode !== 'home' && (
           <div
             style={{
               position: 'absolute',
@@ -2046,62 +2106,16 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
               zIndex: 90,
               background: '#020510',
               display: 'flex',
-              flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              fontFamily: 'monospace',
               pointerEvents: 'none',
             }}
           >
-            {/* Sci-fi scanner animation */}
-            <div style={{ position: 'relative', width: 120, height: 120, marginBottom: 24 }}>
-              {/* Rotating outer ring */}
-              <div style={{
-                position: 'absolute',
-                inset: 0,
-                borderRadius: '50%',
-                border: '1px dashed rgba(123, 184, 255, 0.42)',
-                animation: 'astra-spin-ring 8s linear infinite',
-              }} />
-              {/* Rotating inner ring */}
-              <div style={{
-                position: 'absolute',
-                inset: 15,
-                borderRadius: '50%',
-                border: '1px solid rgba(123, 184, 255, 0.28)',
-                borderTopColor: '#7bb8ff',
-                animation: 'astra-spin-ring-rev 4s linear infinite',
-              }} />
-              {/* Core pulsing dot */}
-              <div style={{
-                position: 'absolute',
-                inset: 45,
-                borderRadius: '50%',
-                background: 'rgba(123, 184, 255, 0.08)',
-                border: '2px solid #7bb8ff',
-                boxShadow: '0 0 15px rgba(123, 184, 255, 0.6)',
-                animation: 'astra-soft-pulse 1.5s ease-in-out infinite',
-              }} />
-            </div>
-
-            <div style={{
-              color: '#7bb8ff',
-              fontSize: 10,
-              letterSpacing: 1.8,
-              textTransform: 'uppercase',
-              marginBottom: 6,
-              animation: 'astra-soft-pulse 2s ease-in-out infinite',
-            }}>
-              Establishing Orbital Link...
-            </div>
-            <div style={{
-              color: '#667788',
-              fontSize: 8,
-              letterSpacing: 1.4,
-              textTransform: 'uppercase',
-            }}>
-              Syncing exosphere telemetry
-            </div>
+            {/* Lightweight shared orbit loader (replaces the old heavier scanner). */}
+            <OrbitLoader
+              label={t('loading.starbirth.establishing')}
+              subLabel={t('loading.exosphereSync', { defaultValue: 'Syncing exosphere telemetry' })}
+            />
           </div>
         )}
       </div>

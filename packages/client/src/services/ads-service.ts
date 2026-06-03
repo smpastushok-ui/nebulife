@@ -10,15 +10,13 @@ import { interstitialManager } from './interstitial-manager.js';
 import { trackEvent } from '../analytics/firebase-analytics.js';
 
 // =============================================================================
-// TEMP: ADS_DISABLED_FOR_TESTING
-// -----------------------------------------------------------------------------
-// While testers are trialing the build we SHORT-CIRCUIT every rewarded-ad
-// request so no video ever plays. The server token flow still runs (we hit
-// /api/ads/start + /api/ads/reward with real signed tokens), so rewards are
-// granted exactly as if the user had watched — tester just never sees an ad.
+// ADS_DISABLED_FOR_TESTING — REWARDED ads switch (this file only).
+// When true: no rewarded ad UI (canShowAd → false), no rewards.
 //
-// **TO RESTORE ADS:** set this flag to `false` (and the identical flag in
-// interstitial-manager.ts). Nothing else needs to change.
+// Current policy: REWARDED ads are ENABLED (false) — these are opt-in "watch an
+// ad to receive something" flows (quark top-up, research data, AI-generated
+// discovery/planet/panorama photos). Interruptive INTERSTITIAL ads stay
+// DISABLED via the separate flag in interstitial-manager.ts.
 // =============================================================================
 const ADS_DISABLED_FOR_TESTING = false;
 
@@ -163,13 +161,7 @@ type AdResult =
 async function showRewardedAdWithReason(): Promise<AdResult> {
   if (!areAdsUnlockedAfterSettlement()) return { rewarded: false, reason: 'error' };
 
-  // TEMP: testers — pretend the ad played successfully without showing anything.
-  // Still increments the local daily counter so the existing limit logic stays honest.
-  if (ADS_DISABLED_FOR_TESTING) {
-    incrementDailyCount();
-    void trackEvent('ad_reward', { ad_format: 'rewarded', platform: Capacitor.getPlatform(), test_mode: true });
-    return { rewarded: true };
-  }
+  if (ADS_DISABLED_FOR_TESTING) return { rewarded: false, reason: 'error' };
 
   if (!Capacitor.isNativePlatform()) return { rewarded: false, reason: 'error' };
 
@@ -266,8 +258,7 @@ export async function showMultipleRewardedAds(count: number): Promise<boolean> {
 export async function checkAdAvailability(): Promise<boolean> {
   if (!areAdsUnlockedAfterSettlement()) return false;
 
-  // TEMP: testers — always "available" so reward buttons stay enabled.
-  if (ADS_DISABLED_FOR_TESTING) return true;
+  if (ADS_DISABLED_FOR_TESTING) return false;
 
   if (!Capacitor.isNativePlatform()) return false;
   await ensureAdMobInitialized();
@@ -313,8 +304,7 @@ export function getDailyAdCount(): number {
 export function canShowAd(): boolean {
   if (!areAdsUnlockedAfterSettlement()) return false;
 
-  // TEMP: testers — allow even on web build so reward flows are testable there.
-  if (ADS_DISABLED_FOR_TESTING) return getDailyData().count < DAILY_LIMIT;
+  if (ADS_DISABLED_FOR_TESTING) return false;
 
   if (!Capacitor.isNativePlatform()) return false;
   return getDailyData().count < DAILY_LIMIT;

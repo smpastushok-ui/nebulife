@@ -848,7 +848,11 @@
     "graphics_hint": "Зміна рівня перезапустить гру, щоб оновити всі сцени.",
     "graphics_simple": "Легка",
     "graphics_standard": "Стандарт",
-    "graphics_full": "Повна"
+    "graphics_full": "Повна",
+    "community_section": "СПІЛЬНОТА",
+    "community_hint": "Долучайся до спільноти Nebulife — діліться фідбеком і допомагайте робити гру кращою.",
+    "community_telegram": "Telegram-група",
+    "community_disclaimer": "Telegram — сторонній сервіс із власними правилами та політикою конфіденційності."
   },
   "settings": {
     "delete_account": "Видалити акаунт",
@@ -1552,7 +1556,18 @@
       "paradise": "зароджується життя · живий світ",
       "reveal": "Це твоя рідна планета",
       "skip": "Пропустити"
-    }
+    },
+    "starbirth": {
+      "establishing": "встановлення орбіти",
+      "eyebrow": "NEBULIFE · НАРОДЖЕННЯ СИСТЕМИ",
+      "title": "Запалюється Alpha Lyrae",
+      "ignite": "рідна зоря спалахує",
+      "filaments": "навігаційні нитки пропалюють шлях",
+      "cluster": "спалахують сусідні системи",
+      "reveal": "Твоя рідна система пробуджується",
+      "skip": "Пропустити"
+    },
+    "exosphereSync": "Синхронізація телеметрії екзосфери"
   },
   "gallery": {
     "discovered_count": "Відкрито: {{count}} / {{total}}",

@@ -285,8 +285,13 @@ export function getExosphereLOD(): ExosphereLOD {
         atmosphereIntensityScale: 1.35,
         atmosphereLayerStrength: 0.08,
         surfaceDetailBoost: 0.92,
-        exosphereQuality: 0.0,
-        aaaExosphere: false,
+        // Use the rich AAA biome shader (unique, colourful worlds) even here —
+        // quality stays BELOW the 0.6 gate so the expensive per-pixel
+        // bump-mapping (≈12 extra fbm taps) is skipped, keeping only the
+        // colourful biome/ocean/terrain coloring. That's the "beautiful but
+        // lighter" path: planets read as unique living worlds, not flat discs.
+        exosphereQuality: 0.30,
+        aaaExosphere: true,
         aaaStarQuality: 0.0,
       };
     case 'mid':
@@ -310,8 +315,12 @@ export function getExosphereLOD(): ExosphereLOD {
         atmosphereIntensityScale: 1.18,
         atmosphereLayerStrength: 0.12,
         surfaceDetailBoost: 1.0,
-        exosphereQuality: 0.15,
-        aaaExosphere: false,
+        // Same AAA biome shader as high/ultra but quality stays under the 0.6
+        // bump-mapping gate → colourful unique surfaces without the heavy
+        // normal-perturbation taps. Mid tablets can sustain this at the 30 fps
+        // cap + 1.25 pixel-ratio used below.
+        exosphereQuality: 0.45,
+        aaaExosphere: true,
         aaaStarQuality: 0.0,
       };
     case 'high':

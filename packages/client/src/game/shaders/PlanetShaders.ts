@@ -372,18 +372,27 @@ void main() {
             col = mix(col, vec3(0.95, 0.98, 1.0), smoothstep(1.0 - ice - 0.1, 1.0 - ice, lat));
         }
         
-        // Bump mapping for high frequency details (mountains, canyons, terrain)
-        float eps = 0.02;
-        float h0 = fbm(p * 6.0 + seedVec) * 0.5 + ridged(p * 3.5 + seedVec) * 0.5;
-        float hx = fbm((p + vec3(eps, 0.0, 0.0)) * 6.0 + seedVec) * 0.5 + ridged((p + vec3(eps, 0.0, 0.0)) * 3.5 + seedVec) * 0.5;
-        float hy = fbm((p + vec3(0.0, eps, 0.0)) * 6.0 + seedVec) * 0.5 + ridged((p + vec3(0.0, eps, 0.0)) * 3.5 + seedVec) * 0.5;
-        float hz = fbm((p + vec3(0.0, 0.0, eps)) * 6.0 + seedVec) * 0.5 + ridged((p + vec3(0.0, 0.0, eps)) * 3.5 + seedVec) * 0.5;
-        
-        vec3 localBump = vec3(hx - h0, hy - h0, hz - h0) * 5.0;
-        n = normalize(n - vModelMat * localBump);
-        diff = max(dot(n, l), 0.0);
-        
-        // Fake ambient occlusion for deep valleys/canyons (where ridged is low)
+        // Bump mapping for high frequency details (mountains, canyons, terrain).
+        // This is the single most expensive block (8 fbm/ridged taps ≈ 32
+        // snoise/pixel). Gate it behind the quality knob so low/mid (quality
+        // < 0.6) skip it entirely — they keep the colourful biome surface but
+        // shade off the smooth normal, which is the whole point of the
+        // "lighter but still beautiful" exosphere on weak GPUs.
+        if (quality > 0.6) {
+          float eps = 0.02;
+          float h0 = fbm(p * 6.0 + seedVec) * 0.5 + ridged(p * 3.5 + seedVec) * 0.5;
+          float hx = fbm((p + vec3(eps, 0.0, 0.0)) * 6.0 + seedVec) * 0.5 + ridged((p + vec3(eps, 0.0, 0.0)) * 3.5 + seedVec) * 0.5;
+          float hy = fbm((p + vec3(0.0, eps, 0.0)) * 6.0 + seedVec) * 0.5 + ridged((p + vec3(0.0, eps, 0.0)) * 3.5 + seedVec) * 0.5;
+          float hz = fbm((p + vec3(0.0, 0.0, eps)) * 6.0 + seedVec) * 0.5 + ridged((p + vec3(0.0, 0.0, eps)) * 3.5 + seedVec) * 0.5;
+
+          vec3 localBump = vec3(hx - h0, hy - h0, hz - h0) * 5.0;
+          n = normalize(n - vModelMat * localBump);
+          diff = max(dot(n, l), 0.0);
+        }
+
+        // Fake ambient occlusion for deep valleys/canyons (where ridged is low).
+        // Cheap (reuses mountains + terrainNoise) so it runs on every tier and
+        // keeps low/mid surfaces from looking flat.
         col *= mix(0.6, 1.0, smoothstep(0.0, 0.5, mountains + terrainNoise * 0.5));
         
         spec = 0.02; // Land has low specular
@@ -405,21 +414,26 @@ void main() {
         col = mix(col, baseColor * 0.3, cavMask * 0.8);
     }
     
-    float eps = 0.02;
-    float h0 = fbm(p * 4.0 + seedVec);
-    float hx = fbm((p + vec3(eps, 0.0, 0.0)) * 4.0 + seedVec);
-    float hy = fbm((p + vec3(0.0, eps, 0.0)) * 4.0 + seedVec);
-    float hz = fbm((p + vec3(0.0, 0.0, eps)) * 4.0 + seedVec);
-    float bumpStrength = planetType == 4 ? 2.5 : mix(0.9, 2.2, clamp(craterDensity + metallic * 0.35, 0.0, 1.0));
-    
-    vec3 localBump = vec3(hx - h0, hy - h0, hz - h0) * bumpStrength;
-    localBump += craterData.yzw * 0.05 * bumpStrength; // Scale down crater gradient to prevent normal blowout
-    
-    // Transform the local bump vector into world space so it rotates correctly with the planet
-    vec3 worldBump = vModelMat * localBump;
-    
-    n = normalize(n - worldBump);
-    diff = max(dot(n, l), 0.0);
+    // Crater micro-relief bump. 4 extra fbm taps — gate behind quality so
+    // low/mid keep the (cheap) crater coloring above but skip the normal
+    // perturbation. craterData already drives the visible rim/cavity tint.
+    if (quality > 0.6) {
+      float eps = 0.02;
+      float h0 = fbm(p * 4.0 + seedVec);
+      float hx = fbm((p + vec3(eps, 0.0, 0.0)) * 4.0 + seedVec);
+      float hy = fbm((p + vec3(0.0, eps, 0.0)) * 4.0 + seedVec);
+      float hz = fbm((p + vec3(0.0, 0.0, eps)) * 4.0 + seedVec);
+      float bumpStrength = planetType == 4 ? 2.5 : mix(0.9, 2.2, clamp(craterDensity + metallic * 0.35, 0.0, 1.0));
+
+      vec3 localBump = vec3(hx - h0, hy - h0, hz - h0) * bumpStrength;
+      localBump += craterData.yzw * 0.05 * bumpStrength; // Scale down crater gradient to prevent normal blowout
+
+      // Transform the local bump vector into world space so it rotates correctly with the planet
+      vec3 worldBump = vModelMat * localBump;
+
+      n = normalize(n - worldBump);
+      diff = max(dot(n, l), 0.0);
+    }
 
     // Shadowing in deep craters
     if (craterData.x < 0.0) {
@@ -449,7 +463,12 @@ void main() {
       }
   }
 
-  vec3 ambient = vec3(0.02);
+  // Lift the ambient floor on low/mid (quality < 0.6). High/ultra get the
+  // night-side glow from bloom + the back-atmosphere shell, so they keep a
+  // near-black 0.02 floor for contrast; weak tiers skip those layers, so a
+  // higher floor stops the dark hemisphere / terminator reading as pure black
+  // (the "темні планети" testers reported).
+  vec3 ambient = vec3(quality > 0.6 ? 0.02 : 0.08);
   vec3 finalColor = col * (diff * absorption + ambient);
   
   // Real specular highlight

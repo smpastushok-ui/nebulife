@@ -306,16 +306,43 @@ export class GalaxyScene {
     this.researchState = researchState;
     this.effectiveMaxRing = effectiveMaxRing ?? 2;
 
-    /* Simple static background star field (no galaxy backdrop) */
+    /* Static background star field — matches the boot intro's blue-white point
+       field (brighter, varied sizes + a few glowing accent stars) instead of
+       the old flat dim dots. Drawn ONCE into a single Graphics, so it has zero
+       per-frame cost regardless of count. */
     this.accretionDisk = null;
     this.backdropContainer = null;
     this.twinkleStars = [];
     const bgStars = new Graphics();
-    for (let i = 0; i < 200; i++) {
-      const x = ((i * 7919 + 1234) % 12000) / 10 - 600;
-      const y = ((i * 6271 + 567) % 7200) / 10 - 360;
-      bgStars.circle(x, y, 0.25 + (i % 3) * 0.18);
-      bgStars.fill({ color: 0xb4c8dc, alpha: 0.04 + (i % 5) * 0.025 });
+    // Deterministic pseudo-random from integer index (stable across renders).
+    const rnd = (i: number, salt: number) => {
+      const s = Math.sin(i * 12.9898 + salt * 78.233) * 43758.5453;
+      return s - Math.floor(s);
+    };
+    const FIELD_X = 1100, FIELD_Y = 720;
+    // Faint accent glows first (drawn behind the crisp cores).
+    for (let i = 0; i < 24; i++) {
+      const x = (rnd(i, 1) * 2 - 1) * FIELD_X;
+      const y = (rnd(i, 2) * 2 - 1) * FIELD_Y;
+      bgStars.circle(x, y, 2.2 + rnd(i, 3) * 1.8);
+      bgStars.fill({ color: 0x7bb8ff, alpha: 0.05 + rnd(i, 4) * 0.06 });
+    }
+    // Main field — blue-white, varied size + brightness (intro palette).
+    for (let i = 0; i < 420; i++) {
+      const x = (rnd(i, 5) * 2 - 1) * FIELD_X;
+      const y = (rnd(i, 6) * 2 - 1) * FIELD_Y;
+      const r = 0.22 + rnd(i, 7) * 0.55;
+      // Mix between pale blue and near-white like the intro starfield.
+      const color = rnd(i, 8) > 0.62 ? 0xcfe0f5 : 0x9fc4ff;
+      bgStars.circle(x, y, r);
+      bgStars.fill({ color, alpha: 0.14 + rnd(i, 9) * 0.42 });
+    }
+    // A handful of bright accent stars with a crisp core.
+    for (let i = 0; i < 18; i++) {
+      const x = (rnd(i, 10) * 2 - 1) * FIELD_X;
+      const y = (rnd(i, 11) * 2 - 1) * FIELD_Y;
+      bgStars.circle(x, y, 0.9 + rnd(i, 12) * 0.6);
+      bgStars.fill({ color: 0xeaf2fb, alpha: 0.55 + rnd(i, 13) * 0.35 });
     }
     this.container.addChild(bgStars);
 

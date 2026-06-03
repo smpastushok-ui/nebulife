@@ -147,7 +147,7 @@ import { ColonyFoundingPrompt } from './ui/components/ColonyFoundingPrompt.js';
 import { getPlayer, createPlayer, getDiscoveries, saveDiscoveryToServer, updatePlayer, updateFcmToken, sendTestPush, fetchUniverseInfo, uploadPlayerAvatar, removePlayerAvatar } from './api/player-api.js';
 import type { DiscoveryData } from './api/player-api.js';
 import { requestPushPermissionDetailed, startForegroundListener, ensurePushTokenIfGranted, startTokenRefreshListener } from './notifications/push-service.js';
-import { getCurrentUser, onAuthChange, signOut } from './auth/auth-service.js';
+import { getCurrentUser, onAuthChange, signOut, signInAsGuest } from './auth/auth-service.js';
 import { authFetch, apiFetch } from './auth/api-client.js';
 import { isFirebaseConfigured } from './auth/firebase-config.js';
 import { AuthScreen } from './ui/components/AuthScreen.js';
@@ -155,7 +155,7 @@ import { WebAccessGate } from './ui/components/WebAccessGate.js';
 import { CallsignModal } from './ui/components/CallsignModal.js';
 import { LinkAccountModal } from './ui/components/LinkAccountModal.js';
 import { CinematicIntro } from './ui/components/CinematicIntro.js';
-import { PlanetFormationLoader, type FormationResult } from './ui/components/PlanetFormationLoader.js';
+import { StarBirthIntro, type FormationResult } from './ui/components/StarBirthIntro.js';
 import { PerfTierSelectScreen } from './ui/components/PerfTierSelectScreen.js';
 import { getDeviceTier, setPerfTierChoice } from './utils/device-tier.js';
 import { parseCompactNumber } from './utils/formatNumber.js';
@@ -659,6 +659,12 @@ const LOCAL_ACCOUNT_PREF_KEYS = new Set([
   'nebulife_ambient_volume',
   'nebulife_ambient_enabled',
   'nebulife_terminal_muted',
+  // Device-local boot flags — NOT account progress. The intro-seen flag must
+  // survive an account switch (a device that already watched the genesis intro
+  // should never replay it), and must not count as "foreign progress" on the
+  // first silent guest sign-in (that misfire reloaded the app and replayed the
+  // whole StarBirthIntro a second time).
+  'nebulife_quantum_seed_seen',
 ]);
 
 function isAccountScopedStorageKey(key: string): boolean {
@@ -873,19 +879,15 @@ function AppInner() {
   // Derived boolean used in scene-reactive / lifecycle effects below.
   const ambientEnabled = ambientVolume > 0;
 
-  // Starts once on App mount. Because this runs before the user has
-  // clicked anything, the AudioContext will be suspended; SpaceAmbient
-  // attachInteractionFallback handles resume on the first pointer/key.
+  // Create the ambient players on mount but DO NOT start playback here. On
+  // Android WebView media autoplay is allowed, so calling start() on mount
+  // played the intro melody during the (silent-by-design) genesis cinematic —
+  // and the rAF-driven fade-out was starved by the heavy 3D intro, so it never
+  // faded out. Playback is now started lazily by the scene-reactive loops
+  // below, only once the player is actually in the game.
   useEffect(() => {
-    const ambient = new SpaceAmbient();
-    ambient.start();
-    ambientRef.current = ambient;
-
-    const onboardingAmbient = new SpaceAmbient('/music/onboarding.webm');
-    onboardingAmbient.start();
-    onboardingAmbient.pause(0);
-    onboardingAmbientRef.current = onboardingAmbient;
-
+    ambientRef.current = new SpaceAmbient();
+    onboardingAmbientRef.current = new SpaceAmbient('/music/onboarding.webm');
     return () => {
       ambientRef.current?.stop();
       ambientRef.current = null;
@@ -1018,6 +1020,26 @@ function AppInner() {
     }
   }, [authLoading, bootLoaderDone, manualSetup, firebaseUser]);
 
+  // Guest-first (native only): after the intro, sign in anonymously WITHOUT
+  // showing the login form, so a new player flows straight intro → cinematic
+  // videos → countdown. The existing onAuthChange handler then registers the
+  // guest and loads homeInfo exactly as before — we only swap the trigger.
+  // If the silent sign-in fails (e.g. offline) we fall back to AuthScreen so
+  // the player is never trapped. Account upgrade is offered later (post-
+  // colonization) via the existing link* flow, preserving the UID/progress.
+  const guestAutoAttemptedRef = useRef(false);
+  const [guestAutoFailed, setGuestAutoFailed] = useState(false);
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    if (!isFirebaseConfigured || authLoading || !bootLoaderDone || manualSetup || firebaseUser) return;
+    if (guestAutoAttemptedRef.current) return;
+    guestAutoAttemptedRef.current = true;
+    signInAsGuest().catch((err) => {
+      console.warn('[Auth] Silent guest sign-in failed; showing login form:', err);
+      setGuestAutoFailed(true);
+    });
+  }, [authLoading, bootLoaderDone, manualSetup, firebaseUser]);
+
   // Intro genesis cinematic finished. Watched to the end → trust the auto
   // benchmark + locale, go straight to login (no pickers). SKIP → route to the
   // manual graphics + language picker (PerfTierSelectScreen).
@@ -1038,6 +1060,26 @@ function AppInner() {
       tier: result.tier ?? 'none',
       duration_ms: Math.round(result.durationMs),
     });
+    // Apply the freshly measured device tier in THIS first session. getDeviceTier()
+    // is resolved + cached once at module load (= the crude heuristic on a first
+    // launch), and the whole render pipeline + <html data-perf-tier> + kill-switch
+    // CSS key off that cached value — so a reload is the sanctioned way to re-resolve
+    // it (identical to the manual graphics picker). We only reload when the heavy
+    // 1+6-star benchmark actually CHANGED the active tier (i.e. the device couldn't
+    // sustain the heuristic's tier), and only once per session (sessionStorage guard)
+    // to rule out any loop. We persist the intro-seen flag synchronously first so the
+    // reload does NOT replay StarBirthIntro (the bootLoaderDone effect that normally
+    // writes it hasn't flushed yet).
+    try {
+      const measured = result.tier;
+      const alreadyApplied = sessionStorage.getItem('nebulife_tier_reload') === '1';
+      if (measured && measured !== getDeviceTier() && !alreadyApplied) {
+        sessionStorage.setItem('nebulife_tier_reload', '1');
+        localStorage.setItem('nebulife_quantum_seed_seen', '1');
+        window.location.reload();
+        return;
+      }
+    } catch { /* storage unavailable — skip the apply-this-session reload */ }
     setBootLoaderDone(true);
   }, []);
 
@@ -1833,6 +1875,11 @@ function AppInner() {
   isExodusPhaseRef.current = isExodusPhase;
   const evacuationTargetRef = useRef(evacuationTarget);
   evacuationTargetRef.current = evacuationTarget;
+  // Live mirror of evacuationPhase for callbacks/async hydration that would
+  // otherwise close over a stale value (used to avoid aborting an in-progress
+  // evacuation when a stale server snapshot arrives).
+  const evacuationPhaseRef = useRef(evacuationPhase);
+  evacuationPhaseRef.current = evacuationPhase;
 
   // Pending evacuation data from server hydration (resolved once engine is ready)
   const pendingEvacRef = useRef<{ systemId: string; planetId: string; forced: boolean } | null>(null);
@@ -2566,31 +2613,12 @@ function AppInner() {
     return () => stopLoop('terminal-loop.mp3');
   }, [showCosmicArchive]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Intro melody — 25 s loop, plays through the entire onboarding. 50%
-  // volume when no video is playing; smoothly ducked to 25% while a
-  // cinematic video is running so the video's own audio sits on top,
-  // then ramps back up between videos. Never hard-stopped until
-  // onboarding finishes.
+  // Intro melody DISABLED per owner request — the boot/onboarding sequence is
+  // silent now, only the cosmos backdrop + each cinematic video's own audio
+  // play. We still defensively stop the loop in case an older session/build
+  // left it running.
   useEffect(() => {
-    if (!needsOnboarding) {
-      stopLoop('before-trailers.mp3');
-      return;
-    }
-    const LOUD = 0.5;
-    const DUCKED = 0.25;
-    const FADE_MS = 600;
-    playLoop('before-trailers.mp3', cinematicVideoPlaying ? DUCKED : LOUD);
-    const target = cinematicVideoPlaying ? DUCKED : LOUD;
-    const startVol = cinematicVideoPlaying ? LOUD : DUCKED;
-    const startT = performance.now();
-    let raf = 0;
-    const tick = (now: number) => {
-      const p = Math.min(1, (now - startT) / FADE_MS);
-      setLoopVolume('before-trailers.mp3', startVol + (target - startVol) * p);
-      if (p < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    stopLoop('before-trailers.mp3');
   }, [needsOnboarding, cinematicVideoPlaying]);
 
   // Initialise colony tick state when entering surface for the first time
@@ -4021,8 +4049,12 @@ function AppInner() {
   } | null>(null);
 
   // --- Ambient Music & Tutorial Sound Management ---
-  const prevAmbientPausedRef = useRef<boolean>(false);
+  // Init "paused" = true so the first transition into gameplay triggers a
+  // lazy start() (the players are created un-started — see mount effect).
+  const prevAmbientPausedRef = useRef<boolean>(true);
   const prevOnboardingAmbientPausedRef = useRef<boolean>(true);
+  const ambientStartedRef = useRef<boolean>(false);
+  const onboardingStartedRef = useRef<boolean>(false);
 
   // Normal Ambient Loop
   useEffect(() => {
@@ -4031,13 +4063,19 @@ function AppInner() {
     const isTutorialInteractiveActive = activeTutorialStep !== null && !tutorialMinimized;
     // No background music at the very start: stay silent through the genesis
     // intro and the auth screen, only easing in once the player is actually in
-    // the game (logged in, guest, or legacy no-Firebase mode).
+    // the game (logged in, guest, or legacy no-Firebase mode). The space ambient
+    // SHOULD play from the cinematic intro onward — only the old intro melody
+    // (before-trailers) was removed, not this cosmos bed.
     const preGame = !bootLoaderDone || (isFirebaseConfigured && !firebaseUser && !isGuest);
     const shouldPause = preGame || !ambientEnabled || !!surfaceTarget || showCosmicArchive || cinematicVideoPlaying || showHangar || showRaid || isTutorialInteractiveActive;
     const wasPaused = prevAmbientPausedRef.current;
-    if (shouldPause && !wasPaused) {
-      ambient.pause();
-    } else if (!shouldPause && wasPaused) {
+    if (shouldPause) {
+      if (!wasPaused) ambient.pause();
+    } else if (!ambientStartedRef.current) {
+      // First time entering gameplay → begin playback now (never on mount).
+      ambient.start();
+      ambientStartedRef.current = true;
+    } else if (wasPaused) {
       ambient.resume();
     }
     prevAmbientPausedRef.current = shouldPause;
@@ -4051,9 +4089,12 @@ function AppInner() {
     const shouldPlayOnboardingBgm = ambientEnabled && isTutorialInteractiveActive;
     const shouldPause = !shouldPlayOnboardingBgm;
     const wasPaused = prevOnboardingAmbientPausedRef.current;
-    if (shouldPause && !wasPaused) {
-      onboardingAmbient.pause();
-    } else if (!shouldPause && wasPaused) {
+    if (shouldPause) {
+      if (!wasPaused) onboardingAmbient.pause();
+    } else if (!onboardingStartedRef.current) {
+      onboardingAmbient.start();
+      onboardingStartedRef.current = true;
+    } else if (wasPaused) {
       onboardingAmbient.resume();
     }
     prevOnboardingAmbientPausedRef.current = shouldPause;
@@ -5000,8 +5041,14 @@ function AppInner() {
         planetId: gs.evac_planet_id,
         forced: gs.evac_forced === true,
       };
-    } else {
-      // No active evacuation on server — clear stale local state
+    } else if (evacuationPhaseRef.current === 'idle' && !evacuationTargetRef.current) {
+      // No active evacuation on server AND none in progress locally — clear stale
+      // local state. CRITICAL: never run this clear while an evacuation is live
+      // locally (phase !== 'idle' or a target is set). handleStartEvacuation pushes
+      // the evac to the server asynchronously (~100ms + latency); a re-hydration
+      // that lands in that window would otherwise see "no server evac", reset the
+      // phase to idle and silently abort the whole evacuation/colonization mid-flow
+      // (tester: "Не відбулася евакуація і колонізація").
       try { localStorage.removeItem('nebulife_evac_system_id'); } catch { /* ignore */ }
       try { localStorage.removeItem('nebulife_evac_planet_id'); } catch { /* ignore */ }
       try { localStorage.removeItem('nebulife_evac_forced'); } catch { /* ignore */ }
@@ -5246,9 +5293,7 @@ function AppInner() {
     if (typeof player.push_notifications === 'boolean') setPushNotifications(player.push_notifications);
     if (player.last_digest_seen !== undefined) setLastDigestSeen(player.last_digest_seen ?? null);
     setAdsUnlockedAfterSettlement(player.game_phase === 'colonizing');
-    if (player.game_phase === 'colonizing' && Capacitor.isNativePlatform()) {
-      void interstitialManager.prepareNext();
-    }
+    // Forced interstitial ads removed — only opt-in rewarded ads remain.
     // Language: localStorage is always the source of truth.
     // Never override from server — player chose their language at first launch.
 
@@ -5412,7 +5457,15 @@ function AppInner() {
         try {
           const previousUid = localStorage.getItem('nebulife_last_uid');
           const legacyId = localStorage.getItem('nebulife_player_id');
-          const hasForeignLocalProgress = !previousUid && !legacyId && hasAccountScopedLocalProgress();
+          // The "foreign local progress" branch (no previousUid, no legacyId,
+          // yet account-scoped keys exist) is meant for a REAL account taking
+          // over a device that had pre-uid-tracking progress. It must NOT fire
+          // for a brand-new GUEST: guest-first writes default game state + boot
+          // flags on mount, so by the time the silent anonymous sign-in resolves
+          // there are already nebulife_* keys present. Treating those as foreign
+          // triggered clearAccountScopedLocalStorage + reload, which wiped the
+          // intro-seen flag and replayed the entire StarBirthIntro a 2nd time.
+          const hasForeignLocalProgress = !previousUid && !legacyId && !user.isAnonymous && hasAccountScopedLocalProgress();
           if ((previousUid && previousUid !== user.uid) || hasForeignLocalProgress) {
             clearAccountScopedLocalStorage(user.uid);
             window.location.reload();
@@ -5423,11 +5476,11 @@ function AppInner() {
 
         playerId.current = user.uid;
         setIsGuest(user.isAnonymous);
-        // Show registration reminder for guests (once per session)
-        if (user.isAnonymous && !sessionStorage.getItem('nebulife_reg_reminder_shown')) {
-          setShowGuestReminder(true);
-          sessionStorage.setItem('nebulife_reg_reminder_shown', '1');
-        }
+        // The "save your progress / register" reminder is no longer shown at
+        // login (that interrupted the intro/onboarding). For guest-first it is
+        // deferred to a meaningful milestone — after the first colonization —
+        // so the player can experience the whole concept before being asked to
+        // link an account. See the colonization handler.
 
         // Register/sync player in DB (retry up to 3 times on failure)
         let registered = false;
@@ -5450,8 +5503,26 @@ function AppInner() {
               if (player.global_index != null) globalPlayerIndexRef.current = player.global_index;
               try { localStorage.setItem('nebulife_generation_index', String(player.science_points ?? 0)); } catch { /* ignore */ }
               hydrateGameStateFromServer(player);
-              setState((prev) => ({ ...prev, playerName: player.callsign || player.name || 'Explorer' }));
-              setNeedsCallsign(!player.callsign);
+              if (!player.callsign && user.isAnonymous) {
+                // Guest-first: auto-assign a callsign so no modal interrupts the
+                // intro → cinematic → countdown flow. global_index is unique per
+                // player, so the name won't collide. The player can rename later
+                // and is prompted to link a real account after colonization.
+                const suffix = player.global_index != null
+                  ? String(player.global_index)
+                  : String(Math.floor(Math.random() * 9000) + 1000);
+                const autoName = `Explorer-${suffix}`.slice(0, 20);
+                setState((prev) => ({ ...prev, playerName: autoName }));
+                setNeedsCallsign(false);
+                authFetch('/api/auth/set-callsign', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ callsign: autoName }),
+                }).catch(() => { /* non-critical: server keeps default name */ });
+              } else {
+                setState((prev) => ({ ...prev, playerName: player.callsign || player.name || 'Explorer' }));
+                setNeedsCallsign(!player.callsign);
+              }
               setIsPremiumActive(player.premium_active === true
                 && (!player.premium_expires_at || new Date(player.premium_expires_at).getTime() > Date.now()));
               setPremiumExpiresAt(player.premium_expires_at ?? null);
@@ -5698,7 +5769,6 @@ function AppInner() {
                   awardXP(XP_REWARDS.DISCOVERY_BASE + rarityBonus, 'discovery');
                 }
                 awardXP(SESSION_XP, 'research_session');
-                interstitialManager.tryShow();
                 if (result.isNowComplete) {
                   const research = current.systems[stuckSystem.id];
                   if (research) {
@@ -5772,7 +5842,6 @@ function AppInner() {
 
                 // Award SESSION_XP on every completed session
                 awardXP(SESSION_XP, 'research_session');
-                interstitialManager.tryShow();
 
                 // Show modal if just completed — award ring-scaled XP
                 if (result.isNowComplete) {
@@ -6120,39 +6189,37 @@ function AppInner() {
       // Clear stale mid-animation phase from localStorage — animations cannot resume after reload.
       try { localStorage.removeItem('nebulife_evac_phase'); } catch { /* ignore */ }
 
-      // Returning players always start from the Star Group after boot. Deep
-      // scenes are entered intentionally from the galaxy/system UI.
+      // Boot ALWAYS lands on the Star Group (galaxy) — never the home-intro
+      // exosphere. engine.init() calls showHomePlanetScene() internally, so we
+      // immediately override to the galaxy here. For NEW players (mid-onboarding)
+      // this keeps only the cosmos backdrop behind the StarBirthIntro /
+      // CinematicIntro (no 1–2s home-planet exosphere flash the player saw);
+      // the CinematicIntro then drives scene control from its callbacks.
+      engine.showGalaxyScene();
+      setState(prev => ({ ...prev, scene: 'galaxy', selectedSystem: null, selectedPlanet: null }));
+
+      // Returning (onboarded) players: don't restore deep scenes — galaxy is the
+      // neutral landing. Deep scenes are entered intentionally from the UI.
       if (localStorage.getItem('nebulife_onboarding_done') === '1') {
-        engine.showGalaxyScene();
-        setState(prev => ({ ...prev, scene: 'galaxy', selectedSystem: null, selectedPlanet: null }));
         return;
       }
 
-      // Restore saved scene for non-standard pre-onboarding/dev states.
+      // Restore saved scene only for non-standard pre-onboarding/dev states.
       // Use refs captured at component mount — by this point localStorage is already
       // overwritten by the persistence useEffect (engine.init() → showHomePlanetScene()
       // → onSceneChange('home-intro') → setState → useEffect writes 'home-intro').
       const savedScene = savedNavSceneRef.current;
       const savedSystemId = savedNavSystemRef.current;
-      const savedPlanetId = savedNavPlanetRef.current;
 
       if (savedScene === 'system' && savedSystemId) {
         const sys = allSystems.find(s => s.id === savedSystemId);
         if (sys) {
           engine.showSystemScene(sys);
           setState(prev => ({ ...prev, scene: 'system', selectedSystem: sys }));
-        } else {
-          engine.showGalaxyScene();
         }
-      } else if (savedScene === 'planet-view') {
-        // Returning players land on the galaxy map, not on a single planet's
-        // exosphere. The exosphere view requires conscious nav from system-
-        // scene; reopening on it is disorienting and hides progress signals
-        // from the rest of the cluster.
-          engine.showGalaxyScene();
-      } else if (savedScene === 'galaxy') {
-        engine.showGalaxyScene();
       }
+      // 'planet-view' / 'galaxy' / empty / 'home-intro' all stay on the galaxy
+      // landing set above — no home-planet exosphere flash during onboarding.
     }).catch((err) => {
       console.error('GameEngine init error:', err);
       setState((prev) => ({ ...prev, error: String(err) }));
@@ -7908,7 +7975,10 @@ function AppInner() {
       if (engineRef.current?.isSystemShipFlightActive()) return;
       engineRef.current?.startSystemShipFlight(evacuationTarget.planet.id);
       if (engineRef.current?.isSystemShipFlightActive()) return;
-      if (attempts++ < 120) {
+      // Keep retrying well past a slow SystemScene mount (heavy on mid tablets)
+      // so the real flight animation gets a chance to start before the stage1
+      // watchdog force-advances.
+      if (attempts++ < 300) {
         requestAnimationFrame(tryStart);
       }
     };
@@ -7916,12 +7986,26 @@ function AppInner() {
     return () => { cancelled = true; };
   }, [evacuationPhase, evacuationTarget]);
 
-  // Poll ship progress in stage1 — at 60% fade to black, then switch to explosion
+  // Poll ship progress in stage1 — at 60% fade to black, then switch to explosion.
+  // WATCHDOG: the whole evacuation→colonization chain hangs forever if the ship
+  // flight never reaches 60% (engine not yet ready, a system-scene swap race
+  // dropping the flight, or the flight failing to start within the retry budget).
+  // Testers hit exactly this: "відео зльоту, таймер зник і все" — stuck in
+  // stage1 with the timer hidden and no colonization. So if the ship hasn't
+  // progressed within STAGE1_MAX_MS we force the fade→explosion regardless, which
+  // guarantees the sequence always advances to the colony prompt.
   useEffect(() => {
     if (evacuationPhase !== 'stage1-system-flight') return;
+    const startedAt = performance.now();
+    const STAGE1_MAX_MS = 13000;
     const pollId = setInterval(() => {
       const progress = engineRef.current?.getSystemShipProgress() ?? 0;
-      if (progress >= 0.6 && !evacuationFadeBlack) {
+      const timedOut = performance.now() - startedAt > STAGE1_MAX_MS;
+      if ((progress >= 0.6 || timedOut) && !evacuationFadeBlack) {
+        if (timedOut) {
+          // eslint-disable-next-line no-console
+          console.warn('[evac] stage1 watchdog fired — ship flight never reached 60%, forcing explosion');
+        }
         setEvacuationFadeBlack(true);
         // After fade (0.8s), switch to explosion cutscene
         setTimeout(() => {
@@ -7957,7 +8041,10 @@ function AppInner() {
       if (globeRef.current?.isShipApproachActive()) return;
       globeRef.current?.startShipApproach();
       if (globeRef.current?.isShipApproachActive()) return;
-      if (attempts++ < 120) {
+      // PlanetGlobeView now defers its WebGL build by ~2 frames, so its
+      // imperative handle (startShipApproach) may not be wired for a moment —
+      // keep retrying past that, under the stage3 watchdog ceiling.
+      if (attempts++ < 300) {
         requestAnimationFrame(tryStart);
       }
     };
@@ -7965,11 +8052,22 @@ function AppInner() {
     return () => { cancelled = true; };
   }, [evacuationPhase, evacuationTarget]);
 
-  // Poll ship approach in stage3 — when on orbit, switch to stage4
+  // Poll ship approach in stage3 — when on orbit, switch to stage4.
+  // WATCHDOG (same rationale as stage1): if the orbit approach never reports
+  // "on orbit" — e.g. PlanetGlobeView's deferred WebGL build hasn't wired its
+  // imperative handle yet, or the approach failed to start within the retry
+  // budget — force the transition to the colony prompt so the player can still
+  // found the colony instead of being stranded on the approach screen.
   useEffect(() => {
     if (evacuationPhase !== 'stage3-planet-approach') return;
+    const startedAt = performance.now();
+    const STAGE3_MAX_MS = 13000;
     const pollId = setInterval(() => {
-      if (globeRef.current?.isShipOnOrbit()) {
+      if (globeRef.current?.isShipOnOrbit() || performance.now() - startedAt > STAGE3_MAX_MS) {
+        if (!globeRef.current?.isShipOnOrbit()) {
+          // eslint-disable-next-line no-console
+          console.warn('[evac] stage3 watchdog fired — ship never reached orbit, forcing colony prompt');
+        }
         setEvacuationPhase('stage4-orbit');
       }
     }, 100);
@@ -8021,8 +8119,12 @@ function AppInner() {
       localStorage.setItem('nebulife_home_planet_id', evacuationTarget.planet.id);
     } catch { /* ignore */ }
     setAdsUnlockedAfterSettlement(true);
-    if (Capacitor.isNativePlatform()) {
-      void interstitialManager.prepareNext();
+    // Deferred guest upgrade: the player reached colonization, so now invite
+    // them (once ever, non-blocking) to link a real account before they risk
+    // losing progress. Read auth state directly to avoid a stale closure.
+    if (getCurrentUser()?.isAnonymous && !localStorage.getItem('nebulife_reg_reminder_shown')) {
+      setShowGuestReminder(true);
+      try { localStorage.setItem('nebulife_reg_reminder_shown', '1'); } catch { /* ignore */ }
     }
 
     // Clear evacuation localStorage IMMEDIATELY (don't rely on useEffect which runs after render)
@@ -8887,9 +8989,8 @@ function AppInner() {
     };
   }, []);
 
-  // ── Native ads/privacy session start (SDK init stays lazy) ─
+  // ── Native privacy session start (SDK init stays lazy) ─
   useEffect(() => {
-    interstitialManager.sessionStartTime = Date.now();
     void requestAppTrackingTransparencyIfNeeded();
   }, []);
 
@@ -10713,6 +10814,7 @@ function AppInner() {
           грати" + follow-up "щоб екзосфера зникала всюди окрім екзосфери".
           So: only render when NO full-screen overlay is active. */}
       {(state.scene === 'home-intro' || state.scene === 'planet-view') && homeInfo
+        && !needsOnboarding
         && !showArena && !showRaid && !showHangar && !surfaceTarget
         && !showPlayerPage && !showCosmicArchive && !showAcademy
         && !showChaosModal && !showTopUpModal
@@ -11459,7 +11561,6 @@ function AppInner() {
             // Return to Hangar after arena exit
             setShowHangar(true);
             restoreStarGroupView();
-            interstitialManager.tryShow();
           }}
         />
       )}
@@ -11472,7 +11573,6 @@ function AppInner() {
             setShowRaid(false);
             setShowHangar(true);
             restoreStarGroupView();
-            interstitialManager.tryShow();
           }}
         />
       )}
@@ -11931,7 +12031,7 @@ function AppInner() {
           manual graphics + language picker. Crashes are caught and bypassed. */}
       {showBootLoader && !manualSetup && (
         <IntroErrorBoundary onError={handleIntroCrash}>
-          <PlanetFormationLoader onComplete={handleIntroComplete} />
+          <StarBirthIntro onComplete={handleIntroComplete} />
         </IntroErrorBoundary>
       )}
 
@@ -11943,8 +12043,12 @@ function AppInner() {
         />
       )}
 
-      {/* Auth: Login screen (only when Firebase is configured) */}
-      {isFirebaseConfigured && !authLoading && !showBootLoader && !firebaseUser && (
+      {/* Auth: Login screen (only when Firebase is configured). On native we
+          sign in as guest silently after the intro (guest-first), so the form
+          only appears on web, or as a fallback if the silent guest sign-in
+          failed (e.g. offline) — never trapping the player. */}
+      {isFirebaseConfigured && !authLoading && !showBootLoader && !firebaseUser
+        && (!Capacitor.isNativePlatform() || guestAutoFailed) && (
         <AuthScreen
           onAuthenticated={async (user, _isNew) => {
             setFirebaseUser(user);
@@ -11983,25 +12087,15 @@ function AppInner() {
           onVideoPlayingChange={setCinematicVideoPlaying}
           onComplete={handleOnboardingComplete}
           onRequestUniverseScene={async () => {
-            // Skip heavy Three.js universe on low/mid-tier devices —
-            // it hangs tablets/mid-range Androids during the intro. On
-            // flagships (S22 Ultra, iPhone 14+) we still show the full
-            // cinematic zoom.
-            const tier = getDeviceTier();
-            if (tier !== 'high') {
-              // Keep PixiJS engine paused + render nothing behind subtitles
-              // (the CinematicIntro gradient covers the black background).
-              engineRef.current?.pause();
-              setState(prev => ({ ...prev, scene: 'universe' }));
-              return;
-            }
-            await initUniverseEngine();
-            setUniverseVisible(true);
-            universeEngineRef.current?.setVisible(true);
-            engineRef.current?.pause();
-            setState(prev => ({ ...prev, scene: 'universe' }));
-            // Slow cinematic zoom toward player's home cluster during subtitles
-            setTimeout(() => universeEngineRef.current?.flyToMyCluster(8000), 500);
+            // The "system genesis" wow-moment (single plasma star + nav web)
+            // already played in StarBirthIntro. Do NOT spin up a SECOND 3D
+            // star scene here — the heavy Three.js universe + flyToMyCluster
+            // is exactly the "7 зорок ще раз + кругова анімація" the player
+            // reported seeing twice. Instead, reveal the live PixiJS galaxy
+            // (the cosmos backdrop) right behind the subtitles on every tier.
+            engineRef.current?.resume();
+            engineRef.current?.showGalaxyScene();
+            setState(prev => ({ ...prev, scene: 'galaxy', selectedSystem: null, selectedPlanet: null }));
           }}
           onLeaveUniverseToGalaxy={() => {
             setUniverseVisible(false);

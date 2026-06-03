@@ -850,7 +850,11 @@
     "graphics_hint": "Changing this restarts the game so every scene reloads with the new tier.",
     "graphics_simple": "Simple",
     "graphics_standard": "Standard",
-    "graphics_full": "Full"
+    "graphics_full": "Full",
+    "community_section": "COMMUNITY",
+    "community_hint": "Join the Nebulife community to share feedback and help make the game better.",
+    "community_telegram": "Telegram group",
+    "community_disclaimer": "Telegram is a third-party service with its own rules and privacy policy."
   },
   "settings": {
     "delete_account": "Delete account",
@@ -1551,7 +1555,18 @@
       "paradise": "life takes hold · a living world",
       "reveal": "This is your home planet",
       "skip": "Skip"
-    }
+    },
+    "starbirth": {
+      "establishing": "establishing orbit",
+      "eyebrow": "NEBULIFE · SYSTEM GENESIS",
+      "title": "Alpha Lyrae ignites",
+      "ignite": "your home star flares to life",
+      "filaments": "navigation filaments burn their path",
+      "cluster": "neighbouring systems light up",
+      "reveal": "Your home system awakens",
+      "skip": "Skip"
+    },
+    "exosphereSync": "Syncing exosphere telemetry"
   },
   "gallery": {
     "discovered_count": "Discovered: {{count}} / {{total}}",

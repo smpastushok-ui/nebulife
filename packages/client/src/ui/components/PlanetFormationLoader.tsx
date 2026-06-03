@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Capacitor } from '@capacitor/core';
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
@@ -93,7 +94,7 @@ float noise3(vec3 p){
     mix(mix(hash3(i+vec3(0,0,1)), hash3(i+vec3(1,0,1)), f.x), mix(hash3(i+vec3(0,1,1)), hash3(i+vec3(1,1,1)), f.x), f.y),
     f.z);
 }
-float fbm(vec3 p){ float s = 0.0; float a = 0.5; for (int i = 0; i < 5; i++) { s += a * noise3(p); p *= 2.03; a *= 0.5; } return s; }
+float fbm(vec3 p){ float s = 0.0; float a = 0.5; for (int i = 0; i < 3; i++) { s += a * noise3(p); p *= 2.03; a *= 0.5; } return s; }
 
 void main(){
   vec3 N = normalize(vNormal);
@@ -154,15 +155,24 @@ export function PlanetFormationLoader({ onComplete, minDurationMs = 9000 }: Prop
 
     const start = performance.now();
     const samples: number[] = [];
+    const native = Capacitor.isNativePlatform();
     const heuristic = getDeviceTier();
     const high = heuristic === 'high' || heuristic === 'ultra';
-    const segments = heuristic === 'low' ? 64 : heuristic === 'mid' ? 96 : 160;
-    const debrisCount = heuristic === 'low' ? 70 : heuristic === 'mid' ? 110 : 150;
-    const dpr = Math.min(window.devicePixelRatio || 1, high ? 2 : 1.5);
+    // The genesis surface is a fragment-heavy procedural shader. On native
+    // WebView GPUs even "high" tier struggles, so keep geometry modest and —
+    // crucially — clamp the pixel count (dpr) and skip bloom. A starved rAF on
+    // these devices makes the time-based morph visibly jump straight to the
+    // final paradise frame ("renders 0.5s, freezes, earth-like planet").
+    const segments = heuristic === 'low' ? 40 : heuristic === 'mid' ? 56 : heuristic === 'high' ? 80 : 96;
+    const debrisCount = heuristic === 'low' ? 50 : heuristic === 'mid' ? 80 : 110;
+    const dpr = native
+      ? Math.min(window.devicePixelRatio || 1, 1.3)
+      : Math.min(window.devicePixelRatio || 1, high ? 2 : 1.5);
+    const useBloom = !native && (heuristic === 'high' || heuristic === 'ultra');
 
     let renderer: THREE.WebGLRenderer;
     try {
-      renderer = new THREE.WebGLRenderer({ canvas, antialias: high, alpha: true, powerPreference: 'high-performance' });
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: !native && high, alpha: true, powerPreference: 'high-performance' });
     } catch {
       // No WebGL → don't trap the player on a black screen.
       const tmo = window.setTimeout(() => {
@@ -235,9 +245,9 @@ export function PlanetFormationLoader({ onComplete, minDurationMs = 9000 }: Prop
     const debris = new THREE.Points(debrisGeo, debrisMat);
     scene.add(debris);
 
-    // ── Bloom (high/ultra only) ─────────────────────────────────────────────
+    // ── Bloom (desktop high/ultra only — too costly on native WebView) ──────
     let composer: EffectComposer | null = null;
-    if (high) {
+    if (useBloom) {
       composer = new EffectComposer(renderer);
       composer.addPass(new RenderPass(scene, camera));
       composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), 0.45, 0.55, 0.7));

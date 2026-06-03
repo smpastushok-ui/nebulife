@@ -8,14 +8,15 @@ import { Capacitor } from '@capacitor/core';
 import { areAdsUnlockedAfterSettlement } from './ad-release-gate.js';
 
 // =============================================================================
-// TEMP: ADS_DISABLED_FOR_TESTING — see the mirror flag in ads-service.ts.
-// While this is true, canShow() always returns false so no interstitial ever
-// interrupts testers. prepareNext() becomes a no-op, so the AdMob SDK is not
-// initialized at all through this path.
+// ADS_DISABLED_FOR_TESTING — INTERSTITIAL ads switch (this file only).
+// When true: no interstitials, no AdMob init through this path.
 //
-// **TO RESTORE ADS:** set to `false` here AND in ads-service.ts.
+// Current policy: INTERSTITIAL (interruptive full-screen) ads are intentionally
+// DISABLED — they interrupt gameplay without giving the player anything. Only
+// opt-in REWARDED ads (watch → get quarks / AI generation) remain enabled, via
+// the separate flag in ads-service.ts.
 // =============================================================================
-const ADS_DISABLED_FOR_TESTING = false;
+const ADS_DISABLED_FOR_TESTING = true;
 const ADS_DISABLED_ON_ANDROID_FOR_TESTERS = false;
 
 // Interstitial ad unit IDs

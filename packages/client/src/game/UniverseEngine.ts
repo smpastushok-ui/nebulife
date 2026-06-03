@@ -98,11 +98,20 @@ const _tmpVec3A = new THREE.Vector3();
 const _tmpVec3B = new THREE.Vector3();
 const _tmpVec2 = new THREE.Vector2();
 
-// Visualization (reduced from 260/160 to save GPU on mobile — visually similar density)
-const STARS_PER_CLUSTER = 80;
-const CORE_STARS_PER_CLUSTER = 50;
-const CLUSTER_VIS_RADIUS = 40;
+// Visualization. Cluster clouds were tiny (R=40) vs the ~366 LY spacing between
+// clusters, so the galaxy read as isolated dots in black voids. We widen the
+// cloud toward the logical GROUP_RADIUS (150 LY) and add more stars so adjacent
+// clusters' halos overlap → continuous spiral arms. A faint inter-arm DUST band
+// (buildGalaxyDust) fills the remaining gaps. None of this touches the
+// deterministic group POSITIONS — purely how each cluster is drawn.
+const STARS_PER_CLUSTER = 140;
+const CORE_STARS_PER_CLUSTER = 80;
+const CLUSTER_VIS_RADIUS = 120;
 const SCALE = 1.0;
+// Faint background dust sampled along the spiral arms (and a central bulge) so
+// the arms look like continuous star fields, not strings of separate puffs.
+const DUST_PER_ARM = 520;
+const DUST_BULGE_COUNT = 700;
 
 // LOD thresholds
 const LOD_EXPAND_DIST = 250;
@@ -517,6 +526,7 @@ export class UniverseEngine {
   private origAlphas: Float32Array | null = null;
   private origSizes: Float32Array | null = null;
   private spiralLines: THREE.Line[] = [];
+  private dustPoints: THREE.Points | null = null;
   private smbhGroup!: THREE.Group;
   private jetUpRef: THREE.Mesh | null = null;
   private jetDownRef: THREE.Mesh | null = null;
@@ -852,6 +862,13 @@ export class UniverseEngine {
   private buildGalaxy(): void {
     if (this.lodState === 'cluster') this.collapseCluster();
     if (this.clusterPoints) this.scene.remove(this.clusterPoints);
+    if (this.dustPoints) {
+      this.scene.remove(this.dustPoints);
+      this.dustPoints.geometry.dispose();
+      const dm = this.dustPoints.material;
+      if (Array.isArray(dm)) dm.forEach(m => m.dispose()); else dm.dispose();
+      this.dustPoints = null;
+    }
 
     this.groups = [];
     for (let i = 0; i < this.groupCount; i++) {
@@ -902,6 +919,9 @@ export class UniverseEngine {
     const maxArmPos = Math.floor((this.groupCount - 1) / SPIRAL_ARM_COUNT);
     const maxTheta = maxArmPos * THETA_STEP + 0.5;
     this.buildSpiralTraces(maxTheta);
+
+    // Continuous inter-arm dust so the spiral reads as filled arms, not dots.
+    this.buildGalaxyDust(maxTheta);
 
     // Save originals for hover
     requestAnimationFrame(() => this.saveOriginals());
@@ -968,6 +988,77 @@ export class UniverseEngine {
       this.scene.add(line);
       this.spiralLines.push(line);
     }
+  }
+
+  /**
+   * Faint background dust sampled along the SAME logarithmic spiral the clusters
+   * follow, plus a central bulge. This fills the ~300 LY voids between cluster
+   * clouds so the arms read as continuous star fields (a real spiral-galaxy
+   * look) instead of isolated puffs. Drawn once per rebuild, additive + very low
+   * alpha, so it's cheap and never competes with the bright cluster stars.
+   * Purely cosmetic — uses no group data, changes no positions.
+   */
+  private buildGalaxyDust(maxTheta: number): void {
+    const rng = new SeededRNG(GALAXY_MASTER_SEED ^ 0x9e3779b1);
+    const total = SPIRAL_ARM_COUNT * DUST_PER_ARM + DUST_BULGE_COUNT;
+    const pos = new Float32Array(total * 3);
+    const col = new Float32Array(total * 3);
+    const sz = new Float32Array(total);
+    const al = new Float32Array(total);
+    let n = 0;
+
+    // Arm dust: walk each arm's spiral, scatter perpendicular like real arms.
+    for (let arm = 0; arm < SPIRAL_ARM_COUNT; arm++) {
+      const tint = ARM_TINT[arm % ARM_TINT.length];
+      const armOffset = arm * (Math.PI * 2 / SPIRAL_ARM_COUNT);
+      for (let i = 0; i < DUST_PER_ARM; i++) {
+        // Bias samples toward the outer disk (more area there).
+        const t = Math.sqrt(rng.next()) * maxTheta;
+        const r = SPIRAL_A * Math.exp(SPIRAL_B * t);
+        const angle = t + armOffset;
+        // Perpendicular spread scales with radius (arms fan out further out).
+        const spread = r * (GROUP_SCATTER * 2.2);
+        const sx = rng.nextGaussian(0, spread);
+        const sz2 = rng.nextGaussian(0, spread);
+        const x = r * Math.cos(angle) + sx;
+        const zc = r * Math.sin(angle) + sz2;
+        const y = rng.nextGaussian(0, DISK_THIN_SIGMA * 1.5);
+        pos[n * 3] = x * SCALE; pos[n * 3 + 1] = y * SCALE; pos[n * 3 + 2] = zc * SCALE;
+        const tw = 0.65 + rng.next() * 0.35;
+        col[n * 3] = tint.r * tw; col[n * 3 + 1] = tint.g * tw; col[n * 3 + 2] = tint.b * tw;
+        sz[n] = 0.7 + rng.next() * 1.3;
+        al[n] = 0.05 + rng.next() * 0.07;
+        n++;
+      }
+    }
+
+    // Central bulge halo — denser, warmer, fades outward.
+    for (let i = 0; i < DUST_BULGE_COUNT; i++) {
+      const r = Math.abs(rng.nextGaussian(0, SPIRAL_A * 0.6));
+      const a = rng.next() * Math.PI * 2;
+      const x = r * Math.cos(a);
+      const zc = r * Math.sin(a);
+      const y = rng.nextGaussian(0, DISK_BULGE_SIGMA * 0.5);
+      pos[n * 3] = x * SCALE; pos[n * 3 + 1] = y * SCALE; pos[n * 3 + 2] = zc * SCALE;
+      const warm = 0.8 + rng.next() * 0.2;
+      col[n * 3] = 1.0 * warm; col[n * 3 + 1] = 0.88 * warm; col[n * 3 + 2] = 0.7 * warm;
+      sz[n] = 0.8 + rng.next() * 1.4;
+      al[n] = 0.06 + rng.next() * 0.08;
+      n++;
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    geo.setAttribute('size', new THREE.BufferAttribute(sz, 1));
+    geo.setAttribute('alpha', new THREE.BufferAttribute(al, 1));
+    const mat = new THREE.ShaderMaterial({
+      vertexShader: GLOW_VERT, fragmentShader: GLOW_FRAG,
+      vertexColors: true, transparent: true, depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    this.dustPoints = new THREE.Points(geo, mat);
+    this.scene.add(this.dustPoints);
   }
 
   // ── Hover / Highlight ──────────────────────────────────────
