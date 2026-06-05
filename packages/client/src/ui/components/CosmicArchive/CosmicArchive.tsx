@@ -13,6 +13,7 @@ import type { LogEntry } from './SystemLog';
 import type { DiscoveryData } from '../../../api/player-api';
 import { TechTreeView } from '../TechTree';
 import { TelescopeGallery } from './TelescopeGallery';
+import { LifeGallery } from './LifeGallery';
 import { ResourcesView } from './ResourcesView';
 import type { SystemPhotoData } from '../SystemContextMenu';
 
@@ -582,7 +583,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
       return <TelescopeGallery photos={systemPhotos} type="mission" allSystems={allSystems} aliases={aliases} onGoToExosphere={onViewPlanetExosphere} />;
     }
     if (mainTab === 'collections' && currentSubTab === 'life') {
-      return <PlaceholderTab label={t('archive.sub_life')} />;
+      return <LifeGallery playerId={playerId} />;
     }
     if (mainTab === 'navigation' && currentSubTab === 'colonies') {
       return (

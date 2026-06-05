@@ -49,6 +49,24 @@ export type {
   Discovery,
 } from './discovery.js';
 
+// Lifeform Genesis module
+export {
+  LIFEFORM_PHOTO_COST,
+  LIFEFORM_VIDEO_COST,
+  LIFEFORM_FIND_WEIGHTS,
+  LIFEFORM_TRIGGER_BUILDINGS,
+  isLifeformTriggerBuilding,
+  rollLifeformFind,
+  LIFEFORM_INGREDIENT_IDS,
+  INGREDIENT_BY_DEPOSIT,
+  GENESIS_INGREDIENT_MIN_LEVEL,
+  isRareIngredient,
+  rollIngredientDrop,
+  LIFEFORM_CREATE_RECIPE,
+  canCreateLifeform,
+} from './lifeform.js';
+export type { LifeformSource, LifeformMediaStatus, LifeformFindRoll, LifeformIngredientId, LifeformCreateRecipe } from './lifeform.js';
+
 // Cosmic catalog
 export {
   COSMIC_CATALOG,

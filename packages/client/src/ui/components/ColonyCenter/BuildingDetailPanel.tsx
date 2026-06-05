@@ -1279,6 +1279,28 @@ export function BuildingDetailPanel({
               {t('building_detail.action_open_center')}
             </button>
           )}
+          {type === 'genesis_vault' && (
+            <button
+              type="button"
+              onClick={() => { try { window.dispatchEvent(new CustomEvent('nebulife:open-genesis-lab')); } catch { /* ignore */ } }}
+              style={{
+                marginTop: 8,
+                justifySelf: 'start',
+                background: 'rgba(68,255,136,0.10)',
+                border: '1px solid #44ff88',
+                borderRadius: 4,
+                color: '#44ff88',
+                fontFamily: 'monospace',
+                fontSize: 10,
+                letterSpacing: 1,
+                textTransform: 'uppercase',
+                padding: '8px 12px',
+                cursor: 'pointer',
+              }}
+            >
+              {t('lifeform.genesis_create')}
+            </button>
+          )}
           {type === 'landing_pad' && (
               <div style={{
               marginTop: 8,

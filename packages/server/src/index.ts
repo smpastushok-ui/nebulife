@@ -75,6 +75,13 @@ export {
   getActiveSystemMission,
   updateSystemMission,
   getPlayerSystemMissions,
+  // Lifeforms (Genesis module)
+  saveLifeform,
+  getLifeformById,
+  getPlayerLifeforms,
+  updateLifeformName,
+  updateLifeformPhoto,
+  updateLifeformVideo,
   // Messages (chat)
   saveMessage,
   getMessages,
@@ -175,6 +182,7 @@ export type {
   PlayerAliasRow,
   SystemPhotoRow,
   SystemMissionRow,
+  LifeformRow,
   MessageRow,
   DMChannelInfo,
   ReportRow,
@@ -251,6 +259,10 @@ export type { PlanetSkinKind } from './planet-skin-prompt-builder.js';
 
 // System photo/mission prompt builder
 export { buildSystemPhotoPrompt, buildMissionVideoPrompt, buildGeminiSystemPhotoPrompt } from './system-photo-prompt-builder.js';
+
+// Lifeform prompt builder (Genesis module)
+export { buildLifeformPhotoPrompt, buildLifeformVideoPrompt } from './lifeform-prompt-builder.js';
+export type { LifeformRarity } from './lifeform-prompt-builder.js';
 
 // Gemini AI image generation + moderation + A.S.T.R.A. chat + daily content
 export { generateImageWithGemini, computeAspectRatio, moderateMessage, chatWithAstra, generateDailyQuiz, generateDailyFunFact } from './gemini-client.js';

@@ -1464,6 +1464,131 @@ export async function getPlayerSystemMissions(playerId: string): Promise<SystemM
 }
 
 // ---------------------------------------------------------------------------
+// Lifeforms (Genesis module — found/created alien lifeforms)
+// ---------------------------------------------------------------------------
+
+export interface LifeformRow {
+  id: string;
+  player_id: string;
+  system_id: string | null;
+  planet_id: string | null;
+  source: string;          // 'found' | 'created'
+  rarity: string;          // common | uncommon | rare | epic | legendary
+  species_name: string | null;
+  is_bundle: boolean;
+  photo_url: string | null;
+  photo_status: string | null;
+  photo_task_id: string | null;
+  video_url: string | null;
+  video_status: string | null;
+  video_task_id: string | null;
+  prompt_used: string | null;
+  quarks_paid: number;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export async function saveLifeform(data: {
+  id: string;
+  playerId: string;
+  systemId?: string | null;
+  planetId?: string | null;
+  source?: 'found' | 'created';
+  rarity: string;
+  speciesName?: string | null;
+  isBundle?: boolean;
+}): Promise<LifeformRow> {
+  const sql = getSQL();
+  const rows = await sql`
+    INSERT INTO lifeforms (
+      id, player_id, system_id, planet_id, source, rarity, species_name, is_bundle
+    ) VALUES (
+      ${data.id}, ${data.playerId}, ${data.systemId ?? null}, ${data.planetId ?? null},
+      ${data.source ?? 'found'}, ${data.rarity}, ${data.speciesName ?? null}, ${data.isBundle ?? false}
+    )
+    RETURNING *
+  `;
+  return rows[0] as LifeformRow;
+}
+
+export async function getLifeformById(id: string): Promise<LifeformRow | null> {
+  const sql = getSQL();
+  const rows = await sql`SELECT * FROM lifeforms WHERE id = ${id}`;
+  return (rows[0] as LifeformRow) ?? null;
+}
+
+export async function getPlayerLifeforms(playerId: string): Promise<LifeformRow[]> {
+  const sql = getSQL();
+  return (await sql`
+    SELECT * FROM lifeforms
+    WHERE player_id = ${playerId}
+    ORDER BY created_at DESC
+  `) as LifeformRow[];
+}
+
+/** Rename a lifeform species (player-chosen name). */
+export async function updateLifeformName(
+  id: string,
+  speciesName: string,
+): Promise<LifeformRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    UPDATE lifeforms SET species_name = ${speciesName} WHERE id = ${id}
+    RETURNING *
+  `;
+  return (rows[0] as LifeformRow) ?? null;
+}
+
+/** Update Alpha-photo generation state (task start / completion). */
+export async function updateLifeformPhoto(
+  id: string,
+  updates: Partial<{
+    photo_status: string;
+    photo_url: string;
+    photo_task_id: string;
+    prompt_used: string;
+    quarks_paid: number;
+  }>,
+): Promise<LifeformRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    UPDATE lifeforms
+    SET photo_status   = COALESCE(${updates.photo_status ?? null}, photo_status),
+        photo_url      = COALESCE(${updates.photo_url ?? null}, photo_url),
+        photo_task_id  = COALESCE(${updates.photo_task_id ?? null}, photo_task_id),
+        prompt_used    = COALESCE(${updates.prompt_used ?? null}, prompt_used),
+        quarks_paid    = quarks_paid + COALESCE(${updates.quarks_paid ?? null}, 0),
+        completed_at   = CASE WHEN ${updates.photo_status ?? null} = 'succeed' THEN NOW() ELSE completed_at END
+    WHERE id = ${id}
+    RETURNING *
+  `;
+  return (rows[0] as LifeformRow) ?? null;
+}
+
+/** Update Alpha-video generation state (task start / completion). */
+export async function updateLifeformVideo(
+  id: string,
+  updates: Partial<{
+    video_status: string;
+    video_url: string;
+    video_task_id: string;
+    quarks_paid: number;
+  }>,
+): Promise<LifeformRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    UPDATE lifeforms
+    SET video_status   = COALESCE(${updates.video_status ?? null}, video_status),
+        video_url      = COALESCE(${updates.video_url ?? null}, video_url),
+        video_task_id  = COALESCE(${updates.video_task_id ?? null}, video_task_id),
+        quarks_paid    = quarks_paid + COALESCE(${updates.quarks_paid ?? null}, 0)
+    WHERE id = ${id}
+    RETURNING *
+  `;
+  return (rows[0] as LifeformRow) ?? null;
+}
+
+// ---------------------------------------------------------------------------
 // Messages (chat)
 // ---------------------------------------------------------------------------
 

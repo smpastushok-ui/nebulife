@@ -47,6 +47,8 @@ import type {
   Planet, Star, StarSystem, ResearchState, SystemResearchState, Discovery, CatalogEntry,
 } from '@nebulife/core';
 import { getCatalogEntry, getCatalogName, BUILDING_DEFS } from '@nebulife/core';
+import { rollLifeformFind, isLifeformTriggerBuilding, rollIngredientDrop } from '@nebulife/core';
+import type { DiscoveryRarity, LifeformIngredientId } from '@nebulife/core';
 import { checkPremiumStatus, initIAP } from './api/iap-service.js';
 import { getPlayerAliases, setAlias } from './api/alias-api.js';
 import {
@@ -142,6 +144,13 @@ import { LevelUpBanner } from './ui/components/LevelUpBanner.js';
 import { ResearchToast } from './ui/components/ResearchToast.js';
 import type { ResearchToastItem } from './ui/components/ResearchToast.js';
 import { CutsceneVideo } from './ui/components/CutsceneVideo.js';
+import { LifeformRevealModal } from './ui/components/LifeformRevealModal.js';
+import { GenesisLabModal } from './ui/components/GenesisLabModal.js';
+import {
+  reportLifeformFound,
+  getPlayerLifeforms as fetchPlayerLifeforms,
+  type LifeformRecord,
+} from './api/lifeform-api.js';
 import { EvacuationPrompt } from './ui/components/EvacuationPrompt.js';
 import { ColonyFoundingPrompt } from './ui/components/ColonyFoundingPrompt.js';
 import { getPlayer, createPlayer, getDiscoveries, saveDiscoveryToServer, updatePlayer, updateFcmToken, sendTestPush, fetchUniverseInfo, uploadPlayerAvatar, removePlayerAvatar } from './api/player-api.js';
@@ -185,7 +194,7 @@ import { TutorialOverlay, FreeTaskHUD, TUTORIAL_STEPS } from './ui/components/Tu
 import type { User } from 'firebase/auth';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
-import { canShowAd, isNativePlatform, requestAppTrackingTransparencyIfNeeded, watchAdsWithProgress } from './services/ads-service.js';
+import { requestAppTrackingTransparencyIfNeeded, watchAdsWithProgress } from './services/ads-service.js';
 import { setAdsUnlockedAfterSettlement } from './services/ad-release-gate.js';
 import { isWebAccessTemporarilyOpen } from './services/web-access-gate.js';
 import { interstitialManager } from './services/interstitial-manager.js';
@@ -416,6 +425,7 @@ interface SyncedGameState {
   hex_slots?: unknown[];
   hex_slots_by_planet?: Record<string, unknown[]>;
   chemical_inventory: Record<string, number>;
+  life_ingredients?: Record<string, number>;
   // Game phase
   exodus_phase: boolean;
   destroyed_planets: Array<{ planetId: string; systemId: string; orbitAU: number }>;
@@ -985,6 +995,21 @@ function AppInner() {
   const [cinematicActive, setCinematicActive] = useState(false);
   const [cinematicVideoPlaying, setCinematicVideoPlaying] = useState(false);
   const [showGuestReminder, setShowGuestReminder] = useState(false);
+  // Lifeform Genesis — discovered lifeforms (Map keyed by lifeform id) + the
+  // currently-presented lifeform. The first greenhouse triggers the special
+  // bundled "first contact" common; later buildings can surface rarer life.
+  const [lifeforms, setLifeforms] = useState<Map<string, LifeformRecord>>(new Map());
+  const [activeLifeform, setActiveLifeform] = useState<LifeformRecord | null>(null);
+  const [activeLifeformBundle, setActiveLifeformBundle] = useState<{ photo?: string; video?: string } | null>(null);
+  const [activeLifeformOnboarding, setActiveLifeformOnboarding] = useState(false);
+  const lifeformBuildCounter = useRef(0);
+  // Genesis Lab (Phase 2) — opened from the Genesis Vault building.
+  const [showGenesisLab, setShowGenesisLab] = useState(false);
+  useEffect(() => {
+    const open = () => setShowGenesisLab(true);
+    window.addEventListener('nebulife:open-genesis-lab', open);
+    return () => window.removeEventListener('nebulife:open-genesis-lab', open);
+  }, []);
 
   // Boot loader completion is now driven by PlanetFormationLoader.onComplete
   // (the formation cinematic + FPS benchmark), not a blind timer. Returning
@@ -1291,6 +1316,21 @@ function AppInner() {
     try { localStorage.setItem('nebulife_chemical_inventory', JSON.stringify(chemicalInventory)); }
     catch { /* ignore */ }
   }, [chemicalInventory]);
+
+  // ── Genesis life ingredients (rare organic drops, L48+; Phase 2 Lab) ──────
+  const [lifeIngredients, setLifeIngredients] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_life_ingredients');
+      if (saved) return JSON.parse(saved);
+    } catch { /* ignore */ }
+    return {};
+  });
+  const lifeIngredientHarvestCounter = useRef(0);
+
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_life_ingredients', JSON.stringify(lifeIngredients)); }
+    catch { /* ignore */ }
+  }, [lifeIngredients]);
 
   // ── Terraforming state ───────────────────────────────────────────────────
   /** Terraform progress per planet, keyed by planetId. Persisted to localStorage. */
@@ -1718,10 +1758,27 @@ function AppInner() {
         depleted = newStocks.remaining[stockKey] <= 0.0001;
         setPlanetResourceStocks(prev => ({ ...prev, [planetKey]: newStocks }));
       }
+
+      // Genesis ingredient drop (L48+): a rare organic byproduct surfaces
+      // instead of the ordinary resource on this harvest. Deterministic.
+      lifeIngredientHarvestCounter.current += 1;
+      const lfPlanet = surfaceTargetRef.current?.planet ?? homeInfoRef.current?.planet;
+      const ingredient = actualAmount > 0
+        ? rollIngredientDrop(lfPlanet?.seed ?? 0, objectType, lifeIngredientHarvestCounter.current, playerLevel)
+        : null;
+      if (ingredient) {
+        setLifeIngredients(prev => ({ ...prev, [ingredient]: (prev[ingredient] ?? 0) + 1 }));
+        const ingName = i18n.t(`lifeform.ingredient_${ingredient}`, { defaultValue: ingredient });
+        setToastMessage(i18n.t('lifeform.ingredient_found', { name: ingName, defaultValue: 'Organic sample secured' }));
+        setTimeout(() => setToastMessage(null), 2600);
+        void trackEvent('lifeform_ingredient_found', { ingredient });
+        return { actualAmount, depleted };
+      }
+
       addResources(planetId, { [key]: actualAmount });
     }
     return { actualAmount, depleted };
-  }, [addResources, getPlanetKeyForId, getResources, getStorageCapacityForPlanet, t]);
+  }, [addResources, getPlanetKeyForId, getResources, getStorageCapacityForPlanet, playerLevel, t]);
 
   /** Handle fly-to-HUD animation for harvested resource. */
   const handleHarvestFx = useCallback((type: SurfaceObjectType, sx: number, sy: number) => {
@@ -4913,6 +4970,15 @@ function AppInner() {
       setChemicalInventory(merged);
       try { localStorage.setItem('nebulife_chemical_inventory', JSON.stringify(merged)); } catch { /* ignore */ }
     }
+    if (gs.life_ingredients && typeof gs.life_ingredients === 'object') {
+      const localLI = (() => { try { return JSON.parse(localStorage.getItem('nebulife_life_ingredients') ?? 'null'); } catch { return null; } })();
+      const mergedLI: Record<string, number> = {};
+      for (const key of new Set([...Object.keys(gs.life_ingredients as Record<string, number>), ...Object.keys(localLI ?? {})])) {
+        mergedLI[key] = Math.max((gs.life_ingredients as Record<string, number>)[key] ?? 0, localLI?.[key] ?? 0);
+      }
+      setLifeIngredients(mergedLI);
+      try { localStorage.setItem('nebulife_life_ingredients', JSON.stringify(mergedLI)); } catch { /* ignore */ }
+    }
     if (Array.isArray(gs.hex_slots) && gs.hex_slots.length > 0) {
       try {
         const localRaw = localStorage.getItem('nebulife_hex_slots');
@@ -5643,6 +5709,12 @@ function AppInner() {
         }
         return saved;
       });
+    }).catch(() => {});
+    // Load discovered lifeforms (Genesis archive)
+    fetchPlayerLifeforms(pid).then(rows => {
+      const lmap = new Map<string, LifeformRecord>();
+      for (const lf of rows) lmap.set(lf.id, lf);
+      setLifeforms(lmap);
     }).catch(() => {});
     // Load gallery discoveries for duplicate detection
     getDiscoveries(pid).then(discoveries => {
@@ -7639,15 +7711,6 @@ function AppInner() {
     }
   }, [pendingDiscovery, playerStats, quarks, isGuest]);
 
-  /** Ad-funded quantum focus — called with photoToken from AdProgressButton */
-  const handleAdQuantumFocus = useCallback((photoToken: string) => {
-    if (!pendingDiscovery) return;
-    setObservatoryTarget({ ...pendingDiscovery, cost: 0, adPhotoToken: photoToken });
-    setDiscoveryQueue(q => q.slice(1));
-    setShowCosmicArchive(false);
-    awardXP(XP_REWARDS.OBSERVATORY_SCAN, 'observatory');
-  }, [pendingDiscovery]);
-
   const handleSkipDiscovery = useCallback(() => {
     setDiscoveryQueue(q => q.slice(1));
   }, []);
@@ -8705,6 +8768,7 @@ function AppInner() {
       hex_slots: hexSlots,
       hex_slots_by_planet: hexSlotsByPlanet,
       chemical_inventory: chemicalInventory,
+      life_ingredients: lifeIngredients,
       exodus_phase: isExodusPhase,
       destroyed_planets: destroyedPlanets,
       onboarding_done: localStorage.getItem('nebulife_onboarding_done') === '1',
@@ -10392,11 +10456,9 @@ function AppInner() {
           onCharacteristics={handleSystemMenuCharacteristics}
           onResearch={handleSystemMenuResearch}
           onTelescopePhoto={handleTelescopePhoto}
-          onAdTelescopePhoto={(photoToken) => handleTelescopePhotoForSystem(state.selectedSystem!, photoToken)}
           onViewPhoto={handleViewSystemPhoto}
           onSendMission={handleSendMission}
           onViewVideo={handleViewMissionVideo}
-          canShowAds={isNativePlatform() && canShowAd()}
         />
       )}
       {missionPhotoReveal && (
@@ -10485,7 +10547,6 @@ function AppInner() {
           isDestroyed={destroyedPlanetIdsSet.has(state.selectedPlanet.id)}
           surfaceDisabledReason={canLandOnPlanet(state.selectedPlanet).reason}
           onTelescopePhoto={(photoKind) => handlePlanetTelescopePhoto(photoKind)}
-          onAdTelescopePhoto={(photoKind, photoToken) => handlePlanetTelescopePhoto(photoKind, photoToken)}
           onGeneratePlanetSkin={handleGeneratePlanetSkin}
           planetSkinStatus={{
             system: planetSkins.get(planetSkinKey(state.selectedSystem!.id, state.selectedPlanet.id, 'system'))?.status as 'generating' | 'pending' | 'processing' | 'succeed' | 'failed' | undefined,
@@ -10502,7 +10563,6 @@ function AppInner() {
               || systemPhotos.get(`planet-biosphere-${state.selectedPlanet.id}`)?.status === 'generating'
               || systemPhotos.get(`planet-aerial-${state.selectedPlanet.id}`)?.status === 'generating'
           }
-          canShowAds={isNativePlatform() && canShowAd()}
           hasGenesisVault={colonyState?.buildings?.some((b) => b.type === 'genesis_vault') ?? false}
           onShowTerraform={onShowTerraform}
           revealLevel={getEffectivePlanetRevealLevel(state.selectedPlanet, state.selectedSystem)}
@@ -10703,10 +10763,8 @@ function AppInner() {
           isFirstDiscovery={isFirstDiscovery}
           isLuckyFree={isLuckyFree}
           playerQuarks={quarks}
-          canShowAds={isNativePlatform() && canShowAd()}
           onTelemetry={handleTelemetry}
           onQuantumFocus={handleQuantumFocus}
-          onAdQuantumFocus={handleAdQuantumFocus}
           onSkip={handleSkipDiscovery}
         />
       )}
@@ -10751,6 +10809,40 @@ function AppInner() {
           onStartEvacuation={handleStartEvacuation}
           forced={forcedEvacuation}
           onDismiss={() => setEvacuationPromptDismissed(true)}
+        />
+      )}
+      {/* Lifeform Genesis — discovered lifeform reveal popup (rarity-framed) */}
+      {activeLifeform && (
+        <LifeformRevealModal
+          playerId={playerId.current}
+          lifeform={activeLifeform}
+          quarks={quarks}
+          onQuarksChange={setQuarks}
+          onUpdated={(lf) => setLifeforms((prev) => new Map(prev).set(lf.id, lf))}
+          bundlePhotoSrc={activeLifeformBundle?.photo}
+          bundleVideoSrc={activeLifeformBundle?.video}
+          showOnboarding={activeLifeformOnboarding}
+          onClose={() => { setActiveLifeform(null); setActiveLifeformBundle(null); setActiveLifeformOnboarding(false); }}
+        />
+      )}
+      {/* Genesis Lab — synthesize life from organic ingredients (L48 Vault) */}
+      {showGenesisLab && (
+        <GenesisLabModal
+          playerId={playerId.current}
+          quarks={quarks}
+          ingredients={lifeIngredients}
+          systemId={surfaceTarget?.system.id}
+          planetId={surfaceTarget?.planet.id}
+          onQuarksChange={setQuarks}
+          onIngredientsChange={setLifeIngredients}
+          onCreated={(lf) => {
+            setLifeforms((prev) => new Map(prev).set(lf.id, lf));
+            setShowGenesisLab(false);
+            setActiveLifeformBundle(lf.rarity === 'common' ? { photo: '/lifeforms/common/photo.webp' } : null);
+            setActiveLifeformOnboarding(false);
+            setActiveLifeform(lf);
+          }}
+          onClose={() => setShowGenesisLab(false)}
         />
       )}
       {/* Stage 0: Ship launch cutscene */}
@@ -10926,6 +11018,64 @@ function AppInner() {
               });
             }
             awardXP(XP_REWARDS.BUILDING_PLACED, 'building_placed');
+
+            // Lifeform Genesis — building placement can surface native life.
+            // First greenhouse = guaranteed bundled "first contact" (common,
+            // free, one-time hook). Other bio/science buildings = low seeded
+            // chance with the rarity rolled; uncommon+ unlock paid Alpha media.
+            if (!isExodusPhase && type) {
+              try {
+                const lfPlanet = surfaceTarget.planet;
+                const lfSystem = surfaceTarget.system;
+                const lfPid = playerId.current;
+                const firstSeen = localStorage.getItem('nebulife_first_lifeform_seen');
+
+                if (type === 'greenhouse' && !firstSeen) {
+                  localStorage.setItem('nebulife_first_lifeform_seen', '1');
+                  awardXP(100, 'first_lifeform');
+                  void trackEvent('first_lifeform_revealed', { planet_id: lfPlanet.id });
+                  void trackEvent('lifeform_found', { rarity: 'common', source: 'first_contact' });
+                  const bundle = { photo: '/lifeforms/first/photo.webp', video: '/lifeforms/first/video.webm' };
+                  setActiveLifeformOnboarding(true);
+                  if (lfPid) {
+                    reportLifeformFound(lfPid, 'common', { systemId: lfSystem.id, planetId: lfPlanet.id })
+                      .then((lf) => {
+                        setLifeforms((prev) => new Map(prev).set(lf.id, lf));
+                        setActiveLifeformBundle(bundle);
+                        setActiveLifeform(lf);
+                      })
+                      .catch(() => {
+                        // Offline / unauth fallback — still show the bundled reveal.
+                        setActiveLifeformBundle(bundle);
+                        setActiveLifeform({
+                          id: `local_${Date.now()}`, player_id: lfPid,
+                          system_id: lfSystem.id, planet_id: lfPlanet.id,
+                          source: 'found', rarity: 'common', species_name: null, is_bundle: true,
+                          photo_url: null, photo_status: null, photo_task_id: null,
+                          video_url: null, video_status: null, video_task_id: null,
+                          quarks_paid: 0, created_at: new Date().toISOString(), completed_at: null,
+                        });
+                      });
+                  }
+                } else if (isLifeformTriggerBuilding(type) && lfPid) {
+                  lifeformBuildCounter.current += 1;
+                  const roll = rollLifeformFind(lfPlanet.seed ?? 0, type, lifeformBuildCounter.current);
+                  if (roll.found) {
+                    void trackEvent('lifeform_found', { rarity: roll.rarity, source: 'building' });
+                    awardXP(60, 'lifeform_found');
+                    const bundle = roll.rarity === 'common' ? { photo: '/lifeforms/common/photo.webp' } : undefined;
+                    setActiveLifeformOnboarding(false);
+                    reportLifeformFound(lfPid, roll.rarity as DiscoveryRarity, { systemId: lfSystem.id, planetId: lfPlanet.id })
+                      .then((lf) => {
+                        setLifeforms((prev) => new Map(prev).set(lf.id, lf));
+                        setActiveLifeformBundle(bundle ?? null);
+                        setActiveLifeform(lf);
+                      })
+                      .catch(() => { /* ignore — don't disrupt building flow */ });
+                  }
+                }
+              } catch { /* ignore */ }
+            }
           }}
           onBuildingsChanged={(buildings) => {
             setColonyState((prev) => {

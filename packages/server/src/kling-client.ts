@@ -39,7 +39,13 @@ function generateJWT(): string {
 export interface KlingGenerateRequest {
   prompt: string;
   aspectRatio?: string;  // '16:9' | '9:16' | '4:3' | '3:2' | '1:1' | '2:3' | '3:4' | provider-supported custom ratios
-  resolution?: '1K' | '2K';
+  resolution?: '1K' | '2K' | '4K';
+  /**
+   * Override the image model. Defaults to 'kling-v1-5'.
+   * Pass 'kling-v3-omni' for native 2K/4K output (the only model that honors
+   * the `resolution` field). Existing callers keep the legacy model untouched.
+   */
+  model?: string;
 }
 
 export interface KlingGenerateResponse {
@@ -60,13 +66,21 @@ export interface KlingGenerateResponse {
 export async function generateImage(req: KlingGenerateRequest): Promise<{ taskId: string }> {
   const token = generateJWT();
 
-  const body = {
-    model_name: 'kling-v1-5',       // Latest available model
+  const modelName = req.model ?? 'kling-v1-5';
+
+  const body: Record<string, unknown> = {
+    model_name: modelName,
     prompt: req.prompt,
     aspect_ratio: req.aspectRatio ?? '16:9',
     n: 1,
     // callback_url could be used for webhooks instead of polling
   };
+
+  // Only kling-v3-omni supports native resolution selection (1k/2k/4k).
+  // Sending it to older models would be rejected, so gate it on the model.
+  if (modelName === 'kling-v3-omni' && req.resolution) {
+    body.resolution = req.resolution.toLowerCase(); // '1k' | '2k' | '4k'
+  }
 
   const response = await fetch(`${KLING_API_BASE}/images/generations`, {
     method: 'POST',
