@@ -5,7 +5,7 @@
 import { Capacitor } from '@capacitor/core';
 import { AdMob, RewardAdPluginEvents, RewardAdOptions, AdmobConsentStatus } from '@capacitor-community/admob';
 import { authFetch } from '../auth/api-client.js';
-import { areAdsUnlockedAfterSettlement } from './ad-release-gate.js';
+import { areAdsUnlockedAfterSettlement, areAdsGeoAllowed } from './ad-release-gate.js';
 import { interstitialManager } from './interstitial-manager.js';
 import { trackEvent } from '../analytics/firebase-analytics.js';
 
@@ -161,6 +161,8 @@ type AdResult =
 async function showRewardedAdWithReason(): Promise<AdResult> {
   if (!areAdsUnlockedAfterSettlement()) return { rewarded: false, reason: 'error' };
 
+  if (!areAdsGeoAllowed()) return { rewarded: false, reason: 'error' };
+
   if (ADS_DISABLED_FOR_TESTING) return { rewarded: false, reason: 'error' };
 
   if (!Capacitor.isNativePlatform()) return { rewarded: false, reason: 'error' };
@@ -258,6 +260,8 @@ export async function showMultipleRewardedAds(count: number): Promise<boolean> {
 export async function checkAdAvailability(): Promise<boolean> {
   if (!areAdsUnlockedAfterSettlement()) return false;
 
+  if (!areAdsGeoAllowed()) return false;
+
   if (ADS_DISABLED_FOR_TESTING) return false;
 
   if (!Capacitor.isNativePlatform()) return false;
@@ -303,6 +307,8 @@ export function getDailyAdCount(): number {
 
 export function canShowAd(): boolean {
   if (!areAdsUnlockedAfterSettlement()) return false;
+
+  if (!areAdsGeoAllowed()) return false;
 
   if (ADS_DISABLED_FOR_TESTING) return false;
 

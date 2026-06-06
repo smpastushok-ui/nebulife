@@ -1,6 +1,5 @@
 package app.nebulife.game;
 
-import android.graphics.Color;
 import android.os.Bundle;
 import android.view.Window;
 import androidx.appcompat.app.ActionBar;
@@ -20,7 +19,9 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
         ActionBar actionBar = getSupportActionBar();
         if (actionBar != null) actionBar.hide();
-        getWindow().setStatusBarColor(Color.parseColor("#020510"));
-        getWindow().setNavigationBarColor(Color.parseColor("#020510"));
+        // Android 15 (API 35) enforces edge-to-edge: setStatusBarColor /
+        // setNavigationBarColor are deprecated no-ops. We rely on EdgeToEdge
+        // (transparent system bars) + the web content's #020510 background,
+        // which shows through behind the bars for the same visual result.
     }
 }

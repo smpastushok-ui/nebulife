@@ -195,7 +195,7 @@ import type { User } from 'firebase/auth';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import { requestAppTrackingTransparencyIfNeeded, watchAdsWithProgress } from './services/ads-service.js';
-import { setAdsUnlockedAfterSettlement } from './services/ad-release-gate.js';
+import { setAdsUnlockedAfterSettlement, setAdsGeoAllowed } from './services/ad-release-gate.js';
 import { isWebAccessTemporarilyOpen } from './services/web-access-gate.js';
 import { interstitialManager } from './services/interstitial-manager.js';
 import {
@@ -5359,6 +5359,9 @@ function AppInner() {
     if (typeof player.push_notifications === 'boolean') setPushNotifications(player.push_notifications);
     if (player.last_digest_seen !== undefined) setLastDigestSeen(player.last_digest_seen ?? null);
     setAdsUnlockedAfterSettlement(player.game_phase === 'colonizing');
+    // Rewarded ads are Tier-1 (high-eCPM) only — the server decides per request
+    // country and reports it in the register response.
+    if (typeof player.ads_geo_allowed === 'boolean') setAdsGeoAllowed(player.ads_geo_allowed);
     // Forced interstitial ads removed — only opt-in rewarded ads remain.
     // Language: localStorage is always the source of truth.
     // Never override from server — player chose their language at first launch.

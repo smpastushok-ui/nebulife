@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { StarSystem } from '@nebulife/core';
-import { AdProgressButton } from './AdProgressButton.js';
 import { PremiumHelpButton } from './PremiumHelp.js';
 
 // ---------------------------------------------------------------------------
@@ -133,9 +132,8 @@ export function SystemContextMenu({
   system, screenPosition, isHome, isResearched,
   systemPhoto, activeMission, quarks, playerLevel,
   onClose, onEnterSystem, onObjectsList, onRename, onCharacteristics,
-  onResearch, onTelescopePhoto, onAdTelescopePhoto, onViewPhoto,
+  onResearch, onTelescopePhoto, onViewPhoto,
   onSendMission, onViewVideo,
-  canShowAds,
 }: {
   system: StarSystem;
   screenPosition: { x: number; y: number };
@@ -152,11 +150,9 @@ export function SystemContextMenu({
   onCharacteristics: () => void;
   onResearch: () => void;
   onTelescopePhoto: () => void;
-  onAdTelescopePhoto?: (photoToken: string) => void;
   onViewPhoto: () => void;
   onSendMission: (dur: 'short' | 'long') => void;
   onViewVideo: () => void;
-  canShowAds?: boolean;
 }) {
   const { t } = useTranslation();
 
@@ -257,19 +253,6 @@ export function SystemContextMenu({
                 <div style={{ marginRight: 10, flexShrink: 0 }}>
                   <PremiumHelpButton helpId="system-alpha-photo" label={t('context_menu.panorama_tooltip')} />
                 </div>
-              </div>
-            )}
-            {/* Ad-funded system panorama (native only) */}
-            {canPhoto && canShowAds && onAdTelescopePhoto && !photoGenerating && (
-              <div style={{ padding: '4px 8px' }}>
-                <AdProgressButton
-                  label={t('context_menu.panorama_ad_label')}
-                  progressLabel={t('context_menu.panorama_ad_progress', { done: '{done}', total: '{total}' })}
-                  requiredAds={5}
-                  adRewardType="panorama_photo"
-                  onComplete={onAdTelescopePhoto}
-                  variant="menu"
-                />
               </div>
             )}
             {photoGenerating && (

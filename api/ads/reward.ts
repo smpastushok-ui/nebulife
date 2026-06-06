@@ -3,14 +3,13 @@ import crypto from 'node:crypto';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
 import { addAdReward, creditQuarks, creditResearchData } from '../../packages/server/src/db.js';
 import { RATE_LIMITS } from '../../packages/server/src/rate-limiter.js';
-import { generatePhotoToken } from '../../packages/server/src/photo-token.js';
+import { areAdsAllowedForRequest } from '../../packages/server/src/ad-geo.js';
 
+// Ad-funded AI photo generation was removed. Rewarded ads now only grant
+// quarks (1 quark per 1 ad) and research data.
 const REWARD_CONFIG: Record<string, { requiredAds: number }> = {
-  quarks: { requiredAds: 3 },
+  quarks: { requiredAds: 1 },
   research_data: { requiredAds: 2 },
-  discovery_photo: { requiredAds: 3 },
-  planet_photo: { requiredAds: 3 },
-  panorama_photo: { requiredAds: 5 },
 };
 
 interface AdTokenPayload {
@@ -104,6 +103,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const auth = await authenticate(req, res);
     if (!auth) return;
 
+    // Defense in depth: rewarded ads (and their rewards) are Tier-1 only.
+    if (!areAdsAllowedForRequest(req.headers)) {
+      return res.status(403).json({ error: 'ads_region_blocked' });
+    }
+
     if (!await RATE_LIMITS.adReward(auth.playerId)) {
       return res.status(429).json({ error: 'Too many ad reward claims. Please wait.' });
     }
@@ -152,18 +156,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let amount = 0;
 
     if (rewardType === 'quarks') {
-      await creditQuarks(auth.playerId, 5);
-      amount = 5;
+      await creditQuarks(auth.playerId, 1);
+      amount = 1;
     } else if (rewardType === 'research_data') {
       // Persist the +10 RD in the game_state JSONB. Previously this branch
       // only set `amount = 10` and never wrote anything → player got nothing
       // despite the ad rewarding 10 RD.
       amount = 10;
       await creditResearchData(auth.playerId, amount);
-    } else if (['discovery_photo', 'planet_photo', 'panorama_photo'].includes(rewardType)) {
-      amount = 1;
-      const photoToken = generatePhotoToken(auth.playerId, rewardType);
-      return res.status(200).json({ rewarded: true, amount, photoToken });
     }
 
     return res.status(200).json({ rewarded: true, amount });

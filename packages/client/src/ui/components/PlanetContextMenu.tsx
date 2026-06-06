@@ -14,7 +14,6 @@ const GROUP_T_KEY: Record<ResourceGroup, string> = {
   isotope:  'resource_display.desc.isotopes_name',
 };
 import { derivePlanetVisuals } from '../../game/rendering/PlanetVisuals.js';
-import { AdProgressButton } from './AdProgressButton.js';
 import { PremiumHelpButton } from './PremiumHelp.js';
 
 // ---------------------------------------------------------------------------
@@ -819,7 +818,6 @@ export function PlanetContextMenu({
   onViewPlanet, onClose,
   onSurface,
   onTelescopePhoto,
-  onAdTelescopePhoto,
   onGeneratePlanetSkin,
   planetSkinStatus,
   isDestroyed,
@@ -827,7 +825,6 @@ export function PlanetContextMenu({
   isPhotoGenerating,
   canGenerateSurfacePhotos = false,
   playerLevel,
-  canShowAds,
   hasGenesisVault,
   onShowTerraform,
   revealLevel = 0,
@@ -864,7 +861,6 @@ export function PlanetContextMenu({
   onClose: () => void;
   onSurface?: () => void;
   onTelescopePhoto?: (photoKind: PlanetPhotoKind) => void;
-  onAdTelescopePhoto?: (photoKind: PlanetPhotoKind, photoToken: string) => void;
   onGeneratePlanetSkin?: (kind: PlanetSkinKind) => void;
   planetSkinStatus?: {
     system?: 'generating' | 'pending' | 'processing' | 'succeed' | 'failed';
@@ -875,7 +871,6 @@ export function PlanetContextMenu({
   isPhotoGenerating?: boolean;
   canGenerateSurfacePhotos?: boolean;
   playerLevel: number;
-  canShowAds?: boolean;
   /** Whether the player has a Genesis Vault built (enables terraform) */
   hasGenesisVault?: boolean;
   /** Called when the player clicks Terraforming — opens full-screen panel */
@@ -1337,18 +1332,6 @@ export function PlanetContextMenu({
                     disabled
                     right={<span style={{ color: '#4488aa', fontSize: 9 }}>{t('planet.photo_generating')}</span>}
                   />
-                )}
-                {canShowAds && onAdTelescopePhoto && !isPhotoGenerating && (
-                  <div style={{ padding: '4px 8px' }}>
-                    <AdProgressButton
-                      label={t('planet.photo_ad_label')}
-                      progressLabel={t('planet.photo_ad_progress', { done: '{done}', total: '{total}' })}
-                      requiredAds={3}
-                      adRewardType="planet_photo"
-                      onComplete={(photoToken) => onAdTelescopePhoto('exosphere', photoToken)}
-                      variant="menu"
-                    />
-                  </div>
                 )}
               </div>
             </>

@@ -8,8 +8,8 @@
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="colorAccent">@color/colorAccent</item>
         <item name="android:windowBackground">@color/colorPrimary</item>
-        <item name="android:navigationBarColor">@color/colorPrimary</item>
-        <item name="android:statusBarColor">@color/colorPrimary</item>
+        <!-- statusBarColor/navigationBarColor removed: deprecated on Android 15
+             (API 35) edge-to-edge. Transparent bars + content background instead. -->
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
     </style>
@@ -18,8 +18,6 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:windowBackground">@color/colorPrimary</item>
-        <item name="android:navigationBarColor">@color/colorPrimary</item>
-        <item name="android:statusBarColor">@color/colorPrimary</item>
     </style>
 
 

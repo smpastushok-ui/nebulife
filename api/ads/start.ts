@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
 import { RATE_LIMITS } from '../../packages/server/src/rate-limiter.js';
+import { areAdsAllowedForRequest } from '../../packages/server/src/ad-geo.js';
 import crypto from 'node:crypto';
 
 /**
@@ -27,6 +28,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const auth = await authenticate(req, res);
     if (!auth) return;
+
+    // Rewarded ads are only enabled in Tier-1 (high-eCPM) countries. Elsewhere
+    // the reward (free quarks) costs more than the ad earns, so we refuse to
+    // issue a session token — the client hides the ad UI for these regions too.
+    if (!areAdsAllowedForRequest(req.headers)) {
+      return res.status(403).json({ error: 'ads_region_blocked' });
+    }
 
     if (!await RATE_LIMITS.adStart(auth.playerId)) {
       return res.status(429).json({ error: 'Too many ad requests' });

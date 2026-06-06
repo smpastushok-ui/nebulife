@@ -19,8 +19,8 @@ import { PremiumHelpButton } from './PremiumHelp.js';
 
 const PRESETS = [50, 100, 200, 500];
 
-// Number of ads required to earn quarks via ad reward
-const ADS_FOR_QUARKS = 3;
+// Number of ads required to earn quarks via ad reward (1 quark per 1 ad)
+const ADS_FOR_QUARKS = 1;
 const PREMIUM_LIFETIME_PRODUCT_ID = 'nebulife_pro_lifetime';
 
 function formatPremiumExpiresAt(expiresAt: string | null | undefined, productId: string | null | undefined, locale: string): string | null {
@@ -154,7 +154,7 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted, 
   const [premiumStoreConfigured, setPremiumStoreConfigured] = useState(true);
 
   // Ads reward state
-  const [adsProgress, setAdsProgress] = useState(0); // 0-3
+  const [adsProgress, setAdsProgress] = useState(0); // 0-1
   const [adsRunning, setAdsRunning] = useState(false);
 
   useEffect(() => {
@@ -249,7 +249,7 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted, 
 
     if (result.rewarded) {
       setMessage({ text: t('topup.ads_success'), ok: true });
-      onQuarksGranted?.(5);
+      onQuarksGranted?.(1);
       setAdsProgress(0);
       setTimeout(onClose, 1800);
     } else {

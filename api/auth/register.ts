@@ -7,6 +7,7 @@ import {
 } from '../../packages/server/src/db.js';
 import { assignPlayerToCluster } from '@nebulife/server';
 import { sendWelcomeEmail } from '../../packages/server/src/email-client.js';
+import { areAdsAllowedForRequest } from '../../packages/server/src/ad-geo.js';
 
 function maybeSendWelcomeEmail(player: {
   id: string;
@@ -50,11 +51,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { legacyPlayerId } = req.body ?? {};
 
+    // Rewarded ads are only enabled in Tier-1 (high-eCPM) countries. Surface
+    // this to the client so it can hide the ad UI outside those regions.
+    const adsGeoAllowed = areAdsAllowedForRequest(req.headers);
+
     // 1. Check if player already exists for this Firebase UID
     const existing = await getPlayerByFirebaseUid(auth.uid);
     if (existing) {
       console.log(`[register] Found existing player: id=${existing.id}`);
-      return res.status(200).json(existing);
+      return res.status(200).json({ ...existing, ads_geo_allowed: adsGeoAllowed });
     }
     console.log('[register] No existing player found, creating new...');
 
@@ -79,7 +84,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
         }
         maybeSendWelcomeEmail(linked);
-        return res.status(200).json(linked);
+        return res.status(200).json({ ...linked, ads_geo_allowed: adsGeoAllowed });
       }
       console.log('[register] Legacy link failed, creating fresh player');
     }
@@ -114,7 +119,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     maybeSendWelcomeEmail(player);
-    return res.status(201).json(player);
+    return res.status(201).json({ ...player, ads_geo_allowed: adsGeoAllowed });
   } catch (err) {
     console.error('[register] FATAL ERROR:', err instanceof Error ? err.stack : err);
     return res.status(500).json({

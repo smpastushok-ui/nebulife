@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import type { Discovery, StarSystem, DiscoveryRarity } from '@nebulife/core';
 import { RARITY_COLORS, getCatalogEntry, getCatalogName, getCatalogDescription } from '@nebulife/core';
 import type { CatalogEntry } from '@nebulife/core';
-import { AdProgressButton } from './AdProgressButton.js';
 
 // ---------------------------------------------------------------------------
 // DiscoveryChoicePanel — Centered modal with 3 choices when a discovery is made
@@ -21,10 +20,8 @@ interface DiscoveryChoicePanelProps {
   isFirstDiscovery: boolean;
   isLuckyFree: boolean;
   playerQuarks: number;
-  canShowAds: boolean;
   onTelemetry: () => void;
   onQuantumFocus: () => void;
-  onAdQuantumFocus?: (photoToken: string) => void;
   onSkip: () => void;
 }
 
@@ -34,10 +31,8 @@ export function DiscoveryChoicePanel({
   isFirstDiscovery,
   isLuckyFree,
   playerQuarks,
-  canShowAds,
   onTelemetry,
   onQuantumFocus,
-  onAdQuantumFocus,
   onSkip,
 }: DiscoveryChoicePanelProps) {
   const { t, i18n } = useTranslation();
@@ -273,31 +268,7 @@ export function DiscoveryChoicePanel({
             }
           />
 
-          {/* Choice 3: Ad-funded quantum focus (native only) */}
-          {canShowAds && onAdQuantumFocus && (
-            <AdProgressButton
-              label={t('discovery.choice_calibration')}
-              progressLabel={t('discovery.choice_calibration_progress', { done: '{done}', total: '{total}' })}
-              requiredAds={3}
-              adRewardType="discovery_photo"
-              onComplete={(photoToken) => exit(() => onAdQuantumFocus(photoToken))}
-              variant="choice"
-              borderColor="#336655"
-              hoverBorderColor="#448866"
-              icon={
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2">
-                  <circle cx="8" cy="8" r="6" />
-                  <circle cx="8" cy="8" r="2.5" />
-                  <line x1="8" y1="2" x2="8" y2="4.5" />
-                  <line x1="8" y1="11.5" x2="8" y2="14" />
-                  <line x1="2" y1="8" x2="4.5" y2="8" />
-                  <line x1="11.5" y1="8" x2="14" y2="8" />
-                </svg>
-              }
-            />
-          )}
-
-          {/* Choice 4: Skip */}
+          {/* Choice 3: Skip */}
           <button
             onClick={() => exit(onSkip)}
             style={{
