@@ -8524,13 +8524,26 @@ function AppInner() {
     const handlePushDigest = () => {
       window.dispatchEvent(new CustomEvent('nebulife:open-digest'));
     };
+    // External-link pushes (e.g. Telegram community). Only honored on Android —
+    // iOS deliberately ignores external redirects from push (App Store 4.5.4).
+    const handleOpenNotification = (event: Event) => {
+      const detail = (event as CustomEvent<{ action?: string; data?: Record<string, string> }>).detail;
+      if (detail?.action !== 'open-url') return;
+      if (Capacitor.getPlatform() !== 'android') return;
+      const url = detail.data?.link ?? detail.data?.url ?? '';
+      if (/^https?:\/\//i.test(url)) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    };
     window.addEventListener('nebulife:push-notification', handleForegroundPush);
     window.addEventListener('nebulife:push-digest', handlePushDigest);
+    window.addEventListener('nebulife:open-notification', handleOpenNotification);
     if (!('serviceWorker' in navigator)) {
       return () => {
         unsubForeground?.();
         window.removeEventListener('nebulife:push-notification', handleForegroundPush);
         window.removeEventListener('nebulife:push-digest', handlePushDigest);
+        window.removeEventListener('nebulife:open-notification', handleOpenNotification);
       };
     }
     const handleSwMessage = (e: MessageEvent) => {
@@ -8546,6 +8559,7 @@ function AppInner() {
       unsubForeground?.();
       window.removeEventListener('nebulife:push-notification', handleForegroundPush);
       window.removeEventListener('nebulife:push-digest', handlePushDigest);
+      window.removeEventListener('nebulife:open-notification', handleOpenNotification);
     };
   }, []);
 

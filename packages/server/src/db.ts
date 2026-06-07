@@ -2333,6 +2333,132 @@ export async function enqueuePushNotification(input: EnqueuePushInput): Promise<
   return rows[0] as PushQueueRow;
 }
 
+// ---------------------------------------------------------------------------
+// Admin broadcast (custom push campaigns)
+// ---------------------------------------------------------------------------
+
+export interface BroadcastPushInput {
+  /** Stable campaign id — used in dedupe_key so a re-run can't double-send. */
+  campaignId: string;
+  titleUk: string;
+  bodyUk: string;
+  titleEn: string;
+  bodyEn: string;
+  /** Deep-link action (e.g. 'open-game', 'open-digest'). */
+  action: string;
+  /** Full link opened on tap (e.g. '/?action=open-game'). */
+  link: string;
+  /** 'all' = each player gets their own language copy; else only that language. */
+  language: 'all' | 'uk' | 'en';
+  /** 'all' | 'active' (seen within idleDays) | 'inactive' (idle ≥ idleDays). */
+  audience: 'all' | 'active' | 'inactive';
+  idleDays: number;
+  /** Deliver at each player's most-active UTC hour instead of immediately. */
+  scheduleAtFavoriteHour: boolean;
+  /** When set, only this player receives the push (preview / smoke test). */
+  testPlayerId: string | null;
+  priority?: number;
+}
+
+/**
+ * Count how many push-enabled players match the broadcast filters, without
+ * enqueuing anything. Powers the "preview audience" button in the admin page.
+ */
+export async function countBroadcastAudience(input: BroadcastPushInput): Promise<number> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT COUNT(*)::int AS n
+    FROM players p
+    WHERE p.fcm_token IS NOT NULL
+      AND p.push_notifications = TRUE
+      AND (${input.language} = 'all' OR p.preferred_language = ${input.language})
+      AND (
+        ${input.audience} = 'all'
+        OR (${input.audience} = 'inactive' AND p.last_seen_at IS NOT NULL
+            AND p.last_seen_at <  NOW() - (${input.idleDays} * INTERVAL '1 day'))
+        OR (${input.audience} = 'active'   AND p.last_seen_at IS NOT NULL
+            AND p.last_seen_at >= NOW() - (${input.idleDays} * INTERVAL '1 day'))
+      )
+      AND (${input.testPlayerId}::text IS NULL OR p.id = ${input.testPlayerId})
+  `;
+  return (rows[0] as { n: number }).n;
+}
+
+/**
+ * Enqueue one push_queue row per matching player. Delivery (batching, retries,
+ * dead-token cleanup, per-player language) is handled by /api/cron/push-queue,
+ * exactly like every other notification type. Returns the number of rows
+ * actually inserted (ON CONFLICT DO NOTHING skips re-runs of the same campaign).
+ */
+export async function enqueueBroadcastPush(input: BroadcastPushInput): Promise<number> {
+  const sql = getSQL();
+  const rows = await sql`
+    WITH hour_preference AS (
+      SELECT player_id, hour_utc
+      FROM (
+        SELECT
+          player_id,
+          hour_utc,
+          ROW_NUMBER() OVER (
+            PARTITION BY player_id
+            ORDER BY SUM(hits) DESC, MAX(last_seen) DESC
+          ) AS rank
+        FROM player_activity_hours
+        WHERE activity_date >= (CURRENT_DATE - INTERVAL '30 days')
+        GROUP BY player_id, hour_utc
+      ) ranked
+      WHERE rank = 1
+    ),
+    targets AS (
+      SELECT p.id AS player_id, hp.hour_utc
+      FROM players p
+      LEFT JOIN hour_preference hp ON hp.player_id = p.id
+      WHERE p.fcm_token IS NOT NULL
+        AND p.push_notifications = TRUE
+        AND (${input.language} = 'all' OR p.preferred_language = ${input.language})
+        AND (
+          ${input.audience} = 'all'
+          OR (${input.audience} = 'inactive' AND p.last_seen_at IS NOT NULL
+              AND p.last_seen_at <  NOW() - (${input.idleDays} * INTERVAL '1 day'))
+          OR (${input.audience} = 'active'   AND p.last_seen_at IS NOT NULL
+              AND p.last_seen_at >= NOW() - (${input.idleDays} * INTERVAL '1 day'))
+        )
+        AND (${input.testPlayerId}::text IS NULL OR p.id = ${input.testPlayerId})
+    )
+    INSERT INTO push_queue (
+      id, player_id, type, title_uk, body_uk, title_en, body_en,
+      data_json, priority, scheduled_at, max_attempts, dedupe_key
+    )
+    SELECT
+      'pushb_' || replace(gen_random_uuid()::text, '-', ''),
+      t.player_id,
+      'broadcast',
+      ${input.titleUk}, ${input.bodyUk}, ${input.titleEn}, ${input.bodyEn},
+      jsonb_build_object(
+        'action', ${input.action},
+        'link', ${input.link},
+        'source', 'broadcast',
+        'campaign', ${input.campaignId}
+      ),
+      ${input.priority ?? 8},
+      CASE
+        WHEN NOT ${input.scheduleAtFavoriteHour} OR t.hour_utc IS NULL THEN NOW()
+        ELSE
+          date_trunc('day', NOW()) + (t.hour_utc * INTERVAL '1 hour') + INTERVAL '10 minutes'
+          + CASE
+              WHEN date_trunc('day', NOW()) + (t.hour_utc * INTERVAL '1 hour') + INTERVAL '10 minutes' <= NOW()
+              THEN INTERVAL '1 day' ELSE INTERVAL '0 day'
+            END
+      END,
+      2,
+      'broadcast:' || ${input.campaignId} || ':' || t.player_id
+    FROM targets t
+    ON CONFLICT (dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING
+    RETURNING id
+  `;
+  return rows.length;
+}
+
 export async function getDueDailyReminderCandidates(options: {
   lookbackMinutes?: number;
   limit?: number;

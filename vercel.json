@@ -37,6 +37,7 @@
     { "source": "/photo/:photoKey", "destination": "/api/photo/:photoKey" },
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/support", "destination": "/support.html" },
+    { "source": "/admin/push", "destination": "/admin-push.html" },
     { "source": "/auth/apple/callback", "destination": "/api/auth/apple/callback" },
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/play", "destination": "/index.html" },

@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Nebulife — Push Broadcast</title>
+  <style>
+    :root {
+      --bg: #020510;
+      --panel: rgba(10, 15, 25, 0.92);
+      --text: #aabbcc;
+      --text-2: #8899aa;
+      --muted: #667788;
+      --border: #334455;
+      --border-active: #446688;
+      --green: #44ff88;
+      --orange: #ff8844;
+      --red: #cc4444;
+      --accent: #4488aa;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+      font-size: 14px;
+      line-height: 1.5;
+      padding: 24px 16px 80px;
+    }
+    .wrap { max-width: 760px; margin: 0 auto; }
+    h1 { font-size: 18px; letter-spacing: 1px; color: var(--text); margin: 0 0 4px; }
+    .sub { color: var(--muted); font-size: 12px; margin: 0 0 24px; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 18px;
+      margin-bottom: 16px;
+    }
+    .panel h2 {
+      font-size: 12px; text-transform: uppercase; letter-spacing: 1px;
+      color: var(--text-2); margin: 0 0 14px;
+    }
+    label { display: block; font-size: 12px; color: var(--text-2); margin: 0 0 4px; }
+    .field { margin-bottom: 14px; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .row > .field { flex: 1; min-width: 180px; }
+    input, select, textarea {
+      width: 100%;
+      background: #0a0f19;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 9px 10px;
+      font-family: inherit;
+      font-size: 13px;
+    }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--border-active); }
+    textarea { resize: vertical; min-height: 56px; }
+    .hint { color: var(--muted); font-size: 11px; margin-top: 4px; }
+    .checkbox-row { display: flex; align-items: center; gap: 8px; }
+    .checkbox-row input { width: auto; }
+    .checkbox-row label { margin: 0; }
+    .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
+    button {
+      font-family: inherit; font-size: 13px; letter-spacing: 0.5px;
+      padding: 11px 18px; border-radius: 3px; cursor: pointer;
+      border: 1px solid var(--border-active); background: #0a0f19; color: var(--text);
+      transition: background 0.15s, border-color 0.15s;
+    }
+    button:hover { background: #11192a; }
+    button.primary { border-color: var(--accent); background: rgba(68,136,170,0.15); color: #cfe6ff; }
+    button.primary:hover { background: rgba(68,136,170,0.28); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .out {
+      margin-top: 14px; padding: 12px; border-radius: 4px; font-size: 12px;
+      white-space: pre-wrap; word-break: break-word; display: none;
+    }
+    .out.ok { display: block; border: 1px solid rgba(68,255,136,0.4); background: rgba(68,255,136,0.07); color: var(--green); }
+    .out.warn { display: block; border: 1px solid rgba(255,136,68,0.4); background: rgba(255,136,68,0.07); color: var(--orange); }
+    .out.err { display: block; border: 1px solid rgba(204,68,68,0.45); background: rgba(204,68,68,0.08); color: #ff9a9a; }
+    .preview {
+      margin-top: 12px; border: 1px dashed var(--border); border-radius: 4px;
+      padding: 12px; background: #060b14;
+    }
+    .preview .ptitle { color: var(--text); font-weight: 600; font-size: 13px; }
+    .preview .pbody { color: var(--text-2); font-size: 12px; margin-top: 2px; }
+    .preview .plabel { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>NEBULIFE · PUSH BROADCAST</h1>
+    <p class="sub">Custom push campaigns. Messages are queued and delivered by the push-queue worker (~1 min cadence), with per-player language, retries and dead-token cleanup.</p>
+
+    <div class="panel">
+      <h2>Access</h2>
+      <div class="field">
+        <label for="secret">Admin secret</label>
+        <input id="secret" type="password" placeholder="ADMIN_PUSH_SECRET" autocomplete="off" />
+        <div class="hint">Stored only in this browser (localStorage). Never sent anywhere except this endpoint.</div>
+      </div>
+      <div class="checkbox-row">
+        <input id="remember" type="checkbox" checked />
+        <label for="remember">Remember secret on this device</label>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Audience</h2>
+      <div class="row">
+        <div class="field">
+          <label for="language">Language</label>
+          <select id="language">
+            <option value="all">All (each player gets their language)</option>
+            <option value="uk">Ukrainian only</option>
+            <option value="en">English only</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="audience">Activity</label>
+          <select id="audience">
+            <option value="all">All push-enabled players</option>
+            <option value="active">Active (seen within N days)</option>
+            <option value="inactive">Inactive (idle ≥ N days)</option>
+          </select>
+        </div>
+        <div class="field" style="max-width:120px">
+          <label for="idleDays">N days</label>
+          <input id="idleDays" type="number" min="1" max="365" value="7" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="testPlayerId">Test player id (optional)</label>
+        <input id="testPlayerId" type="text" placeholder="Send only to this player id (smoke test)" autocomplete="off" />
+      </div>
+      <div class="hint">Only players with push enabled and a valid device token are ever counted.</div>
+    </div>
+
+    <div class="panel">
+      <h2>Message</h2>
+      <div class="row">
+        <div class="field">
+          <label for="titleUk">Title (UK)</label>
+          <input id="titleUk" type="text" maxlength="120" placeholder="Заголовок" />
+        </div>
+        <div class="field">
+          <label for="titleEn">Title (EN)</label>
+          <input id="titleEn" type="text" maxlength="120" placeholder="Title" />
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="bodyUk">Body (UK)</label>
+          <textarea id="bodyUk" maxlength="300" placeholder="Текст повідомлення"></textarea>
+        </div>
+        <div class="field">
+          <label for="bodyEn">Body (EN)</label>
+          <textarea id="bodyEn" maxlength="300" placeholder="Message body"></textarea>
+        </div>
+      </div>
+      <div class="field">
+        <label for="dest">Destination</label>
+        <select id="dest">
+          <option value="internal">In-app (open the game)</option>
+          <option value="external">External link — Telegram, etc. (Android only)</option>
+        </select>
+      </div>
+      <div class="row" id="internalRow">
+        <div class="field">
+          <label for="action">Action</label>
+          <input id="action" type="text" value="open-game" placeholder="open-game" />
+          <div class="hint">Deep-link action used by the app on tap.</div>
+        </div>
+        <div class="field">
+          <label for="link">Link (optional)</label>
+          <input id="link" type="text" placeholder="/?action=open-game" />
+        </div>
+      </div>
+      <div class="field" id="externalRow" style="display:none">
+        <label for="extUrl">External URL</label>
+        <input id="extUrl" type="text" placeholder="https://t.me/+IT3QjV5a-tQ0ZDZi" />
+        <div class="hint">Opens in the system browser on <b>Android only</b>. iOS ignores external links from push (App Store 4.5.4) — players just open the app. Keep it as a community/support link, not pure ads.</div>
+      </div>
+      <div class="preview" id="preview">
+        <div class="plabel">Preview</div>
+        <div class="ptitle" id="pvTitle">—</div>
+        <div class="pbody" id="pvBody">—</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Delivery</h2>
+      <div class="checkbox-row" style="margin-bottom:14px">
+        <input id="favHour" type="checkbox" />
+        <label for="favHour">Deliver at each player's most-active hour (else immediately)</label>
+      </div>
+      <div class="actions">
+        <button id="btnPreview" type="button">Preview audience</button>
+        <button id="btnSend" type="button" class="primary">Send broadcast</button>
+      </div>
+      <div class="out" id="out"></div>
+    </div>
+  </div>
+
+  <script>
+    var $ = function (id) { return document.getElementById(id); };
+    var SECRET_KEY = 'nebulife_admin_push_secret';
+
+    (function restore() {
+      try {
+        var s = localStorage.getItem(SECRET_KEY);
+        if (s) $('secret').value = s;
+      } catch (e) {}
+    })();
+
+    function updatePreview() {
+      var lang = $('language').value;
+      var t = lang === 'en' ? $('titleEn').value : $('titleUk').value;
+      var b = lang === 'en' ? $('bodyEn').value : $('bodyUk').value;
+      $('pvTitle').textContent = t || '—';
+      $('pvBody').textContent = b || '—';
+    }
+    ['titleUk', 'titleEn', 'bodyUk', 'bodyEn', 'language'].forEach(function (id) {
+      $(id).addEventListener('input', updatePreview);
+      $(id).addEventListener('change', updatePreview);
+    });
+    updatePreview();
+
+    function updateDest() {
+      var external = $('dest').value === 'external';
+      $('internalRow').style.display = external ? 'none' : '';
+      $('externalRow').style.display = external ? '' : 'none';
+    }
+    $('dest').addEventListener('change', updateDest);
+    updateDest();
+
+    function setOut(kind, msg) {
+      var el = $('out');
+      el.className = 'out ' + kind;
+      el.textContent = msg;
+    }
+
+    function gatherBody(dryRun) {
+      var external = $('dest').value === 'external';
+      return {
+        secret: $('secret').value.trim(),
+        dryRun: dryRun === true,
+        language: $('language').value,
+        audience: $('audience').value,
+        idleDays: parseInt($('idleDays').value, 10) || 7,
+        testPlayerId: $('testPlayerId').value.trim(),
+        titleUk: $('titleUk').value.trim(),
+        titleEn: $('titleEn').value.trim(),
+        bodyUk: $('bodyUk').value.trim(),
+        bodyEn: $('bodyEn').value.trim(),
+        action: external ? 'open-url' : ($('action').value.trim() || 'open-game'),
+        link: external ? $('extUrl').value.trim() : $('link').value.trim(),
+        scheduleAtFavoriteHour: $('favHour').checked
+      };
+    }
+
+    function persistSecret() {
+      try {
+        if ($('remember').checked) localStorage.setItem(SECRET_KEY, $('secret').value.trim());
+        else localStorage.removeItem(SECRET_KEY);
+      } catch (e) {}
+    }
+
+    async function call(dryRun) {
+      var body = gatherBody(dryRun);
+      if (!body.secret) { setOut('err', 'Enter the admin secret first.'); return; }
+      persistSecret();
+
+      var busyBtn = dryRun ? $('btnPreview') : $('btnSend');
+      $('btnPreview').disabled = true; $('btnSend').disabled = true;
+      var label = busyBtn.textContent;
+      busyBtn.textContent = '…';
+
+      try {
+        var res = await fetch('/api/admin/broadcast-push', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        var data = await res.json().catch(function () { return {}; });
+
+        if (!res.ok) {
+          setOut('err', '[' + res.status + '] ' + (data.message || data.error || 'Request failed'));
+        } else if (dryRun) {
+          setOut('ok', 'Matching players: ' + data.matched);
+        } else {
+          var when = body.scheduleAtFavoriteHour ? ' (scheduled at each player\u2019s active hour)' : '';
+          setOut('ok', 'Queued ' + data.enqueued + ' push notification(s)' + when + '.\nCampaign: ' + data.campaignId + '\n' + (data.note || ''));
+        }
+      } catch (e) {
+        setOut('err', 'Network error: ' + (e && e.message ? e.message : e));
+      } finally {
+        $('btnPreview').disabled = false; $('btnSend').disabled = false;
+        busyBtn.textContent = label;
+      }
+    }
+
+    $('btnPreview').addEventListener('click', function () { call(true); });
+    $('btnSend').addEventListener('click', function () {
+      var aud = $('audience').value;
+      var t = $('testPlayerId').value.trim();
+      var scope = t ? 'ONE test player' : (aud === 'all' ? 'ALL matching players' : aud + ' players');
+      if (!confirm('Send this broadcast to ' + scope + '?')) return;
+      call(false);
+    });
+  </script>
+</body>
+</html>
