@@ -52,7 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!expected) {
     return res.status(503).json({
       error: 'admin_secret_not_configured',
-      message: 'Set ADMIN_PUSH_SECRET (or CRON_SECRET) in the project environment.',
+      message: 'Додай ADMIN_PUSH_SECRET (або CRON_SECRET) у змінні середовища проєкту.',
     });
   }
 
@@ -86,10 +86,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const needEn = language === 'all' || language === 'en';
   if (!dryRun) {
     if (needUk && (!titleUk || !bodyUk)) {
-      return res.status(400).json({ error: 'missing_uk_copy', message: 'Ukrainian title and body are required.' });
+      return res.status(400).json({ error: 'missing_uk_copy', message: 'Потрібні заголовок і текст українською.' });
     }
     if (needEn && (!titleEn || !bodyEn)) {
-      return res.status(400).json({ error: 'missing_en_copy', message: 'English title and body are required.' });
+      return res.status(400).json({ error: 'missing_en_copy', message: 'Потрібні заголовок і текст англійською.' });
     }
   }
 
@@ -107,7 +107,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!/^https?:\/\//i.test(link)) {
       return res.status(400).json({
         error: 'invalid_external_link',
-        message: 'External-link campaigns need an absolute http(s) URL.',
+        message: 'Для зовнішнього посилання потрібен повний URL (http/https).',
       });
     }
   } else {
@@ -140,7 +140,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ok: true,
       campaignId: input.campaignId,
       enqueued,
-      note: 'Queued. Delivery runs via the push-queue cron (about once per minute).',
+      note: 'У черзі. Доставка йде через push-queue cron (приблизно раз на хвилину).',
     });
   } catch (err) {
     console.error('[admin/broadcast-push] failed:', err);

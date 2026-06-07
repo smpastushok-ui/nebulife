@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="uk">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
-  <title>Nebulife — Push Broadcast</title>
+  <title>Nebulife — Розсилка пушів</title>
   <style>
     :root {
       --bg: #020510;
@@ -92,114 +92,114 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>NEBULIFE · PUSH BROADCAST</h1>
-    <p class="sub">Custom push campaigns. Messages are queued and delivered by the push-queue worker (~1 min cadence), with per-player language, retries and dead-token cleanup.</p>
+    <h1>NEBULIFE · РОЗСИЛКА ПУШІВ</h1>
+    <p class="sub">Кастомні push-кампанії. Повідомлення ставляться в чергу та доставляються воркером push-queue (приблизно раз на хвилину) — з мовою кожного гравця, повторними спробами та чисткою мертвих токенів.</p>
 
     <div class="panel">
-      <h2>Access</h2>
+      <h2>Доступ</h2>
       <div class="field">
-        <label for="secret">Admin secret</label>
+        <label for="secret">Адмін-секрет</label>
         <input id="secret" type="password" placeholder="ADMIN_PUSH_SECRET" autocomplete="off" />
-        <div class="hint">Stored only in this browser (localStorage). Never sent anywhere except this endpoint.</div>
+        <div class="hint">Зберігається лише в цьому браузері (localStorage). Нікуди не надсилається, окрім цього endpoint.</div>
       </div>
       <div class="checkbox-row">
         <input id="remember" type="checkbox" checked />
-        <label for="remember">Remember secret on this device</label>
+        <label for="remember">Памʼятати секрет на цьому пристрої</label>
       </div>
     </div>
 
     <div class="panel">
-      <h2>Audience</h2>
+      <h2>Аудиторія</h2>
       <div class="row">
         <div class="field">
-          <label for="language">Language</label>
+          <label for="language">Мова</label>
           <select id="language">
-            <option value="all">All (each player gets their language)</option>
-            <option value="uk">Ukrainian only</option>
-            <option value="en">English only</option>
+            <option value="all">Усі (кожному — його мовою)</option>
+            <option value="uk">Лише українською</option>
+            <option value="en">Лише англійською</option>
           </select>
         </div>
         <div class="field">
-          <label for="audience">Activity</label>
+          <label for="audience">Активність</label>
           <select id="audience">
-            <option value="all">All push-enabled players</option>
-            <option value="active">Active (seen within N days)</option>
-            <option value="inactive">Inactive (idle ≥ N days)</option>
+            <option value="all">Усі з увімкненими пушами</option>
+            <option value="active">Активні (заходили за N днів)</option>
+            <option value="inactive">Неактивні (не заходили ≥ N днів)</option>
           </select>
         </div>
         <div class="field" style="max-width:120px">
-          <label for="idleDays">N days</label>
+          <label for="idleDays">N днів</label>
           <input id="idleDays" type="number" min="1" max="365" value="7" />
         </div>
       </div>
       <div class="field">
-        <label for="testPlayerId">Test player id (optional)</label>
-        <input id="testPlayerId" type="text" placeholder="Send only to this player id (smoke test)" autocomplete="off" />
+        <label for="testPlayerId">ID тестового гравця (необовʼязково)</label>
+        <input id="testPlayerId" type="text" placeholder="Надіслати лише цьому гравцю (тест)" autocomplete="off" />
       </div>
-      <div class="hint">Only players with push enabled and a valid device token are ever counted.</div>
+      <div class="hint">Рахуються тільки гравці з увімкненими пушами та дійсним токеном пристрою.</div>
     </div>
 
     <div class="panel">
-      <h2>Message</h2>
+      <h2>Повідомлення</h2>
       <div class="row">
         <div class="field">
-          <label for="titleUk">Title (UK)</label>
+          <label for="titleUk">Заголовок (UK)</label>
           <input id="titleUk" type="text" maxlength="120" placeholder="Заголовок" />
         </div>
         <div class="field">
-          <label for="titleEn">Title (EN)</label>
+          <label for="titleEn">Заголовок (EN)</label>
           <input id="titleEn" type="text" maxlength="120" placeholder="Title" />
         </div>
       </div>
       <div class="row">
         <div class="field">
-          <label for="bodyUk">Body (UK)</label>
+          <label for="bodyUk">Текст (UK)</label>
           <textarea id="bodyUk" maxlength="300" placeholder="Текст повідомлення"></textarea>
         </div>
         <div class="field">
-          <label for="bodyEn">Body (EN)</label>
+          <label for="bodyEn">Текст (EN)</label>
           <textarea id="bodyEn" maxlength="300" placeholder="Message body"></textarea>
         </div>
       </div>
       <div class="field">
-        <label for="dest">Destination</label>
+        <label for="dest">Куди веде</label>
         <select id="dest">
-          <option value="internal">In-app (open the game)</option>
-          <option value="external">External link — Telegram, etc. (Android only)</option>
+          <option value="internal">У застосунок (відкрити гру)</option>
+          <option value="external">Зовнішнє посилання — Telegram тощо (лише Android)</option>
         </select>
       </div>
       <div class="row" id="internalRow">
         <div class="field">
-          <label for="action">Action</label>
+          <label for="action">Дія</label>
           <input id="action" type="text" value="open-game" placeholder="open-game" />
-          <div class="hint">Deep-link action used by the app on tap.</div>
+          <div class="hint">Deep-link дія, яку виконує застосунок при натисканні.</div>
         </div>
         <div class="field">
-          <label for="link">Link (optional)</label>
+          <label for="link">Посилання (необовʼязково)</label>
           <input id="link" type="text" placeholder="/?action=open-game" />
         </div>
       </div>
       <div class="field" id="externalRow" style="display:none">
-        <label for="extUrl">External URL</label>
+        <label for="extUrl">Зовнішній URL</label>
         <input id="extUrl" type="text" placeholder="https://t.me/+IT3QjV5a-tQ0ZDZi" />
-        <div class="hint">Opens in the system browser on <b>Android only</b>. iOS ignores external links from push (App Store 4.5.4) — players just open the app. Keep it as a community/support link, not pure ads.</div>
+        <div class="hint">Відкривається в системному браузері <b>лише на Android</b>. iOS ігнорує зовнішні посилання з пушів (App Store 4.5.4) — гравці просто відкриють застосунок. Тримай це як посилання на спільноту/підтримку, не як рекламу.</div>
       </div>
       <div class="preview" id="preview">
-        <div class="plabel">Preview</div>
+        <div class="plabel">Перегляд</div>
         <div class="ptitle" id="pvTitle">—</div>
         <div class="pbody" id="pvBody">—</div>
       </div>
     </div>
 
     <div class="panel">
-      <h2>Delivery</h2>
+      <h2>Доставка</h2>
       <div class="checkbox-row" style="margin-bottom:14px">
         <input id="favHour" type="checkbox" />
-        <label for="favHour">Deliver at each player's most-active hour (else immediately)</label>
+        <label for="favHour">Доставляти в найактивнішу годину кожного гравця (інакше — одразу)</label>
       </div>
       <div class="actions">
-        <button id="btnPreview" type="button">Preview audience</button>
-        <button id="btnSend" type="button" class="primary">Send broadcast</button>
+        <button id="btnPreview" type="button">Порахувати аудиторію</button>
+        <button id="btnSend" type="button" class="primary">Надіслати розсилку</button>
       </div>
       <div class="out" id="out"></div>
     </div>
@@ -271,7 +271,7 @@
 
     async function call(dryRun) {
       var body = gatherBody(dryRun);
-      if (!body.secret) { setOut('err', 'Enter the admin secret first.'); return; }
+      if (!body.secret) { setOut('err', 'Спочатку введи адмін-секрет.'); return; }
       persistSecret();
 
       var busyBtn = dryRun ? $('btnPreview') : $('btnSend');
@@ -288,15 +288,15 @@
         var data = await res.json().catch(function () { return {}; });
 
         if (!res.ok) {
-          setOut('err', '[' + res.status + '] ' + (data.message || data.error || 'Request failed'));
+          setOut('err', '[' + res.status + '] ' + (data.message || data.error || 'Помилка запиту'));
         } else if (dryRun) {
-          setOut('ok', 'Matching players: ' + data.matched);
+          setOut('ok', 'Підходить гравців: ' + data.matched);
         } else {
-          var when = body.scheduleAtFavoriteHour ? ' (scheduled at each player\u2019s active hour)' : '';
-          setOut('ok', 'Queued ' + data.enqueued + ' push notification(s)' + when + '.\nCampaign: ' + data.campaignId + '\n' + (data.note || ''));
+          var when = body.scheduleAtFavoriteHour ? ' (заплановано на активну годину кожного гравця)' : '';
+          setOut('ok', 'У черзі: ' + data.enqueued + ' пуш(ів)' + when + '.\nКампанія: ' + data.campaignId + '\n' + (data.note || ''));
         }
       } catch (e) {
-        setOut('err', 'Network error: ' + (e && e.message ? e.message : e));
+        setOut('err', 'Помилка мережі: ' + (e && e.message ? e.message : e));
       } finally {
         $('btnPreview').disabled = false; $('btnSend').disabled = false;
         busyBtn.textContent = label;
@@ -307,8 +307,11 @@
     $('btnSend').addEventListener('click', function () {
       var aud = $('audience').value;
       var t = $('testPlayerId').value.trim();
-      var scope = t ? 'ONE test player' : (aud === 'all' ? 'ALL matching players' : aud + ' players');
-      if (!confirm('Send this broadcast to ' + scope + '?')) return;
+      var scope = t ? 'ОДНОМУ тестовому гравцю'
+        : (aud === 'all' ? 'УСІМ підходящим гравцям'
+        : aud === 'active' ? 'АКТИВНИМ гравцям'
+        : 'НЕАКТИВНИМ гравцям');
+      if (!confirm('Надіслати цю розсилку: ' + scope + '?')) return;
       call(false);
     });
   </script>
