@@ -1748,6 +1748,7 @@ function AppInner() {
       const current = getResources(planetId)[key];
       const freeSpace = Math.max(0, capacity - current);
       if (freeSpace <= 0) {
+        playSfx('ui-error', 0.2);
         setToastMessage(t('hex.storage_full_warning'));
         setTimeout(() => setToastMessage(null), 2200);
         return { actualAmount: 0, depleted: false };
@@ -3388,6 +3389,7 @@ function AppInner() {
         carrier_required: 'planet_missions.reason.carrier_required',
         unknown: 'planet_missions.reason.unknown',
       } as const;
+      playSfx('ui-error', 0.2);
       setToastMessage(t(reasonKey[check.reason ?? 'unknown']));
       setTimeout(() => setToastMessage(null), 3200);
       return;
@@ -3526,6 +3528,7 @@ function AppInner() {
   }): void => {
     const ship = shipFleetRef.current.ships.find((candidate) => candidate.id === params.shipId);
     if (!ship || ship.status !== 'docked' || ship.currentPlanetId !== params.fromPlanetId || ship.assignmentId) {
+      playSfx('ui-error', 0.2);
       setToastMessage(t('planet_missions.reason.building_required'));
       setTimeout(() => setToastMessage(null), 3200);
       return;
@@ -3535,6 +3538,7 @@ function AppInner() {
     const amount = Math.max(0, Math.min(Math.floor(params.amount), def.cargoCapacity));
     const donorResources = getResources(params.fromPlanetId);
     if (amount <= 0 || donorResources[params.resource] < amount) {
+      playSfx('ui-error', 0.2);
       setToastMessage(t('planet_missions.reason.resources_required'));
       setTimeout(() => setToastMessage(null), 3200);
       return;
@@ -3674,6 +3678,7 @@ function AppInner() {
     if (!def || !originPlanetId) return;
 
     if (!getExplorationBuildings().some((building) => building.type === def.requiresBuilding && !building.shutdown)) {
+      playSfx('ui-error', 0.2);
       setToastMessage(t('planet_missions.reason.building_required'));
       setTimeout(() => setToastMessage(null), 3200);
       return;
@@ -3681,6 +3686,7 @@ function AppInner() {
 
     const queueForType = explorationProductionQueueRef.current.filter((item) => item.type === type).length;
     if (queueForType >= 3) {
+      playSfx('ui-error', 0.2);
       setToastMessage(t('planet_missions.reason.production_queue_full'));
       setTimeout(() => setToastMessage(null), 3200);
       return;
@@ -3691,6 +3697,7 @@ function AppInner() {
     const missing = (['minerals', 'volatiles', 'isotopes', 'water'] as const)
       .some((key) => resources[key] < cost[key]);
     if (missing) {
+      playSfx('ui-error', 0.2);
       setToastMessage(t('planet_missions.reason.resources_required'));
       setTimeout(() => setToastMessage(null), 3200);
       return;
@@ -7354,6 +7361,7 @@ function AppInner() {
           return next;
         });
         setPlanetSkinReveal(null);
+        playSfx('ui-error', 0.2);
         const message = err instanceof Error ? err.message : 'Planet skin generation failed';
         setToastMessage(message.includes('planet_skins') || message.includes('does not exist')
           ? t('planet.skin_storage_missing')
@@ -7420,6 +7428,7 @@ function AppInner() {
     } catch (err) {
       console.error('[MissionProbePhoto] Error:', err);
       setMissionPhotoReveal(null);
+      playSfx('ui-error', 0.2);
       setToastMessage(t('mission_report.photo_save_failed'));
       setTimeout(() => setToastMessage(null), 3500);
     } finally {
@@ -8203,6 +8212,7 @@ function AppInner() {
 
   const handleCutsceneLandingComplete = useCallback(() => {
     if (!evacuationTarget) return;
+    playSfx('colony-founded', 0.7);
     awardXP(XP_REWARDS.COLONY_FOUNDED, 'colony_founded');
 
     // Save old home planet as destroyed (locally for instant UI + cluster-wide for neighbors)
@@ -8497,6 +8507,7 @@ function AppInner() {
         });
         if (!res.ok) {
           console.warn('[digest] API response not ok:', res.status, res.statusText);
+          playSfx('ui-error', 0.2);
           setToastMessage(t('digest.load_error'));
           setTimeout(() => setToastMessage(null), 3500);
           return;
@@ -8504,6 +8515,7 @@ function AppInner() {
         const data = await res.json();
         if (!data.digest) {
           console.warn('[digest] No digest in response:', data);
+          playSfx('ui-error', 0.2);
           setToastMessage(t('digest.not_available'));
           setTimeout(() => setToastMessage(null), 3500);
           return;
@@ -8526,6 +8538,7 @@ function AppInner() {
         }
       } catch (err) {
         console.warn('[digest] Network or parse error:', err);
+        playSfx('ui-error', 0.2);
         setToastMessage(t('digest.load_error'));
         setTimeout(() => setToastMessage(null), 3500);
       }
@@ -8906,6 +8919,7 @@ function AppInner() {
       if (!token) {
         setPushNotifications(false);
         console.warn('[push] permission/token failed:', issue, detail);
+        playSfx('ui-error', 0.2);
         setToastMessage(`Push notifications unavailable: ${detail || issue || 'unknown'}`);
         setTimeout(() => setToastMessage(null), 3500);
         return;
@@ -8930,6 +8944,7 @@ function AppInner() {
       if (!token) {
         setPushNotifications(false);
         console.warn('[push] test registration failed:', issue, detail);
+        playSfx('ui-error', 0.2);
         setToastMessage(`Push notifications unavailable: ${detail || issue || 'unknown'}`);
         setTimeout(() => setToastMessage(null), 3500);
         return;
@@ -8943,6 +8958,7 @@ function AppInner() {
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
       console.warn('[push] test push failed:', detail, err);
+      playSfx('ui-error', 0.2);
       setToastMessage(`Test push failed: ${detail}`);
       setTimeout(() => setToastMessage(null), 3500);
     }
@@ -8957,6 +8973,7 @@ function AppInner() {
       setTimeout(() => setToastMessage(null), 2500);
     } catch (err) {
       console.warn('[avatar] upload failed:', err);
+      playSfx('ui-error', 0.2);
       setToastMessage(t('player.avatar_upload_failed'));
       setTimeout(() => setToastMessage(null), 3000);
     } finally {
@@ -8973,6 +8990,7 @@ function AppInner() {
       setTimeout(() => setToastMessage(null), 2500);
     } catch (err) {
       console.warn('[avatar] remove failed:', err);
+      playSfx('ui-error', 0.2);
       setToastMessage(t('player.avatar_upload_failed'));
       setTimeout(() => setToastMessage(null), 3000);
     } finally {

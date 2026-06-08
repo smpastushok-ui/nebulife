@@ -10,6 +10,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { playSfx } from '../../audio/SfxPlayer.js';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -417,6 +418,7 @@ const ToastItem: React.FC<{
   onDismissRef.current = onDismiss;
   useEffect(() => {
     injectStyles();
+    playSfx('tech-unlock', 0.5);
     const id = item.id;
     const branch = item.branch;
     timerRef.current = setTimeout(() => {

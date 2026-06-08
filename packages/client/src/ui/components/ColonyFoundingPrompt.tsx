@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Planet, StarSystem } from '@nebulife/core';
+import { playSfx } from '../../audio/SfxPlayer.js';
 
 // ---------------------------------------------------------------------------
 // ColonyFoundingPrompt — shown when ship arrives at destination planet.
@@ -99,6 +100,8 @@ function SystemPreviewBackground({ system, targetPlanet }: { system?: StarSystem
 export function ColonyFoundingPrompt({ planet, system, onFoundColony }: ColonyFoundingPromptProps) {
   const { t } = useTranslation();
   const [hover, setHover] = useState(false);
+
+  useEffect(() => { playSfx('colony-founded', 0.6); }, []);
 
   return (
     <div

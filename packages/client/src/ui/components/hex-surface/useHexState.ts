@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type { Planet, Star, BuildingType, PlacedBuilding } from '@nebulife/core';
+import { playSfx } from '../../../audio/SfxPlayer.js';
 import { BUILDING_DEFS, computeHarvestElements, SeededRNG } from '@nebulife/core';
 import {
   placeBuilding as apiPlaceBuilding,
@@ -892,6 +893,7 @@ export function useHexState(
         ),
       );
 
+      playSfx('building-place', 0.45);
       onBuildingPlaced?.(type);
 
       const building: PlacedBuilding = {
@@ -955,6 +957,7 @@ export function useHexState(
         ),
       );
 
+      playSfx('building-demolish', 0.4);
       apiRemoveBuilding(playerId, buildingId).catch((err) => {
         console.error('[useHexState] apiRemoveBuilding failed:', err);
       });
