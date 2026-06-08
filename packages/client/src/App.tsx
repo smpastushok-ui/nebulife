@@ -1003,6 +1003,9 @@ function AppInner() {
   const [activeLifeformBundle, setActiveLifeformBundle] = useState<{ photo?: string; video?: string } | null>(null);
   const [activeLifeformOnboarding, setActiveLifeformOnboarding] = useState(false);
   const lifeformBuildCounter = useRef(0);
+  // TEMP TEST (revert before release): rotates rarity for the 100%-on-harvest
+  // lifeform reveal in handleHarvestFull. Remove together with that block.
+  const lifeformHarvestTestCounter = useRef(0);
   // Genesis Lab (Phase 2) — opened from the Genesis Vault building.
   const [showGenesisLab, setShowGenesisLab] = useState(false);
   useEffect(() => {
@@ -1763,6 +1766,33 @@ function AppInner() {
       // instead of the ordinary resource on this harvest. Deterministic.
       lifeIngredientHarvestCounter.current += 1;
       const lfPlanet = surfaceTargetRef.current?.planet ?? homeInfoRef.current?.planet;
+
+      // TEMP TEST (revert before release): EVERY successful harvest reveals a
+      // brand-new lifeform at 100%, rotating through all rarities so the reveal
+      // popup + paid photo/video generation flow are trivial to verify.
+      // Remove this whole block (and lifeformHarvestTestCounter) for production.
+      if (actualAmount > 0) {
+        const lfPidTest = playerId.current;
+        const lfSystemTest = surfaceTargetRef.current?.system ?? homeInfoRef.current?.system;
+        if (lfPidTest && lfPlanet && lfSystemTest) {
+          const TEST_RARITIES: DiscoveryRarity[] = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
+          lifeformHarvestTestCounter.current += 1;
+          const testRarity = TEST_RARITIES[lifeformHarvestTestCounter.current % TEST_RARITIES.length];
+          const testBundle = testRarity === 'common' ? { photo: '/lifeforms/common/photo.webp' } : undefined;
+          void trackEvent('lifeform_found', { rarity: testRarity, source: 'harvest_test' });
+          setActiveLifeformOnboarding(false);
+          reportLifeformFound(lfPidTest, testRarity, { systemId: lfSystemTest.id, planetId: lfPlanet.id })
+            .then((lf) => {
+              const stamped = testBundle?.photo
+                ? { ...lf, is_bundle: true, photo_url: lf.photo_url ?? testBundle.photo }
+                : lf;
+              setLifeforms((prev) => new Map(prev).set(stamped.id, stamped));
+              setActiveLifeformBundle(testBundle ?? null);
+              setActiveLifeform(stamped);
+            })
+            .catch(() => { /* ignore — keep harvest flow intact */ });
+        }
+      }
       const ingredient = actualAmount > 0
         ? rollIngredientDrop(lfPlanet?.seed ?? 0, objectType, lifeIngredientHarvestCounter.current, playerLevel)
         : null;
@@ -1997,6 +2027,11 @@ function AppInner() {
   /** Popup queue gate — true while telemetry/observatory is active; cleared with delay after close */
   const [popupQueueBlocked, setPopupQueueBlocked] = useState(false);
   const [arenaPopupGate, setArenaPopupGate] = useState(false);
+  // Defer event/discovery popups through the one-time evacuation → app-review
+  // sequence (evac cutscenes, surface lesson, review prompt) so a discovery
+  // card never overlaps them. Driven by an effect further down; released once
+  // the review prompt is resolved.
+  const [deferDiscoveryForReview, setDeferDiscoveryForReview] = useState(false);
   const popupBlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Schedule unblock: blocked immediately → unblocked after delayMs (5s for save, 2s for close) */
   const unblockPopupQueue = useCallback((delayMs: number) => {
@@ -2034,6 +2069,8 @@ function AppInner() {
     && !arenaPopupGate
     && !needsOnboarding
     && !cinematicVideoPlaying
+    && evacuationPhase === 'idle'
+    && !deferDiscoveryForReview
     ? discoveryQueue[0] : null;
 
   /**
@@ -2509,6 +2546,9 @@ function AppInner() {
   const [academyMissionChapter, setAcademyMissionChapter] = useState<'surface' | undefined>(undefined);
   const [showSurfaceAstraLesson, setShowSurfaceAstraLesson] = useState(false);
   const [showAppReviewPrompt, setShowAppReviewPrompt] = useState(false);
+  // True between scheduling the review prompt and the player closing it. Used to
+  // keep deferred discovery cards hidden across the 700ms reveal delay too.
+  const [appReviewPromptPending, setAppReviewPromptPending] = useState(false);
   const [showEncyclopedia, setShowEncyclopedia] = useState(false);
   const [exosphereLoaded, setExosphereLoaded] = useState(false);
   // Colony Center — opened by tapping the colony_hub building on the surface.
@@ -4205,8 +4245,23 @@ function AppInner() {
     } catch {
       // If storage is blocked, still show the prompt once for this completion.
     }
+    // Mark pending immediately so any discovery found during evacuation stays
+    // deferred across the reveal delay (it must appear AFTER the review prompt).
+    setAppReviewPromptPending(true);
     window.setTimeout(() => setShowAppReviewPrompt(true), 700);
   }, []);
+
+  // Keep the evacuation → app-review sequence on top: defer discovery cards
+  // while any evac cutscene, the surface lesson, or the review prompt is up
+  // (and across the review reveal delay). Released once all are resolved.
+  useEffect(() => {
+    const blocking =
+      evacuationPhase !== 'idle'
+      || showSurfaceAstraLesson
+      || showAppReviewPrompt
+      || appReviewPromptPending;
+    setDeferDiscoveryForReview(blocking);
+  }, [evacuationPhase, showSurfaceAstraLesson, showAppReviewPrompt, appReviewPromptPending]);
 
   // Reset clock state when entering onboarding (account reset scenario)
   useEffect(() => {
@@ -11045,9 +11100,12 @@ function AppInner() {
                 const lfPlanet = surfaceTarget.planet;
                 const lfSystem = surfaceTarget.system;
                 const lfPid = playerId.current;
-                const firstSeen = localStorage.getItem('nebulife_first_lifeform_seen');
 
-                if (type === 'greenhouse' && !firstSeen) {
+                // TEMP TEST (revert before release): first-contact reveal fires on
+                // EVERY greenhouse placement (100%, no localStorage guard) so the
+                // popup is easy to verify. Restore `&& !firstSeen` + the setItem
+                // line below to return to the one-time production behavior.
+                if (type === 'greenhouse') {
                   localStorage.setItem('nebulife_first_lifeform_seen', '1');
                   awardXP(100, 'first_lifeform');
                   void trackEvent('first_lifeform_revealed', { planet_id: lfPlanet.id });
@@ -11057,21 +11115,26 @@ function AppInner() {
                   if (lfPid) {
                     reportLifeformFound(lfPid, 'common', { systemId: lfSystem.id, planetId: lfPlanet.id })
                       .then((lf) => {
-                        setLifeforms((prev) => new Map(prev).set(lf.id, lf));
+                        // Stamp the bundled photo/video onto the record so the Life
+                        // gallery shows both media icons and plays the clip.
+                        const withBundle = { ...lf, is_bundle: true, photo_url: lf.photo_url ?? bundle.photo, video_url: lf.video_url ?? bundle.video };
+                        setLifeforms((prev) => new Map(prev).set(withBundle.id, withBundle));
                         setActiveLifeformBundle(bundle);
-                        setActiveLifeform(lf);
+                        setActiveLifeform(withBundle);
                       })
                       .catch(() => {
                         // Offline / unauth fallback — still show the bundled reveal.
                         setActiveLifeformBundle(bundle);
-                        setActiveLifeform({
+                        const local: LifeformRecord = {
                           id: `local_${Date.now()}`, player_id: lfPid,
                           system_id: lfSystem.id, planet_id: lfPlanet.id,
                           source: 'found', rarity: 'common', species_name: null, is_bundle: true,
-                          photo_url: null, photo_status: null, photo_task_id: null,
-                          video_url: null, video_status: null, video_task_id: null,
+                          photo_url: bundle.photo, photo_status: null, photo_task_id: null,
+                          video_url: bundle.video, video_status: null, video_task_id: null,
                           quarks_paid: 0, created_at: new Date().toISOString(), completed_at: null,
-                        });
+                        };
+                        setLifeforms((prev) => new Map(prev).set(local.id, local));
+                        setActiveLifeform(local);
                       });
                   }
                 } else if (isLifeformTriggerBuilding(type) && lfPid) {
@@ -11084,9 +11147,10 @@ function AppInner() {
                     setActiveLifeformOnboarding(false);
                     reportLifeformFound(lfPid, roll.rarity as DiscoveryRarity, { systemId: lfSystem.id, planetId: lfPlanet.id })
                       .then((lf) => {
-                        setLifeforms((prev) => new Map(prev).set(lf.id, lf));
+                        const stamped = bundle?.photo ? { ...lf, is_bundle: true, photo_url: lf.photo_url ?? bundle.photo } : lf;
+                        setLifeforms((prev) => new Map(prev).set(stamped.id, stamped));
                         setActiveLifeformBundle(bundle ?? null);
-                        setActiveLifeform(lf);
+                        setActiveLifeform(stamped);
                       })
                       .catch(() => { /* ignore — don't disrupt building flow */ });
                   }
@@ -11198,7 +11262,7 @@ function AppInner() {
       )}
       {showAppReviewPrompt && (
         <AppReviewPrompt
-          onClose={() => setShowAppReviewPrompt(false)}
+          onClose={() => { setShowAppReviewPrompt(false); setAppReviewPromptPending(false); }}
         />
       )}
       {/* ── Fly-to-HUD resource dots ──────────────────────────────────────── */}
@@ -11407,6 +11471,7 @@ function AppInner() {
           ref={cosmicArchiveRef}
           visible={showCosmicArchive}
           playerId={playerId.current}
+          lifeforms={Array.from(lifeforms.values())}
           allSystems={engineRef.current?.getAllSystems() ?? []}
           aliases={aliases}
           logEntries={logEntries}

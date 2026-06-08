@@ -12,6 +12,7 @@ import {
   EmailAuthProvider,
   onAuthStateChanged,
   type User,
+  type AuthError,
 } from 'firebase/auth';
 import { Capacitor } from '@capacitor/core';
 import { auth } from './firebase-config.js';
@@ -254,6 +255,76 @@ export async function linkGoogleToAnonymous(): Promise<User | null> {
   return result.user;
 }
 
+// Firebase error codes that mean "this credential/email already belongs to a
+// different account". When the player authorizes with a provider that already
+// has an account, we must SIGN IN to that existing account instead of failing.
+const ACCOUNT_EXISTS_CODES = [
+  'auth/credential-already-in-use',
+  'auth/email-already-in-use',
+  'auth/account-exists-with-different-credential',
+  'auth/provider-already-linked',
+];
+
+function firebaseErrorCode(err: unknown): string {
+  return typeof err === 'object' && err !== null && 'code' in err
+    ? String((err as { code?: unknown }).code)
+    : '';
+}
+
+/**
+ * Universal Google authorization.
+ *
+ * Behaviour:
+ *  - If the current session is a guest (anonymous), first try to LINK Google to
+ *    it so a BRAND-NEW account keeps the guest's progress.
+ *  - If that Google account ALREADY exists, the link fails with
+ *    `credential-already-in-use` — we then SIGN IN to the existing account,
+ *    switching the Firebase session. The app's UID-change guard clears the
+ *    guest's local progress and reloads into the existing player's history.
+ *  - If there is no guest session, just sign in normally.
+ */
+export async function authorizeWithGoogle(): Promise<User | null> {
+  const a = requireAuth();
+  const current = a.currentUser;
+  // No guest to preserve → plain sign-in (loads existing account if any).
+  if (!current || !current.isAnonymous) {
+    return signInWithGoogle();
+  }
+  if (shouldUseNativeGoogleAuth()) {
+    const { GoogleAuth } = await getNativeGoogleAuth();
+    try {
+      await Promise.race([GoogleAuth.signOut(), new Promise((resolve) => setTimeout(resolve, 1500))]);
+    } catch { /* no session yet — fine */ }
+    const googleUser = await GoogleAuth.signIn();
+    const idToken = getNativeGoogleIdToken(googleUser);
+    const credential = GoogleAuthProvider.credential(idToken);
+    try {
+      const result = await linkWithCredential(current, credential);
+      return result.user;
+    } catch (err) {
+      if (ACCOUNT_EXISTS_CODES.includes(firebaseErrorCode(err))) {
+        const result = await signInWithCredential(a, credential);
+        return result.user;
+      }
+      throw err;
+    }
+  }
+  // Web popup path.
+  try {
+    const result = await linkWithPopup(current, googleProvider);
+    return result.user;
+  } catch (err) {
+    if (ACCOUNT_EXISTS_CODES.includes(firebaseErrorCode(err))) {
+      const credential = GoogleAuthProvider.credentialFromError(err as AuthError);
+      if (credential) {
+        const result = await signInWithCredential(a, credential);
+        return result.user;
+      }
+    }
+    throw err;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Apple Sign-In — required by Apple Guideline 4.8 (any app offering 3rd-party
 // social login must also offer Sign in with Apple). iOS native uses the
@@ -359,6 +430,63 @@ export async function linkAppleToAnonymous(): Promise<User | null> {
   });
   const result = await linkWithCredential(user, credential);
   return result.user;
+}
+
+/**
+ * Universal Apple authorization — mirrors {@link authorizeWithGoogle}.
+ * Links Apple to the current guest to preserve a new account's progress; if the
+ * Apple account already exists, signs in to it (switching session).
+ */
+export async function authorizeWithApple(): Promise<User | null> {
+  const a = requireAuth();
+  const current = a.currentUser;
+  if (!current || !current.isAnonymous) {
+    return signInWithApple();
+  }
+  if (!Capacitor.isNativePlatform()) {
+    const provider = new OAuthProvider('apple.com');
+    provider.addScope('email');
+    provider.addScope('name');
+    try {
+      const result = await linkWithPopup(current, provider);
+      return result.user;
+    } catch (err) {
+      if (ACCOUNT_EXISTS_CODES.includes(firebaseErrorCode(err))) {
+        const credential = OAuthProvider.credentialFromError(err as AuthError);
+        if (credential) {
+          const result = await signInWithCredential(a, credential);
+          return result.user;
+        }
+      }
+      throw err;
+    }
+  }
+  const { SignInWithApple } = await getNativeAppleAuth();
+  const rawNonce = generateNonce();
+  const hashedNonce = await sha256Hex(rawNonce);
+  const res = await SignInWithApple.authorize({
+    clientId: APPLE_NATIVE_BUNDLE_ID,
+    redirectURI: APPLE_REDIRECT_URI,
+    scopes: 'email name',
+    state: crypto.randomUUID(),
+    nonce: hashedNonce,
+  });
+  logAppleTokenAudience(res.response.identityToken);
+  const provider = new OAuthProvider('apple.com');
+  const credential = provider.credential({
+    idToken: res.response.identityToken,
+    rawNonce,
+  });
+  try {
+    const result = await linkWithCredential(current, credential);
+    return result.user;
+  } catch (err) {
+    if (ACCOUNT_EXISTS_CODES.includes(firebaseErrorCode(err))) {
+      const result = await signInWithCredential(a, credential);
+      return result.user;
+    }
+    throw err;
+  }
 }
 
 /** Link an anonymous account to email/password (preserves UID). */

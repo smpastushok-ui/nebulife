@@ -63,7 +63,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const prompt = `Hyperrealistic photograph of an alien planet surface and atmosphere from space orbit, planet ID: ${model.planet_id}, star system: ${model.system_id}. Dramatic lighting, volumetric clouds, detailed terrain, photorealistic quality, cinematic composition, 8K resolution.`;
 
-      const { taskId: klingTaskId } = await generateImage({ prompt, aspectRatio: '1:1' });
+      const { taskId: klingTaskId } = await generateImage({ prompt, aspectRatio: '1:1', model: 'kling-v3-omni', resolution: '2K' });
 
       // Poll Kling (within serverless timeout ~25s, do limited polling)
       for (let i = 0; i < 8; i++) {

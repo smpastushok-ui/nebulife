@@ -105,7 +105,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const aspectRatio = screenWidth && screenHeight
         ? computeAspectRatio(Number(screenWidth), Number(screenHeight))
         : '16:9';
-      const { taskId } = await generateKlingImage({ prompt, aspectRatio, resolution: '2K' });
+      const { taskId } = await generateKlingImage({ prompt, aspectRatio, model: 'kling-v3-omni', resolution: '2K' });
       const photoId = `sp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
       const saved = await saveSystemPhoto({
         id: photoId,

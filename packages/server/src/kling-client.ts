@@ -184,6 +184,12 @@ export interface KlingVideoGenerateRequest {
   imageUrl: string;
   prompt?: string;
   duration: '5' | '10'; // seconds
+  /** Render mode: 'std' (720p) | 'pro' (1080p Full HD). Defaults to 'pro'. */
+  mode?: 'std' | 'pro';
+  /** Generate native ambient audio (no voice). Defaults to true. */
+  sound?: boolean;
+  /** Override video model id. Defaults to env KLING_VIDEO_MODEL or 'kling-v3'. */
+  model?: string;
 }
 
 interface KlingVideoGenerateResponse {
@@ -203,12 +209,30 @@ interface KlingVideoGenerateResponse {
 export async function generateVideo(req: KlingVideoGenerateRequest): Promise<{ taskId: string }> {
   const token = generateJWT();
 
+  // Kling V3 image-to-video, Pro mode (1080p) with native ambient audio.
+  // NOTE: the exact model id and audio field on api.klingai.com must be
+  // confirmed against the live account — both are env-overridable so the
+  // pipeline can be tuned WITHOUT a code change / redeploy:
+  //   KLING_VIDEO_MODEL   (default 'kling-v3')
+  //   KLING_VIDEO_MODE    (default 'pro')
+  //   KLING_VIDEO_AUDIO   ('0' to disable audio)
+  const model = req.model ?? process.env.KLING_VIDEO_MODEL ?? 'kling-v3';
+  const mode = req.mode ?? (process.env.KLING_VIDEO_MODE as 'std' | 'pro' | undefined) ?? 'pro';
+  const sound = req.sound ?? (process.env.KLING_VIDEO_AUDIO !== '0');
+
   const body: Record<string, unknown> = {
-    model_name: 'kling-v1-6',
+    model_name: model,
     image: req.imageUrl,
     duration: req.duration,
-    mode: 'std',
+    mode,
   };
+
+  // Request native audio. Different gateways use different field names, so we
+  // send both well-known spellings; unknown fields are ignored server-side.
+  if (sound) {
+    body.sound = true;
+    body.generate_audio = true;
+  }
 
   if (req.prompt) {
     body.prompt = req.prompt;

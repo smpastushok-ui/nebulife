@@ -98,6 +98,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { taskId } = await generateImage({
       prompt,
       aspectRatio: aspectRatio ?? '16:9',
+      model: 'kling-v3-omni',
+      resolution: '2K',
     });
 
     // 3. Save kling task to DB for tracking

@@ -586,12 +586,12 @@ export function PlayerPage({
               (e.target as HTMLElement).style.background = actionButtonStyle.background as string;
             }}
           >
-            {t('player.create_account', 'CREATE ACCOUNT')}
+            {t('player.authorize', 'AUTHORIZATION')}
           </button>
         )}
         {isGuest && (
           <div style={{ fontSize: 9, color: '#556677', textAlign: 'center', lineHeight: 1.4 }}>
-            {t('player.create_account_hint', 'Save your progress permanently. Sign in with Google or email.')}
+            {t('player.authorize_hint', 'Sign in with Google or Apple. If you already have an account, you will switch to it with all its progress.')}
           </div>
         )}
 

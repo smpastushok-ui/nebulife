@@ -236,7 +236,9 @@ export async function chatWithAstra(
 // Gemini Text Moderation
 // ---------------------------------------------------------------------------
 
-const MODERATION_MODEL = 'gemini-2.0-flash';
+// gemini-2.0-flash was shut down 2026-06-01. 2.5 Flash-Lite is the cheapest GA
+// model ($0.10/$0.30 per 1M in/out) and is Google-recommended for moderation.
+const MODERATION_MODEL = 'gemini-2.5-flash-lite';
 
 export type ModerationVerdict = 'SAFE' | 'WARN' | 'BLOCK' | 'SEVERE';
 
@@ -498,4 +500,131 @@ Respond with ONLY pure JSON (no markdown):
     throw new Error('Invalid bilingual fun-fact JSON structure');
   }
   return cleaned;
+}
+
+// ---------------------------------------------------------------------------
+// Lifeform creative brief (Genesis paid generation)
+// ---------------------------------------------------------------------------
+// Gemini 3.5 Flash turns a rarity + planet hint into a unique creative brief.
+// The brief drives the paid pipeline:
+//   appearance → Nano Banana 2 (gemini-3.1-flash-image) still photo
+//   action     → Kling V3 image-to-video motion
+//   sound      → Kling V3 audio track (ambient, NO voice)
+// Cheap (~$0.0005/call) so it is bundled into the photo/video price.
+// ---------------------------------------------------------------------------
+
+import {
+  LIFEFORM_SPECS,
+  buildPhotoPromptFromAppearance,
+  buildVideoPromptFromAction,
+  buildSoundPrompt,
+} from './lifeform-prompt-library.js';
+
+const LIFEFORM_BRIEF_MODEL = 'gemini-3.5-flash';
+
+export interface LifeformBrief {
+  /** Suggested species name (sci-fi, 1–3 words). */
+  speciesName: string;
+  /** Visual description fragment for the still image. */
+  appearance: string;
+  /** Motion/behaviour fragment for the video. */
+  action: string;
+  /** Ambient sound description (no voice) for the video audio. */
+  sound: string;
+}
+
+export interface LifeformBriefResult extends LifeformBrief {
+  /** Ready-to-send still-image prompt (Nano Banana 2 / Kling image). */
+  photoPrompt: string;
+  /** Ready-to-send image-to-video motion prompt (Kling V3). */
+  videoPrompt: string;
+  /** Ready-to-send Kling V3 audio prompt (sound, no voice). */
+  soundPrompt: string;
+}
+
+const LIFEFORM_RARITY_HINT: Record<string, string> = {
+  common: 'a simple, small single-cell or micro-colony organism — calm and understated',
+  uncommon: 'a more structured multi-lobed micro-organism with delicate detail',
+  rare: 'an intricate, symmetric organism with crystalline or radial structure',
+  epic: 'a complex branching micro-fauna with layered membranes and internal organelles',
+  legendary: 'an otherworldly, never-before-seen organism of impossible elegant geometry',
+};
+
+/**
+ * Generate a unique creative brief for a discovered/created lifeform.
+ * @param opts.rarity      Rarity tier (drives complexity).
+ * @param opts.planetHint  Optional biome/temperature hint for coherence.
+ * @param opts.seed        Optional seed → deterministic few-shot example + fallback.
+ */
+export async function generateLifeformBrief(opts: {
+  rarity: string;
+  planetHint?: string;
+  seed?: number;
+}): Promise<LifeformBriefResult> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  const seed = Number.isFinite(opts.seed) ? Math.abs(Math.floor(opts.seed as number)) : 0;
+  const example = LIFEFORM_SPECS[seed % LIFEFORM_SPECS.length];
+  const rarityHint = LIFEFORM_RARITY_HINT[opts.rarity] ?? LIFEFORM_RARITY_HINT.common;
+
+  // Deterministic fallback (no key / parse failure): mutate a library spec so
+  // the paid flow never hard-fails on the creative step.
+  const fallback = (): LifeformBriefResult => {
+    const spec = LIFEFORM_SPECS[(seed + 7) % LIFEFORM_SPECS.length];
+    return finalize({
+      speciesName: spec.archetype,
+      appearance: spec.appearance,
+      action: spec.action,
+      sound: spec.sound,
+    });
+  };
+
+  if (!apiKey) return fallback();
+
+  const prompt = `You are a xenobiology concept writer for the cozy sci-fi game Nebulife.
+Invent ONE unique alien micro-organism and describe it for a science-microscope reveal.
+
+Constraints:
+- Complexity: ${rarityHint}.
+${opts.planetHint ? `- Native to a world that is: ${opts.planetHint}.` : '- Native to a dark, mineral-rich aquatic micro-environment.'}
+- Aesthetic: electron-microscope / astrobiology, dark cosmos, muted palette, soft bioluminescence.
+- NEVER mention cameras, AI, neural nets, text, faces, humans, or cartoons.
+- "sound" must be AMBIENT only: no voice, no narration, no lyrics.
+- Keep each field concise (one sentence, English).
+
+Example (style only, invent something different):
+{"speciesName":"${example.archetype}","appearance":"${example.appearance}","action":"${example.action}","sound":"${example.sound}"}
+
+Respond with ONLY pure JSON (no markdown):
+{"speciesName":"...","appearance":"...","action":"...","sound":"..."}`;
+
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await ai.models.generateContent({
+      model: LIFEFORM_BRIEF_MODEL,
+      contents: prompt,
+      config: { thinkingConfig: { thinkingBudget: 0 } },
+    });
+    const text = response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+    const cleaned = text.replace(/```json?\n?/gi, '').replace(/```/g, '').trim();
+    const parsed = JSON.parse(cleaned) as Partial<LifeformBrief>;
+    if (!parsed.appearance || !parsed.action || !parsed.sound) return fallback();
+    return finalize({
+      speciesName: String(parsed.speciesName || example.archetype).slice(0, 40),
+      appearance: String(parsed.appearance).slice(0, 400),
+      action: String(parsed.action).slice(0, 300),
+      sound: String(parsed.sound).slice(0, 200),
+    });
+  } catch (err) {
+    console.warn('[lifeform-brief] generation failed, using fallback:', err);
+    return fallback();
+  }
+}
+
+function finalize(brief: LifeformBrief): LifeformBriefResult {
+  return {
+    ...brief,
+    photoPrompt: buildPhotoPromptFromAppearance(brief.appearance),
+    videoPrompt: buildVideoPromptFromAction(brief.action),
+    soundPrompt: buildSoundPrompt(brief.sound),
+  };
 }

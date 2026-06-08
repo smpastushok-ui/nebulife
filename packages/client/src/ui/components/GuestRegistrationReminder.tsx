@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  signInWithGoogle,
-  linkGoogleToAnonymous,
-  linkAppleToAnonymous,
-  getCurrentUser,
+  authorizeWithGoogle,
+  authorizeWithApple,
   isGoogleSignInAvailable,
   isAppleSignInAvailable,
 } from '../../auth/auth-service.js';
@@ -32,19 +30,12 @@ export function GuestRegistrationReminder({
     setLoading(true);
     setError(null);
     try {
-      const user = getCurrentUser();
-      if (user?.isAnonymous) {
-        await linkGoogleToAnonymous();
-      } else {
-        await signInWithGoogle();
-      }
+      await authorizeWithGoogle();
       onLinked();
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? '';
       if (code === 'auth/popup-closed-by-user') {
         setError(null);
-      } else if (code === 'auth/credential-already-in-use') {
-        setError(t('guest.error_google_in_use'));
       } else {
         setError(t('guest.error_auth'));
       }
@@ -57,17 +48,12 @@ export function GuestRegistrationReminder({
     setLoading(true);
     setError(null);
     try {
-      const user = getCurrentUser();
-      if (user?.isAnonymous) {
-        await linkAppleToAnonymous();
-      }
+      await authorizeWithApple();
       onLinked();
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? '';
       if (code === 'auth/popup-closed-by-user') {
         setError(null);
-      } else if (code === 'auth/credential-already-in-use') {
-        setError(t('guest.error_apple_in_use'));
       } else {
         setError(t('guest.error_auth'));
       }

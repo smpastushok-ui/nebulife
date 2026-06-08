@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  linkGoogleToAnonymous,
-  linkAppleToAnonymous,
+  authorizeWithGoogle,
+  authorizeWithApple,
   isGoogleSignInAvailable,
   isAppleSignInAvailable,
 } from '../../auth/auth-service.js';
@@ -34,17 +34,21 @@ export function LinkAccountModal({ onLinked, onClose }: LinkAccountModalProps) {
     }
   };
 
+  // Universal authorization: links to the current guest for a brand-new
+  // account (preserving progress), or signs in to an existing account when the
+  // provider is already registered. In the sign-in-to-existing case the auth
+  // listener detects the UID change and reloads into that player's history, so
+  // `onLinked` / `notifyServer` only run for the same-UID link path.
   const handleGoogle = async () => {
     setError('');
     setLoading(true);
     try {
-      await linkGoogleToAnonymous();
+      await authorizeWithGoogle();
       await notifyServer();
       onLinked();
     } catch (err) {
       const msg = err instanceof Error ? err.message : t('common.error');
       if (msg.includes('popup-closed')) setError(t('errors.authClosed'));
-      else if (msg.includes('credential-already-in-use')) setError(t('link_account.error_google_in_use'));
       else setError(msg);
     } finally {
       setLoading(false);
@@ -55,13 +59,12 @@ export function LinkAccountModal({ onLinked, onClose }: LinkAccountModalProps) {
     setError('');
     setLoading(true);
     try {
-      await linkAppleToAnonymous();
+      await authorizeWithApple();
       await notifyServer();
       onLinked();
     } catch (err) {
       const msg = err instanceof Error ? err.message : t('common.error');
       if (msg.includes('popup-closed')) setError(t('errors.authClosed'));
-      else if (msg.includes('credential-already-in-use')) setError(t('link_account.error_apple_in_use'));
       else setError(msg);
     } finally {
       setLoading(false);

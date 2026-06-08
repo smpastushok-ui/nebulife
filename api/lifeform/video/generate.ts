@@ -12,6 +12,23 @@ import { buildLifeformVideoPrompt } from '../../../packages/server/src/lifeform-
 import type { LifeformRarity } from '../../../packages/server/src/lifeform-prompt-builder.js';
 import { LIFEFORM_VIDEO_COST } from '@nebulife/core';
 
+/**
+ * Recover the motion + ambient-sound prompt for Kling V3.
+ * The photo step stores a JSON brief in `prompt_used`; if unavailable
+ * (legacy rows / fallback), synthesize a rarity-based motion prompt.
+ */
+function resolveVideoPrompt(promptUsed: string | null, rarity: LifeformRarity): string {
+  if (promptUsed) {
+    try {
+      const b = JSON.parse(promptUsed) as { video?: string; sound?: string };
+      if (b.video) return b.sound ? `${b.video} ${b.sound}` : b.video;
+    } catch {
+      // not JSON — fall through to legacy builder
+    }
+  }
+  return buildLifeformVideoPrompt({ rarity });
+}
+
 export const config = {
   maxDuration: 60,
 };
@@ -76,12 +93,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     deductedCost = cost;
     deductedPlayerId = playerId;
 
-    const prompt = buildLifeformVideoPrompt({ rarity: lifeform.rarity as LifeformRarity });
+    const prompt = resolveVideoPrompt(lifeform.prompt_used, lifeform.rarity as LifeformRarity);
 
+    // Kling V3, Pro mode (1080p Full HD), 5s, native ambient audio (no voice).
     const { taskId } = await generateVideo({
       imageUrl: lifeform.photo_url,
       prompt,
       duration: '5',
+      mode: 'pro',
+      sound: true,
     });
 
     await updateLifeformVideo(lifeformId, {

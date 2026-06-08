@@ -15,6 +15,7 @@ import { TechTreeView } from '../TechTree';
 import { TelescopeGallery } from './TelescopeGallery';
 import { LifeGallery } from './LifeGallery';
 import { ResourcesView } from './ResourcesView';
+import type { LifeformRecord } from '../../../api/lifeform-api';
 import type { SystemPhotoData } from '../SystemContextMenu';
 
 type PlanetSkinStatus = 'generating' | 'pending' | 'processing' | 'succeed' | 'failed';
@@ -206,6 +207,8 @@ export interface CosmicArchiveProps {
   planetSkinStatuses?: Record<string, { system?: PlanetSkinStatus; exosphere?: PlanetSkinStatus }>;
   onGeneratePlanetSkin?: (system: StarSystem, planet: Planet, kind: PlanetSkinKind) => void;
   tutorialResearchTargetCount?: number;
+  /** Locally-known discovered lifeforms (App state) for the Life gallery. */
+  lifeforms?: LifeformRecord[];
   visible: boolean;
 }
 
@@ -358,6 +361,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   planetSkinStatuses,
   onGeneratePlanetSkin,
   tutorialResearchTargetCount,
+  lifeforms,
   visible,
   planetResourceStocks,
 }: CosmicArchiveProps, ref: React.Ref<CosmicArchiveHandle>) {
@@ -583,7 +587,15 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
       return <TelescopeGallery photos={systemPhotos} type="mission" allSystems={allSystems} aliases={aliases} onGoToExosphere={onViewPlanetExosphere} />;
     }
     if (mainTab === 'collections' && currentSubTab === 'life') {
-      return <LifeGallery playerId={playerId} />;
+      return (
+        <LifeGallery
+          playerId={playerId}
+          lifeforms={lifeforms}
+          allSystems={allSystems}
+          aliases={aliases}
+          onGoToPlanet={handleViewPlanet}
+        />
+      );
     }
     if (mainTab === 'navigation' && currentSubTab === 'colonies') {
       return (
@@ -736,7 +748,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
     }
 
     // Custom messages for specific tabs
-    if (mainTab === 'collections' && (currentSubTab === 'life' || currentSubTab === 'surface')) {
+    if (mainTab === 'collections' && currentSubTab === 'surface') {
       return (
         <div
           style={{
@@ -920,23 +932,16 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
 
       {/* Sub tabs */}
       <div data-swipe-tabs="" style={subTabBarStyle}>
-        {currentTabDef.subTabs.map((sub) => {
-          const isLocked = false;
-          const label = sub.id === 'life'
-            ? `${sub.label} [${t('nav.coming_soon')}]`
-            : sub.label;
-          return (
-            <TabButton
-              key={sub.id}
-              label={isLocked ? `${label} [${t('tech_tree.locked')}]` : label}
-              active={currentSubTab === sub.id}
-              onClick={() => selectSubTab(sub.id)}
-              small
-              dimmed={isLocked}
-              tutorialId={`subtab-${sub.id}`}
-            />
-          );
-        })}
+        {currentTabDef.subTabs.map((sub) => (
+          <TabButton
+            key={sub.id}
+            label={sub.label}
+            active={currentSubTab === sub.id}
+            onClick={() => selectSubTab(sub.id)}
+            small
+            tutorialId={`subtab-${sub.id}`}
+          />
+        ))}
       </div>
 
       {/* Content */}

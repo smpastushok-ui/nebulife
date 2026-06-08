@@ -1,6 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { computeAspectRatio } from '../../../packages/server/src/gemini-client.js';
-import { generateImage as generateKlingImage } from '../../../packages/server/src/kling-client.js';
+import {
+  generateImageWithGemini,
+  generateLifeformBrief,
+} from '../../../packages/server/src/gemini-client.js';
 import {
   deductQuarks,
   creditQuarks,
@@ -9,23 +11,35 @@ import {
 } from '../../../packages/server/src/db.js';
 import { authenticate } from '../../../packages/server/src/auth-middleware.js';
 import { RATE_LIMITS } from '../../../packages/server/src/rate-limiter.js';
-import { buildLifeformPhotoPrompt } from '../../../packages/server/src/lifeform-prompt-builder.js';
-import type { LifeformRarity } from '../../../packages/server/src/lifeform-prompt-builder.js';
 import { LIFEFORM_PHOTO_COST } from '@nebulife/core';
 
-// Allow up to 60s for Kling task submission.
+// Allow up to 60s for the (synchronous) Gemini image generation.
 export const config = {
   maxDuration: 60,
 };
+
+/** Deterministic numeric seed from the lifeform id string. */
+function seedFromId(id: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) {
+    h ^= id.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
 
 /**
  * POST /api/lifeform/photo/generate
  *
  * Auth: Bearer token (Firebase)
- * Body: { playerId, lifeformId, screenWidth?, screenHeight?, planetHint? }
- * Returns: { lifeformId, status, quarksRemaining }
+ * Body: { playerId, lifeformId, planetHint? }
+ * Returns: { lifeformId, status, photoUrl?, quarksRemaining }
  *
- * Generates a unique Alpha-photo (Kling v3 omni, 4K) for a NON-common lifeform.
+ * Pipeline:
+ *   1. Gemini 3.5 Flash → unique creative brief (appearance/action/sound)
+ *   2. Nano Banana 2 (gemini-3.1-flash-image, 1K) → still Alpha-photo (sync)
+ *   3. Persist photo + brief; the brief's video/sound prompts are reused by
+ *      the Alpha-video step so the clip matches the same organism.
  * Common lifeforms use bundled assets and must not call this endpoint.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -44,7 +58,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let deductedPlayerId: string | null = null;
 
   try {
-    const { playerId, lifeformId, screenWidth, screenHeight, planetHint } = req.body;
+    const { playerId, lifeformId, planetHint } = req.body;
 
     if (!playerId || !lifeformId) {
       return res.status(400).json({ error: 'Missing required fields: playerId, lifeformId' });
@@ -67,7 +81,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ lifeformId, status: 'succeed', photoUrl: lifeform.photo_url });
     }
 
-    const cost = LIFEFORM_PHOTO_COST[lifeform.rarity as LifeformRarity] ?? 0;
+    const cost = LIFEFORM_PHOTO_COST[lifeform.rarity as keyof typeof LIFEFORM_PHOTO_COST] ?? 0;
 
     // 1. Deduct quarks up front (refund on failure).
     const player = await deductQuarks(playerId, cost);
@@ -77,35 +91,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     deductedCost = cost;
     deductedPlayerId = playerId;
 
-    // 2. Build prompt.
-    const prompt = buildLifeformPhotoPrompt({
-      rarity: lifeform.rarity as LifeformRarity,
-      speciesName: lifeform.species_name ?? undefined,
+    // 2. Gemini 3.5 Flash creative brief (deterministic fallback on failure).
+    const brief = await generateLifeformBrief({
+      rarity: lifeform.rarity,
       planetHint: typeof planetHint === 'string' ? planetHint : undefined,
+      seed: seedFromId(lifeformId),
     });
 
-    // 3. Submit Kling v3 omni 4K task.
-    const aspectRatio = screenWidth && screenHeight
-      ? computeAspectRatio(Number(screenWidth), Number(screenHeight))
-      : '9:16';
-    const { taskId } = await generateKlingImage({
-      prompt,
-      aspectRatio,
-      resolution: '4K',
-      model: 'kling-v3-omni',
+    // 3. Nano Banana 2 still image (synchronous). 4:3 to match gallery cards.
+    const image = await generateImageWithGemini({
+      prompt: brief.photoPrompt,
+      aspectRatio: '4:3',
+      imageSize: '1K',
+      uploadPrefix: 'lifeforms',
     });
 
-    // 4. Persist generating state.
+    // 4. Persist: photo ready + brief (video/sound prompts reused by video step).
+    const promptBundle = JSON.stringify({
+      photo: brief.photoPrompt,
+      video: brief.videoPrompt,
+      sound: brief.soundPrompt,
+      species: brief.speciesName,
+    });
     await updateLifeformPhoto(lifeformId, {
-      photo_status: 'generating',
-      photo_task_id: taskId,
-      prompt_used: prompt,
+      photo_status: 'succeed',
+      photo_url: image.imageUrl,
+      prompt_used: promptBundle,
       quarks_paid: cost,
     });
 
     return res.status(200).json({
       lifeformId,
-      status: 'generating',
+      status: 'succeed',
+      photoUrl: image.imageUrl,
       quarksRemaining: player.quarks,
     });
   } catch (err) {

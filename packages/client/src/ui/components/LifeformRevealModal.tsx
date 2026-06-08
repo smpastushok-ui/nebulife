@@ -79,6 +79,7 @@ export function LifeformRevealModal({
   const [photoFailed, setPhotoFailed] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
   const [videoNeedsTap, setVideoNeedsTap] = useState(false);
+  const [videoLoading, setVideoLoading] = useState(true);
   const [scanDone, setScanDone] = useState(false);
   const [name, setName] = useState('');
   const [photoGenStatus, setPhotoGenStatus] = useState<LifeformMediaStatus | 'idle'>(
@@ -157,6 +158,7 @@ export function LifeformRevealModal({
     const v = videoRef.current;
     if (!v) return;
     setVideoNeedsTap(false);
+    setVideoLoading(!v.readyState || v.readyState < 3);
     v.currentTime = 0;
     const p = v.play();
     if (p && typeof p.catch === 'function') p.catch(() => setVideoNeedsTap(true));
@@ -270,12 +272,21 @@ export function LifeformRevealModal({
             src={videoSrc}
             playsInline
             preload="auto"
+            poster={photoSrc || undefined}
             controls={mode === 'clip'}
+            onLoadedData={() => setVideoLoading(false)}
+            onCanPlay={() => setVideoLoading(false)}
             onEnded={() => { if (mode === 'video') setBeat('classify'); }}
-            onError={() => setVideoFailed(true)}
+            onError={() => { setVideoFailed(true); setVideoLoading(false); }}
             style={{ ...styles.mediaImg, display: videoFailed || !videoSrc ? 'none' : 'block' }}
           />
           {(videoFailed || !videoSrc) && <Placeholder label={t('lifeform.reveal_title')} accent={accent} />}
+          {videoLoading && !videoFailed && videoSrc && (
+            <div style={styles.videoLoader}>
+              <span className="lf-vid-spinner" style={{ borderColor: hexA(accent, 0.25), borderTopColor: accent }} />
+              <span style={{ ...styles.videoLoaderText, color: accent }}>{t('lifeform.video_loading')}</span>
+            </div>
+          )}
           {videoNeedsTap && !videoFailed && videoSrc && (
             <button onClick={handleManualPlay} style={styles.playOverlay} aria-label="play">
               <span style={{ ...styles.playTriangle, borderLeftColor: accent }} />
@@ -294,13 +305,20 @@ export function LifeformRevealModal({
   return (
     <div style={styles.backdrop}>
       <style>{KEYFRAMES}</style>
-      <div style={{ ...styles.window, boxShadow: `0 0 40px rgba(0,0,0,0.6), 0 0 0 1px ${hexA(accent, 0.12)}` }}>
-        {beat !== 'reward' && (
-          <button onClick={onClose} style={styles.skip}>{t('lifeform.skip')}</button>
-        )}
+      <div style={{ ...styles.window, boxShadow: `0 0 48px rgba(0,0,0,0.65), 0 0 0 1px ${hexA(accent, 0.16)}` }}>
+        {/* top accent hairline */}
+        <div style={{ ...styles.topAccent, background: `linear-gradient(90deg, transparent, ${accent}, transparent)` }} />
 
-        {/* rarity ribbon */}
-        <div style={{ ...styles.rarityRibbon, color: accent, borderColor: accent }}>{rarityLabel}</div>
+        {/* header bar — rarity pill (left) + close (right), evenly spaced */}
+        <div style={styles.header}>
+          <div style={{ ...styles.rarityPill, color: accent, borderColor: hexA(accent, 0.5), background: hexA(accent, 0.1) }}>
+            <span style={{ ...styles.rarityDot, background: accent, boxShadow: `0 0 8px ${accent}` }} />
+            {rarityLabel}
+          </div>
+          {beat !== 'reward' ? (
+            <button onClick={onClose} style={styles.closeBtn} aria-label={t('lifeform.skip')}>✕</button>
+          ) : <span style={{ width: 28 }} />}
+        </div>
 
         {/* ── alert ── */}
         {beat === 'alert' && (
@@ -323,7 +341,7 @@ export function LifeformRevealModal({
         {/* ── scan (common) ── */}
         {beat === 'scan' && (
           <div style={styles.beatBody}>
-            <div style={styles.badge}>{t('lifeform.scanning')}</div>
+            <ScanStatus accent={accent} label={t('lifeform.scanning')} done={scanDone} />
             {renderMedia('scan')}
             <div style={styles.caption}>{t('lifeform.scan_caption')}</div>
             {scanDone && (
@@ -373,28 +391,38 @@ export function LifeformRevealModal({
         {/* ── media (paid Alpha-photo → Alpha-video) ── */}
         {beat === 'media' && (
           <div style={styles.beatBody}>
-            {renderMedia(record.photo_url ? 'still' : 'still')}
+            {renderMedia('still')}
             {genError && <div style={styles.errorRow}>{genError}</div>}
 
-            {/* Alpha-photo CTA */}
+            {/* Premium media — paid unique 4K generation (uncommon+ only) */}
             {!record.photo_url ? (
-              <button
+              <PremiumCard
+                accent={accent}
+                kicker={t('lifeform.premium')}
+                label={t('lifeform.alpha_photo')}
+                desc={t('lifeform.alpha_photo_desc')}
+                infoTitle={t('lifeform.alpha_info_title')}
+                cost={photoCost}
+                busy={photoBusy}
+                busyLabel={t('lifeform.generating')}
                 onClick={startPhotoGen}
-                disabled={photoBusy}
-                style={{ ...styles.primaryBtn, color: accent, borderColor: accent, background: hexA(accent, 0.12), opacity: photoBusy ? 0.6 : 1 }}
-              >
-                {photoBusy ? t('lifeform.generating') : `${t('lifeform.alpha_photo')} · ${photoCost} ◈`}
-              </button>
+              />
             ) : !record.video_url ? (
-              <button
+              <PremiumCard
+                accent={accent}
+                kicker={t('lifeform.premium')}
+                label={t('lifeform.alpha_video')}
+                desc={t('lifeform.alpha_video_desc')}
+                infoTitle={t('lifeform.alpha_info_title')}
+                cost={videoCost}
+                busy={videoBusy}
+                busyLabel={t('lifeform.generating')}
                 onClick={startVideoGen}
-                disabled={videoBusy}
-                style={{ ...styles.primaryBtn, color: accent, borderColor: accent, background: hexA(accent, 0.12), opacity: videoBusy ? 0.6 : 1 }}
-              >
-                {videoBusy ? t('lifeform.generating') : `${t('lifeform.alpha_video')} · ${videoCost} ◈`}
-              </button>
+              />
             ) : (
-              <div style={{ ...styles.caption, color: accent }}>{t('lifeform.media_complete')}</div>
+              <div style={{ ...styles.mediaComplete, color: accent, borderColor: hexA(accent, 0.4), background: hexA(accent, 0.08) }}>
+                {t('lifeform.media_complete')}
+              </div>
             )}
 
             <button onClick={() => setBeat('reward')} style={styles.ghostBtn}>
@@ -450,6 +478,89 @@ function Placeholder({ label, accent }: { label: string; accent: string }) {
   );
 }
 
+/** Animated "live scanning" status — reads as a process readout, not a button. */
+function ScanStatus({ accent, label, done }: { accent: string; label: string; done: boolean }) {
+  return (
+    <div style={styles.scanStatus}>
+      <span
+        className={done ? undefined : 'lf-scan-dot'}
+        style={{ ...styles.scanDot, background: accent, boxShadow: `0 0 10px ${accent}` }}
+      />
+      <span
+        className={done ? undefined : 'lf-scan-text'}
+        style={{ ...styles.scanText, color: accent, ['--lf-accent' as string]: accent }}
+      >
+        {label}
+      </span>
+      {!done && <span className="lf-scan-ellipsis" style={{ color: accent }} />}
+    </div>
+  );
+}
+
+function PremiumCard({ accent, kicker, label, desc, infoTitle, cost, busy, busyLabel, onClick }: {
+  accent: string;
+  kicker: string;
+  label: string;
+  desc: string;
+  infoTitle: string;
+  cost: number;
+  busy: boolean;
+  busyLabel: string;
+  onClick: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={styles.premiumWrap}>
+      <button
+        onClick={onClick}
+        disabled={busy}
+        style={{
+          ...styles.premiumBtn,
+          borderColor: hexA(accent, 0.55),
+          background: `linear-gradient(135deg, ${hexA(accent, 0.2)} 0%, ${hexA(accent, 0.05)} 100%)`,
+          boxShadow: `0 0 18px ${hexA(accent, 0.18)}, inset 0 1px 0 ${hexA(accent, 0.2)}`,
+          opacity: busy ? 0.6 : 1,
+          cursor: busy ? 'default' : 'pointer',
+        }}
+      >
+        <span style={{ ...styles.premiumKicker, color: accent }}>
+          <span style={{ ...styles.premiumStar, color: accent }}>✦</span> {kicker}
+        </span>
+        <span style={styles.premiumMain}>
+          <span style={styles.premiumLabel}>{busy ? busyLabel : label}</span>
+          {!busy && (
+            <span style={{ ...styles.premiumCost, color: accent, borderColor: hexA(accent, 0.45), background: hexA(accent, 0.1) }}>
+              {cost} ◈
+            </span>
+          )}
+        </span>
+      </button>
+
+      {/* "?" info chip — explains why this premium feature is worth it */}
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-label={infoTitle}
+        style={{
+          ...styles.infoChip,
+          color: accent,
+          borderColor: hexA(accent, 0.5),
+          background: open ? hexA(accent, 0.18) : hexA(accent, 0.08),
+        }}
+      >
+        ?
+      </button>
+
+      {open && (
+        <div style={{ ...styles.infoPanel, borderColor: hexA(accent, 0.3), background: hexA(accent, 0.06) }}>
+          <div style={{ ...styles.infoPanelTitle, color: accent }}>{infoTitle}</div>
+          <div style={styles.infoPanelBody}>{desc}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TaxRow({ k, v, valColor }: { k: string; v: string; valColor?: string }) {
   return (
     <div style={styles.taxRow}>
@@ -482,17 +593,27 @@ const styles: Record<string, React.CSSProperties> = {
   },
   window: {
     position: 'relative', width: 'min(94vw, 440px)',
-    background: PANEL_BG, border: `1px solid ${BORDER}`, borderRadius: 8,
-    padding: '26px 20px 22px', overflow: 'hidden',
+    background: PANEL_BG, border: `1px solid ${BORDER}`, borderRadius: 12,
+    padding: '14px 22px 24px', overflow: 'hidden',
   },
-  skip: {
-    position: 'absolute', top: 8, right: 10, background: 'transparent', border: 'none',
-    color: TEXT_MUTED, fontFamily: 'monospace', fontSize: 11, cursor: 'pointer', padding: 4, zIndex: 5,
+  topAccent: {
+    position: 'absolute', top: 0, left: 0, right: 0, height: 2, opacity: 0.8, pointerEvents: 'none',
   },
-  rarityRibbon: {
-    position: 'absolute', top: 8, left: 10,
-    fontSize: 10, letterSpacing: 2, fontWeight: 700,
-    border: '1px solid', borderRadius: 3, padding: '2px 8px', textTransform: 'uppercase',
+  header: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    gap: 12, marginBottom: 16, minHeight: 30,
+  },
+  rarityPill: {
+    display: 'inline-flex', alignItems: 'center', gap: 7,
+    fontSize: 10, letterSpacing: 2, fontWeight: 700, textTransform: 'uppercase',
+    border: '1px solid', borderRadius: 999, padding: '5px 12px',
+  },
+  rarityDot: { width: 6, height: 6, borderRadius: '50%', flexShrink: 0 },
+  closeBtn: {
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    width: 28, height: 28, flexShrink: 0,
+    background: 'rgba(255,255,255,0.04)', border: `1px solid ${BORDER}`, borderRadius: 8,
+    color: TEXT_MUTED, fontFamily: 'monospace', fontSize: 13, lineHeight: 1, cursor: 'pointer', padding: 0,
   },
   alertWrap: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: '14px 0' },
   pulse: { width: 54, height: 54, borderRadius: '50%', border: '2px solid', animation: 'lf-pulse 1.4s ease-out infinite' },
@@ -502,7 +623,39 @@ const styles: Record<string, React.CSSProperties> = {
     border: `1px solid ${BORDER}`, borderRadius: 4, padding: '10px 12px', fontSize: 12,
   },
   terminalLine: { color: TEXT, lineHeight: 1.6, wordBreak: 'break-word' },
-  beatBody: { display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'stretch' },
+  beatBody: { display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'stretch' },
+  premiumBtn: {
+    display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'stretch',
+    border: '1px solid', borderRadius: 10, padding: '12px 14px', marginTop: 2,
+    fontFamily: 'monospace', textAlign: 'left',
+  },
+  premiumWrap: { position: 'relative', display: 'flex', flexDirection: 'column', marginTop: 2 },
+  infoChip: {
+    position: 'absolute', top: 8, right: 10, width: 20, height: 20,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    border: '1px solid', borderRadius: '50%', fontFamily: 'monospace',
+    fontSize: 12, fontWeight: 700, lineHeight: 1, cursor: 'pointer', padding: 0, zIndex: 2,
+  },
+  infoPanel: {
+    border: '1px solid', borderRadius: 8, padding: '10px 12px', marginTop: 6,
+  },
+  infoPanelTitle: { fontSize: 10, letterSpacing: 1.5, fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 },
+  infoPanelBody: { color: TEXT, fontSize: 12, lineHeight: 1.5 },
+  scanStatus: {
+    alignSelf: 'center', display: 'inline-flex', alignItems: 'center', gap: 8,
+    fontSize: 11, letterSpacing: 3, fontWeight: 700, padding: '2px 4px',
+  },
+  scanDot: { width: 7, height: 7, borderRadius: '50%', flexShrink: 0 },
+  scanText: { position: 'relative' },
+  premiumKicker: { fontSize: 9, letterSpacing: 2, fontWeight: 700, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 4 },
+  premiumStar: { fontSize: 10 },
+  premiumMain: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  premiumLabel: { color: TEXT, fontSize: 14, fontWeight: 700, letterSpacing: 0.5 },
+  premiumCost: { fontSize: 13, fontWeight: 700, border: '1px solid', borderRadius: 999, padding: '3px 11px', whiteSpace: 'nowrap' },
+  mediaComplete: {
+    alignSelf: 'center', fontSize: 12, fontWeight: 700, letterSpacing: 1,
+    border: '1px solid', borderRadius: 999, padding: '6px 14px',
+  },
   badge: {
     alignSelf: 'center', fontSize: 11, letterSpacing: 2, color: TEXT_MUTED,
     border: `1px solid ${BORDER}`, borderRadius: 3, padding: '4px 10px',
@@ -517,6 +670,12 @@ const styles: Record<string, React.CSSProperties> = {
     position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
     background: 'rgba(0,0,0,0.35)', border: 'none', cursor: 'pointer',
   },
+  videoLoader: {
+    position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
+    alignItems: 'center', justifyContent: 'center', gap: 10,
+    background: 'linear-gradient(rgba(2,5,12,0.5), rgba(2,5,12,0.68))', pointerEvents: 'none',
+  },
+  videoLoaderText: { fontSize: 11, letterSpacing: 2, animation: 'lf-flicker 1.6s ease-in-out infinite' },
   playTriangle: {
     width: 0, height: 0, borderTop: '16px solid transparent', borderBottom: '16px solid transparent',
     borderLeft: '26px solid', marginLeft: 6,
@@ -577,6 +736,14 @@ const KEYFRAMES = `
 }
 .lf-caret { animation: lf-blink 0.9s steps(1) infinite; }
 @keyframes lf-blink { 50% { opacity: 0; } }
+.lf-vid-spinner { width: 32px; height: 32px; border-radius: 50%; border: 2px solid; animation: lf-vid-spin 0.8s linear infinite; }
+@keyframes lf-vid-spin { to { transform: rotate(360deg); } }
+.lf-scan-dot { animation: lf-scan-dot 1s ease-in-out infinite; }
+@keyframes lf-scan-dot { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.7); } }
+.lf-scan-text { background-image: linear-gradient(100deg, var(--lf-accent) 0%, #ffffff 50%, var(--lf-accent) 100%); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: lf-scan-shimmer 1.8s linear infinite; }
+@keyframes lf-scan-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.lf-scan-ellipsis::after { content: ''; animation: lf-scan-dots 1.4s steps(4,end) infinite; }
+@keyframes lf-scan-dots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } 100% { content: ''; } }
 @keyframes lf-flicker { 0%,100% { opacity: 0.5; } 45% { opacity: 0.15; } 55% { opacity: 0.6; } }
 .lf-cover {
   position: absolute; top: 0; right: 0; bottom: 0; left: 0; background: #050a14;

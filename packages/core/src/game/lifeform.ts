@@ -21,15 +21,18 @@ export const LIFEFORM_PHOTO_COST: Record<DiscoveryRarity, number> = {
 };
 
 /**
- * Alpha-video cost in quarks per rarity (image-to-video from the Alpha-photo).
- * Roughly +50% over the photo. `common` is free (bundled clip).
+ * Alpha-video cost in quarks (image-to-video from the Alpha-photo).
+ * Kling V3 Pro, 1080p, 5s, with ambient audio costs us ~$0.84 PER VIDEO
+ * regardless of rarity, so the price is FLAT — at 89⚛ this clears ~44% margin
+ * via store IAP and ~61% via web top-up. `common` is free (bundled clip).
  */
+const LIFEFORM_VIDEO_PRICE = 89;
 export const LIFEFORM_VIDEO_COST: Record<DiscoveryRarity, number> = {
   common: 0,
-  uncommon: 45,
-  rare: 65,
-  epic: 90,
-  legendary: 120,
+  uncommon: LIFEFORM_VIDEO_PRICE,
+  rare: LIFEFORM_VIDEO_PRICE,
+  epic: LIFEFORM_VIDEO_PRICE,
+  legendary: LIFEFORM_VIDEO_PRICE,
 };
 
 /**

@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
 import { saveMessage, getPlayer, isChatBanned } from '../../packages/server/src/db.js';
 import { RATE_LIMITS } from '../../packages/server/src/rate-limiter.js';
+import { quickModerate } from '../../packages/server/src/text-moderation.js';
 
 /**
  * POST /api/messages/send
@@ -31,6 +32,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     if (content.length > 500) {
       return res.status(400).json({ error: 'Message too long (max 500 chars)' });
+    }
+
+    // Instant non-AI stop-list: block the worst content before it is stored.
+    // Nuanced cases still go through reports → Gemini (api/cron/moderate).
+    if (quickModerate(content).blocked) {
+      return res.status(400).json({ error: 'Повідомлення містить заборонену лексику.' });
     }
 
     // Validate channel format
