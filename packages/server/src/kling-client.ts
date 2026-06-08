@@ -209,30 +209,28 @@ interface KlingVideoGenerateResponse {
 export async function generateVideo(req: KlingVideoGenerateRequest): Promise<{ taskId: string }> {
   const token = generateJWT();
 
-  // Kling V3 image-to-video, Pro mode (1080p) with native ambient audio.
-  // NOTE: the exact model id and audio field on api.klingai.com must be
-  // confirmed against the live account — both are env-overridable so the
-  // pipeline can be tuned WITHOUT a code change / redeploy:
-  //   KLING_VIDEO_MODEL   (default 'kling-v3')
-  //   KLING_VIDEO_MODE    (default 'pro')
-  //   KLING_VIDEO_AUDIO   ('0' to disable audio)
+  // Kling V3 image-to-video, Pro mode (1080p) with native audio.
+  // Native audio (`sound`) is supported only on V2.6+ models (kling-v2-6,
+  // kling-v3) and uses the STRING enum 'on'|'off' on api.klingai.com.
+  // All three are env-overridable so the pipeline can be tuned WITHOUT a
+  // code change / redeploy:
+  //   KLING_VIDEO_MODEL   (default 'kling-v3'; must be v2-6+ for audio)
+  //   KLING_VIDEO_MODE    ('std'=720p | 'pro'=1080p, default 'pro')
+  //   KLING_VIDEO_AUDIO   ('off' or '0' to disable audio; anything else = on)
   const model = req.model ?? process.env.KLING_VIDEO_MODEL ?? 'kling-v3';
   const mode = req.mode ?? (process.env.KLING_VIDEO_MODE as 'std' | 'pro' | undefined) ?? 'pro';
-  const sound = req.sound ?? (process.env.KLING_VIDEO_AUDIO !== '0');
+  const envAudio = process.env.KLING_VIDEO_AUDIO;
+  const audioOn = req.sound ?? !(envAudio === '0' || envAudio === 'off');
 
   const body: Record<string, unknown> = {
     model_name: model,
     image: req.imageUrl,
     duration: req.duration,
     mode,
+    // No voice_list + no dialogue in the prompt ⇒ ambient sound effects
+    // only, no spoken voice (exactly "звук без голосу").
+    sound: audioOn ? 'on' : 'off',
   };
-
-  // Request native audio. Different gateways use different field names, so we
-  // send both well-known spellings; unknown fields are ignored server-side.
-  if (sound) {
-    body.sound = true;
-    body.generate_audio = true;
-  }
 
   if (req.prompt) {
     body.prompt = req.prompt;

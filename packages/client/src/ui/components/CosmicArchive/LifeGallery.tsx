@@ -1,8 +1,11 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RARITY_COLORS } from '@nebulife/core';
+import { Capacitor } from '@capacitor/core';
+import { RARITY_COLORS, getRarityLabel } from '@nebulife/core';
 import type { DiscoveryRarity, StarSystem } from '@nebulife/core';
 import { getPlayerLifeforms, type LifeformRecord } from '../../../api/lifeform-api.js';
+
+const GAME_URL_WEB = 'https://nebulife.space';
 
 // ---------------------------------------------------------------------------
 // LifeGallery — Archive "Life" tab.
@@ -267,11 +270,45 @@ function LifeLightbox({ lifeform, mode, planetContext, onGoToPlanet, onClose }: 
   onGoToPlanet?: (system: StarSystem, planetId: string) => void;
   onClose: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const color = RARITY_COLORS[lifeform.rarity as DiscoveryRarity] ?? '#8899aa';
   const photo = lifeform.photo_url || (lifeform.is_bundle || lifeform.rarity === 'common' ? DEFAULT_COMMON_PHOTO : '');
   const showVideo = mode === 'video' && !!lifeform.video_url;
   const [videoLoading, setVideoLoading] = useState(showVideo);
+
+  // Share / save the currently-shown media (photo in photo mode, clip in video mode).
+  const [shared, setShared] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const shareName = lifeform.species_name || t('lifeform.default_species');
+  const rarityLabel = getRarityLabel(lifeform.rarity as DiscoveryRarity, i18n.language) ?? lifeform.rarity;
+  const actionMediaUrl = showVideo ? (lifeform.video_url || '') : photo;
+
+  const handleShare = useCallback(async () => {
+    if (!actionMediaUrl || busy) return;
+    setBusy(true);
+    try {
+      await shareLifeformMedia(actionMediaUrl, showVideo, shareName, rarityLabel);
+      setShared(true);
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') console.warn('[LifeGallery] share failed:', err);
+    } finally {
+      setBusy(false);
+    }
+  }, [actionMediaUrl, showVideo, shareName, rarityLabel, busy]);
+
+  const handleDownload = useCallback(async () => {
+    if (!actionMediaUrl || busy) return;
+    setBusy(true);
+    try {
+      await downloadLifeformMedia(actionMediaUrl, showVideo, shareName);
+      setSaved(true);
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') console.warn('[LifeGallery] save failed:', err);
+    } finally {
+      setBusy(false);
+    }
+  }, [actionMediaUrl, showVideo, shareName, busy]);
 
   return (
     <div style={styles.lbBackdrop} onClick={onClose}>
@@ -328,10 +365,172 @@ function LifeLightbox({ lifeform, mode, planetContext, onGoToPlanet, onClose }: 
             <span style={{ color: TEXT_MUTED }}>{t('lifeform.source_label')}</span>
             <span style={{ color: TEXT }}>{t(lifeform.source === 'created' ? 'lifeform.source_created' : 'lifeform.source_found')}</span>
           </div>
+
+          {/* Share / save the currently-shown media (photo or clip). */}
+          {actionMediaUrl && (
+            <div style={styles.lbActions}>
+              <button
+                onClick={handleShare}
+                disabled={busy}
+                style={{
+                  ...styles.lbActionBtn,
+                  color: shared ? '#44ff88' : color,
+                  borderColor: hexA(shared ? '#44ff88' : color, 0.5),
+                }}
+              >
+                <IconShare />
+                <span>{shared ? t('photo.copied', { defaultValue: 'Shared' }) : t('photo.share', { defaultValue: 'Share' })}</span>
+              </button>
+              <button
+                onClick={handleDownload}
+                disabled={busy}
+                style={{
+                  ...styles.lbActionBtn,
+                  color: saved ? '#44ff88' : TEXT,
+                  borderColor: hexA(saved ? '#44ff88' : '#556677', 0.6),
+                }}
+              >
+                <IconDownload />
+                <span>{saved ? t('photo.saved', { defaultValue: 'Saved' }) : t('photo.download', { defaultValue: 'Save' })}</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
+}
+
+// ── Share / save helpers ─────────────────────────────────────────────────────
+
+function IconShare() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="3" r="2" />
+      <circle cx="4" cy="8" r="2" />
+      <circle cx="12" cy="13" r="2" />
+      <line x1="5.8" y1="7" x2="10.2" y2="4" />
+      <line x1="5.8" y1="9" x2="10.2" y2="12" />
+    </svg>
+  );
+}
+
+function IconDownload() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 2v9" />
+      <path d="M4.5 8L8 11.5 11.5 8" />
+      <path d="M2 13h12" />
+    </svg>
+  );
+}
+
+function safeSeg(value: string): string {
+  return value.replace(/[^a-z0-9_-]+/gi, '-').replace(/^-+|-+$/g, '') || 'lifeform';
+}
+
+/** Extension from a URL path, falling back to a sensible default per media kind. */
+function extFromUrl(url: string, isVideo: boolean): string {
+  const m = /\.([a-z0-9]{2,4})(?:\?|#|$)/i.exec(url);
+  if (m) return m[1].toLowerCase();
+  return isVideo ? 'mp4' : 'webp';
+}
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve((reader.result as string).split(',')[1] ?? '');
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
+function buildLifeShareText(name: string, rarityLabel: string, isVideo: boolean): string {
+  const glyph = isVideo ? '\u{1F3AC}' : '\u{1F9EC}'; // clapper / DNA
+  return [`${glyph} ${name}`, `\u{2728} ${rarityLabel}`, '', GAME_URL_WEB].join('\n');
+}
+
+/** Share the lifeform's current media (photo or video) with a local file for rich previews. */
+async function shareLifeformMedia(mediaUrl: string, isVideo: boolean, name: string, rarityLabel: string): Promise<void> {
+  const ext = extFromUrl(mediaUrl, isVideo);
+  const filename = `nebulife-${safeSeg(name)}.${ext}`;
+  const title = `${isVideo ? '\u{1F3AC}' : '\u{1F9EC}'} ${name} | Nebulife`;
+  const text = buildLifeShareText(name, rarityLabel, isVideo);
+
+  if (Capacitor.isNativePlatform()) {
+    const { Share } = await import('@capacitor/share');
+    let localFileUri: string | undefined;
+    try {
+      const { Filesystem, Directory } = await import('@capacitor/filesystem');
+      const res = await fetch(mediaUrl);
+      const base64 = await blobToBase64(await res.blob());
+      const writeRes = await Filesystem.writeFile({ path: filename, data: base64, directory: Directory.Cache });
+      localFileUri = writeRes.uri;
+    } catch (err) {
+      console.warn('[LifeGallery] share: failed to stage media, sharing link only:', err);
+    }
+    await Share.share({
+      title, text,
+      url: localFileUri ?? GAME_URL_WEB,
+      ...(localFileUri ? { files: [localFileUri] } : {}),
+      dialogTitle: title,
+    });
+    return;
+  }
+
+  // Web — prefer Web Share with a real file, then plain share, then clipboard.
+  let file: File | null = null;
+  try {
+    const blob = await (await fetch(mediaUrl)).blob();
+    file = new File([blob], filename, { type: blob.type || (isVideo ? 'video/mp4' : 'image/webp') });
+  } catch { /* CORS / network — fall through */ }
+
+  if (navigator.share && file && navigator.canShare?.({ files: [file] })) {
+    await navigator.share({ title, text, url: GAME_URL_WEB, files: [file] });
+  } else if (navigator.share) {
+    await navigator.share({ title, text, url: GAME_URL_WEB });
+  } else {
+    await navigator.clipboard.writeText(text);
+  }
+}
+
+/** Save the lifeform's current media to the device. */
+async function downloadLifeformMedia(mediaUrl: string, isVideo: boolean, name: string): Promise<void> {
+  const ext = extFromUrl(mediaUrl, isVideo);
+  const filename = `nebulife-${safeSeg(name)}.${ext}`;
+
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const { Filesystem, Directory } = await import('@capacitor/filesystem');
+      const { Share } = await import('@capacitor/share');
+      const base64 = await blobToBase64(await (await fetch(mediaUrl)).blob());
+      const writeRes = await Filesystem.writeFile({
+        path: `Nebulife/${filename}`, data: base64, directory: Directory.Documents, recursive: true,
+      });
+      await Share.share({ title: filename, text: filename, files: [writeRes.uri], dialogTitle: filename });
+    } catch (err) {
+      console.warn('[LifeGallery] native save failed:', err);
+      try {
+        const { Share } = await import('@capacitor/share');
+        await Share.share({ title: filename, url: mediaUrl, dialogTitle: filename });
+      } catch { window.open(mediaUrl, '_blank'); }
+    }
+    return;
+  }
+
+  try {
+    const blob = await (await fetch(mediaUrl)).blob();
+    const file = new File([blob], filename, { type: blob.type || (isVideo ? 'video/mp4' : 'image/webp') });
+    if (navigator.share && navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ title: filename, files: [file] });
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  } catch { window.open(mediaUrl, '_blank'); }
 }
 
 // ── Styles ───────────────────────────────────────────────────────────────────
@@ -404,4 +603,10 @@ const styles: Record<string, React.CSSProperties> = {
     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
   },
   lbMeta: { display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '5px 0', borderBottom: '1px solid rgba(50,60,80,0.4)' },
+  lbActions: { display: 'flex', gap: 8, marginTop: 12 },
+  lbActionBtn: {
+    flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+    height: 38, background: 'rgba(10,15,25,0.7)', border: '1px solid', borderRadius: 6,
+    cursor: 'pointer', fontFamily: 'monospace', fontSize: 12,
+  },
 };
