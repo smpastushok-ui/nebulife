@@ -990,6 +990,9 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
             {/* DB system messages (fun facts, moderation notices) */}
             {systemMessages.map((msg) => {
               const msgTime = fmtTime(msg.created_at);
+              if (msg.sender_id === WEAVER_SENDER_ID) {
+                return <WeaverMessage key={msg.id} senderName={msg.sender_name} content={msg.content} time={msgTime} />;
+              }
               return (
                 <div key={msg.id} style={{
                   background: 'rgba(0,30,20,0.3)',
@@ -1305,14 +1308,23 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
                 </div>
               )}
               {astraMessages.map((msg) => (
-                <AstraMessageItem
-                  key={msg.id}
-                  msg={{ role: (msg.sender_id === 'astra' || msg.sender_id === 'system') ? 'model' : 'user', text: msg.content }}
-                  messageId={msg.id}
-                  onAwardXP={onAwardXP}
-                  selectedQuizAnswer={quizAnswers[msg.id]}
-                  onQuizAnswer={onQuizAnswer}
-                />
+                msg.sender_id === WEAVER_SENDER_ID ? (
+                  <WeaverMessage
+                    key={msg.id}
+                    senderName={msg.sender_name}
+                    content={msg.content}
+                    time={fmtTime(msg.created_at)}
+                  />
+                ) : (
+                  <AstraMessageItem
+                    key={msg.id}
+                    msg={{ role: (msg.sender_id === 'astra' || msg.sender_id === 'system') ? 'model' : 'user', text: msg.content }}
+                    messageId={msg.id}
+                    onAwardXP={onAwardXP}
+                    selectedQuizAnswer={quizAnswers[msg.id]}
+                    onQuizAnswer={onQuizAnswer}
+                  />
+                )
               ))}
               {astraLoading && (
                 <div style={{ color: '#44ffaa', fontSize: 10, fontFamily: 'monospace', opacity: 0.6 }}>
@@ -1482,6 +1494,71 @@ function TabButton({
   );
 }
 
+// ---------------------------------------------------------------------------
+// "Voice of the universe" persona (ТКАЧ / The Weaver). Messages authored by
+// this synthetic sender are highlighted gold-on-black across every channel so
+// players instantly recognise them as canon announcements, not player chatter.
+// Keep this id in sync with api/admin/broadcast-message.ts (WEAVER_SENDER_ID).
+// ---------------------------------------------------------------------------
+const WEAVER_SENDER_ID = 'nebula-weaver';
+
+/** Procedural cosmic-web emblem: a gold node with filaments radiating to outer
+ *  nodes — the Weaver that spins the threads between worlds. */
+function WeaverIcon({ size = 15 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, display: 'block' }} aria-hidden="true">
+      <g stroke="#ffcc44" strokeWidth="1.1" opacity="0.85" strokeLinecap="round">
+        <line x1="12" y1="12" x2="12" y2="3" />
+        <line x1="12" y1="12" x2="21" y2="12" />
+        <line x1="12" y1="12" x2="12" y2="21" />
+        <line x1="12" y1="12" x2="3" y2="12" />
+        <line x1="12" y1="12" x2="18.4" y2="5.6" />
+        <line x1="12" y1="12" x2="18.4" y2="18.4" />
+        <line x1="12" y1="12" x2="5.6" y2="18.4" />
+        <line x1="12" y1="12" x2="5.6" y2="5.6" />
+      </g>
+      <g fill="#ffd76a">
+        <circle cx="12" cy="3" r="1.3" /><circle cx="21" cy="12" r="1.3" />
+        <circle cx="12" cy="21" r="1.3" /><circle cx="3" cy="12" r="1.3" />
+        <circle cx="18.4" cy="5.6" r="1" /><circle cx="18.4" cy="18.4" r="1" />
+        <circle cx="5.6" cy="18.4" r="1" /><circle cx="5.6" cy="5.6" r="1" />
+      </g>
+      <circle cx="12" cy="12" r="3.4" fill="#ffcc44" stroke="#000" strokeWidth="1" />
+      <circle cx="12" cy="12" r="1.2" fill="#1a1200" />
+    </svg>
+  );
+}
+
+/** Gold-on-black message card for the Weaver persona. Used in global, DM,
+ *  system and A.S.T.R.A. channels alike. */
+function WeaverMessage({ senderName, content, time }: { senderName: string; content: string; time: string }) {
+  return (
+    <div style={{
+      background: 'linear-gradient(180deg, rgba(24,18,2,0.92) 0%, rgba(4,3,0,0.96) 100%)',
+      border: '1px solid #a8841f',
+      borderLeft: '3px solid #ffcc44',
+      borderRadius: 4,
+      padding: '8px 10px',
+      boxShadow: '0 0 14px rgba(255,200,68,0.14), inset 0 0 22px rgba(255,200,68,0.05)',
+    }}>
+      <div style={{ display: 'flex', gap: 7, alignItems: 'center', marginBottom: 5 }}>
+        <WeaverIcon />
+        <span style={{
+          color: '#ffd76a', fontSize: 11, fontWeight: 'bold', letterSpacing: '0.1em',
+          textTransform: 'uppercase', fontFamily: 'monospace', flex: 1, minWidth: 0,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {senderName}
+        </span>
+        <span style={{ color: '#8a7322', fontSize: 9, fontFamily: 'monospace' }}>{time}</span>
+      </div>
+      <div style={{ color: '#f1e4ba', fontSize: 11.5, lineHeight: '1.5', fontFamily: 'monospace', wordBreak: 'break-word' }}>
+        {content}
+      </div>
+    </div>
+  );
+}
+
 function MessageItem({
   message,
   isOwn,
@@ -1506,6 +1583,12 @@ function MessageItem({
   const [reported, setReported] = useState(false);
 
   const time = fmtTime(message.created_at);
+
+  // Weaver persona — gold-on-black card, no DM/report affordances.
+  if (message.sender_id === WEAVER_SENDER_ID) {
+    return <WeaverMessage senderName={message.sender_name} content={message.content} time={time} />;
+  }
+
   const canOpenDM = !isOwn && message.sender_id !== 'system' && message.sender_id !== 'astra' && Boolean(onOpenDM);
 
   const handleReport = async () => {
