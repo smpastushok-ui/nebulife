@@ -1632,6 +1632,40 @@ export async function saveMessage(
   return rows[0] as MessageRow;
 }
 
+/** Resolve a player id by exact callsign (case-insensitive). Used by the
+ *  admin "voice of the universe" broadcaster to target a single player. */
+export async function getPlayerIdByCallsign(
+  callsign: string,
+): Promise<{ id: string; callsign: string | null } | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT id, callsign FROM players
+    WHERE LOWER(callsign) = LOWER(${callsign})
+    LIMIT 1
+  `;
+  return rows.length ? (rows[0] as { id: string; callsign: string | null }) : null;
+}
+
+/** Fan-out a single message into every player's per-player channel
+ *  (system:{id} or astra:{id}). Returns the number of rows inserted.
+ *  One bulk INSERT … SELECT keeps it to a single round-trip. */
+export async function broadcastPerPlayerMessage(
+  senderId: string,
+  senderName: string,
+  channelPrefix: 'system' | 'astra',
+  content: string,
+): Promise<number> {
+  const sql = getSQL();
+  const prefix = `${channelPrefix}:`;
+  const rows = await sql`
+    INSERT INTO messages (sender_id, sender_name, channel, content)
+    SELECT ${senderId}, ${senderName}, ${prefix} || id, ${content}
+    FROM players
+    RETURNING id
+  `;
+  return rows.length;
+}
+
 /** Get messages for a channel, optionally after a timestamp. Newest last. */
 export async function getMessages(
   channel: string,

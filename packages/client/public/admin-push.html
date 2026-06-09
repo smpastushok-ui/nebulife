@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
-  <title>Nebulife — Розсилка пушів</title>
+  <title>Nebulife — Адмін-консоль</title>
   <style>
     :root {
       --bg: #020510;
@@ -29,9 +29,44 @@
       line-height: 1.5;
       padding: 24px 16px 80px;
     }
-    .wrap { max-width: 760px; margin: 0 auto; }
+    .wrap { max-width: 1040px; margin: 0 auto; }
     h1 { font-size: 18px; letter-spacing: 1px; color: var(--text); margin: 0 0 4px; }
     .sub { color: var(--muted); font-size: 12px; margin: 0 0 24px; }
+
+    .layout { display: flex; gap: 24px; align-items: flex-start; }
+    .sidebar { width: 230px; flex-shrink: 0; position: sticky; top: 24px; }
+    .content { flex: 1; min-width: 0; }
+    @media (max-width: 760px) {
+      .layout { flex-direction: column; }
+      .sidebar { width: 100%; position: static; }
+    }
+
+    /* Sidebar menu */
+    .nav {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+    }
+    .nav-group-title {
+      font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+      color: var(--text-2); padding: 8px 10px 6px; user-select: none;
+      cursor: pointer; display: flex; align-items: center; gap: 8px;
+    }
+    .nav-group-title .chev { color: var(--muted); transition: transform 0.15s; }
+    .nav-group.collapsed .chev { transform: rotate(-90deg); }
+    .nav-group.collapsed .nav-items { display: none; }
+    .nav-items { display: flex; flex-direction: column; gap: 2px; padding-bottom: 6px; }
+    .nav-item {
+      display: block; padding: 9px 12px 9px 28px; border-radius: 4px;
+      color: var(--text-2); font-size: 13px; cursor: pointer; border: 1px solid transparent;
+      transition: background 0.12s, color 0.12s, border-color 0.12s;
+    }
+    .nav-item:hover { background: #0c1322; color: var(--text); }
+    .nav-item.active {
+      background: rgba(68,136,170,0.15); color: #cfe6ff; border-color: var(--accent);
+    }
+
     .panel {
       background: var(--panel);
       border: 1px solid var(--border);
@@ -88,120 +123,204 @@
     .preview .ptitle { color: var(--text); font-weight: 600; font-size: 13px; }
     .preview .pbody { color: var(--text-2); font-size: 12px; margin-top: 2px; }
     .preview .plabel { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+
+    /* Chat bubble preview */
+    .chat-preview { margin-top: 12px; }
+    .bubble {
+      background: #0c1322; border: 1px solid var(--border); border-left: 3px solid var(--accent);
+      border-radius: 4px; padding: 10px 12px;
+    }
+    .bubble .author { color: #7bb8ff; font-size: 12px; font-weight: 600; margin-bottom: 3px; }
+    .bubble .text { color: var(--text); font-size: 13px; white-space: pre-wrap; }
+
+    .section { display: none; }
+    .section.active { display: block; }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <h1>NEBULIFE · РОЗСИЛКА ПУШІВ</h1>
-    <p class="sub">Кастомні push-кампанії. Повідомлення ставляться в чергу та доставляються воркером push-queue (приблизно раз на хвилину) — з мовою кожного гравця, повторними спробами та чисткою мертвих токенів.</p>
+    <h1>NEBULIFE · АДМІН-КОНСОЛЬ</h1>
+    <p class="sub">Службова панель керування. Доступ за адмін-секретом.</p>
 
-    <div class="panel">
-      <h2>Доступ</h2>
-      <div class="field">
-        <label for="secret">Адмін-секрет</label>
-        <input id="secret" type="password" placeholder="ADMIN_PUSH_SECRET" autocomplete="off" />
-        <div class="hint">Зберігається лише в цьому браузері (localStorage). Нікуди не надсилається, окрім цього endpoint.</div>
-      </div>
-      <div class="checkbox-row">
-        <input id="remember" type="checkbox" checked />
-        <label for="remember">Памʼятати секрет на цьому пристрої</label>
-      </div>
-    </div>
+    <div class="layout">
+      <!-- ── Sidebar menu ── -->
+      <aside class="sidebar">
+        <nav class="nav">
+          <div class="nav-group" id="grpMessages">
+            <div class="nav-group-title" data-group="grpMessages">
+              <span class="chev">&#9662;</span> Повідомлення
+            </div>
+            <div class="nav-items">
+              <div class="nav-item active" data-section="sec-push">Push-розсилка</div>
+              <div class="nav-item" data-section="sec-chat">Чат (Ткач)</div>
+            </div>
+          </div>
+        </nav>
+      </aside>
 
-    <div class="panel">
-      <h2>Аудиторія</h2>
-      <div class="row">
-        <div class="field">
-          <label for="language">Мова</label>
-          <select id="language">
-            <option value="all">Усі (кожному — його мовою)</option>
-            <option value="uk">Лише українською</option>
-            <option value="en">Лише англійською</option>
-          </select>
+      <!-- ── Content ── -->
+      <div class="content">
+        <!-- Shared access panel -->
+        <div class="panel">
+          <h2>Доступ</h2>
+          <div class="field">
+            <label for="secret">Адмін-секрет</label>
+            <input id="secret" type="password" placeholder="ADMIN_PUSH_SECRET" autocomplete="off" />
+            <div class="hint">Зберігається лише в цьому браузері (localStorage). Нікуди не надсилається, окрім цих endpoint-ів.</div>
+          </div>
+          <div class="checkbox-row">
+            <input id="remember" type="checkbox" checked />
+            <label for="remember">Памʼятати секрет на цьому пристрої</label>
+          </div>
         </div>
-        <div class="field">
-          <label for="audience">Активність</label>
-          <select id="audience">
-            <option value="all">Усі з увімкненими пушами</option>
-            <option value="active">Активні (заходили за N днів)</option>
-            <option value="inactive">Неактивні (не заходили ≥ N днів)</option>
-          </select>
-        </div>
-        <div class="field" style="max-width:120px">
-          <label for="idleDays">N днів</label>
-          <input id="idleDays" type="number" min="1" max="365" value="7" />
-        </div>
-      </div>
-      <div class="field">
-        <label for="testPlayerId">ID тестового гравця (необовʼязково)</label>
-        <input id="testPlayerId" type="text" placeholder="Надіслати лише цьому гравцю (тест)" autocomplete="off" />
-      </div>
-      <div class="hint">Рахуються тільки гравці з увімкненими пушами та дійсним токеном пристрою.</div>
-    </div>
 
-    <div class="panel">
-      <h2>Повідомлення</h2>
-      <div class="row">
-        <div class="field">
-          <label for="titleUk">Заголовок (UK)</label>
-          <input id="titleUk" type="text" maxlength="120" placeholder="Заголовок" />
-        </div>
-        <div class="field">
-          <label for="titleEn">Заголовок (EN)</label>
-          <input id="titleEn" type="text" maxlength="120" placeholder="Title" />
-        </div>
-      </div>
-      <div class="row">
-        <div class="field">
-          <label for="bodyUk">Текст (UK)</label>
-          <textarea id="bodyUk" maxlength="300" placeholder="Текст повідомлення"></textarea>
-        </div>
-        <div class="field">
-          <label for="bodyEn">Текст (EN)</label>
-          <textarea id="bodyEn" maxlength="300" placeholder="Message body"></textarea>
-        </div>
-      </div>
-      <div class="field">
-        <label for="dest">Куди веде</label>
-        <select id="dest">
-          <option value="internal">У застосунок (відкрити гру)</option>
-          <option value="external">Зовнішнє посилання — Telegram тощо (лише Android)</option>
-        </select>
-      </div>
-      <div class="row" id="internalRow">
-        <div class="field">
-          <label for="action">Дія</label>
-          <input id="action" type="text" value="open-game" placeholder="open-game" />
-          <div class="hint">Deep-link дія, яку виконує застосунок при натисканні.</div>
-        </div>
-        <div class="field">
-          <label for="link">Посилання (необовʼязково)</label>
-          <input id="link" type="text" placeholder="/?action=open-game" />
-        </div>
-      </div>
-      <div class="field" id="externalRow" style="display:none">
-        <label for="extUrl">Зовнішній URL</label>
-        <input id="extUrl" type="text" placeholder="https://t.me/+IT3QjV5a-tQ0ZDZi" />
-        <div class="hint">Відкривається в системному браузері <b>лише на Android</b>. iOS ігнорує зовнішні посилання з пушів (App Store 4.5.4) — гравці просто відкриють застосунок. Тримай це як посилання на спільноту/підтримку, не як рекламу.</div>
-      </div>
-      <div class="preview" id="preview">
-        <div class="plabel">Перегляд</div>
-        <div class="ptitle" id="pvTitle">—</div>
-        <div class="pbody" id="pvBody">—</div>
-      </div>
-    </div>
+        <!-- ════════════ SECTION: PUSH ════════════ -->
+        <div class="section active" id="sec-push">
+          <div class="panel">
+            <h2>Аудиторія</h2>
+            <div class="row">
+              <div class="field">
+                <label for="language">Мова</label>
+                <select id="language">
+                  <option value="all">Усі (кожному — його мовою)</option>
+                  <option value="uk">Лише українською</option>
+                  <option value="en">Лише англійською</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="audience">Активність</label>
+                <select id="audience">
+                  <option value="all">Усі з увімкненими пушами</option>
+                  <option value="active">Активні (заходили за N днів)</option>
+                  <option value="inactive">Неактивні (не заходили ≥ N днів)</option>
+                </select>
+              </div>
+              <div class="field" style="max-width:120px">
+                <label for="idleDays">N днів</label>
+                <input id="idleDays" type="number" min="1" max="365" value="7" />
+              </div>
+            </div>
+            <div class="field">
+              <label for="testPlayerId">ID тестового гравця (необовʼязково)</label>
+              <input id="testPlayerId" type="text" placeholder="Надіслати лише цьому гравцю (тест)" autocomplete="off" />
+            </div>
+            <div class="hint">Рахуються тільки гравці з увімкненими пушами та дійсним токеном пристрою.</div>
+          </div>
 
-    <div class="panel">
-      <h2>Доставка</h2>
-      <div class="checkbox-row" style="margin-bottom:14px">
-        <input id="favHour" type="checkbox" />
-        <label for="favHour">Доставляти в найактивнішу годину кожного гравця (інакше — одразу)</label>
+          <div class="panel">
+            <h2>Повідомлення</h2>
+            <div class="row">
+              <div class="field">
+                <label for="titleUk">Заголовок (UK)</label>
+                <input id="titleUk" type="text" maxlength="120" placeholder="Заголовок" />
+              </div>
+              <div class="field">
+                <label for="titleEn">Заголовок (EN)</label>
+                <input id="titleEn" type="text" maxlength="120" placeholder="Title" />
+              </div>
+            </div>
+            <div class="row">
+              <div class="field">
+                <label for="bodyUk">Текст (UK)</label>
+                <textarea id="bodyUk" maxlength="300" placeholder="Текст повідомлення"></textarea>
+              </div>
+              <div class="field">
+                <label for="bodyEn">Текст (EN)</label>
+                <textarea id="bodyEn" maxlength="300" placeholder="Message body"></textarea>
+              </div>
+            </div>
+            <div class="field">
+              <label for="dest">Куди веде</label>
+              <select id="dest">
+                <option value="internal">У застосунок (відкрити гру)</option>
+                <option value="external">Зовнішнє посилання — Telegram тощо (лише Android)</option>
+              </select>
+            </div>
+            <div class="row" id="internalRow">
+              <div class="field">
+                <label for="action">Дія</label>
+                <input id="action" type="text" value="open-game" placeholder="open-game" />
+                <div class="hint">Deep-link дія, яку виконує застосунок при натисканні.</div>
+              </div>
+              <div class="field">
+                <label for="link">Посилання (необовʼязково)</label>
+                <input id="link" type="text" placeholder="/?action=open-game" />
+              </div>
+            </div>
+            <div class="field" id="externalRow" style="display:none">
+              <label for="extUrl">Зовнішній URL</label>
+              <input id="extUrl" type="text" placeholder="https://t.me/+IT3QjV5a-tQ0ZDZi" />
+              <div class="hint">Відкривається в системному браузері <b>лише на Android</b>. iOS ігнорує зовнішні посилання з пушів (App Store 4.5.4) — гравці просто відкриють застосунок. Тримай це як посилання на спільноту/підтримку, не як рекламу.</div>
+            </div>
+            <div class="preview" id="preview">
+              <div class="plabel">Перегляд</div>
+              <div class="ptitle" id="pvTitle">—</div>
+              <div class="pbody" id="pvBody">—</div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h2>Доставка</h2>
+            <div class="checkbox-row" style="margin-bottom:14px">
+              <input id="favHour" type="checkbox" />
+              <label for="favHour">Доставляти в найактивнішу годину кожного гравця (інакше — одразу)</label>
+            </div>
+            <div class="actions">
+              <button id="btnPreview" type="button">Порахувати аудиторію</button>
+              <button id="btnSend" type="button" class="primary">Надіслати розсилку</button>
+            </div>
+            <div class="out" id="out"></div>
+          </div>
+        </div>
+
+        <!-- ════════════ SECTION: CHAT ════════════ -->
+        <div class="section" id="sec-chat">
+          <div class="panel">
+            <h2>Голос всесвіту</h2>
+            <p class="hint" style="margin-top:-6px;margin-bottom:14px">
+              Повідомлення з'являється просто в чаті як справжнє — від імені персонажа.
+              За замовчуванням це <b>ТКАЧ</b> — істота, що сплітає космічну павутину між
+              світами й звертається до колоністів. Імʼя можна змінити.
+            </p>
+            <div class="row">
+              <div class="field">
+                <label for="chatSender">Імʼя автора</label>
+                <input id="chatSender" type="text" maxlength="60" value="ТКАЧ" placeholder="ТКАЧ" />
+              </div>
+              <div class="field">
+                <label for="chatTarget">Куди надіслати</label>
+                <select id="chatTarget">
+                  <option value="global">Загальний чат (усі гравці 10+)</option>
+                  <option value="system">У систему (системний лог гравця)</option>
+                  <option value="astra">В А.С.Т.Р.А. (вкладка асистента)</option>
+                  <option value="dm">Особисте (приватний діалог)</option>
+                </select>
+              </div>
+            </div>
+            <div class="field" id="chatCallsignRow">
+              <label for="chatCallsign">Нік гравця</label>
+              <input id="chatCallsign" type="text" placeholder="callsign гравця" autocomplete="off" />
+              <div class="hint" id="chatCallsignHint">Для «системи» / «астри» залиш порожнім — надішле <b>всім</b> гравцям. Для «особистого» — обовʼязково.</div>
+            </div>
+            <div class="field">
+              <label for="chatContent">Текст повідомлення</label>
+              <textarea id="chatContent" maxlength="500" placeholder="Текст від персонажа…"></textarea>
+              <div class="hint"><span id="chatCount">0</span> / 500</div>
+            </div>
+            <div class="chat-preview">
+              <div class="plabel" style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Перегляд</div>
+              <div class="bubble">
+                <div class="author" id="cpAuthor">ТКАЧ</div>
+                <div class="text" id="cpText">—</div>
+              </div>
+            </div>
+            <div class="actions" style="margin-top:16px">
+              <button id="btnChatSend" type="button" class="primary">Надіслати в чат</button>
+            </div>
+            <div class="out" id="chatOut"></div>
+          </div>
+        </div>
       </div>
-      <div class="actions">
-        <button id="btnPreview" type="button">Порахувати аудиторію</button>
-        <button id="btnSend" type="button" class="primary">Надіслати розсилку</button>
-      </div>
-      <div class="out" id="out"></div>
     </div>
   </div>
 
@@ -216,6 +335,32 @@
       } catch (e) {}
     })();
 
+    function persistSecret() {
+      try {
+        if ($('remember').checked) localStorage.setItem(SECRET_KEY, $('secret').value.trim());
+        else localStorage.removeItem(SECRET_KEY);
+      } catch (e) {}
+    }
+
+    // ── Menu navigation ──
+    var navItems = document.querySelectorAll('.nav-item');
+    navItems.forEach(function (item) {
+      item.addEventListener('click', function () {
+        navItems.forEach(function (n) { n.classList.remove('active'); });
+        item.classList.add('active');
+        document.querySelectorAll('.section').forEach(function (s) { s.classList.remove('active'); });
+        var sec = $(item.getAttribute('data-section'));
+        if (sec) sec.classList.add('active');
+      });
+    });
+    document.querySelectorAll('.nav-group-title').forEach(function (title) {
+      title.addEventListener('click', function () {
+        var grp = $(title.getAttribute('data-group'));
+        if (grp) grp.classList.toggle('collapsed');
+      });
+    });
+
+    // ════════════ PUSH section logic ════════════
     function updatePreview() {
       var lang = $('language').value;
       var t = lang === 'en' ? $('titleEn').value : $('titleUk').value;
@@ -260,13 +405,6 @@
         link: external ? $('extUrl').value.trim() : $('link').value.trim(),
         scheduleAtFavoriteHour: $('favHour').checked
       };
-    }
-
-    function persistSecret() {
-      try {
-        if ($('remember').checked) localStorage.setItem(SECRET_KEY, $('secret').value.trim());
-        else localStorage.removeItem(SECRET_KEY);
-      } catch (e) {}
     }
 
     async function call(dryRun) {
@@ -314,6 +452,88 @@
       if (!confirm('Надіслати цю розсилку: ' + scope + '?')) return;
       call(false);
     });
+
+    // ════════════ CHAT section logic ════════════
+    function updateChatPreview() {
+      $('cpAuthor').textContent = $('chatSender').value.trim() || 'ТКАЧ';
+      $('cpText').textContent = $('chatContent').value.trim() || '—';
+      $('chatCount').textContent = String($('chatContent').value.length);
+    }
+    ['chatSender', 'chatContent'].forEach(function (id) {
+      $(id).addEventListener('input', updateChatPreview);
+    });
+    updateChatPreview();
+
+    function updateChatTarget() {
+      var target = $('chatTarget').value;
+      var showCallsign = target !== 'global';
+      $('chatCallsignRow').style.display = showCallsign ? '' : 'none';
+      if (target === 'dm') {
+        $('chatCallsignHint').innerHTML = 'Особисте — нік <b>обовʼязковий</b>.';
+      } else {
+        $('chatCallsignHint').innerHTML = 'Залиш порожнім — надішле <b>всім</b> гравцям. Або введи нік для одного.';
+      }
+    }
+    $('chatTarget').addEventListener('change', updateChatTarget);
+    updateChatTarget();
+
+    function setChatOut(kind, msg) {
+      var el = $('chatOut');
+      el.className = 'out ' + kind;
+      el.textContent = msg;
+    }
+
+    async function sendChat() {
+      var secret = $('secret').value.trim();
+      if (!secret) { setChatOut('err', 'Спочатку введи адмін-секрет.'); return; }
+      var target = $('chatTarget').value;
+      var callsign = $('chatCallsign').value.trim();
+      var content = $('chatContent').value.trim();
+      if (!content) { setChatOut('err', 'Введи текст повідомлення.'); return; }
+      if (target === 'dm' && !callsign) { setChatOut('err', 'Для особистого повідомлення введи нік гравця.'); return; }
+
+      var scope;
+      if (target === 'global') scope = 'у ЗАГАЛЬНИЙ чат (усім)';
+      else if (callsign) scope = 'гравцю "' + callsign + '"';
+      else scope = 'у «' + target + '» — ВСІМ гравцям';
+      if (!confirm('Надіслати повідомлення ' + scope + '?')) return;
+
+      persistSecret();
+      var btn = $('btnChatSend');
+      btn.disabled = true;
+      var label = btn.textContent;
+      btn.textContent = '…';
+
+      try {
+        var res = await fetch('/api/admin/broadcast-message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            secret: secret,
+            target: target,
+            senderName: $('chatSender').value.trim() || 'ТКАЧ',
+            callsign: callsign,
+            content: content
+          })
+        });
+        var data = await res.json().catch(function () { return {}; });
+        if (!res.ok) {
+          setChatOut('err', '[' + res.status + '] ' + (data.message || data.error || 'Помилка запиту'));
+        } else {
+          var where = data.channel ? ('\nКанал: ' + data.channel) : '';
+          setChatOut('ok', 'Надіслано. Доставлено: ' + data.delivered + ' повідомлень.' + where);
+          $('chatContent').value = '';
+          updateChatPreview();
+        }
+      } catch (e) {
+        setChatOut('err', 'Помилка мережі: ' + (e && e.message ? e.message : e));
+      } finally {
+        btn.disabled = false;
+        btn.textContent = label;
+      }
+    }
+
+    $('btnChatSend').addEventListener('click', sendChat);
   </script>
 </body>
 </html>
