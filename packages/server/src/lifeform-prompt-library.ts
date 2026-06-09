@@ -154,8 +154,10 @@ export const LIFEFORM_SPECS: LifeformSpec[] = [
 
 const PHOTO_WRAP_PREFIX =
   'Ultra-detailed scientific microscope capture of a newly discovered alien microorganism:';
+/** Default living medium when the planet context provides none. */
+const DEFAULT_ENV_CLAUSE = 'Suspended in dark mineral-rich fluid';
 const PHOTO_WRAP_SUFFIX =
-  'Suspended in dark mineral-rich fluid. Cinematic deep-space dark background (#020510 tone), ' +
+  'Cinematic deep-space dark background (#020510 tone), ' +
   'soft volumetric backlight, high microscopic depth of field, subtle chromatic scan artifacts, ' +
   'faint scanner grid overlay at very low opacity. Muted desaturated palette with cold accents and dim amber. ' +
   'Photorealistic astrobiology lab imagery, electron-microscope aesthetic. ' +
@@ -167,9 +169,14 @@ const VIDEO_WRAP_SUFFIX =
 
 const SOUND_WRAP_SUFFIX = 'Ambient only, no voice, no narration, no lyrics, no music with melody vocals.';
 
-/** Compose a still-image prompt (Nano Banana 2 / Kling image) from an appearance fragment. */
-export function buildPhotoPromptFromAppearance(appearance: string): string {
-  return `${PHOTO_WRAP_PREFIX} ${appearance}. ${PHOTO_WRAP_SUFFIX}`;
+/**
+ * Compose a still-image prompt (Nano Banana 2 / Kling image) from an appearance
+ * fragment. `envClause` (optional) describes the living medium so the organism
+ * matches its planet (e.g. "resting on dry mineral regolith in near-vacuum").
+ */
+export function buildPhotoPromptFromAppearance(appearance: string, envClause?: string): string {
+  const env = (envClause && envClause.trim()) || DEFAULT_ENV_CLAUSE;
+  return `${PHOTO_WRAP_PREFIX} ${appearance}. ${env}. ${PHOTO_WRAP_SUFFIX}`;
 }
 
 /** Compose an image-to-video motion prompt (Kling V3) from an action fragment. */

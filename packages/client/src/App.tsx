@@ -47,7 +47,8 @@ import type {
   Planet, Star, StarSystem, ResearchState, SystemResearchState, Discovery, CatalogEntry,
 } from '@nebulife/core';
 import { getCatalogEntry, getCatalogName, BUILDING_DEFS } from '@nebulife/core';
-import { rollLifeformFind, isLifeformTriggerBuilding, rollIngredientDrop } from '@nebulife/core';
+import { rollLifeformFind, isLifeformTriggerBuilding, rollIngredientDrop, buildLifeformPlanetContext } from '@nebulife/core';
+import type { LifeformPlanetContext } from '@nebulife/core';
 import type { DiscoveryRarity, LifeformIngredientId } from '@nebulife/core';
 import { checkPremiumStatus, initIAP } from './api/iap-service.js';
 import { getPlayerAliases, setAlias } from './api/alias-api.js';
@@ -1015,6 +1016,7 @@ function AppInner() {
   const [lifeforms, setLifeforms] = useState<Map<string, LifeformRecord>>(new Map());
   const [activeLifeform, setActiveLifeform] = useState<LifeformRecord | null>(null);
   const [activeLifeformBundle, setActiveLifeformBundle] = useState<{ photo?: string; video?: string } | null>(null);
+  const [activeLifeformPlanet, setActiveLifeformPlanet] = useState<LifeformPlanetContext | null>(null);
   const [activeLifeformOnboarding, setActiveLifeformOnboarding] = useState(false);
   const lifeformBuildCounter = useRef(0);
   // TEMP TEST (revert before release): rotates rarity for the 100%-on-harvest
@@ -1796,6 +1798,8 @@ function AppInner() {
           const testBundle = testRarity === 'common' ? { photo: '/lifeforms/common/photo.webp' } : undefined;
           void trackEvent('lifeform_found', { rarity: testRarity, source: 'harvest_test' });
           setActiveLifeformOnboarding(false);
+          // Planet-aware biology so the Alpha-photo matches this exact world.
+          setActiveLifeformPlanet(buildLifeformPlanetContext(lfPlanet));
 
           // Optimistic local record so the reveal popup ALWAYS appears, even if
           // the /api/lifeform/found call fails (offline / DB error). The server
@@ -1819,24 +1823,40 @@ function AppInner() {
             created_at: new Date().toISOString(),
             completed_at: null,
           };
-          setLifeforms((prev) => new Map(prev).set(localLf.id, localLf));
-          setActiveLifeformBundle(testBundle ?? null);
-          setActiveLifeform(localLf);
-
-          reportLifeformFound(lfPidTest, testRarity, { systemId: lfSystemTest.id, planetId: lfPlanet.id })
-            .then((lf) => {
-              const stamped = testBundle?.photo
-                ? { ...lf, is_bundle: true, photo_url: lf.photo_url ?? testBundle.photo }
-                : lf;
-              setLifeforms((prev) => {
-                const next = new Map(prev);
-                next.delete(localLf.id);
-                next.set(stamped.id, stamped);
-                return next;
+          if (testBundle?.photo) {
+            // Common (bundled): show instantly — it needs no server id to render
+            // its bundled art, and never calls the paid generation endpoints.
+            setLifeforms((prev) => new Map(prev).set(localLf.id, localLf));
+            setActiveLifeformBundle(testBundle);
+            setActiveLifeform(localLf);
+            reportLifeformFound(lfPidTest, testRarity, { systemId: lfSystemTest.id, planetId: lfPlanet.id })
+              .then((lf) => {
+                const stamped = { ...lf, is_bundle: true, photo_url: lf.photo_url ?? testBundle.photo };
+                setLifeforms((prev) => {
+                  const next = new Map(prev);
+                  next.delete(localLf.id);
+                  next.set(stamped.id, stamped);
+                  return next;
+                });
+                setActiveLifeform((cur) => (cur && cur.id === localLf.id ? stamped : cur));
+              })
+              .catch(() => { /* keep optimistic local record visible */ });
+          } else {
+            // Paid (uncommon+): persist server-side FIRST so the reveal opens with
+            // a real id — photo/video generation 404s ("Lifeform not found") if it
+            // runs against the optimistic `local-…` id. On failure we still show
+            // the local record so the discovery moment is never lost.
+            setActiveLifeformBundle(null);
+            reportLifeformFound(lfPidTest, testRarity, { systemId: lfSystemTest.id, planetId: lfPlanet.id })
+              .then((lf) => {
+                setLifeforms((prev) => new Map(prev).set(lf.id, lf));
+                setActiveLifeform(lf);
+              })
+              .catch(() => {
+                setLifeforms((prev) => new Map(prev).set(localLf.id, localLf));
+                setActiveLifeform(localLf);
               });
-              setActiveLifeform((cur) => (cur && cur.id === localLf.id ? stamped : cur));
-            })
-            .catch(() => { /* keep optimistic local record visible */ });
+          }
         }
       }
       const ingredient = actualAmount > 0
@@ -10956,8 +10976,9 @@ function AppInner() {
           onUpdated={(lf) => setLifeforms((prev) => new Map(prev).set(lf.id, lf))}
           bundlePhotoSrc={activeLifeformBundle?.photo}
           bundleVideoSrc={activeLifeformBundle?.video}
+          planetContext={activeLifeformPlanet ?? undefined}
           showOnboarding={activeLifeformOnboarding}
-          onClose={() => { setActiveLifeform(null); setActiveLifeformBundle(null); setActiveLifeformOnboarding(false); }}
+          onClose={() => { setActiveLifeform(null); setActiveLifeformBundle(null); setActiveLifeformPlanet(null); setActiveLifeformOnboarding(false); }}
         />
       )}
       {/* Genesis Lab — synthesize life from organic ingredients (L48 Vault) */}
@@ -11175,6 +11196,7 @@ function AppInner() {
                   void trackEvent('lifeform_found', { rarity: 'common', source: 'first_contact' });
                   const bundle = { photo: '/lifeforms/first/photo.webp', video: '/lifeforms/first/video.webm' };
                   setActiveLifeformOnboarding(true);
+                  setActiveLifeformPlanet(buildLifeformPlanetContext(lfPlanet));
                   if (lfPid) {
                     reportLifeformFound(lfPid, 'common', { systemId: lfSystem.id, planetId: lfPlanet.id })
                       .then((lf) => {
@@ -11208,6 +11230,7 @@ function AppInner() {
                     awardXP(60, 'lifeform_found');
                     const bundle = roll.rarity === 'common' ? { photo: '/lifeforms/common/photo.webp' } : undefined;
                     setActiveLifeformOnboarding(false);
+                    setActiveLifeformPlanet(buildLifeformPlanetContext(lfPlanet));
                     reportLifeformFound(lfPid, roll.rarity as DiscoveryRarity, { systemId: lfSystem.id, planetId: lfPlanet.id })
                       .then((lf) => {
                         const stamped = bundle?.photo ? { ...lf, is_bundle: true, photo_url: lf.photo_url ?? bundle.photo } : lf;

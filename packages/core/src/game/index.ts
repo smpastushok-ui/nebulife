@@ -64,8 +64,9 @@ export {
   rollIngredientDrop,
   LIFEFORM_CREATE_RECIPE,
   canCreateLifeform,
+  buildLifeformPlanetContext,
 } from './lifeform.js';
-export type { LifeformSource, LifeformMediaStatus, LifeformFindRoll, LifeformIngredientId, LifeformCreateRecipe } from './lifeform.js';
+export type { LifeformSource, LifeformMediaStatus, LifeformFindRoll, LifeformIngredientId, LifeformCreateRecipe, LifeformPlanetContext } from './lifeform.js';
 
 // Cosmic catalog
 export {

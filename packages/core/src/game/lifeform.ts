@@ -1,5 +1,6 @@
 import { SeededRNG } from '../math/rng.js';
 import type { DiscoveryRarity } from './discovery.js';
+import type { Planet } from '../types/planet.js';
 
 // ---------------------------------------------------------------------------
 // Lifeform Genesis module — shared constants & helpers (client + server)
@@ -222,4 +223,101 @@ function hashString(s: string): number {
     h = Math.imul(h, 16777619);
   }
   return h >>> 0;
+}
+
+// ---------------------------------------------------------------------------
+// Planet-aware biology context — feeds the paid Alpha-photo/video prompts so a
+// discovered organism is biologically coherent with its world: no liquid water
+// → it is NOT aquatic; crust composition drives colour & structure; atmosphere
+// and temperature drive the medium and metabolism. English (prompt-bound).
+// ---------------------------------------------------------------------------
+
+export interface LifeformPlanetContext {
+  /** Binding biological constraints injected into the creative brief. */
+  hint: string;
+  /** Short clause describing the medium the organism is rendered in. */
+  medium: string;
+}
+
+/** Dominant crust element → pigment + structural motif for the organism. */
+const CRUST_PIGMENT: Record<string, string> = {
+  Fe: 'rust-red and ferrous-metallic tones, oxidized iron-like plating',
+  S: 'sulfur-yellow and ochre tones, acidophilic crystalline deposits',
+  C: 'dark graphitic, sooty-black carbon-based tissue',
+  Si: 'glassy translucent silica shell with angular crystalline geometry',
+  Mg: 'dull olivine-green mineral hues',
+  Ca: 'chalky white carbonate plating',
+  Na: 'pale saline crystalline crust',
+  Ni: 'steely-grey metallic sheen',
+  Ti: 'dark titanium-grey armoured shell',
+  Al: 'light aluminous grey-white mineral skin',
+  K: 'faint violet potassic mineral tint',
+  P: 'phosphorescent pale-green mineral veins',
+};
+
+/**
+ * Derive biologically-coherent prompt constraints from a planet's real
+ * parameters (temperature, water, atmosphere, crust composition).
+ */
+export function buildLifeformPlanetContext(planet: Planet): LifeformPlanetContext {
+  const parts: string[] = [];
+  const t = planet.surfaceTempK ?? 288;
+
+  // Temperature regime → metabolism / structure.
+  if (t > 1000) parts.push('a scorching molten world; a heat-forged extremophile of glowing mineral tissue');
+  else if (t > 373) parts.push('an above-boiling blistering world; a thermophilic extremophile');
+  else if (t >= 273) parts.push('a temperate world');
+  else if (t > 150) parts.push('a frozen frigid world; a cryophilic extremophile');
+  else parts.push('an ultra-cold cryogenic world; slow, crystalline biology');
+
+  // Water / living medium — the strongest constraint.
+  const hy = planet.hydrosphere;
+  const pressure = planet.atmosphere?.surfacePressureAtm ?? 0;
+  let medium: string;
+  if (hy && hy.waterCoverageFraction > 0) {
+    parts.push('liquid water is present, so aquatic membrane-based life is plausible');
+    medium = 'suspended in dark mineral-rich liquid water';
+  } else if (hy && hy.hasSubsurfaceOcean) {
+    parts.push('no surface water, but a subsurface ocean beneath ice; life clings to cold cryo-brine');
+    medium = 'suspended in cold subsurface brine beneath cracked ice';
+  } else if (hy && hy.iceCapFraction > 0) {
+    parts.push('no liquid water, only ice; the organism is cryophilic and frost-encased, NOT free-swimming');
+    medium = 'embedded in cracked translucent ice';
+  } else {
+    parts.push('there is NO liquid water anywhere, so the organism is NOT aquatic: it is anhydrous and lithophilic/xerophilic, drawing on minerals rather than water');
+    medium = pressure < 0.01
+      ? 'resting on dry mineral regolith in near-vacuum, with no fluid medium'
+      : 'clinging to dry mineral rock in a thin dusty haze';
+  }
+
+  // Atmosphere → medium chemistry / metabolism.
+  const atm = planet.atmosphere;
+  if (!atm || atm.surfacePressureAtm < 0.01) {
+    parts.push('near-vacuum with no breathable medium; vacuum-hardy, radiation-shielded form');
+  } else {
+    if (atm.surfacePressureAtm > 10) parts.push('crushing high-pressure atmosphere; a squat, reinforced body');
+    const dominant = Object.entries(atm.composition).sort(([, a], [, b]) => b - a)[0];
+    const gasClause: Record<string, string> = {
+      CO2: 'carbon-dioxide atmosphere with carbon-fixing chemistry and a dim greenhouse haze',
+      N2: 'nitrogen-rich atmosphere',
+      H2: 'hydrogen-rich primordial atmosphere favouring buoyant gossamer forms',
+      O2: 'oxygen-rich atmosphere with vivid oxidized pigments',
+      CH4: 'methane atmosphere with an orange-brown hydrocarbon haze and exotic biochemistry',
+      H2O: 'humid water-vapour atmosphere',
+    };
+    if (dominant && gasClause[dominant[0]]) parts.push(gasClause[dominant[0]]);
+  }
+
+  // Crust composition → colour & structure (skip ubiquitous oxygen).
+  const crust = planet.resources?.crustComposition;
+  if (crust) {
+    const pigment = Object.entries(crust)
+      .filter(([el]) => CRUST_PIGMENT[el])
+      .sort(([, a], [, b]) => b - a)[0];
+    if (pigment) {
+      parts.push(`crust rich in ${pigment[0]}, so colouration and structure show ${CRUST_PIGMENT[pigment[0]]}`);
+    }
+  }
+
+  return { hint: parts.join('; '), medium };
 }

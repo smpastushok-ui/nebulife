@@ -58,7 +58,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let deductedPlayerId: string | null = null;
 
   try {
-    const { playerId, lifeformId, planetHint } = req.body;
+    const { playerId, lifeformId, planetHint, planetMedium } = req.body;
 
     if (!playerId || !lifeformId) {
       return res.status(400).json({ error: 'Missing required fields: playerId, lifeformId' });
@@ -95,6 +95,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const brief = await generateLifeformBrief({
       rarity: lifeform.rarity,
       planetHint: typeof planetHint === 'string' ? planetHint : undefined,
+      mediumClause: typeof planetMedium === 'string' ? planetMedium : undefined,
       seed: seedFromId(lifeformId),
     });
 

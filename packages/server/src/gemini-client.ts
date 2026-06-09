@@ -559,6 +559,8 @@ const LIFEFORM_RARITY_HINT: Record<string, string> = {
 export async function generateLifeformBrief(opts: {
   rarity: string;
   planetHint?: string;
+  /** Living-medium clause for the still (e.g. "resting on dry regolith"). */
+  mediumClause?: string;
   seed?: number;
 }): Promise<LifeformBriefResult> {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -575,7 +577,7 @@ export async function generateLifeformBrief(opts: {
       appearance: spec.appearance,
       action: spec.action,
       sound: spec.sound,
-    });
+    }, opts.mediumClause);
   };
 
   if (!apiKey) return fallback();
@@ -585,7 +587,9 @@ Invent ONE unique alien micro-organism and describe it for a science-microscope 
 
 Constraints:
 - Complexity: ${rarityHint}.
-${opts.planetHint ? `- Native to a world that is: ${opts.planetHint}.` : '- Native to a dark, mineral-rich aquatic micro-environment.'}
+${opts.planetHint
+  ? `- The organism is native to this world; treat these planetary facts as BINDING biological constraints (honor water/no-water, temperature, atmosphere, and crust colour/structure): ${opts.planetHint}.`
+  : '- Native to a dark, mineral-rich aquatic micro-environment.'}
 - Aesthetic: electron-microscope / astrobiology, dark cosmos, muted palette, soft bioluminescence.
 - NEVER mention cameras, AI, neural nets, text, faces, humans, or cartoons.
 - "sound" must be AMBIENT only: no voice, no narration, no lyrics.
@@ -613,17 +617,17 @@ Respond with ONLY pure JSON (no markdown):
       appearance: String(parsed.appearance).slice(0, 400),
       action: String(parsed.action).slice(0, 300),
       sound: String(parsed.sound).slice(0, 200),
-    });
+    }, opts.mediumClause);
   } catch (err) {
     console.warn('[lifeform-brief] generation failed, using fallback:', err);
     return fallback();
   }
 }
 
-function finalize(brief: LifeformBrief): LifeformBriefResult {
+function finalize(brief: LifeformBrief, mediumClause?: string): LifeformBriefResult {
   return {
     ...brief,
-    photoPrompt: buildPhotoPromptFromAppearance(brief.appearance),
+    photoPrompt: buildPhotoPromptFromAppearance(brief.appearance, mediumClause),
     videoPrompt: buildVideoPromptFromAction(brief.action),
     soundPrompt: buildSoundPrompt(brief.sound),
   };

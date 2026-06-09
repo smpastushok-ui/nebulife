@@ -50,6 +50,8 @@ export interface LifeformRevealModalProps {
   /** Optional bundled assets (e.g. the special first-contact common). */
   bundlePhotoSrc?: string;
   bundleVideoSrc?: string;
+  /** Planet-derived biology constraints so the Alpha-photo matches the world. */
+  planetContext?: { hint: string; medium: string };
   /** Show the A.S.T.R.A. onboarding (first lifeform ever found). */
   showOnboarding?: boolean;
 }
@@ -63,6 +65,7 @@ export function LifeformRevealModal({
   onClose,
   bundlePhotoSrc,
   bundleVideoSrc,
+  planetContext,
   showOnboarding,
 }: LifeformRevealModalProps) {
   const { t, i18n } = useTranslation();
@@ -97,7 +100,9 @@ export function LifeformRevealModal({
   const { enterVideoFocus, exitVideoFocus } = useVideoAudioFocus();
 
   const commonPhotoSrc = bundlePhotoSrc ?? DEFAULT_COMMON_PHOTO;
-  const photoSrc = record.photo_url || commonPhotoSrc;
+  // Paid (uncommon+) species ship with NO bundled art. Until their unique photo
+  // is captured we must show the styled placeholder — never the common microbe.
+  const photoSrc = record.photo_url || (isCommon ? commonPhotoSrc : '');
   const videoSrc = record.video_url || bundleVideoSrc || '';
 
   const alertLines = [
@@ -137,7 +142,9 @@ export function LifeformRevealModal({
         window.setTimeout(tick, 360);
       } else {
         window.setTimeout(() => {
-          if (!cancelled) setBeat(isCommon ? 'scan' : 'classify');
+          // Common: scan-reveal a bundled organism. Paid (uncommon+): go straight
+          // to capture (photo → video); naming happens last, after the media.
+          if (!cancelled) setBeat(isCommon ? 'scan' : 'media');
         }, 1000);
       }
     };
@@ -181,11 +188,16 @@ export function LifeformRevealModal({
     if (!record.is_bundle) {
       void renameLifeform(playerId, record.id, finalName).catch(() => {});
     }
-    setBeat(isCommon ? 'reward' : 'media');
-  }, [name, record, onUpdated, playerId, isCommon, t]);
+    // Naming is the final beat for every path (paid media already happened).
+    setBeat('reward');
+  }, [name, record, onUpdated, playerId, t]);
 
   // ── Paid Alpha-photo generation ─────────────────────────────────────────
   const startPhotoGen = useCallback(async () => {
+    if (record.id.startsWith('local-')) {
+      setGenError(t('lifeform.err_offline'));
+      return;
+    }
     if (quarks < photoCost) {
       setGenError(t('lifeform.err_quarks'));
       return;
@@ -194,7 +206,10 @@ export function LifeformRevealModal({
     setPhotoGenStatus('generating');
     void trackEvent('lifeform_alpha_photo', { rarity, cost: photoCost });
     try {
-      const resp = await generateLifeformPhoto(playerId, record.id);
+      const resp = await generateLifeformPhoto(playerId, record.id, {
+        planetHint: planetContext?.hint,
+        planetMedium: planetContext?.medium,
+      });
       if (resp.quarksRemaining !== null && resp.quarksRemaining !== undefined) {
         onQuarksChange(resp.quarksRemaining);
       }
@@ -212,10 +227,14 @@ export function LifeformRevealModal({
       setPhotoGenStatus('failed');
       setGenError(err instanceof Error ? err.message : t('lifeform.err_failed'));
     }
-  }, [quarks, photoCost, playerId, record, onQuarksChange, onUpdated, t]);
+  }, [quarks, photoCost, playerId, record, onQuarksChange, onUpdated, planetContext, t]);
 
   // ── Paid Alpha-video generation ─────────────────────────────────────────
   const startVideoGen = useCallback(async () => {
+    if (record.id.startsWith('local-')) {
+      setGenError(t('lifeform.err_offline'));
+      return;
+    }
     if (quarks < videoCost) {
       setGenError(t('lifeform.err_quarks'));
       return;
@@ -253,7 +272,7 @@ export function LifeformRevealModal({
     <div style={{ ...styles.mediaFrame, borderColor: accent, boxShadow: `0 0 24px ${hexA(accent, 0.25)}` }}>
       {(mode === 'scan' || mode === 'still') && (
         <>
-          {!photoFailed ? (
+          {photoSrc && !photoFailed ? (
             <img src={photoSrc} alt="" onError={() => setPhotoFailed(true)} style={styles.mediaImg} />
           ) : (
             <Placeholder label={t('lifeform.scan_caption')} accent={accent} />
@@ -376,7 +395,7 @@ export function LifeformRevealModal({
             </div>
             <div style={styles.astraNote}>
               <span style={{ color: '#7bb8ff' }}>A.S.T.R.A. </span>
-              {isCommon ? t('lifeform.astra_note') : t('lifeform.astra_paid_note')}
+              {isCommon ? t('lifeform.astra_note') : t('lifeform.astra_classified')}
             </div>
             <label style={styles.nameLabel}>{t('lifeform.name_prompt')}</label>
             <input
@@ -396,6 +415,12 @@ export function LifeformRevealModal({
         {beat === 'media' && (
           <div style={styles.beatBody}>
             {renderMedia('still')}
+            {!record.photo_url && !record.video_url && (
+              <div style={styles.astraNote}>
+                <span style={{ color: '#7bb8ff' }}>A.S.T.R.A. </span>
+                {t('lifeform.astra_paid_note')}
+              </div>
+            )}
             {genError && <div style={styles.errorRow}>{genError}</div>}
 
             {/* Premium media — paid unique 4K generation (uncommon+ only) */}
@@ -429,8 +454,8 @@ export function LifeformRevealModal({
               </div>
             )}
 
-            <button onClick={() => setBeat('reward')} style={styles.ghostBtn}>
-              {record.photo_url || record.video_url ? t('lifeform.to_archive') : t('lifeform.maybe_later')}
+            <button onClick={() => setBeat('classify')} style={{ ...styles.primaryBtn, color: accent, borderColor: accent, background: hexA(accent, 0.12) }}>
+              {record.photo_url || record.video_url ? t('lifeform.continue') : t('lifeform.maybe_later')}
             </button>
           </div>
         )}
@@ -472,6 +497,21 @@ export function LifeformRevealModal({
 // ---------------------------------------------------------------------------
 // Sub-components & helpers
 // ---------------------------------------------------------------------------
+
+/** Inline quark currency icon (orbiting-electron atom) — matches the rest of the UI. */
+function QuarkIcon({ color = '#7bb8ff' }: { color?: string }) {
+  return (
+    <svg
+      width="12" height="12" viewBox="0 0 16 16" fill="none" stroke={color} strokeWidth="1.3"
+      style={{ display: 'inline-block', verticalAlign: 'middle' }}
+    >
+      <circle cx="8" cy="8" r="2" />
+      <ellipse cx="8" cy="8" rx="7" ry="3" />
+      <ellipse cx="8" cy="8" rx="7" ry="3" transform="rotate(60 8 8)" />
+      <ellipse cx="8" cy="8" rx="7" ry="3" transform="rotate(-60 8 8)" />
+    </svg>
+  );
+}
 
 function Placeholder({ label, accent }: { label: string; accent: string }) {
   return (
@@ -534,7 +574,7 @@ function PremiumCard({ accent, kicker, label, desc, infoTitle, cost, busy, busyL
           <span style={styles.premiumLabel}>{busy ? busyLabel : label}</span>
           {!busy && (
             <span style={{ ...styles.premiumCost, color: accent, borderColor: hexA(accent, 0.45), background: hexA(accent, 0.1) }}>
-              {cost} ◈
+              {cost} <QuarkIcon color={accent} />
             </span>
           )}
         </span>
