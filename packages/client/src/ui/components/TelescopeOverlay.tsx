@@ -559,7 +559,10 @@ export function TelescopeOverlay({
             {/* Action buttons */}
             {showActions && !flyAway && (
               <div style={{
-                display: 'flex', gap: 12, marginTop: 20,
+                display: 'flex', flexWrap: 'wrap', justifyContent: 'center',
+                alignItems: 'center', gap: 8, marginTop: 18,
+                maxWidth: 'min(92vw, 460px)', padding: '0 8px',
+                boxSizing: 'border-box',
                 opacity: showActions ? 1 : 0,
                 transform: showActions ? 'translateY(0)' : 'translateY(10px)',
                 transition: 'opacity 0.4s, transform 0.4s',
@@ -573,9 +576,10 @@ export function TelescopeOverlay({
                     color: '#4488aa',
                     fontFamily: 'monospace',
                     fontSize: 11,
-                    padding: '8px 20px',
+                    padding: '8px 16px',
                     cursor: 'pointer',
                     letterSpacing: 1,
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {t('telescope.share_btn')}
@@ -590,9 +594,10 @@ export function TelescopeOverlay({
                       color: '#7bb8ff',
                       fontFamily: 'monospace',
                       fontSize: 11,
-                      padding: '8px 20px',
+                      padding: '8px 16px',
                       cursor: 'pointer',
                       letterSpacing: 1,
+                      whiteSpace: 'nowrap',
                     }}
                   >
                     {t('telescope.to_exosphere')}
@@ -608,9 +613,10 @@ export function TelescopeOverlay({
                       color: '#8899aa',
                       fontFamily: 'monospace',
                       fontSize: 11,
-                      padding: '8px 20px',
+                      padding: '8px 16px',
                       cursor: 'pointer',
                       letterSpacing: 1,
+                      whiteSpace: 'nowrap',
                     }}
                   >
                     {t('photo.download')}
@@ -625,9 +631,10 @@ export function TelescopeOverlay({
                     color: '#44ff88',
                     fontFamily: 'monospace',
                     fontSize: 11,
-                    padding: '8px 20px',
+                    padding: '8px 16px',
                     cursor: 'pointer',
                     letterSpacing: 1,
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {t('telescope.save_btn')}
