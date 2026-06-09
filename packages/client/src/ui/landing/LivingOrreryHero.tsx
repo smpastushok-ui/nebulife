@@ -1012,8 +1012,10 @@ export function LivingOrreryHero({ isIgnited, onIgniteComplete, targetStep }: Li
         // We look at the planet from this offset direction.
         const offsetDir = dirToSun.clone().multiplyScalar(0.75).add(right.multiplyScalar(0.6)).add(new THREE.Vector3(0, 0.4, 0)).normalize();
         
-        // Scale distance by planet radius to fit perfectly
-        const dist = isMobile ? Math.max(2.5, p.radius * 4.5) : Math.max(2.2, p.radius * 2.0); // Mobile 4.5 makes planets larger, Desktop 2.0 makes them huge
+        // Scale distance by planet radius to fit perfectly.
+        // Mobile: 5.2 keeps the FULL planet disc on screen (~46% of height) while
+        // still being big and recognizable. Desktop: 2.0 fills more of the wide frame.
+        const dist = isMobile ? Math.max(2.8, p.radius * 5.2) : Math.max(2.2, p.radius * 2.0);
         let pos = planetPos.clone().add(offsetDir.multiplyScalar(dist));
         let look = planetPos.clone();
         
@@ -1024,8 +1026,10 @@ export function LivingOrreryHero({ isIgnited, onIgniteComplete, targetStep }: Li
           // On mobile, we look ABOVE the planet if text is at the TOP (odd steps),
           // or BELOW the planet if text is at the BOTTOM (even steps).
           // Looking above shifts the planet down; looking below shifts the planet up.
+          // tilt = radius * 1.0 places the planet centre ~73% / 27% down the screen so
+          // the whole disc lands in the half NOT covered by the text (no edge clipping).
           const isOddStep = index % 2 !== 0;
-          const tiltAmount = p.radius * 2.0; // Careful not to tilt too much so it stays visible
+          const tiltAmount = p.radius * 1.0;
           
           if (isOddStep) {
             // Text is TOP, planet should be BOTTOM -> look UP
