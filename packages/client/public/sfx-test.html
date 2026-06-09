@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Nebulife - Аудіо-тест</title>
+  <style>
+    :root {
+      --bg: #020510;
+      --panel: rgba(10, 15, 25, 0.92);
+      --text: #aabbcc;
+      --text-2: #8899aa;
+      --muted: #667788;
+      --border: #334455;
+      --border-active: #446688;
+      --green: #44ff88;
+      --orange: #ff8844;
+      --red: #cc4444;
+      --accent: #4488aa;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+      font-size: 14px; line-height: 1.5; padding: 24px 16px 80px;
+    }
+    .wrap { max-width: 1040px; margin: 0 auto; }
+    h1 { font-size: 18px; letter-spacing: 1px; margin: 0 0 4px; }
+    .sub { color: var(--muted); font-size: 12px; margin: 0 0 20px; }
+    .bar {
+      position: sticky; top: 0; z-index: 5; background: var(--bg);
+      padding: 10px 0 14px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+      border-bottom: 1px solid var(--border); margin-bottom: 18px;
+    }
+    .bar label { color: var(--text-2); font-size: 12px; }
+    input[type=range] { width: 160px; vertical-align: middle; }
+    input[type=search] {
+      background: #0a0f19; color: var(--text); border: 1px solid var(--border);
+      border-radius: 3px; padding: 8px 10px; font-family: inherit; font-size: 13px; min-width: 200px;
+    }
+    button {
+      font-family: inherit; font-size: 12px; letter-spacing: 0.4px;
+      padding: 7px 12px; border-radius: 3px; cursor: pointer;
+      border: 1px solid var(--border-active); background: #0a0f19; color: var(--text);
+    }
+    button:hover { background: #11192a; }
+    button.stop { border-color: var(--red); color: #ff9a9a; }
+    h2 {
+      font-size: 12px; text-transform: uppercase; letter-spacing: 1px;
+      color: var(--text-2); margin: 22px 0 10px;
+    }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+    .cell {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      background: var(--panel); border: 1px solid var(--border); border-radius: 4px;
+      padding: 8px 10px;
+    }
+    .cell.playing { border-color: var(--green); }
+    .cell .name { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cell .tag { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--orange); }
+    .cell .ctl { display: flex; gap: 6px; flex-shrink: 0; }
+    .hidden { display: none; }
+    .note { color: var(--muted); font-size: 11px; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>NEBULIFE - АУДІО-ТЕСТ</h1>
+    <p class="sub">Усі SFX та музика гри. Службова сторінка (не для продакшену).</p>
+
+    <div class="bar">
+      <span><label>Гучність</label> <input id="vol" type="range" min="0" max="1" step="0.05" value="0.6" /></span>
+      <input id="filter" type="search" placeholder="фільтр за назвою..." autocomplete="off" />
+      <button id="stopAll" class="stop" type="button">Зупинити все</button>
+    </div>
+
+    <div id="sections"></div>
+  </div>
+
+  <script>
+    // SFX from /public/sfx (each has .webm + .mp3, except ui-click which is .mp3 only).
+    var SFX = {
+      "UI / система": ["ui-click", "ui-error", "text-massage", "chat-send", "notify*", "ui_click_disabled*"],
+      "Прогрес / нагороди": ["level-up", "xp-gain", "tech-unlock", "research-system-start", "research-complete-all", "new-discovery-find", "quiz-correct", "quiz-wrong"],
+      "Поверхня / колонія": ["harvest-all", "building-place", "building-demolish", "colony-founded", "bot-launch", "pixel-reveal", "tile-discover", "respawn", "name-planet-load"],
+      "Навігація / космос": ["system-select", "planet-select", "warp-jump", "warp-arrive", "go-to-exosphera", "scene-transition", "fly", "quantum-focus", "angar"],
+      "Тривоги": ["alarm", "evac-alarm"],
+      "Арена / бій": ["arena-start", "arena-countdown", "arena-warp", "arena-laser", "arena-missile", "arena-explosion", "arena-shield-break", "arena-powerup", "arena-grav", "arena-blackhole", "lazer-red", "missile-hit", "asteroid-explosion"],
+      "Трейлери": ["before-trailers"]
+    };
+    var LOOPS = { "Цикли (loop)": ["planet-loop", "terminal-loop"] };
+    var MUSIC = { "Музика (/music)": ["space", "onboarding"] };
+
+    var $ = function (id) { return document.getElementById(id); };
+    var current = null;       // single one-shot
+    var loopAudios = {};      // name -> Audio (loops + music)
+
+    function webmOk() {
+      try { var a = document.createElement('audio'); return !!(a.canPlayType('audio/webm; codecs="opus"') || a.canPlayType('audio/webm')); }
+      catch (e) { return false; }
+    }
+    var EXT = webmOk() ? 'webm' : 'mp3';
+
+    function srcFor(folder, name) {
+      var clean = name.replace(/\*$/, '');
+      if (clean === 'ui-click') return '/sfx/ui-click.mp3';
+      return '/' + folder + '/' + clean + '.' + EXT;
+    }
+
+    function vol() { return parseFloat($('vol').value); }
+
+    function playOnce(folder, name, cell) {
+      if (current) { try { current.pause(); } catch (e) {} }
+      document.querySelectorAll('.cell.playing').forEach(function (c) { c.classList.remove('playing'); });
+      var a = new Audio(srcFor(folder, name));
+      a.volume = vol();
+      current = a;
+      cell.classList.add('playing');
+      a.addEventListener('ended', function () { cell.classList.remove('playing'); }, { once: true });
+      a.play().catch(function (e) { cell.classList.remove('playing'); alert('Не вдалось відтворити ' + name + ' (' + (e && e.message ? e.message : e) + ')'); });
+    }
+
+    function toggleLoop(folder, name, cell, btn) {
+      if (loopAudios[name]) {
+        try { loopAudios[name].pause(); } catch (e) {}
+        delete loopAudios[name];
+        cell.classList.remove('playing'); btn.textContent = 'Грати';
+        return;
+      }
+      var a = new Audio(srcFor(folder, name));
+      a.loop = true; a.volume = vol();
+      loopAudios[name] = a;
+      cell.classList.add('playing'); btn.textContent = 'Стоп';
+      a.play().catch(function (e) { cell.classList.remove('playing'); btn.textContent = 'Грати'; delete loopAudios[name]; alert('Не вдалось: ' + (e && e.message ? e.message : e)); });
+    }
+
+    function makeCell(folder, name, looping) {
+      var clean = name.replace(/\*$/, '');
+      var missing = /\*$/.test(name);
+      var cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.name = clean;
+      var label = document.createElement('div');
+      label.className = 'name';
+      label.textContent = clean;
+      if (missing) { var t = document.createElement('span'); t.className = 'tag'; t.textContent = ' нема файлу'; label.appendChild(t); }
+      var ctl = document.createElement('div'); ctl.className = 'ctl';
+      var btn = document.createElement('button'); btn.type = 'button'; btn.textContent = 'Грати';
+      if (missing) { btn.disabled = true; btn.style.opacity = 0.4; }
+      else if (looping) { btn.addEventListener('click', function () { toggleLoop(folder, clean, cell, btn); }); }
+      else { btn.addEventListener('click', function () { playOnce(folder, clean, cell); }); }
+      ctl.appendChild(btn);
+      cell.appendChild(label); cell.appendChild(ctl);
+      return cell;
+    }
+
+    function renderGroup(title, names, folder, looping) {
+      var h = document.createElement('h2'); h.textContent = title;
+      var grid = document.createElement('div'); grid.className = 'grid';
+      names.forEach(function (n) { grid.appendChild(makeCell(folder, n, looping)); });
+      var wrap = $('sections');
+      wrap.appendChild(h); wrap.appendChild(grid);
+    }
+
+    Object.keys(SFX).forEach(function (k) { renderGroup(k, SFX[k], 'sfx', false); });
+    Object.keys(LOOPS).forEach(function (k) { renderGroup(k, LOOPS[k], 'sfx', true); });
+    Object.keys(MUSIC).forEach(function (k) { renderGroup(k, MUSIC[k], 'music', true); });
+
+    $('stopAll').addEventListener('click', function () {
+      if (current) { try { current.pause(); } catch (e) {} current = null; }
+      Object.keys(loopAudios).forEach(function (n) { try { loopAudios[n].pause(); } catch (e) {} });
+      loopAudios = {};
+      document.querySelectorAll('.cell.playing').forEach(function (c) { c.classList.remove('playing'); });
+      document.querySelectorAll('.ctl button').forEach(function (b) { if (b.textContent === 'Стоп') b.textContent = 'Грати'; });
+    });
+
+    $('vol').addEventListener('input', function () {
+      var v = vol();
+      if (current) current.volume = v;
+      Object.keys(loopAudios).forEach(function (n) { loopAudios[n].volume = v; });
+    });
+
+    $('filter').addEventListener('input', function () {
+      var q = this.value.trim().toLowerCase();
+      document.querySelectorAll('.cell').forEach(function (c) {
+        c.classList.toggle('hidden', q && c.dataset.name.indexOf(q) === -1);
+      });
+    });
+  </script>
+</body>
+</html>
