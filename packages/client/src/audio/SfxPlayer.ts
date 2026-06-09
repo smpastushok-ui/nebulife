@@ -200,6 +200,53 @@ export function stopAllLoops(): void {
   loops.clear();
 }
 
+// ── Video audio focus ───────────────────────────────────────────────────────
+//
+// While a lifeform / cinematic video with its own soundtrack is playing we duck
+// every background loop to silence so the clip's audio stands alone. The space
+// ambient (owned by App via SpaceAmbient) is handled separately: we broadcast a
+// `nebulife:video-audio-focus` CustomEvent that App listens to. Reference-counted
+// so overlapping videos (reveal modal + gallery) restore correctly.
+
+let videoFocusCount = 0;
+const duckedLoopVolumes = new Map<string, number>();
+
+function duckLoopsForVideo(): void {
+  for (const [name, audio] of loops) {
+    if (!duckedLoopVolumes.has(name)) duckedLoopVolumes.set(name, audio.volume);
+    try { audio.volume = 0; } catch { /* ignore */ }
+  }
+}
+
+function restoreLoopsAfterVideo(): void {
+  for (const [name, vol] of duckedLoopVolumes) {
+    const audio = loops.get(name);
+    if (audio) { try { audio.volume = vol; } catch { /* ignore */ } }
+  }
+  duckedLoopVolumes.clear();
+}
+
+/** Begin video audio focus: duck all background loops + notify the ambient. */
+export function enterVideoAudioFocus(): void {
+  videoFocusCount++;
+  if (videoFocusCount !== 1) return;
+  duckLoopsForVideo();
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('nebulife:video-audio-focus', { detail: { active: true } }));
+  }
+}
+
+/** End video audio focus: restore loops once the last video releases focus. */
+export function exitVideoAudioFocus(): void {
+  if (videoFocusCount === 0) return;
+  videoFocusCount--;
+  if (videoFocusCount !== 0) return;
+  restoreLoopsAfterVideo();
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('nebulife:video-audio-focus', { detail: { active: false } }));
+  }
+}
+
 // ── Auto-pause on tab/app background ────────────────────────────────────────
 //
 // Mobile users reported background loops continuing to play after the screen

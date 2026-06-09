@@ -898,7 +898,21 @@ function AppInner() {
   useEffect(() => {
     ambientRef.current = new SpaceAmbient();
     onboardingAmbientRef.current = new SpaceAmbient('/music/onboarding.webm');
+    // Duck background music while a lifeform / cinematic video soundtrack plays
+    // (SfxPlayer ducks its loops; here we duck the space ambient too).
+    const onVideoFocus = (e: Event) => {
+      const active = (e as CustomEvent<{ active?: boolean }>).detail?.active;
+      if (active) {
+        ambientRef.current?.duckForVideo();
+        onboardingAmbientRef.current?.duckForVideo();
+      } else {
+        ambientRef.current?.unduckForVideo();
+        onboardingAmbientRef.current?.unduckForVideo();
+      }
+    };
+    window.addEventListener('nebulife:video-audio-focus', onVideoFocus);
     return () => {
+      window.removeEventListener('nebulife:video-audio-focus', onVideoFocus);
       ambientRef.current?.stop();
       ambientRef.current = null;
       onboardingAmbientRef.current?.stop();
@@ -1782,16 +1796,47 @@ function AppInner() {
           const testBundle = testRarity === 'common' ? { photo: '/lifeforms/common/photo.webp' } : undefined;
           void trackEvent('lifeform_found', { rarity: testRarity, source: 'harvest_test' });
           setActiveLifeformOnboarding(false);
+
+          // Optimistic local record so the reveal popup ALWAYS appears, even if
+          // the /api/lifeform/found call fails (offline / DB error). The server
+          // response, when it lands, replaces this record by id.
+          const localLf: LifeformRecord = {
+            id: `local-${Date.now()}`,
+            player_id: lfPidTest,
+            system_id: lfSystemTest.id,
+            planet_id: lfPlanet.id,
+            source: 'found',
+            rarity: testRarity,
+            species_name: null,
+            is_bundle: !!testBundle?.photo,
+            photo_url: testBundle?.photo ?? null,
+            photo_status: testBundle?.photo ? 'succeed' : null,
+            photo_task_id: null,
+            video_url: null,
+            video_status: null,
+            video_task_id: null,
+            quarks_paid: 0,
+            created_at: new Date().toISOString(),
+            completed_at: null,
+          };
+          setLifeforms((prev) => new Map(prev).set(localLf.id, localLf));
+          setActiveLifeformBundle(testBundle ?? null);
+          setActiveLifeform(localLf);
+
           reportLifeformFound(lfPidTest, testRarity, { systemId: lfSystemTest.id, planetId: lfPlanet.id })
             .then((lf) => {
               const stamped = testBundle?.photo
                 ? { ...lf, is_bundle: true, photo_url: lf.photo_url ?? testBundle.photo }
                 : lf;
-              setLifeforms((prev) => new Map(prev).set(stamped.id, stamped));
-              setActiveLifeformBundle(testBundle ?? null);
-              setActiveLifeform(stamped);
+              setLifeforms((prev) => {
+                const next = new Map(prev);
+                next.delete(localLf.id);
+                next.set(stamped.id, stamped);
+                return next;
+              });
+              setActiveLifeform((cur) => (cur && cur.id === localLf.id ? stamped : cur));
             })
-            .catch(() => { /* ignore — keep harvest flow intact */ });
+            .catch(() => { /* keep optimistic local record visible */ });
         }
       }
       const ingredient = actualAmount > 0

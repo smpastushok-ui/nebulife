@@ -800,9 +800,21 @@ export async function saveSurfaceBuilding(b: {
   y: number;
 }): Promise<SurfaceBuildingRow> {
   const sql = getSQL();
+  // UPSERT: the building id is deterministic (playerId-slot-type), so re-placing
+  // the same building type on the same slot (e.g. demolish + rebuild, or a
+  // client retry) must not 500 with a duplicate-PK error. Re-bind ownership/
+  // coords and refresh built_at instead.
   const rows = await sql`
     INSERT INTO surface_buildings (id, player_id, planet_id, system_id, type, x, y)
     VALUES (${b.id}, ${b.playerId}, ${b.planetId}, ${b.systemId}, ${b.type}, ${b.x}, ${b.y})
+    ON CONFLICT (id) DO UPDATE SET
+      player_id = EXCLUDED.player_id,
+      planet_id = EXCLUDED.planet_id,
+      system_id = EXCLUDED.system_id,
+      type = EXCLUDED.type,
+      x = EXCLUDED.x,
+      y = EXCLUDED.y,
+      built_at = NOW()
     RETURNING *
   `;
   return rows[0] as SurfaceBuildingRow;
@@ -2809,6 +2821,61 @@ export async function completeIdempotencyKey(
         completed_at = NOW()
     WHERE key = ${key}
   `;
+}
+
+/**
+ * Release an idempotency key that was acquired but never completed (e.g. the
+ * handler threw before crediting). Deletes only un-completed rows so a genuine
+ * client retry can re-acquire and re-attempt the operation. No-op on completed
+ * keys (those must keep replaying their cached response).
+ */
+export async function releaseIdempotencyKey(key: string): Promise<void> {
+  const sql = getSQL();
+  await sql`DELETE FROM idempotency_keys WHERE key = ${key} AND completed_at IS NULL`;
+}
+
+// ---------------------------------------------------------------------------
+// IAP grant failures (durable record of store-charged-but-not-credited cases)
+// ---------------------------------------------------------------------------
+
+export type IapGrantFailureReason =
+  | 'credit_failed'
+  | 'unknown_product'
+  | 'player_not_found'
+  | 'amount_mismatch'
+  | 'player_mismatch'
+  | 'missing_fields';
+
+export async function logIapGrantFailure(failure: {
+  playerId?: string | null;
+  productId?: string | null;
+  quarks?: number | null;
+  purchaseToken?: string | null;
+  reason: IapGrantFailureReason;
+  status: number;
+  detail?: string | null;
+}): Promise<void> {
+  const sql = getSQL();
+  // Best-effort: never let logging a failure throw and mask the real error.
+  try {
+    await sql`
+      INSERT INTO iap_grant_failures (
+        id, player_id, product_id, quarks, purchase_token, reason, status, detail
+      )
+      VALUES (
+        ${randomUUID()},
+        ${failure.playerId ?? null},
+        ${failure.productId ?? null},
+        ${failure.quarks ?? null},
+        ${failure.purchaseToken ?? null},
+        ${failure.reason},
+        ${failure.status},
+        ${failure.detail ?? null}
+      )
+    `;
+  } catch (err) {
+    console.error('[IAP] Failed to record grant failure:', err);
+  }
 }
 
 /** Atomic add — prevents TOCTOU race via WHERE clause. */

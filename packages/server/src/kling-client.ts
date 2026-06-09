@@ -41,12 +41,16 @@ export interface KlingGenerateRequest {
   aspectRatio?: string;  // '16:9' | '9:16' | '4:3' | '3:2' | '1:1' | '2:3' | '3:4' | provider-supported custom ratios
   resolution?: '1K' | '2K' | '4K';
   /**
-   * Override the image model. Defaults to 'kling-v1-5'.
-   * Pass 'kling-v3-omni' for native 2K/4K output (the only model that honors
-   * the `resolution` field). Existing callers keep the legacy model untouched.
+   * Override the image model. Defaults to env KLING_IMAGE_MODEL or 'kling-v1-5'.
+   * Valid model_name enum (api.klingai.com): kling-v1, kling-v1-5, kling-v2,
+   * kling-v2-new, kling-v2-1, kling-v3. Only v2+ models honor `resolution`.
+   * Pass 'kling-v2-1' for 2K output.
    */
   model?: string;
 }
+
+// Models that accept the `resolution` field (1k/2k). Older models reject it.
+const RESOLUTION_CAPABLE_MODELS = new Set(['kling-v2', 'kling-v2-new', 'kling-v2-1', 'kling-v3']);
 
 export interface KlingGenerateResponse {
   code: number;
@@ -66,7 +70,7 @@ export interface KlingGenerateResponse {
 export async function generateImage(req: KlingGenerateRequest): Promise<{ taskId: string }> {
   const token = generateJWT();
 
-  const modelName = req.model ?? 'kling-v1-5';
+  const modelName = req.model ?? process.env.KLING_IMAGE_MODEL ?? 'kling-v1-5';
 
   const body: Record<string, unknown> = {
     model_name: modelName,
@@ -76,10 +80,11 @@ export async function generateImage(req: KlingGenerateRequest): Promise<{ taskId
     // callback_url could be used for webhooks instead of polling
   };
 
-  // Only kling-v3-omni supports native resolution selection (1k/2k/4k).
-  // Sending it to older models would be rejected, so gate it on the model.
-  if (modelName === 'kling-v3-omni' && req.resolution) {
-    body.resolution = req.resolution.toLowerCase(); // '1k' | '2k' | '4k'
+  // Resolution (1k/2k) is only honored by v2+ models; images cap at 2k, so a
+  // requested 4K is clamped down. Sending it to older models would 400.
+  if (RESOLUTION_CAPABLE_MODELS.has(modelName) && req.resolution) {
+    const r = req.resolution.toLowerCase();
+    body.resolution = r === '4k' ? '2k' : r; // '1k' | '2k'
   }
 
   const response = await fetch(`${KLING_API_BASE}/images/generations`, {

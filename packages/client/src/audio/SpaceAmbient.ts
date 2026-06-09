@@ -43,6 +43,7 @@ export class SpaceAmbient {
   private fadeRaf: number | null = null;
   private targetVolume = 0.30; // last known target (0..1), matches slider default
   private pausedByScene = false;
+  private duckedByVideo = false;
   private onVisibilityChange: (() => void) | null = null;
   private onFirstInteraction: (() => void) | null = null;
   private readonly src: string;
@@ -241,6 +242,20 @@ export class SpaceAmbient {
     if (this.audio && !this.pausedByScene) {
       this.audio.volume = clamped;
     }
+  }
+
+  /** Duck to silence while a video soundtrack plays. Independent of scene
+   *  pause state so it never resurrects audio the scene logic muted. */
+  public duckForVideo(fadeMs: number = 250): void {
+    this.duckedByVideo = true;
+    if (this.audio) this.fadeTo(0, fadeMs);
+  }
+
+  /** Restore after a video ends — only if the current scene still allows audio. */
+  public unduckForVideo(fadeMs: number = 600): void {
+    if (!this.duckedByVideo) return;
+    this.duckedByVideo = false;
+    if (this.audio && !this.pausedByScene) this.fadeTo(this.targetVolume, fadeMs);
   }
 
   /** App/browser background: pause decoding without changing scene intent. */

@@ -89,7 +89,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const klingResponse = await generateImage({
       prompt,
       aspectRatio: '16:9',
-      model: 'kling-v3-omni',
+      model: 'kling-v3',
       resolution: '2K',
     });
 

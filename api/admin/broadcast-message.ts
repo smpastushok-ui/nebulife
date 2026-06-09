@@ -31,7 +31,10 @@ const WEAVER_SENDER_ID = 'nebula-weaver';
 const DEFAULT_SENDER_NAME = 'ТКАЧ';
 
 function getAdminSecret(): string | null {
-  return process.env.ADMIN_PUSH_SECRET || process.env.CRON_SECRET || null;
+  // Trim: a trailing newline/space pasted into the Vercel env value would make
+  // timingSafeEqual's length check fail and reject the (trimmed) form secret → 401.
+  const secret = (process.env.ADMIN_PUSH_SECRET || process.env.CRON_SECRET || '').trim();
+  return secret || null;
 }
 
 function secretMatches(provided: string, expected: string): boolean {

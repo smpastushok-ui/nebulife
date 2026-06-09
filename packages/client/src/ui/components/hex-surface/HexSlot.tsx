@@ -194,6 +194,12 @@ function ResourceContent({
 }) {
   const resourceType = slot.resourceType!;
   const rarity = slot.rarity!;
+  // PERF/CORRECTNESS: `ready` is derived per-render. The respawn timer below
+  // only mutates DOM (no state), so when respawn completes the React tree never
+  // re-renders and the dark stasis overlay would stay stuck. `respawnTick`
+  // forces one re-render the moment the timer hits zero so `ready` flips true
+  // and the overlay/timer box disappear.
+  const [, setRespawnTick] = useState(0);
   const ready = isResourceReady(slot.lastHarvestedAt, slot.yieldPerHour, slot.ring);
   const rarityNum = RARITY_INDEX[rarity] ?? 1;
   const webpSrc = (RESOURCE_WEBP_TEMPLATES[resourceType] ?? RESOURCE_WEBP_TEMPLATES.ore)(rarityNum);
@@ -213,6 +219,7 @@ function ResourceContent({
         if (timerRef.current) timerRef.current.textContent = '';
         if (imgRef.current) imgRef.current.style.opacity = '1';
         clearInterval(id);
+        setRespawnTick((n) => n + 1); // re-render → `ready` recomputes true, overlay clears
         return;
       }
       if (timerRef.current) timerRef.current.textContent = formatMs(rem);
@@ -220,7 +227,7 @@ function ResourceContent({
     update(); // immediate first update
     const id = setInterval(update, 1000);
     return () => clearInterval(id);
-  }, [ready, slot.lastHarvestedAt, slot.yieldPerHour]);
+  }, [ready, slot.lastHarvestedAt, slot.yieldPerHour, slot.ring]);
 
   return (
     <div

@@ -132,6 +132,9 @@ export {
   // Idempotency
   acquireIdempotencyKey,
   completeIdempotencyKey,
+  releaseIdempotencyKey,
+  // IAP grant failures
+  logIapGrantFailure,
   // Account Deletion
   deletePlayerData,
   // Academy

@@ -4,6 +4,7 @@ import { Capacitor } from '@capacitor/core';
 import { RARITY_COLORS, getRarityLabel } from '@nebulife/core';
 import type { DiscoveryRarity, StarSystem } from '@nebulife/core';
 import { getPlayerLifeforms, type LifeformRecord } from '../../../api/lifeform-api.js';
+import { useVideoAudioFocus } from '../../../audio/useVideoAudioFocus.js';
 
 const GAME_URL_WEB = 'https://nebulife.space';
 
@@ -275,6 +276,7 @@ function LifeLightbox({ lifeform, mode, planetContext, onGoToPlanet, onClose }: 
   const photo = lifeform.photo_url || (lifeform.is_bundle || lifeform.rarity === 'common' ? DEFAULT_COMMON_PHOTO : '');
   const showVideo = mode === 'video' && !!lifeform.video_url;
   const [videoLoading, setVideoLoading] = useState(showVideo);
+  const { enterVideoFocus, exitVideoFocus } = useVideoAudioFocus();
 
   // Share / save the currently-shown media (photo in photo mode, clip in video mode).
   const [shared, setShared] = useState(false);
@@ -334,7 +336,10 @@ function LifeLightbox({ lifeform, mode, planetContext, onGoToPlanet, onClose }: 
                   poster={photo || undefined}
                   onLoadedData={() => setVideoLoading(false)}
                   onCanPlay={() => setVideoLoading(false)}
-                  onError={() => setVideoLoading(false)}
+                  onError={() => { setVideoLoading(false); exitVideoFocus(); }}
+                  onPlay={enterVideoFocus}
+                  onPause={exitVideoFocus}
+                  onEnded={exitVideoFocus}
                   style={styles.lbMediaEl}
                 />
                 {videoLoading && <VideoLoader color={color} label={t('lifeform.video_loading', { defaultValue: 'Loading...' })} poster={photo} />}

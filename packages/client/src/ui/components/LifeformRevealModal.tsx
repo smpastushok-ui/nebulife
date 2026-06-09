@@ -28,6 +28,7 @@ import {
   type LifeformMediaStatus,
 } from '../../api/lifeform-api.js';
 import { trackEvent } from '../../analytics/firebase-analytics.js';
+import { useVideoAudioFocus } from '../../audio/useVideoAudioFocus.js';
 
 const PANEL_BG = 'rgba(10,15,25,0.96)';
 const BORDER = '#334455';
@@ -93,6 +94,7 @@ export function LifeformRevealModal({
   const videoRef = useRef<HTMLVideoElement>(null);
   const stopPhotoPoll = useRef<(() => void) | null>(null);
   const stopVideoPoll = useRef<(() => void) | null>(null);
+  const { enterVideoFocus, exitVideoFocus } = useVideoAudioFocus();
 
   const commonPhotoSrc = bundlePhotoSrc ?? DEFAULT_COMMON_PHOTO;
   const photoSrc = record.photo_url || commonPhotoSrc;
@@ -276,8 +278,10 @@ export function LifeformRevealModal({
             controls={mode === 'clip'}
             onLoadedData={() => setVideoLoading(false)}
             onCanPlay={() => setVideoLoading(false)}
-            onEnded={() => { if (mode === 'video') setBeat('classify'); }}
-            onError={() => { setVideoFailed(true); setVideoLoading(false); }}
+            onPlay={enterVideoFocus}
+            onPause={exitVideoFocus}
+            onEnded={() => { exitVideoFocus(); if (mode === 'video') setBeat('classify'); }}
+            onError={() => { setVideoFailed(true); setVideoLoading(false); exitVideoFocus(); }}
             style={{ ...styles.mediaImg, display: videoFailed || !videoSrc ? 'none' : 'block' }}
           />
           {(videoFailed || !videoSrc) && <Placeholder label={t('lifeform.reveal_title')} accent={accent} />}

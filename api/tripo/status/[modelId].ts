@@ -117,7 +117,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const prompt = model.planet_data && model.star_data
         ? buildPlanetModelPrompt(model.planet_data as unknown as Planet, model.star_data as unknown as Star)
         : buildKlingPrompt(model.planet_id, model.system_id);
-      const { taskId: klingTaskId } = await generateImage({ prompt, aspectRatio: '1:1', model: 'kling-v3-omni', resolution: '2K' });
+      const { taskId: klingTaskId } = await generateImage({ prompt, aspectRatio: '1:1', model: 'kling-v3', resolution: '2K' });
       await updatePlanetModel(modelId, { kling_task_id: klingTaskId });
       return res.status(200).json({ status: 'generating_photo', klingPhotoUrl: null });
     }
