@@ -78,6 +78,14 @@ export interface PlanetVisualConfig {
   windIntensity: number;   // 0..1 atmospheric wind strength
   surfaceType: number;     // 0=temperate, 1=gas, 2=ice, 3=lava, 4=barren
 
+  // Living-world night-side cues
+  cityLightIntensity: number;  // 0..1 — intelligent civilizations (night-side city grids)
+  bioGlowIntensity: number;    // 0..1 — bioluminescent plankton seas (life, pre-industrial)
+
+  // Climate
+  climateShift: number;        // -0.45..+0.45 — hot worlds push biome belts poleward, cold pull to equator
+  vegetationCoverage: number;  // 0..1 — how much of the land flora actually claims
+
   // Craters (airless rocky/dwarf worlds)
   hasCraters: boolean;
   craterColor: number;     // darker shade for crater interior
@@ -180,43 +188,77 @@ function deriveSurfaceHighColor(tempK: number): number {
   return 0x6699cc;                        // deeply frozen blue peaks
 }
 
-/** Derive ocean colors from depth — vivid saturated blues */
-function deriveOceanColors(depthKm: number, tempK: number, seed: number, starColor: number): { shallow: number; deep: number } {
+/**
+ * Derive ocean colors from depth + CRUST CHEMISTRY.
+ * The dissolved minerals of the crust drive the sea color — discoveries read
+ * as geology, not a random palette roll:
+ *   - sulfur-rich crust  → green-yellow sulfide seas
+ *   - iron-rich crust    → Archean-style teal water with rusty shallows
+ *   - carbon-rich crust  → dark tannin "ink" oceans
+ *   - plain silicate     → blue family; living oceans may roll algae tints
+ */
+function deriveOceanColors(
+  depthKm: number,
+  tempK: number,
+  seed: number,
+  starColor: number,
+  crust: Record<string, number>,
+  hasLife: boolean,
+): { shallow: number; deep: number } {
   const rng = new SeededRNG(seed + 1928);
-  const hueShift = (rng.next() - 0.5) * 0.5; // +/- 0.25 hue shift
-  
+
   if (tempK > 373) {
     return { shallow: 0x4a3a2a, deep: 0x2a1a0a };
   }
   if (tempK < 200) {
     return { shallow: 0x3a4a6a, deep: 0x1a2a4a };
   }
-  
+
   const depthFactor = clamp(depthKm / 10, 0, 1);
-  
+
   // Base water color
   let shallow = lerpColor(0x1050a0, 0x0c4590, depthFactor);
   let deep = lerpColor(0x082a68, 0x051a48, depthFactor);
-  
-  // Randomly shift the water color (from deep blue to cyan, teal, or purple)
-  // Converting to HSL, shifting, converting back is too heavy, so we'll just mix in some colors
-  const exoticOceanRoll = rng.next();
-  if (exoticOceanRoll > 0.5) {
-    if (exoticOceanRoll > 0.85) {
-      // Purple / Pinkish ocean (due to alien algae or star color)
-      shallow = mixHex(shallow, 0x8a2be2, 0.4 + rng.next() * 0.3);
-      deep = mixHex(deep, 0x4b0082, 0.4 + rng.next() * 0.3);
-    } else if (exoticOceanRoll > 0.7) {
-      // Teal / Cyan ocean
-      shallow = mixHex(shallow, 0x00ced1, 0.4 + rng.next() * 0.4);
-      deep = mixHex(deep, 0x008080, 0.4 + rng.next() * 0.4);
-    } else {
-      // Greenish ocean
-      shallow = mixHex(shallow, 0x2e8b57, 0.3 + rng.next() * 0.3);
-      deep = mixHex(deep, 0x006400, 0.3 + rng.next() * 0.3);
+
+  const s = crust['S'] ?? 0;
+  const fe = crust['Fe'] ?? 0;
+  const c = crust['C'] ?? 0;
+  const strength = 0.35 + rng.next() * 0.3;
+
+  if (s > 0.035) {
+    // Sulfide seas — murky green-yellow (hydrogen sulfide + sulfur colloids)
+    shallow = mixHex(shallow, 0x7a9a3a, clamp(s * 12, 0.3, 0.85) * strength * 2);
+    deep = mixHex(deep, 0x3a5a1a, clamp(s * 12, 0.3, 0.85) * strength * 2);
+  } else if (fe > 0.075) {
+    // Iron-rich Archean ocean — deep teal-green, rust-tinted shallows
+    shallow = mixHex(shallow, 0x2a8a7a, clamp(fe * 6, 0.3, 0.8) * strength * 2);
+    shallow = mixHex(shallow, 0x8a5a3a, 0.18);
+    deep = mixHex(deep, 0x0a4a44, clamp(fe * 6, 0.3, 0.8) * strength * 2);
+  } else if (c > 0.035) {
+    // Carbon/tannin world — near-black ink water with dark teal shallows
+    shallow = mixHex(shallow, 0x12302e, 0.55 + rng.next() * 0.25);
+    deep = mixHex(deep, 0x050d10, 0.6 + rng.next() * 0.25);
+  } else {
+    // Plain silicate chemistry: blue family. Living oceans occasionally bloom
+    // with alien algae — purple or cyan planetary-scale tints.
+    const exoticOceanRoll = rng.next();
+    if (hasLife && exoticOceanRoll > 0.72) {
+      if (exoticOceanRoll > 0.88) {
+        // Purple algae bloom
+        shallow = mixHex(shallow, 0x8a2be2, 0.35 + rng.next() * 0.25);
+        deep = mixHex(deep, 0x4b0082, 0.35 + rng.next() * 0.25);
+      } else {
+        // Cyan plankton ocean
+        shallow = mixHex(shallow, 0x00ced1, 0.35 + rng.next() * 0.3);
+        deep = mixHex(deep, 0x008080, 0.35 + rng.next() * 0.3);
+      }
+    } else if (exoticOceanRoll > 0.85) {
+      // Rare mineral-teal sea on lifeless worlds
+      shallow = mixHex(shallow, 0x20b2aa, 0.25 + rng.next() * 0.2);
+      deep = mixHex(deep, 0x0a6a66, 0.25 + rng.next() * 0.2);
     }
   }
-  
+
   // Tint ocean slightly with star color
   shallow = mixHex(shallow, starColor, 0.1);
   deep = mixHex(deep, starColor, 0.05);
@@ -224,17 +266,59 @@ function deriveOceanColors(depthKm: number, tempK: number, seed: number, starCol
   return { shallow, deep };
 }
 
-/** Derive biome colors based on temperature and life complexity */
-function deriveBiomeColors(tempK: number, hasLife: boolean, lifeComplexity: string | undefined, seed: number, starColor: number): BiomeColors {
+/**
+ * Photosynthetic pigment biased by the STAR'S spectral output.
+ * Real astrobiology: flora evolves pigments that absorb the light their star
+ * emits most, reflecting the rest. So the dominant vegetation color tracks
+ * the star's temperature — every inhabited world feels tied to its sun:
+ *   - hot blue-white stars (F/A, >6000K) → teal / blue-green pigments
+ *   - sun-like (G, ~5800K)               → classic chlorophyll green
+ *   - orange dwarfs (K, ~4500K)          → golden / olive pigments
+ *   - red dwarfs (M, <3900K)             → deep crimson / purple (IR harvest)
+ */
+function deriveStellarFloraTint(starTempK: number): { tropical: number; temperate: number; boreal: number } {
+  if (starTempK > 7000) {
+    // Hot blue-white star — turquoise/teal vegetation
+    return { tropical: 0x1f8f86, temperate: 0x2a9d83, boreal: 0x1e6f6a };
+  }
+  if (starTempK > 6000) {
+    // F-class — blue-green
+    return { tropical: 0x2a8f6a, temperate: 0x349a70, boreal: 0x256a56 };
+  }
+  if (starTempK > 5200) {
+    // G-class (Sun-like) — chlorophyll green
+    return { tropical: 0x2a7a30, temperate: 0x3a7838, boreal: 0x3a6830 };
+  }
+  if (starTempK > 4200) {
+    // K-class orange dwarf — golden / olive flora
+    return { tropical: 0x8a8a20, temperate: 0x9a8520, boreal: 0x6a5a18 };
+  }
+  if (starTempK > 3500) {
+    // Early M dwarf — amber / rust flora
+    return { tropical: 0xa05a1f, temperate: 0x8a4a1a, boreal: 0x6a3514 };
+  }
+  // Late red dwarf — deep crimson / purple IR-harvesting flora
+  return { tropical: 0x6a1f4a, temperate: 0x551a55, boreal: 0x3a1240 };
+}
+
+/** Derive biome colors based on temperature, life complexity, and STAR spectrum */
+function deriveBiomeColors(
+  tempK: number,
+  hasLife: boolean,
+  lifeComplexity: string | undefined,
+  seed: number,
+  starColor: number,
+  starTempK: number,
+): BiomeColors {
   const rng = new SeededRNG(seed + 412);
-  
+
   if (!hasLife) {
     // Geological biomes for lifeless planets (varied sand, clay, rock, salt instead of flat gray)
-    let tropical = mixHex(0x8a5a44, 0x6b4226, rng.next()); // Clay / Mud
-    let temperate = mixHex(0x705c4a, 0x5a4a3a, rng.next()); // Dirt / Gravel
-    let boreal = mixHex(0x4a4a4a, 0x3a3a3a, rng.next()); // Dark Rock
-    let desert = mixHex(0xd2b48c, 0xe2c49c, rng.next()); // Sand / Dunes
-    let tundra = mixHex(0xa9a9a9, 0xb9b9b9, rng.next()); // Frost / Light rock
+    const tropical = mixHex(0x8a5a44, 0x6b4226, rng.next()); // Clay / Mud
+    const temperate = mixHex(0x705c4a, 0x5a4a3a, rng.next()); // Dirt / Gravel
+    const boreal = mixHex(0x4a4a4a, 0x3a3a3a, rng.next()); // Dark Rock
+    const desert = mixHex(0xd2b48c, 0xe2c49c, rng.next()); // Sand / Dunes
+    const tundra = mixHex(0xa9a9a9, 0xb9b9b9, rng.next()); // Frost / Light rock
 
     return {
       tropical: mixHex(tropical, starColor, 0.1),
@@ -245,40 +329,32 @@ function deriveBiomeColors(tempK: number, hasLife: boolean, lifeComplexity: stri
     };
   }
 
-  // Generate vibrant alien or earth-like flora colors for any life (to make it look AAA)
-  const roll = rng.next();
-  
-  let tropical = 0x2a7a30;
-  let temperate = 0x3a7838;
-  let boreal = 0x3a6830;
-  
-  if (roll > 0.8) {
-    // Red/Orange flora
-    tropical = mixHex(0x8a3324, 0x9c4221, rng.next());
-    temperate = mixHex(0x7a2d1f, 0x8a3a24, rng.next());
-    boreal = mixHex(0x5a1e12, 0x6a2417, rng.next());
-  } else if (roll > 0.6) {
-    // Purple/Blue flora
-    tropical = mixHex(0x4a2a7a, 0x3a3a8a, rng.next());
-    temperate = mixHex(0x553388, 0x444499, rng.next());
-    boreal = mixHex(0x3a1a5a, 0x2a2a6a, rng.next());
-  } else if (roll > 0.4) {
-    // Golden/Yellow flora
-    tropical = mixHex(0x8a7a20, 0x9a8a30, rng.next());
-    temperate = mixHex(0x7a6a1a, 0x8a7a20, rng.next());
-    boreal = mixHex(0x5a4a10, 0x6a5a15, rng.next());
+  // Star-driven photosynthetic baseline, then a per-world variant roll so two
+  // worlds under the same sun still differ without breaking the stellar link.
+  const stellar = deriveStellarFloraTint(starTempK);
+  let tropical = stellar.tropical;
+  let temperate = stellar.temperate;
+  let boreal = stellar.boreal;
+
+  const variant = rng.next();
+  if (variant > 0.82) {
+    // Exotic mutant flora — shift hard toward an unexpected pigment
+    const exotic = rng.next() > 0.5 ? 0x7a2d6a : 0x8a3324;
+    tropical = mixHex(tropical, exotic, 0.45 + rng.next() * 0.25);
+    temperate = mixHex(temperate, exotic, 0.4 + rng.next() * 0.25);
+    boreal = mixHex(boreal, exotic, 0.4 + rng.next() * 0.2);
   } else {
-    // Standard green with some variance
-    tropical = mixHex(0x2a7a30, 0x1a6a20, rng.next());
-    temperate = mixHex(0x3a7838, 0x2a6828, rng.next());
-    boreal = mixHex(0x3a6830, 0x2a5820, rng.next());
+    // Subtle per-world hue jitter around the stellar baseline
+    const jitter = (rng.next() - 0.5) * 0.3;
+    tropical = mixHex(tropical, jitter > 0 ? 0x4aa050 : 0x2a5a28, Math.abs(jitter));
+    temperate = mixHex(temperate, jitter > 0 ? 0x4a9048 : 0x2a5828, Math.abs(jitter));
   }
-  
+
   // If life is just microbial/unicellular, desaturate slightly but keep the hue
   if (lifeComplexity === 'unicellular' || lifeComplexity === 'microbial') {
-      tropical = mixHex(tropical, 0x707070, 0.3);
-      temperate = mixHex(temperate, 0x707070, 0.3);
-      boreal = mixHex(boreal, 0x707070, 0.3);
+    tropical = mixHex(tropical, 0x707070, 0.3);
+    temperate = mixHex(temperate, 0x707070, 0.3);
+    boreal = mixHex(boreal, 0x707070, 0.3);
   }
 
   // Mix slightly with star color for ambient integration
@@ -424,7 +500,8 @@ export function derivePlanetVisuals(planet: Planet, star: Star): PlanetVisualCon
   const hasOcean = waterCoverage > 0.01 && !isGas && !isIce;
   const oceanDepth = hydro?.oceanDepthKm ?? 0;
   const starColorNum = parseInt(star.colorHex.replace('#', ''), 16);
-  const oceanColors = deriveOceanColors(oceanDepth, tempK, planet.seed, starColorNum);
+  const crustForColors = planet.resources?.crustComposition ?? {};
+  const oceanColors = deriveOceanColors(oceanDepth, tempK, planet.seed, starColorNum, crustForColors, planet.hasLife);
 
   // --- Ice ---
   const iceCapFraction = hydro?.iceCapFraction ?? (tempK < 250 ? clamp((250 - tempK) / 200, 0.1, 0.8) : 0);
@@ -437,7 +514,7 @@ export function derivePlanetVisuals(planet: Planet, star: Star): PlanetVisualCon
   const hasBiomes = planet.hasLife && (planet.type === 'rocky' || planet.type === 'terrestrial' || planet.type === 'dwarf');
   
   // We ALWAYS calculate biome colors so lifeless terran planets still get rich soil/clay/rock colors
-  const biomeColors = deriveBiomeColors(tempK, planet.hasLife, planet.lifeComplexity, planet.seed, starColorNum);
+  const biomeColors = deriveBiomeColors(tempK, planet.hasLife, planet.lifeComplexity, planet.seed, starColorNum, star.temperatureK);
 
   // --- Land threshold ---
   const landThreshold = hasOcean ? deriveLandThreshold(waterCoverage) : -1; // -1 = no ocean, all land
@@ -485,6 +562,35 @@ export function derivePlanetVisuals(planet: Planet, star: Star): PlanetVisualCon
   else if (tempK < 180) surfaceType = 2;                                 // ice world (cold rocky)
   else if (!planet.hasLife && waterCoverage < 0.05) surfaceType = 4;     // barren
 
+  // --- Climate belts ---
+  // 288K = Earth baseline. Hot habitable worlds (320K+) grow wide desert belts
+  // and push flora poleward; cold ones (260K-) squeeze life into an equatorial
+  // band with sprawling tundra. Read by the terran shader as a latitude shift.
+  const climateShift = clamp((tempK - 288) / 160, -0.45, 0.45);
+
+  // --- Vegetation coverage ---
+  // How much of the land flora actually claims: depends on life complexity
+  // (microbial worlds show only mineral ground with faint colonies along the
+  // coasts) and available moisture (dry living worlds stay mostly barren).
+  const lifeRng = new SeededRNG(planet.seed + 733);
+  let vegetationCoverage = 0;
+  if (hasBiomes) {
+    const complexityBase = planet.lifeComplexity === 'intelligent' ? 0.85
+      : planet.lifeComplexity === 'multicellular' ? 0.75
+      : 0.3; // microbial — sparse crusts and mats
+    const moisture = clamp(0.35 + waterCoverage * 0.9, 0.35, 1);
+    vegetationCoverage = clamp(complexityBase * moisture + (lifeRng.next() - 0.5) * 0.12, 0.08, 1);
+  }
+
+  // --- Night-side life cues ---
+  // Intelligent life → city light grids. Pre-industrial multicellular life
+  // with oceans → bioluminescent plankton blooms along the coasts (a quieter,
+  // eerier "this world is alive" signal at night).
+  const cityLightIntensity = planet.hasLife && planet.lifeComplexity === 'intelligent' ? 1 : 0;
+  const bioGlowIntensity = planet.hasLife && hasOcean && planet.lifeComplexity !== 'intelligent'
+    ? (planet.lifeComplexity === 'multicellular' ? 0.55 : 0.3) + lifeRng.next() * 0.25
+    : 0;
+
   // --- Gas/Ice giant ---
   const gasColors = isGas ? deriveGasGiantColors(tempK, planet.seed) : { c1: 0, c2: 0 };
   const iceColors = isIce ? deriveIceGiantColors(tempK, planet.seed) : { c1: 0, c2: 0 };
@@ -528,6 +634,11 @@ export function derivePlanetVisuals(planet: Planet, star: Star): PlanetVisualCon
     volcanism,
     windIntensity,
     surfaceType,
+
+    cityLightIntensity,
+    bioGlowIntensity,
+    climateShift,
+    vegetationCoverage,
 
     bandColor1: isGas ? gasColors.c1 : iceColors.c1,
     bandColor2: isGas ? gasColors.c2 : iceColors.c2,
@@ -703,7 +814,10 @@ export function planetVisualsToUniforms(
     uBiomeDesert: { value: numToColor(visuals.biomeColors.desert) },
     uBiomeTundra: { value: numToColor(visuals.biomeColors.tundra) },
     uHasLava: { value: visuals.hasLavaFlows ? 1.0 : 0.0 },
-    uHasCityLights: { value: planet.lifeComplexity === 'intelligent' && planet.hasLife ? 1.0 : 0.0 },
+    uHasCityLights: { value: visuals.cityLightIntensity },
+    uBioGlow: { value: visuals.bioGlowIntensity },
+    uClimateShift: { value: visuals.climateShift },
+    uVegCoverage: { value: visuals.vegetationCoverage },
     uStarDir: { value: starDir },
     uStarColor: { value: numToColor(visuals.starTint) },
     uStarIntensity: { value: starIntensity },

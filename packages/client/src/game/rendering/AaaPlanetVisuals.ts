@@ -378,6 +378,11 @@ export function createAaaPlanetUniforms(
   const atmospherePressure = planet.atmosphere?.surfacePressureAtm ?? 0;
   const starDistanceScale = Math.max(0.65, Math.min(1.35, Math.pow(star.luminositySolar, 0.08)));
 
+  // Star spectral tint for the incoming light: planets around M dwarfs bathe
+  // in warm amber light, F/A-class worlds in cool white-blue. Mixed toward
+  // white so albedo colors stay readable (pure star color over-saturates).
+  const starTint = new THREE.Color(star.colorHex).lerp(new THREE.Color(1, 1, 1), 0.55);
+
   return {
     baseColor: { value: numToColor(spec.palette.base) },
     altColor: { value: numToColor(spec.palette.alt) },
@@ -407,6 +412,14 @@ export function createAaaPlanetUniforms(
     biomeBoreal: { value: numToColor(visuals.biomeColors.boreal) },
     biomeTundra: { value: numToColor(visuals.biomeColors.tundra) },
     biomeDesert: { value: numToColor(visuals.biomeColors.desert) },
+
+    // Living-world & climate uniforms (terran shader, type 11)
+    cityLights: { value: visuals.cityLightIntensity },
+    bioGlow: { value: visuals.bioGlowIntensity },
+    climateShift: { value: visuals.climateShift },
+    vegCoverage: { value: visuals.vegetationCoverage },
+    starTint: { value: starTint },
+    cloudTint: { value: numToColor(visuals.cloudColor) },
   };
 }
 

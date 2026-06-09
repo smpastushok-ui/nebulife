@@ -49,7 +49,7 @@ export interface LifeformMediaStatusResponse {
 export async function reportLifeformFound(
   playerId: string,
   rarity: DiscoveryRarity,
-  opts?: { systemId?: string; planetId?: string; speciesName?: string },
+  opts?: { systemId?: string; planetId?: string; speciesName?: string; photoUrl?: string; videoUrl?: string },
 ): Promise<LifeformRecord> {
   const res = await authFetch(`${API_BASE}/lifeform/found`, {
     method: 'POST',
@@ -60,6 +60,8 @@ export async function reportLifeformFound(
       ...(opts?.systemId ? { systemId: opts.systemId } : {}),
       ...(opts?.planetId ? { planetId: opts.planetId } : {}),
       ...(opts?.speciesName ? { speciesName: opts.speciesName } : {}),
+      ...(opts?.photoUrl ? { photoUrl: opts.photoUrl } : {}),
+      ...(opts?.videoUrl ? { videoUrl: opts.videoUrl } : {}),
     }),
   });
   if (!res.ok) {

@@ -209,6 +209,13 @@ export interface CosmicArchiveProps {
   tutorialResearchTargetCount?: number;
   /** Locally-known discovered lifeforms (App state) for the Life gallery. */
   lifeforms?: LifeformRecord[];
+  /** Spend quarks from the Life gallery (deferred Alpha-photo/video generation). */
+  onQuarksChange?: (q: number) => void;
+  /** Persist updated lifeform (rename / generated media) into App state. */
+  onLifeformUpdated?: (lf: LifeformRecord) => void;
+  /** When set, the Life gallery auto-opens this specimen's card. */
+  openLifeformId?: string | null;
+  onOpenLifeformConsumed?: () => void;
   visible: boolean;
 }
 
@@ -362,6 +369,10 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   onGeneratePlanetSkin,
   tutorialResearchTargetCount,
   lifeforms,
+  onQuarksChange,
+  onLifeformUpdated,
+  openLifeformId,
+  onOpenLifeformConsumed,
   visible,
   planetResourceStocks,
 }: CosmicArchiveProps, ref: React.Ref<CosmicArchiveHandle>) {
@@ -594,6 +605,11 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           allSystems={allSystems}
           aliases={aliases}
           onGoToPlanet={handleViewPlanet}
+          quarks={quarks}
+          onQuarksChange={onQuarksChange}
+          onLifeformUpdated={onLifeformUpdated}
+          openLifeformId={openLifeformId}
+          onOpenLifeformConsumed={onOpenLifeformConsumed}
         />
       );
     }

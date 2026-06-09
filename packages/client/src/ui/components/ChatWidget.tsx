@@ -47,6 +47,8 @@ export interface SystemNotif {
   planetId: string;
   timestamp: number;
   read: boolean;
+  /** When set, this is a lifeform-found notif — shows a "view specimen" button. */
+  lifeformId?: string;
 }
 
 interface ChatWidgetProps {
@@ -61,6 +63,8 @@ interface ChatWidgetProps {
   onOpenPlanetMissionReport?: (systemId: string, planetId: string) => void | boolean | Promise<void | boolean>;
   onOpenSystemReport?: (systemId: string) => void | boolean | Promise<void | boolean>;
   onOpenLogDiscovery?: (entry: LogEntry) => void | boolean | Promise<void | boolean>;
+  /** Open the specimen card in the Cosmic Archive Life gallery. */
+  onOpenLifeform?: (lifeformId: string) => void | boolean | Promise<void | boolean>;
   /** week_date of the most recently seen digest (from player.last_digest_seen) */
   lastDigestSeen?: string | null;
   /** week_date of the latest complete digest (fetched on app load) */
@@ -127,12 +131,24 @@ const CHAT_PULSE_KEYFRAMES = `
   100% { opacity: 0; transform: translateY(-28px); }
 }`;
 
+// Legacy daily "new Academy lesson" notifications. The cron that produced them
+// is retired (lesson base is fixed), but old rows remain in chat history —
+// hide them client-side so the A.S.T.R.A. feed isn't cluttered with stale spam.
+const LEGACY_LESSON_NOTIFS = new Set([
+  'Новий урок Космічної Академії доступний. Відкрийте Академію для навчання.',
+  'A new Cosmic Academy lesson is available. Open the Academy to study.',
+]);
+
+function filterLegacyLessonNotifs(msgs: MessageData[]): MessageData[] {
+  return msgs.filter((m) => !LEGACY_LESSON_NOTIFS.has(m.content.trim()));
+}
+
 // Exported as React.memo below. ChatWidget is always mounted while the
 // player is in-game, so unrelated App.tsx state changes (tutorial steps,
 // research ticks, countdown, etc.) previously forced a full re-render of
 // the entire chat tree. Memo blocks those; real chat updates come from
 // this component's own internal polling + setState so they still render.
-function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = [], logEntries = [], onSystemNotifRead, onNavigateToPlanet, onNavigateToSystem, onOpenPlanetMissionReport, onOpenSystemReport, onOpenLogDiscovery, lastDigestSeen, latestDigestWeekDate, preferredLanguage, onAwardXP, quizAnswers = {}, onQuizAnswer, onDigestSeen, playerLevel = 1, forceCollapsed = false, forceExpanded = false, hideCollapsedButton = false, isPremium = false }: ChatWidgetProps) {
+function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = [], logEntries = [], onSystemNotifRead, onNavigateToPlanet, onNavigateToSystem, onOpenPlanetMissionReport, onOpenSystemReport, onOpenLogDiscovery, onOpenLifeform, lastDigestSeen, latestDigestWeekDate, preferredLanguage, onAwardXP, quizAnswers = {}, onQuizAnswer, onDigestSeen, playerLevel = 1, forceCollapsed = false, forceExpanded = false, hideCollapsedButton = false, isPremium = false }: ChatWidgetProps) {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(true);
   const [viewport, setViewport] = useState(() => ({
@@ -395,7 +411,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
     const fetchAstra = async () => {
       try {
         const msgs = await getMessages(`astra:${playerId}`, 40);
-        setAstraMessages(msgs);
+        setAstraMessages(filterLegacyLessonNotifs(msgs));
       } catch { /* ignore */ }
     };
 
@@ -681,7 +697,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
       };
       setAstraMessages(prev => [...prev, astraMsg]);
       // Background sync with DB to get real IDs
-      getMessages(`astra:${playerId}`, 40).then(msgs => setAstraMessages(msgs)).catch(() => {});
+      getMessages(`astra:${playerId}`, 40).then(msgs => setAstraMessages(filterLegacyLessonNotifs(msgs))).catch(() => {});
     } catch (err) {
       const message = err instanceof Error && err.message.includes('premium_required')
         ? t('chat.astra_premium_required')
@@ -1039,27 +1055,41 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
                     {notif.text}
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {onOpenPlanetMissionReport && (
+                    {notif.lifeformId && onOpenLifeform ? (
                       <button
                         onClick={() => {
                           onSystemNotifRead?.(notif.id);
-                          runSystemAction(() => onOpenPlanetMissionReport(notif.systemId, notif.planetId));
+                          runSystemAction(() => onOpenLifeform(notif.lifeformId!));
                         }}
                         style={SYSTEM_ACTION_BUTTON_STYLE}
                       >
-                        {t('chat.view_report')}
+                        {t('chat.view_specimen')}
                       </button>
-                    )}
-                    {onNavigateToSystem && (
-                      <button
-                        onClick={() => {
-                          onSystemNotifRead?.(notif.id);
-                          runSystemAction(() => onNavigateToSystem(notif.systemId));
-                        }}
-                        style={SYSTEM_ACTION_BUTTON_STYLE}
-                      >
-                        {t('chat.go_to_system')}
-                      </button>
+                    ) : (
+                      <>
+                        {onOpenPlanetMissionReport && (
+                          <button
+                            onClick={() => {
+                              onSystemNotifRead?.(notif.id);
+                              runSystemAction(() => onOpenPlanetMissionReport(notif.systemId, notif.planetId));
+                            }}
+                            style={SYSTEM_ACTION_BUTTON_STYLE}
+                          >
+                            {t('chat.view_report')}
+                          </button>
+                        )}
+                        {onNavigateToSystem && (
+                          <button
+                            onClick={() => {
+                              onSystemNotifRead?.(notif.id);
+                              runSystemAction(() => onNavigateToSystem(notif.systemId));
+                            }}
+                            style={SYSTEM_ACTION_BUTTON_STYLE}
+                          >
+                            {t('chat.go_to_system')}
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>

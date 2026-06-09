@@ -204,7 +204,7 @@ Home Intro → Galaxy → System → Planet View → Surface
 |---|---|
 | `players` | Гравці (id, name, quarks, game_state, global_index, cluster_id, language) |
 | `clusters` | Кластери по 50 гравців (group_index, center, player_count, group_seed) |
-| `chat_messages` | Повідомлення чату |
+| `messages` | Повідомлення чату (global, astra:*, system:*, dm:*) |
 | `weekly_digests` | Тижневі дайджести |
 | `academy_progress` | Прогрес Академії (difficulty, topics, quests, streak) |
 | `academy_lessons` | Кеш уроків (lesson_date, topic_id, difficulty, language) |

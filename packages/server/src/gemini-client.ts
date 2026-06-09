@@ -518,6 +518,9 @@ import {
   buildPhotoPromptFromAppearance,
   buildVideoPromptFromAction,
   buildSoundPrompt,
+  scaleForRarity,
+  lifeformVariationHints,
+  type LifeformScale,
 } from './lifeform-prompt-library.js';
 
 const LIFEFORM_BRIEF_MODEL = 'gemini-3.5-flash';
@@ -542,12 +545,23 @@ export interface LifeformBriefResult extends LifeformBrief {
   soundPrompt: string;
 }
 
+// What KIND and SCALE of organism each rarity invents. Higher rarities are no
+// longer microbes — they are visible alien creatures, flora and megafauna so
+// players keep discovering forms they have never seen.
 const LIFEFORM_RARITY_HINT: Record<string, string> = {
-  common: 'a simple, small single-cell or micro-colony organism — calm and understated',
-  uncommon: 'a more structured multi-lobed micro-organism with delicate detail',
-  rare: 'an intricate, symmetric organism with crystalline or radial structure',
-  epic: 'a complex branching micro-fauna with layered membranes and internal organelles',
-  legendary: 'an otherworldly, never-before-seen organism of impossible elegant geometry',
+  common: 'a simple, small microscopic single-cell or micro-colony organism — calm and understated, viewed under a microscope',
+  uncommon: 'a more structured, richly detailed microscopic multi-lobed organism with delicate filaments, viewed under a microscope',
+  rare: 'a SMALL MULTICELLULAR organism a few centimeters across (an alien invertebrate, polyp, coral, anemone, or tiny exotic plant) — visible to the naked eye, NOT microscopic, shown as a macro specimen',
+  epic: 'a FULLY VISIBLE life-size alien CREATURE, animal or plant in its natural habitat — clearly NOT microscopic, with believable exotic anatomy',
+  legendary: 'a LARGE, awe-inspiring exotic alien organism — towering megafauna, a colossal symbiont, or monumental alien flora — dominating its landscape, never-before-seen and unlike anything on Earth',
+};
+
+/** Scale-appropriate fallback species name when the library example is micro. */
+const SCALE_NAME_HINT: Record<LifeformScale, string> = {
+  micro: 'Microbe',
+  macro: 'Specimen',
+  creature: 'Creature',
+  megafauna: 'Leviathan',
 };
 
 /**
@@ -567,6 +581,9 @@ export async function generateLifeformBrief(opts: {
   const seed = Number.isFinite(opts.seed) ? Math.abs(Math.floor(opts.seed as number)) : 0;
   const example = LIFEFORM_SPECS[seed % LIFEFORM_SPECS.length];
   const rarityHint = LIFEFORM_RARITY_HINT[opts.rarity] ?? LIFEFORM_RARITY_HINT.common;
+  const scale = scaleForRarity(opts.rarity);
+  const variation = lifeformVariationHints(seed);
+  const isMicro = scale === 'micro';
 
   // Deterministic fallback (no key / parse failure): mutate a library spec so
   // the paid flow never hard-fails on the creative step.
@@ -577,25 +594,33 @@ export async function generateLifeformBrief(opts: {
       appearance: spec.appearance,
       action: spec.action,
       sound: spec.sound,
-    }, opts.mediumClause);
+    }, scale, opts.mediumClause);
   };
 
   if (!apiKey) return fallback();
 
   const prompt = `You are a xenobiology concept writer for the cozy sci-fi game Nebulife.
-Invent ONE unique alien micro-organism and describe it for a science-microscope reveal.
+Invent ONE completely UNIQUE, never-before-seen alien lifeform — a brand new species players have never encountered.
 
-Constraints:
-- Complexity: ${rarityHint}.
+UNIQUENESS (most important):
+- Do NOT reuse tired Earth or sci-fi clichés (no plain jellyfish, no generic "blob", no human-like aliens).
+- Invent a novel body plan. As a hidden design key for THIS organism, lean into: ${variation}.
+- The example below shows ONLY writing style — your organism must be a DIFFERENT form${isMicro ? '' : ' and a different scale'}.
+
+WHAT TO INVENT:
+- Kind & scale: ${rarityHint}.
+${isMicro
+  ? '- It is microscopic; describe it as seen under a microscope.'
+  : '- It is NOT a microbe and NOT under a microscope — it is a visible organism in the real world. Describe its full body, limbs/fronds, and how it sits in its environment.'}
 ${opts.planetHint
-  ? `- The organism is native to this world; treat these planetary facts as BINDING biological constraints (honor water/no-water, temperature, atmosphere, and crust colour/structure): ${opts.planetHint}.`
-  : '- Native to a dark, mineral-rich aquatic micro-environment.'}
-- Aesthetic: electron-microscope / astrobiology, dark cosmos, muted palette, soft bioluminescence.
+  ? `- It is native to this world; treat these planetary facts as BINDING biological constraints (honor water/no-water, temperature, atmosphere, and crust colour/structure): ${opts.planetHint}.`
+  : `- Native to a dark, mineral-rich ${isMicro ? 'aquatic micro-environment' : 'alien environment'}.`}
+- Aesthetic: dark cosmos, muted desaturated palette with cold accents and dim amber, soft bioluminescence, awe-inspiring.
 - NEVER mention cameras, AI, neural nets, text, faces, humans, or cartoons.
 - "sound" must be AMBIENT only: no voice, no narration, no lyrics.
-- Keep each field concise (one sentence, English).
+- "appearance" = what it LOOKS like; "action" = what it DOES (its motion/behaviour). Keep each one concise (one vivid sentence, English).
 
-Example (style only, invent something different):
+Example (style only — invent something completely different):
 {"speciesName":"${example.archetype}","appearance":"${example.appearance}","action":"${example.action}","sound":"${example.sound}"}
 
 Respond with ONLY pure JSON (no markdown):
@@ -613,22 +638,22 @@ Respond with ONLY pure JSON (no markdown):
     const parsed = JSON.parse(cleaned) as Partial<LifeformBrief>;
     if (!parsed.appearance || !parsed.action || !parsed.sound) return fallback();
     return finalize({
-      speciesName: String(parsed.speciesName || example.archetype).slice(0, 40),
+      speciesName: String(parsed.speciesName || `${example.archetype} ${SCALE_NAME_HINT[scale]}`).slice(0, 40),
       appearance: String(parsed.appearance).slice(0, 400),
       action: String(parsed.action).slice(0, 300),
       sound: String(parsed.sound).slice(0, 200),
-    }, opts.mediumClause);
+    }, scale, opts.mediumClause);
   } catch (err) {
     console.warn('[lifeform-brief] generation failed, using fallback:', err);
     return fallback();
   }
 }
 
-function finalize(brief: LifeformBrief, mediumClause?: string): LifeformBriefResult {
+function finalize(brief: LifeformBrief, scale: LifeformScale, mediumClause?: string): LifeformBriefResult {
   return {
     ...brief,
-    photoPrompt: buildPhotoPromptFromAppearance(brief.appearance, mediumClause),
-    videoPrompt: buildVideoPromptFromAction(brief.action),
+    photoPrompt: buildPhotoPromptFromAppearance(brief.appearance, mediumClause, scale),
+    videoPrompt: buildVideoPromptFromAction(brief.action, scale),
     soundPrompt: buildSoundPrompt(brief.sound),
   };
 }

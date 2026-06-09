@@ -23,7 +23,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!auth) return;
 
   try {
-    const { playerId, rarity, systemId, planetId, speciesName } = req.body;
+    const { playerId, rarity, systemId, planetId, speciesName, photoUrl, videoUrl } = req.body;
 
     if (!playerId || !rarity) {
       return res.status(400).json({ error: 'Missing required fields: playerId, rarity' });
@@ -38,6 +38,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const id = `lf_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const isBundle = rarity === 'common';
 
+    // Only persist bundled (relative) media URLs for common lifeforms; paid
+    // tiers fetch their unique Alpha media separately.
+    const isBundledUrl = (u: unknown): u is string =>
+      typeof u === 'string' && u.startsWith('/lifeforms/common/');
+
     const lifeform = await saveLifeform({
       id,
       playerId,
@@ -47,6 +52,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       rarity,
       speciesName: typeof speciesName === 'string' ? speciesName : null,
       isBundle,
+      photoUrl: isBundle && isBundledUrl(photoUrl) ? photoUrl : null,
+      videoUrl: isBundle && isBundledUrl(videoUrl) ? videoUrl : null,
     });
 
     return res.status(200).json({ lifeform });

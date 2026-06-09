@@ -28,6 +28,11 @@ packages/client/build/
 packages/client/android/app/build/
 packages/client/android/build/
 packages/client/ios/App/build/
+packages/client/ios/build/
+
+# Local dev/scratch harnesses (not shipped)
+packages/client/planet-shader-test.html
+packages/client/src/dev/
 
 # Local App Store screenshot working files
 app-store-screenshots/

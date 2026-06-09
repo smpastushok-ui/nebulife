@@ -37,16 +37,29 @@ export const LIFEFORM_VIDEO_COST: Record<DiscoveryRarity, number> = {
 };
 
 /**
- * Rarity weights for life *found* on building placement.
- * Heavily skewed to common (free, bundled) so paid generations feel special.
+ * Rarity weights for a life *find* (on harvest or building placement).
+ * Release tuning — "the more unique, the lower the chance":
+ *   common 72  ▸ uncommon 16 ▸ rare 7 ▸ epic 3 ▸ legendary 2   (sum 100)
+ * Strictly decreasing for the paid tiers, and common-heavy so the 28 free
+ * bundled forms surface often enough to complete the set in ~1 month, while
+ * paid uniques stay rare and special.
  */
 export const LIFEFORM_FIND_WEIGHTS: Record<DiscoveryRarity, number> = {
-  common: 70,
-  uncommon: 18,
+  common: 72,
+  uncommon: 16,
   rare: 7,
   epic: 3,
   legendary: 2,
 };
+
+/**
+ * Per-harvest chance that digging a resource deposit surfaces native life.
+ * Release tuning for "all 28 simple forms in ~1 month of active play":
+ *   ~22 harvests/day × 0.05 × 72% common ≈ ~0.8 common finds/day → ~28 days
+ *   for the full set (unseen-first selection guarantees no wasted finds until
+ *   complete; building placements below add a little on top).
+ */
+export const LIFEFORM_HARVEST_FIND_CHANCE = 0.05;
 
 /**
  * Buildings that can surface a lifeform when placed, with per-build chance.
@@ -91,20 +104,34 @@ export function rollLifeformFind(
 
   if (rng.next() > chance) return { found: false, rarity: 'common' };
 
-  // Roll rarity using weights.
+  return { found: true, rarity: rollLifeformRarity(rng) };
+}
+
+/** Roll a rarity tier from LIFEFORM_FIND_WEIGHTS using the given RNG. */
+function rollLifeformRarity(rng: SeededRNG): DiscoveryRarity {
   const total = Object.values(LIFEFORM_FIND_WEIGHTS).reduce((a, b) => a + b, 0);
   const roll = rng.next() * total;
   let cumulative = 0;
-  let rarity: DiscoveryRarity = 'common';
   for (const [r, w] of Object.entries(LIFEFORM_FIND_WEIGHTS) as [DiscoveryRarity, number][]) {
     cumulative += w;
-    if (roll < cumulative) {
-      rarity = r;
-      break;
-    }
+    if (roll < cumulative) return r;
   }
+  return 'common';
+}
 
-  return { found: true, rarity };
+/**
+ * Seeded roll for finding a lifeform on a resource harvest ("digging finds
+ * something"). Flat per-harvest chance (LIFEFORM_HARVEST_FIND_CHANCE) then the
+ * shared rarity weights. Deterministic: same (seed, harvestCount) → same roll.
+ */
+export function rollLifeformHarvestFind(
+  seed: number,
+  harvestCount: number,
+): LifeformFindRoll {
+  const mixed = (Math.floor(seed) ^ 0x9e3779b9 ^ (harvestCount * 2654435761)) >>> 0;
+  const rng = new SeededRNG(mixed);
+  if (rng.next() > LIFEFORM_HARVEST_FIND_CHANCE) return { found: false, rarity: 'common' };
+  return { found: true, rarity: rollLifeformRarity(rng) };
 }
 
 // ---------------------------------------------------------------------------
@@ -223,6 +250,118 @@ function hashString(s: string): number {
     h = Math.imul(h, 16777619);
   }
   return h >>> 0;
+}
+
+// ---------------------------------------------------------------------------
+// Simple (common, free) lifeform catalogue — 28 bundled organisms.
+// Each common find reveals ONE of these, with a unique bundled photo + video
+// shipped in the app (public/lifeforms/common/<key>.{webp,webm}). Discovery
+// hands out the next NOT-yet-collected species so a player unlocks the whole
+// set in ~1 month of active play; once all 28 are owned, re-finds are
+// duplicates and are NOT saved to the gallery (see App.tsx discovery flow).
+// ---------------------------------------------------------------------------
+
+export interface SimpleLifeform {
+  /** Stable slug — also the bundled asset basename. */
+  key: string;
+  /** Ukrainian display name. */
+  nameUk: string;
+  /** English display name. */
+  nameEn: string;
+}
+
+export const SIMPLE_LIFEFORM_ASSET_BASE = '/lifeforms/common';
+
+export const SIMPLE_LIFEFORMS: SimpleLifeform[] = [
+  { key: 'shifting-amoeba', nameUk: 'Мінлива амеба', nameEn: 'Shifting Amoeba' },
+  { key: 'micro-jelly', nameUk: 'Мікромедуза', nameEn: 'Micro-Jelly' },
+  { key: 'spiral-filament', nameUk: 'Спіральна нитка', nameEn: 'Spiral Filament' },
+  { key: 'micro-bear', nameUk: 'Мікроведмідь', nameEn: 'Micro-Bear' },
+  { key: 'polyp-microcolony', nameUk: 'Поліпова мікроколонія', nameEn: 'Polyp Microcolony' },
+  { key: 'glow-plankton', nameUk: 'Сяйний планктон', nameEn: 'Glow Plankton' },
+  { key: 'slipper-ciliate', nameUk: 'Інфузорія-туфелька', nameEn: 'Slipper Ciliate' },
+  { key: 'crown-rotifer', nameUk: 'Коловертка', nameEn: 'Crown Rotifer' },
+  { key: 'magnetotactic-chain', nameUk: 'Магнітотактичний ланцюг', nameEn: 'Magnetotactic Chain' },
+  { key: 'living-mirror', nameUk: 'Живе дзеркало', nameEn: 'Living Mirror' },
+  { key: 'cryo-fern', nameUk: 'Кріопапороть', nameEn: 'Cryo-Fern' },
+  { key: 'plasma-sail', nameUk: 'Плазмове вітрило', nameEn: 'Plasma Sail' },
+  { key: 'tholin-sphere', nameUk: 'Толінова сфера', nameEn: 'Tholin Sphere' },
+  { key: 'methane-bubble-breather', nameUk: 'Метановий дихальник', nameEn: 'Methane-Bubble Breather' },
+  { key: 'sulfur-lantern', nameUk: 'Сірчаний ліхтар', nameEn: 'Sulfur Lantern' },
+  { key: 'radiotroph', nameUk: 'Радіотроф', nameEn: 'Radiotroph' },
+  { key: 'liquid-metal-droplet', nameUk: 'Рідкометалева крапля', nameEn: 'Liquid-Metal Droplet' },
+  { key: 'halophile-salt-crystal', nameUk: 'Галофільний кристал', nameEn: 'Halophile Salt-Crystal' },
+  { key: 'iron-oxide-filament', nameUk: 'Залізооксидна нитка', nameEn: 'Iron-Oxide Filament' },
+  { key: 'aerogel-floater', nameUk: 'Аерогелевий поплавець', nameEn: 'Aerogel Floater' },
+  { key: 'photonic-lens-eye', nameUk: 'Фотонне око-лінза', nameEn: 'Photonic Lens-Eye' },
+  { key: 'mitosis-pair', nameUk: 'Пара поділу', nameEn: 'Mitosis Pair' },
+  { key: 'quartz-spine-urchin', nameUk: 'Кварцовий їжак', nameEn: 'Quartz-Spine Urchin' },
+  { key: 'living-snowflake', nameUk: 'Жива сніжинка', nameEn: 'Living Snowflake' },
+  { key: 'web-caster', nameUk: 'Павутинник', nameEn: 'Web-Caster' },
+  { key: 'convection-ring', nameUk: 'Конвекційне кільце', nameEn: 'Convection Ring' },
+  { key: 'spectral-veil', nameUk: 'Спектральна вуаль', nameEn: 'Spectral Veil' },
+  { key: 'helio-disc', nameUk: 'Геліодиск', nameEn: 'Helio-Disc' },
+];
+
+/** Total number of bundled simple (common) lifeforms. */
+export const SIMPLE_LIFEFORM_COUNT = SIMPLE_LIFEFORMS.length;
+
+const SIMPLE_BY_KEY: Record<string, SimpleLifeform> = Object.fromEntries(
+  SIMPLE_LIFEFORMS.map((s) => [s.key, s]),
+);
+
+/** Lookup a simple lifeform by its stable key. */
+export function getSimpleLifeform(key: string): SimpleLifeform | undefined {
+  return SIMPLE_BY_KEY[key];
+}
+
+/** Bundled photo path for a simple lifeform key. */
+export function simpleLifeformPhoto(key: string): string {
+  return `${SIMPLE_LIFEFORM_ASSET_BASE}/${key}.webp`;
+}
+
+/** Bundled video path for a simple lifeform key. */
+export function simpleLifeformVideo(key: string): string {
+  return `${SIMPLE_LIFEFORM_ASSET_BASE}/${key}.webm`;
+}
+
+/** Localized display name for a simple lifeform key ('uk' | 'en'). */
+export function simpleLifeformName(key: string, lang: string): string {
+  const s = SIMPLE_BY_KEY[key];
+  if (!s) return key;
+  return lang.startsWith('uk') ? s.nameUk : s.nameEn;
+}
+
+/**
+ * Recover the species key from a bundled asset URL such as
+ * `/lifeforms/common/shifting-amoeba.webp`. Returns null if not a bundled
+ * common asset. Used to know which species a player already owns (dedup) and
+ * to localize the display name on reload without a DB schema change.
+ */
+export function simpleKeyFromAssetUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const m = /\/lifeforms\/common\/([a-z0-9-]+)\.(webp|webm)$/.exec(url);
+  if (!m) return null;
+  return SIMPLE_BY_KEY[m[1]] ? m[1] : null;
+}
+
+/**
+ * Deterministically pick the next simple lifeform a player has NOT collected.
+ * Returns null when every one of the 28 is already owned (→ caller treats the
+ * find as a duplicate and does not save it).
+ *
+ * @param ownedKeys  Set of species keys the player already owns.
+ * @param seed       A stable seed (e.g. planet.seed ^ counter) to vary which
+ *                   unseen species is granted.
+ */
+export function pickUnseenSimpleLifeform(
+  ownedKeys: ReadonlySet<string>,
+  seed: number,
+): string | null {
+  const unseen = SIMPLE_LIFEFORMS.filter((s) => !ownedKeys.has(s.key));
+  if (unseen.length === 0) return null;
+  const idx = (Math.abs(Math.floor(seed)) >>> 0) % unseen.length;
+  return unseen[idx].key;
 }
 
 // ---------------------------------------------------------------------------

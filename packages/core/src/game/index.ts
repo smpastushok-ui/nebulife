@@ -54,9 +54,11 @@ export {
   LIFEFORM_PHOTO_COST,
   LIFEFORM_VIDEO_COST,
   LIFEFORM_FIND_WEIGHTS,
+  LIFEFORM_HARVEST_FIND_CHANCE,
   LIFEFORM_TRIGGER_BUILDINGS,
   isLifeformTriggerBuilding,
   rollLifeformFind,
+  rollLifeformHarvestFind,
   LIFEFORM_INGREDIENT_IDS,
   INGREDIENT_BY_DEPOSIT,
   GENESIS_INGREDIENT_MIN_LEVEL,
@@ -65,8 +67,18 @@ export {
   LIFEFORM_CREATE_RECIPE,
   canCreateLifeform,
   buildLifeformPlanetContext,
+  // Simple (common, bundled) lifeform catalogue
+  SIMPLE_LIFEFORMS,
+  SIMPLE_LIFEFORM_COUNT,
+  SIMPLE_LIFEFORM_ASSET_BASE,
+  getSimpleLifeform,
+  simpleLifeformPhoto,
+  simpleLifeformVideo,
+  simpleLifeformName,
+  simpleKeyFromAssetUrl,
+  pickUnseenSimpleLifeform,
 } from './lifeform.js';
-export type { LifeformSource, LifeformMediaStatus, LifeformFindRoll, LifeformIngredientId, LifeformCreateRecipe, LifeformPlanetContext } from './lifeform.js';
+export type { LifeformSource, LifeformMediaStatus, LifeformFindRoll, LifeformIngredientId, LifeformCreateRecipe, LifeformPlanetContext, SimpleLifeform } from './lifeform.js';
 
 // Cosmic catalog
 export {

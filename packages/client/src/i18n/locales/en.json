@@ -49,6 +49,8 @@
     "source_created": "Created",
     "icon_photo": "Photo",
     "icon_video": "Video",
+    "rename": "Rename species",
+    "rename_save": "Save",
     "video_loading": "Loading video...",
     "astra_onboarding_1": "Life is scattered across the galaxy — some simple, some extraordinarily rare. It can stir even on early worlds when your colony disturbs the crust.",
     "astra_onboarding_2": "Simple forms I catalogue for free. For uncommon species you'll spend quarks on a unique 4K Alpha-photo and bring it to life as an Alpha-video.",
@@ -1782,6 +1784,7 @@
     "message_placeholder": "Message...",
     "system_header": "SYSTEM",
     "go_to_system": "Go to system",
+    "view_specimen": "View specimen",
     "go_to_planet": "Go to planet",
     "view_report": "View report",
     "no_system_notifs": "No system notifications",
@@ -1836,6 +1839,19 @@
     "lifetime_label": "Lifetime",
     "lifetime_desc": "One purchase, permanent access",
     "lifetime_save": "One time"
+  },
+  "promo": {
+    "section": "Activation code",
+    "placeholder": "NEBU-XXXX-XXXX",
+    "apply": "Activate",
+    "checking": "Checking...",
+    "success": "Premium activated. Happy discoveries!",
+    "err_invalid": "Code not found. Check the spelling.",
+    "err_used": "This code has already been used.",
+    "err_expired": "This code has expired.",
+    "err_already_premium": "You already have an active Premium.",
+    "err_rate_limited": "Too many attempts. Try again in 10 minutes.",
+    "err_network": "No connection. Try again."
   },
   "web_access": {
     "kicker": "WEB PREMIUM",

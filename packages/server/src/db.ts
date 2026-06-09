@@ -1509,14 +1509,23 @@ export async function saveLifeform(data: {
   rarity: string;
   speciesName?: string | null;
   isBundle?: boolean;
+  /** Bundled asset URL for common lifeforms (per-species photo). */
+  photoUrl?: string | null;
+  /** Bundled asset URL for common lifeforms (per-species video). */
+  videoUrl?: string | null;
 }): Promise<LifeformRow> {
   const sql = getSQL();
+  // Bundled common media is ready immediately, so mark status 'succeed'.
+  const photoStatus = data.photoUrl ? 'succeed' : null;
+  const videoStatus = data.videoUrl ? 'succeed' : null;
   const rows = await sql`
     INSERT INTO lifeforms (
-      id, player_id, system_id, planet_id, source, rarity, species_name, is_bundle
+      id, player_id, system_id, planet_id, source, rarity, species_name, is_bundle,
+      photo_url, photo_status, video_url, video_status
     ) VALUES (
       ${data.id}, ${data.playerId}, ${data.systemId ?? null}, ${data.planetId ?? null},
-      ${data.source ?? 'found'}, ${data.rarity}, ${data.speciesName ?? null}, ${data.isBundle ?? false}
+      ${data.source ?? 'found'}, ${data.rarity}, ${data.speciesName ?? null}, ${data.isBundle ?? false},
+      ${data.photoUrl ?? null}, ${photoStatus}, ${data.videoUrl ?? null}, ${videoStatus}
     )
     RETURNING *
   `;
@@ -2876,6 +2885,52 @@ export async function logIapGrantFailure(failure: {
   } catch (err) {
     console.error('[IAP] Failed to record grant failure:', err);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Premium promo codes (one-time tester/partner codes) — see migration 031
+// ---------------------------------------------------------------------------
+
+export interface PremiumPromoCodeRow {
+  code: string;
+  duration_days: number;
+  note: string | null;
+  expires_at: string | null;
+  redeemed_by: string | null;
+  redeemed_at: string | null;
+}
+
+export type PromoCodeClaimResult =
+  | { ok: true; row: PremiumPromoCodeRow }
+  | { ok: false; reason: 'not_found' | 'already_redeemed' | 'expired' };
+
+/**
+ * Atomically claim a one-time premium promo code for a player.
+ * The UPDATE ... WHERE redeemed_by IS NULL guard makes double-redeem impossible
+ * even under concurrent requests.
+ */
+export async function claimPremiumPromoCode(code: string, playerId: string): Promise<PromoCodeClaimResult> {
+  const sql = getSQL();
+  const rows = await sql`
+    UPDATE premium_promo_codes
+    SET redeemed_by = ${playerId}, redeemed_at = NOW()
+    WHERE code = ${code}
+      AND redeemed_by IS NULL
+      AND (expires_at IS NULL OR expires_at > NOW())
+    RETURNING *
+  `;
+  if (rows.length > 0) {
+    return { ok: true, row: rows[0] as PremiumPromoCodeRow };
+  }
+
+  // Claim failed — figure out why for a friendly error message.
+  const existing = await sql`
+    SELECT redeemed_by, expires_at FROM premium_promo_codes WHERE code = ${code}
+  `;
+  if (existing.length === 0) return { ok: false, reason: 'not_found' };
+  const row = existing[0] as { redeemed_by: string | null; expires_at: string | null };
+  if (row.redeemed_by) return { ok: false, reason: 'already_redeemed' };
+  return { ok: false, reason: 'expired' };
 }
 
 /** Atomic add — prevents TOCTOU race via WHERE clause. */

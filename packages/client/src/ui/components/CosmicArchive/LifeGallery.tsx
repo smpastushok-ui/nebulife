@@ -1,10 +1,27 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Capacitor } from '@capacitor/core';
-import { RARITY_COLORS, getRarityLabel } from '@nebulife/core';
-import type { DiscoveryRarity, StarSystem } from '@nebulife/core';
-import { getPlayerLifeforms, type LifeformRecord } from '../../../api/lifeform-api.js';
+import {
+  RARITY_COLORS,
+  getRarityLabel,
+  buildLifeformPlanetContext,
+  LIFEFORM_PHOTO_COST,
+  LIFEFORM_VIDEO_COST,
+} from '@nebulife/core';
+import type { DiscoveryRarity, StarSystem, Planet } from '@nebulife/core';
+import {
+  getPlayerLifeforms,
+  generateLifeformPhoto,
+  generateLifeformVideo,
+  pollLifeformPhotoStatus,
+  pollLifeformVideoStatus,
+  renameLifeform,
+  type LifeformRecord,
+  type LifeformMediaStatus,
+} from '../../../api/lifeform-api.js';
+import { trackEvent } from '../../../analytics/firebase-analytics.js';
 import { useVideoAudioFocus } from '../../../audio/useVideoAudioFocus.js';
+import { saveMediaToGallery, isShareCancelled } from '../../../utils/media-saver.js';
 
 const GAME_URL_WEB = 'https://nebulife.space';
 
@@ -32,10 +49,19 @@ interface LifeGalleryProps {
   aliases?: Record<string, string>;
   /** Jump to the planet where a lifeform was found (closes the archive). */
   onGoToPlanet?: (system: StarSystem, planetId: string) => void;
+  /** Quark balance — enables paid Alpha-photo/video generation from the card. */
+  quarks?: number;
+  onQuarksChange?: (q: number) => void;
+  /** Persist updated lifeform (rename / generated media) into App state. */
+  onLifeformUpdated?: (lf: LifeformRecord) => void;
+  /** When set, auto-opens the specimen card for this lifeform id. */
+  openLifeformId?: string | null;
+  onOpenLifeformConsumed?: () => void;
 }
 
 interface PlanetContext {
   system: StarSystem;
+  planet: Planet;
   planetId: string;
   planetName: string;
   systemName: string;
@@ -78,9 +104,33 @@ function IconPlanet() {
   );
 }
 
+function IconEdit() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11.3 2.4l2.3 2.3L5.3 13H3v-2.3z" />
+      <path d="M9.8 3.9l2.3 2.3" />
+    </svg>
+  );
+}
+
+/** Inline quark currency icon — matches the rest of the UI. */
+function QuarkIconSmall({ color = '#7bb8ff' }: { color?: string }) {
+  return (
+    <svg
+      width="11" height="11" viewBox="0 0 16 16" fill="none" stroke={color} strokeWidth="1.3"
+      style={{ display: 'inline-block', verticalAlign: 'middle' }}
+    >
+      <circle cx="8" cy="8" r="2" />
+      <ellipse cx="8" cy="8" rx="7" ry="3" />
+      <ellipse cx="8" cy="8" rx="7" ry="3" transform="rotate(60 8 8)" />
+      <ellipse cx="8" cy="8" rx="7" ry="3" transform="rotate(-60 8 8)" />
+    </svg>
+  );
+}
+
 // ── Component ────────────────────────────────────────────────────────────────
 
-export function LifeGallery({ playerId, lifeforms, allSystems, aliases, onGoToPlanet }: LifeGalleryProps) {
+export function LifeGallery({ playerId, lifeforms, allSystems, aliases, onGoToPlanet, quarks, onQuarksChange, onLifeformUpdated, openLifeformId, onOpenLifeformConsumed }: LifeGalleryProps) {
   const { t } = useTranslation();
 
   const [rows, setRows] = useState<LifeformRecord[] | null>(null);
@@ -122,11 +172,23 @@ export function LifeGallery({ playerId, lifeforms, allSystems, aliases, onGoToPl
     if (!planet) return null;
     return {
       system,
+      planet,
       planetId: lf.planet_id,
       planetName: planet.name,
       systemName: aliases?.[system.id] || system.star.name,
     };
   }, [allSystems, aliases]);
+
+  // Deep-link: auto-open the specimen card requested from outside (e.g. the
+  // "view specimen" button on a system chat notification).
+  useEffect(() => {
+    if (!openLifeformId) return;
+    const lf = merged.find((r) => r.id === openLifeformId);
+    if (lf) {
+      setSelected({ lf, mode: 'photo' });
+      onOpenLifeformConsumed?.();
+    }
+  }, [openLifeformId, merged, onOpenLifeformConsumed]);
 
   const thumbFor = useCallback((lf: LifeformRecord): string => {
     if (lf.photo_url) return lf.photo_url;
@@ -158,14 +220,16 @@ export function LifeGallery({ playerId, lifeforms, allSystems, aliases, onGoToPl
           const planetCtx = planetContextFor(lf);
           return (
             <div key={lf.id} style={styles.card}>
-              {/* Photo — full 4:3, framed by a rarity-colored gradient contour. */}
+              {/* Photo — full 4:3, framed by a rarity-colored gradient contour.
+                  Always opens the specimen card — even without a photo the card
+                  offers rename + deferred Alpha-photo/video generation. */}
               <button
-                onClick={() => hasPhoto && setSelected({ lf, mode: 'photo' })}
+                onClick={() => setSelected({ lf, mode: 'photo' })}
                 style={{
                   ...styles.photoFrame,
                   background: `linear-gradient(135deg, ${color} 0%, ${hexA(color, 0.2)} 50%, ${color} 100%)`,
                   boxShadow: `0 0 14px ${hexA(color, 0.3)}, 0 2px 8px rgba(0,0,0,0.45)`,
-                  cursor: hasPhoto ? 'pointer' : 'default',
+                  cursor: 'pointer',
                 }}
               >
                 <div style={styles.photoInner}>
@@ -213,10 +277,14 @@ export function LifeGallery({ playerId, lifeforms, allSystems, aliases, onGoToPl
 
       {selected && (
         <LifeLightbox
+          playerId={playerId}
           lifeform={selected.lf}
           mode={selected.mode}
           planetContext={planetContextFor(selected.lf)}
           onGoToPlanet={onGoToPlanet}
+          quarks={quarks}
+          onQuarksChange={onQuarksChange}
+          onUpdated={onLifeformUpdated}
           onClose={() => setSelected(null)}
         />
       )}
@@ -264,19 +332,120 @@ function VideoLoader({ color, label, poster }: { color: string; label: string; p
 
 // ── Lightbox ─────────────────────────────────────────────────────────────────
 
-function LifeLightbox({ lifeform, mode, planetContext, onGoToPlanet, onClose }: {
+const GEN_BUSY_STATES: ReadonlySet<string> = new Set(['generating', 'pending', 'processing']);
+
+function LifeLightbox({ playerId, lifeform: initial, mode, planetContext, onGoToPlanet, quarks, onQuarksChange, onUpdated, onClose }: {
+  playerId: string;
   lifeform: LifeformRecord;
   mode: 'photo' | 'video';
   planetContext: PlanetContext | null;
   onGoToPlanet?: (system: StarSystem, planetId: string) => void;
+  quarks?: number;
+  onQuarksChange?: (q: number) => void;
+  onUpdated?: (lf: LifeformRecord) => void;
   onClose: () => void;
 }) {
   const { t, i18n } = useTranslation();
+  // Live record — updated in place by rename / deferred generation.
+  const [lifeform, setLifeform] = useState<LifeformRecord>(initial);
   const color = RARITY_COLORS[lifeform.rarity as DiscoveryRarity] ?? '#8899aa';
   const photo = lifeform.photo_url || (lifeform.is_bundle || lifeform.rarity === 'common' ? DEFAULT_COMMON_PHOTO : '');
   const showVideo = mode === 'video' && !!lifeform.video_url;
   const [videoLoading, setVideoLoading] = useState(showVideo);
   const { enterVideoFocus, exitVideoFocus } = useVideoAudioFocus();
+
+  const applyUpdate = useCallback((updater: (prev: LifeformRecord) => LifeformRecord) => {
+    setLifeform((prev) => {
+      const next = updater(prev);
+      onUpdated?.(next);
+      return next;
+    });
+  }, [onUpdated]);
+
+  // ── Rename (deferred naming from the card) ─────────────────────────────
+  const isLocal = lifeform.id.startsWith('local');
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState('');
+
+  const saveName = useCallback(() => {
+    const finalName = nameDraft.trim().slice(0, 40);
+    setEditingName(false);
+    if (!finalName || finalName === lifeform.species_name) return;
+    applyUpdate((prev) => ({ ...prev, species_name: finalName }));
+    if (!isLocal) void renameLifeform(playerId, lifeform.id, finalName).catch(() => {});
+  }, [nameDraft, lifeform.species_name, lifeform.id, isLocal, playerId, applyUpdate]);
+
+  // ── Deferred Alpha-photo / Alpha-video generation ──────────────────────
+  const rarity = lifeform.rarity as DiscoveryRarity;
+  const isCommon = lifeform.rarity === 'common' || lifeform.is_bundle;
+  const photoCost = LIFEFORM_PHOTO_COST[rarity] ?? 0;
+  const videoCost = LIFEFORM_VIDEO_COST[rarity] ?? 0;
+  const canGenerate = !isCommon && !isLocal && !!onUpdated && !!onQuarksChange && quarks !== undefined;
+  const [genBusy, setGenBusy] = useState<'photo' | 'video' | null>(() => {
+    if (!initial.photo_url && GEN_BUSY_STATES.has(initial.photo_status ?? '')) return 'photo';
+    if (initial.photo_url && !initial.video_url && GEN_BUSY_STATES.has(initial.video_status ?? '')) return 'video';
+    return null;
+  });
+  const [genError, setGenError] = useState<string | null>(null);
+  const stopPoll = useRef<(() => void) | null>(null);
+  useEffect(() => () => { stopPoll.current?.(); }, []);
+
+  const handlePhotoPoll = useCallback((s: { status: LifeformMediaStatus; photoUrl?: string | null }) => {
+    if (s.status === 'succeed' && s.photoUrl) {
+      setGenBusy(null);
+      applyUpdate((prev) => ({ ...prev, photo_url: s.photoUrl!, photo_status: 'succeed' }));
+    } else if (s.status === 'failed') {
+      setGenBusy(null);
+      setGenError(t('lifeform.err_failed'));
+    }
+  }, [applyUpdate, t]);
+
+  const handleVideoPoll = useCallback((s: { status: LifeformMediaStatus; videoUrl?: string | null }) => {
+    if (s.status === 'succeed' && s.videoUrl) {
+      setGenBusy(null);
+      applyUpdate((prev) => ({ ...prev, video_url: s.videoUrl!, video_status: 'succeed' }));
+    } else if (s.status === 'failed') {
+      setGenBusy(null);
+      setGenError(t('lifeform.err_failed'));
+    }
+  }, [applyUpdate, t]);
+
+  // Resume polling for a generation left running in a previous session.
+  useEffect(() => {
+    if (genBusy === 'photo') stopPoll.current = pollLifeformPhotoStatus(lifeform.id, handlePhotoPoll);
+    else if (genBusy === 'video') stopPoll.current = pollLifeformVideoStatus(lifeform.id, handleVideoPoll);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const startGen = useCallback(async (kind: 'photo' | 'video') => {
+    if (!canGenerate || genBusy) return;
+    const cost = kind === 'photo' ? photoCost : videoCost;
+    if ((quarks ?? 0) < cost) {
+      setGenError(t('lifeform.err_quarks'));
+      return;
+    }
+    setGenError(null);
+    setGenBusy(kind);
+    void trackEvent(kind === 'photo' ? 'lifeform_alpha_photo' : 'lifeform_alpha_video', { rarity, cost, source: 'archive_card' });
+    try {
+      if (kind === 'photo') {
+        const ctx = planetContext ? buildLifeformPlanetContext(planetContext.planet) : null;
+        const resp = await generateLifeformPhoto(playerId, lifeform.id, {
+          planetHint: ctx?.hint,
+          planetMedium: ctx?.medium,
+        });
+        if (resp.quarksRemaining !== null && resp.quarksRemaining !== undefined) onQuarksChange?.(resp.quarksRemaining);
+        stopPoll.current = pollLifeformPhotoStatus(lifeform.id, handlePhotoPoll);
+      } else {
+        const resp = await generateLifeformVideo(playerId, lifeform.id);
+        if (resp.quarksRemaining !== null && resp.quarksRemaining !== undefined) onQuarksChange?.(resp.quarksRemaining);
+        stopPoll.current = pollLifeformVideoStatus(lifeform.id, handleVideoPoll);
+      }
+    } catch (err) {
+      setGenBusy(null);
+      setGenError(err instanceof Error ? err.message : t('lifeform.err_failed'));
+    }
+  }, [canGenerate, genBusy, photoCost, videoCost, quarks, rarity, planetContext, playerId, lifeform.id, onQuarksChange, handlePhotoPoll, handleVideoPoll, t]);
 
   // Share / save the currently-shown media (photo in photo mode, clip in video mode).
   const [shared, setShared] = useState(false);
@@ -353,7 +522,36 @@ function LifeLightbox({ lifeform, mode, planetContext, onGoToPlanet, onClose }: 
 
           <div style={styles.lbNameRow}>
             <span style={{ ...styles.dot, background: color, boxShadow: `0 0 6px ${color}` }} />
-            <span style={styles.lbName}>{lifeform.species_name || t('lifeform.default_species')}</span>
+            {editingName ? (
+              <>
+                <input
+                  value={nameDraft}
+                  onChange={(e) => setNameDraft(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') setEditingName(false); }}
+                  placeholder={lifeform.species_name || t('lifeform.default_species')}
+                  maxLength={40}
+                  autoFocus
+                  style={styles.lbNameInput}
+                />
+                <button onClick={saveName} style={{ ...styles.lbNameSaveBtn, color, borderColor: hexA(color, 0.5) }}>
+                  {t('lifeform.rename_save')}
+                </button>
+              </>
+            ) : (
+              <>
+                <span style={styles.lbName}>{lifeform.species_name || t('lifeform.default_species')}</span>
+                {onUpdated && !isLocal && (
+                  <button
+                    onClick={() => { setNameDraft(lifeform.species_name ?? ''); setEditingName(true); }}
+                    title={t('lifeform.rename')}
+                    aria-label={t('lifeform.rename')}
+                    style={styles.lbEditBtn}
+                  >
+                    <IconEdit />
+                  </button>
+                )}
+              </>
+            )}
           </div>
 
           {planetContext && (
@@ -370,6 +568,37 @@ function LifeLightbox({ lifeform, mode, planetContext, onGoToPlanet, onClose }: 
             <span style={{ color: TEXT_MUTED }}>{t('lifeform.source_label')}</span>
             <span style={{ color: TEXT }}>{t(lifeform.source === 'created' ? 'lifeform.source_created' : 'lifeform.source_found')}</span>
           </div>
+
+          {/* Deferred deep bio-scan — start Alpha-photo / Alpha-video later from the card. */}
+          {canGenerate && (!lifeform.photo_url || !lifeform.video_url) && (
+            <div style={styles.lbGenBlock}>
+              {genError && <div style={styles.lbGenError}>{genError}</div>}
+              <button
+                onClick={() => void startGen(lifeform.photo_url ? 'video' : 'photo')}
+                disabled={!!genBusy}
+                style={{
+                  ...styles.lbGenBtn,
+                  color,
+                  borderColor: hexA(color, 0.55),
+                  background: `linear-gradient(135deg, ${hexA(color, 0.18)} 0%, ${hexA(color, 0.05)} 100%)`,
+                  opacity: genBusy ? 0.6 : 1,
+                  cursor: genBusy ? 'default' : 'pointer',
+                }}
+              >
+                <span style={styles.lbGenKicker}>✦ {t('lifeform.premium')}</span>
+                <span style={styles.lbGenMain}>
+                  <span style={{ color: TEXT, fontWeight: 700 }}>
+                    {genBusy ? t('lifeform.generating') : t(lifeform.photo_url ? 'lifeform.alpha_video' : 'lifeform.alpha_photo')}
+                  </span>
+                  {!genBusy && (
+                    <span style={{ ...styles.lbGenCost, color, borderColor: hexA(color, 0.45), background: hexA(color, 0.1) }}>
+                      {lifeform.photo_url ? videoCost : photoCost} <QuarkIconSmall color={color} />
+                    </span>
+                  )}
+                </span>
+              </button>
+            </div>
+          )}
 
           {/* Share / save the currently-shown media (photo or clip). */}
           {actionMediaUrl && (
@@ -505,20 +734,21 @@ async function downloadLifeformMedia(mediaUrl: string, isVideo: boolean, name: s
   const filename = `nebulife-${safeSeg(name)}.${ext}`;
 
   if (Capacitor.isNativePlatform()) {
+    // Save straight into the device gallery — no share sheets, no browser.
     try {
-      const { Filesystem, Directory } = await import('@capacitor/filesystem');
-      const { Share } = await import('@capacitor/share');
-      const base64 = await blobToBase64(await (await fetch(mediaUrl)).blob());
-      const writeRes = await Filesystem.writeFile({
-        path: `Nebulife/${filename}`, data: base64, directory: Directory.Documents, recursive: true,
-      });
-      await Share.share({ title: filename, text: filename, files: [writeRes.uri], dialogTitle: filename });
+      await saveMediaToGallery(mediaUrl, isVideo);
+      return;
     } catch (err) {
-      console.warn('[LifeGallery] native save failed:', err);
-      try {
-        const { Share } = await import('@capacitor/share');
-        await Share.share({ title: filename, url: mediaUrl, dialogTitle: filename });
-      } catch { window.open(mediaUrl, '_blank'); }
+      console.warn('[LifeGallery] gallery save failed, falling back to share sheet:', err);
+    }
+    // Single fallback: one share sheet (user can pick "Save"). A user cancel
+    // is not an error — never escalate to window.open on native.
+    try {
+      const { Share } = await import('@capacitor/share');
+      await Share.share({ title: filename, url: mediaUrl, dialogTitle: filename });
+    } catch (err) {
+      if (!isShareCancelled(err)) throw err;
+      throw Object.assign(new Error('cancelled'), { name: 'AbortError' });
     }
     return;
   }
@@ -601,6 +831,31 @@ const styles: Record<string, React.CSSProperties> = {
   lbMediaEl: { width: '100%', height: '100%', objectFit: 'cover' },
   lbNameRow: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 },
   lbName: { color: TEXT, fontSize: 15, fontWeight: 700 },
+  lbEditBtn: {
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    width: 24, height: 24, flexShrink: 0, padding: 0,
+    background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(85,102,119,0.6)', borderRadius: 5,
+    color: TEXT_MUTED, cursor: 'pointer',
+  },
+  lbNameInput: {
+    flex: 1, minWidth: 0, boxSizing: 'border-box',
+    background: 'rgba(0,0,0,0.4)', border: '1px solid #446688', borderRadius: 4,
+    color: TEXT, fontFamily: 'monospace', fontSize: 13, padding: '6px 9px', outline: 'none',
+  },
+  lbNameSaveBtn: {
+    flexShrink: 0, background: 'rgba(10,15,25,0.7)', border: '1px solid', borderRadius: 4,
+    fontFamily: 'monospace', fontSize: 11, fontWeight: 700, padding: '6px 11px', cursor: 'pointer',
+  },
+  lbGenBlock: { display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 },
+  lbGenError: { color: '#ff8844', fontSize: 11, textAlign: 'center' },
+  lbGenBtn: {
+    display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'stretch',
+    border: '1px solid', borderRadius: 8, padding: '10px 12px',
+    fontFamily: 'monospace', textAlign: 'left',
+  },
+  lbGenKicker: { fontSize: 9, letterSpacing: 2, fontWeight: 700, textTransform: 'uppercase' },
+  lbGenMain: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, fontSize: 13 },
+  lbGenCost: { fontSize: 12, fontWeight: 700, border: '1px solid', borderRadius: 999, padding: '2px 10px', whiteSpace: 'nowrap' },
   lbPlanetBtn: {
     display: 'inline-flex', alignItems: 'center', gap: 7, width: '100%', boxSizing: 'border-box',
     background: 'rgba(10,15,25,0.7)', border: '1px solid', borderRadius: 5,

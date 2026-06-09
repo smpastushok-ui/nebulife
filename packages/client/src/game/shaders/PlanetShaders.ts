@@ -41,6 +41,12 @@ uniform vec3 biomeTemperate;
 uniform vec3 biomeBoreal;
 uniform vec3 biomeTundra;
 uniform vec3 biomeDesert;
+uniform float cityLights;     // 0..1 intelligent civilization night grids
+uniform float bioGlow;        // 0..1 bioluminescent coastal plankton
+uniform float climateShift;   // -0.45..0.45 latitude shift of biome belts
+uniform float vegCoverage;    // 0..1 how much land flora claims
+uniform vec3 starTint;        // spectral tint of incoming starlight
+uniform vec3 cloudTint;       // cloud color from atmosphere chemistry
 
 varying vec2 vUv;
 varying vec3 vNormal;
@@ -223,6 +229,9 @@ void main() {
   float diff = max(dot(n, l), 0.0);
   float spec = 0.0;
   vec3 col = baseColor;
+  // Night-side emissive (city lights / bioluminescence) — filled by the
+  // terran branch, applied after lighting so it survives the dark hemisphere.
+  vec3 nightGlow = vec3(0.0);
 
   float detail = max(0.55, quality);
   float t = time;
@@ -323,8 +332,10 @@ void main() {
     float humidityNoise = fbm(p * 3.5 + seedVec + vec3(4.0));
     float tempNoise = fbm(p * 1.5 + seedVec + vec3(8.0));
     
-    // Base latitude temp (1 at equator, 0 at poles)
-    float temp = 1.0 - lat;
+    // Base latitude temp (1 at equator, 0 at poles), shifted by planet climate:
+    // hot habitable worlds push warm belts poleward (wider deserts/tropics),
+    // cold ones squeeze life toward the equator (sprawling tundra).
+    float temp = 1.0 - lat + climateShift;
     temp += (tempNoise - 0.5) * 0.4;
     temp = clamp(temp, 0.0, 1.0);
     
@@ -341,10 +352,19 @@ void main() {
             float iceVal = fbm(p * 8.0 + seedVec);
             col = mix(col, vec3(0.9, 0.95, 1.0), smoothstep(0.4, 0.6, iceVal));
             spec = 0.1;
+        } else if (bioGlow > 0.01) {
+            // Bioluminescent plankton blooms: brightest in warm shallow water
+            // along the coastlines, invisible by day, glowing on the night side.
+            float bloomMask = smoothstep(0.45, 0.85, fbm(p * 5.0 + seedVec + vec3(3.7)));
+            float coastal = smoothstep(0.35, 1.0, depth);
+            nightGlow += vec3(0.10, 0.85, 0.66) * bloomMask * coastal * bioGlow * 0.55;
         }
     } else {
-        // Land
-        float humidity = smoothstep(-0.3, 0.3, humidityNoise);
+        // Land — vegetation claims only as much land as life actually
+        // conquered: microbial worlds stay mostly mineral, complex biospheres
+        // green over everything moisture allows.
+        float aridity = 1.0 - vegCoverage;
+        float humidity = smoothstep(-0.3 + aridity * 0.65, 0.3 + aridity * 0.5, humidityNoise);
         
         // Determine biome based on temp and humidity
         vec3 biomeCol;
@@ -370,6 +390,22 @@ void main() {
         // Ice caps on land
         if (lat > 1.0 - ice) {
             col = mix(col, vec3(0.95, 0.98, 1.0), smoothstep(1.0 - ice - 0.1, 1.0 - ice, lat));
+        }
+
+        // City lights of an intelligent civilization: warm amber clusters on
+        // the night side. Settlements hug coastlines and lowlands, avoid the
+        // polar caps, deserts stay darker (sparser population).
+        if (cityLights > 0.01 && lat < 1.0 - ice) {
+            float coastBias = 1.0 - smoothstep(0.02, 0.32, landNoise - landThreshold);
+            float clusterMask = smoothstep(0.38, 0.78, fbm(p * 11.0 + seedVec + vec3(9.1)));
+            float habitable = smoothstep(0.08, 0.3, temp) * (0.45 + humidity * 0.55);
+            float grid = clusterMask * (0.35 + coastBias * 0.65) * habitable;
+            // High-frequency sparkle so megacities read as grids, not smears
+            // (one extra fbm tap — gated behind the quality knob for low tiers).
+            if (quality > 0.6) {
+                grid *= 0.55 + 0.45 * smoothstep(0.5, 0.9, fbm(p * 34.0 + seedVec + vec3(17.3)));
+            }
+            nightGlow += vec3(1.0, 0.72, 0.38) * grid * cityLights * 0.9;
         }
         
         // Bump mapping for high frequency details (mountains, canyons, terrain).
@@ -448,7 +484,12 @@ void main() {
     vec3 cloudP = p * 1.2 + seedVec + vec3(t * 0.03, 0.0, 0.0);
     float cloudCluster = fbm(cloudP * 1.1 + fbm(cloudP + seedVec));
     cloud = smoothstep(0.36, 0.72, cloudCluster) * cloudOpacity;
-    col = mix(col * 0.82, mix(vec3(0.85, 0.9, 0.95), atmosphereColor, 0.25), cloud);
+    // Cloud color follows atmosphere chemistry: white O2 cumulus, yellow CO2
+    // shrouds, brown CH4 haze — instead of one fixed white for every world.
+    vec3 cloudBase = cloudTint == vec3(0.0) ? vec3(0.85, 0.9, 0.95) : cloudTint;
+    col = mix(col * 0.82, mix(cloudBase, atmosphereColor, 0.2), cloud);
+    // Clouds also occlude the night-side glow underneath them
+    nightGlow *= 1.0 - cloud * 0.8;
   }
 
   float absorption = 1.0;
@@ -469,7 +510,11 @@ void main() {
   // higher floor stops the dark hemisphere / terminator reading as pure black
   // (the "темні планети" testers reported).
   vec3 ambient = vec3(quality > 0.6 ? 0.02 : 0.08);
-  vec3 finalColor = col * (diff * absorption + ambient);
+  // Incoming starlight carries the spectral tint of the host star: amber
+  // around red dwarfs, cool white-blue around F/A stars. uniform defaults to
+  // vec3(0.0) in any legacy material — treat that as untinted white.
+  vec3 lightCol = starTint == vec3(0.0) ? vec3(1.0) : starTint;
+  vec3 finalColor = col * (diff * absorption * lightCol + ambient);
   
   // Real specular highlight
   vec3 halfVector = normalize(l + viewDir);
@@ -485,7 +530,14 @@ void main() {
   }
   
   if (diff > 0.0) {
-    finalColor += baseSpec * specTerm * vec3(1.0, 0.9, 0.9);
+    finalColor += baseSpec * specTerm * vec3(1.0, 0.9, 0.9) * lightCol;
+  }
+
+  // Night-side life: city grids and bioluminescent seas fade in past the
+  // terminator. Uses the macro (unbumped) normal for a stable transition.
+  if (nightGlow != vec3(0.0)) {
+    float nightSide = smoothstep(0.14, -0.22, dot(normalize(vNormal), l));
+    finalColor += nightGlow * nightSide;
   }
 
   if (atmosphereStrength > 0.01 && planetType != 4 && planetType != 10) {

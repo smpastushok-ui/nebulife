@@ -477,6 +477,8 @@ export const en: Record<TranslationKey, string> = {
   'app.surface_disabled':   'Surface available after evacuation',
   'app.surface_level':      'Available at level 50+',
   'app.toast.archived':     'Data successfully archived',
+  'app.toast.photo_saved':  'Saved to gallery',
+  'app.notif.lifeform_found': 'New lifeform detected on planet {planet}. Specimen archived.',
   'app.exodus.syncing':     '> SYNCHRONIZING LIFE SUPPORT SYSTEMS...',
   'app.exodus.evacuation':  'Evacuation',
   'app.urgent_message':     '[ URGENT VIDEO MESSAGE ]',

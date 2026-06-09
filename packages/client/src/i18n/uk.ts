@@ -475,6 +475,8 @@ export const uk = {
   'app.surface_disabled':   'Поверхня доступна пiсля евакуацiї',
   'app.surface_level':      'Доступно з 50+ рiвня',
   'app.toast.archived':     'Дані успішно архівовано',
+  'app.toast.photo_saved':  'Збережено в галерею',
+  'app.notif.lifeform_found': 'Виявлено нову форму життя на планеті {planet}. Зразок збережено в Архіві.',
   'app.exodus.syncing':     '> СИНХРОНIЗАЦIЯ СИСТЕМ ЖИТТЄЗАБЕЗПЕЧЕННЯ...',
   'app.exodus.evacuation':  'Евакуація',
   'app.urgent_message':     '[ ТЕРМIНОВЕ ВIДЕО-ПОВIДОМЛЕННЯ ]',

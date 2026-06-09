@@ -10,8 +10,11 @@ const NOTIF_TEXT: Record<'uk' | 'en', string> = {
 
 /**
  * GET /api/cron/daily-lesson
- * Runs daily at 11:00 UTC.
- * Sends notification to each onboarded player about the new lesson in their preferred language.
+ *
+ * NOT scheduled anymore (removed from vercel.json crons): the Academy lesson
+ * base is fixed, so a daily "new lesson available" chat message was noise.
+ * Keep this endpoint for MANUAL triggering (Bearer CRON_SECRET) when genuinely
+ * new lessons are added to the catalog in the future.
  * Does NOT generate lesson content (lazy caching handles that in /api/academy/today).
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {

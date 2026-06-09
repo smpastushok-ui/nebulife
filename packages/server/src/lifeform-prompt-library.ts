@@ -150,38 +150,126 @@ export const LIFEFORM_SPECS: LifeformSpec[] = [
     sound: 'a soft fluttering wash and a gentle resonant hum' },
 ];
 
-// ── Shared art direction ─────────────────────────────────────────────────────
+// ── Life scale (rarity → how BIG / what kind of organism) ────────────────────
+// Life is no longer always a microbe under a microscope. Rarity drives the
+// scale, so rarer discoveries reveal visible, never-before-seen creatures:
+//   micro     — microscopic single-cell / micro-colony (electron-microscope)
+//   macro     — small multicellular organism, a few cm (macro specimen photo)
+//   creature  — a fully visible alien animal/plant in its habitat (field photo)
+//   megafauna — a large, awe-inspiring exotic organism (epic cinematic in-situ)
+export type LifeformScale = 'micro' | 'macro' | 'creature' | 'megafauna';
 
-const PHOTO_WRAP_PREFIX =
-  'Ultra-detailed scientific microscope capture of a newly discovered alien microorganism:';
-/** Default living medium when the planet context provides none. */
-const DEFAULT_ENV_CLAUSE = 'Suspended in dark mineral-rich fluid';
-const PHOTO_WRAP_SUFFIX =
-  'Cinematic deep-space dark background (#020510 tone), ' +
-  'soft volumetric backlight, high microscopic depth of field, subtle chromatic scan artifacts, ' +
-  'faint scanner grid overlay at very low opacity. Muted desaturated palette with cold accents and dim amber. ' +
-  'Photorealistic astrobiology lab imagery, electron-microscope aesthetic. ' +
-  'Mysterious and awe-inspiring, not cartoonish, no faces, no text, no watermark.';
+/** Map a rarity tier to a life scale. */
+export function scaleForRarity(rarity: string): LifeformScale {
+  switch (rarity) {
+    case 'rare': return 'macro';
+    case 'epic': return 'creature';
+    case 'legendary': return 'megafauna';
+    case 'common':
+    case 'uncommon':
+    default: return 'micro';
+  }
+}
 
-const VIDEO_WRAP_SUFFIX =
-  'Slow graceful organic motion, subtle particle drift in the medium, gentle focus breathing. ' +
-  'Calm, hypnotic, scientific, cinematic. No camera cuts, no text, no people.';
+interface ScaleWrap {
+  prefix: string;
+  defaultEnv: string;
+  photoSuffix: string;
+  videoOpener: string;
+  videoSuffix: string;
+}
+
+// Shared tail used by every scale so palette / "no faces, no text" stays stable.
+const COMMON_TAIL =
+  'Muted desaturated palette with cold accents and dim amber, consistent with a dark cosmic setting. ' +
+  'Awe-inspiring sense of discovery, believable biology, not cartoonish, no humans, no faces, no text, no watermark.';
+
+const SCALE_WRAPS: Record<LifeformScale, ScaleWrap> = {
+  micro: {
+    prefix: 'Ultra-detailed scientific microscope capture of a newly discovered alien microorganism:',
+    defaultEnv: 'Suspended in dark mineral-rich fluid',
+    photoSuffix:
+      'Cinematic deep-space dark background (#020510 tone), soft volumetric backlight, ' +
+      'high microscopic depth of field, subtle chromatic scan artifacts, faint scanner grid overlay at very low opacity. ' +
+      'Photorealistic astrobiology lab imagery, electron-microscope aesthetic. ' + COMMON_TAIL,
+    videoOpener: 'The alien microorganism is alive:',
+    videoSuffix:
+      'Slow graceful organic motion, subtle particle drift in the medium, gentle focus breathing. ' +
+      'Calm, hypnotic, scientific, cinematic. No camera cuts, no text, no people.',
+  },
+  macro: {
+    prefix: 'Ultra-detailed macro specimen photograph of a newly discovered small alien multicellular organism, a few centimeters across:',
+    defaultEnv: 'Resting in a dark, mineral-rich micro-habitat',
+    photoSuffix:
+      'Deep dark cinematic background (#020510 tone), soft volumetric backlight, shallow macro depth of field, ' +
+      'fine surface microtexture, subtle moisture and translucency. Photorealistic naturalist specimen imagery. ' + COMMON_TAIL,
+    videoOpener: 'The alien organism is alive:',
+    videoSuffix:
+      'Slow lifelike motion, gentle breathing and subtle limb or frond movement, faint particle drift around it. ' +
+      'Calm, hypnotic, naturalistic, cinematic. No camera cuts, no text, no people.',
+  },
+  creature: {
+    prefix: 'Cinematic naturalistic photograph of a newly discovered living alien creature in its native habitat, fully visible at life scale:',
+    defaultEnv: 'In its natural habitat on an alien world',
+    photoSuffix:
+      'Atmospheric alien-world lighting, dramatic natural light and shadow, cinematic depth of field, ' +
+      'rich believable biological detail and anatomy. Photorealistic xenobiology field photography. ' + COMMON_TAIL,
+    videoOpener: 'The alien creature is alive:',
+    videoSuffix:
+      'Slow lifelike movement, natural breathing and shifting weight, subtle environmental motion ' +
+      '(drifting dust, swaying flora, rippling water), gentle cinematic camera. ' +
+      'Calm, awe-inspiring, naturalistic. No hard cuts, no text, no people.',
+  },
+  megafauna: {
+    prefix: 'Epic cinematic wide photograph of a newly discovered large exotic alien organism dominating its native landscape:',
+    defaultEnv: 'Towering within a vast alien landscape',
+    photoSuffix:
+      'Vast alien vista, dramatic planetary lighting, volumetric atmosphere, epic cinematic scale and depth. ' +
+      'Photorealistic xenobiology documentary photography, profound sense of awe. ' + COMMON_TAIL,
+    videoOpener: 'The colossal alien organism is alive:',
+    videoSuffix:
+      'Slow majestic movement, deep breathing and ponderous shifting mass, sweeping environmental motion ' +
+      '(blowing dust, drifting spores, distant weather), slow cinematic camera move. ' +
+      'Awe-inspiring, grand, naturalistic. No hard cuts, no text, no people.',
+  },
+};
 
 const SOUND_WRAP_SUFFIX = 'Ambient only, no voice, no narration, no lyrics, no music with melody vocals.';
 
+// ── Uniqueness: deterministic variation hints from a seed ────────────────────
+// Injected into the Gemini brief so neighbouring seeds diverge into clearly
+// different body plans instead of variations on the same microbe.
+const VAR_SYMMETRY = ['radial', 'bilateral', 'spiral', 'fractal-branching', 'asymmetric lopsided', 'segmented', 'helical', 'lattice-like', 'five-fold', 'mirrored twin'];
+const VAR_FEATURE = ['translucent membranes', 'crystalline mineral plates', 'feathered fronds', 'glowing internal veins', 'a crown of tentacles', 'needle-like spines', 'iridescent scales', 'bioluminescent nodes', 'gossamer wind-sails', 'chitinous armored ridges', 'trailing filament tendrils', 'stacked gill-like lamellae'];
+const VAR_TEXTURE = ['glassy', 'velvety', 'metallic', 'gelatinous', 'fibrous', 'waxy', 'porous spongey', 'silken', 'crusted mineral', 'rubbery'];
+const VAR_MOTIF = ['a single luminous core', 'pulsing internal currents', 'slow rhythmic breathing', 'drifting released spore-motes', 'rippling surface waves of light', 'a constellation of faint glowing eyespots', 'a slowly rotating central ring', 'colour shifting along its body'];
+
+/**
+ * Build a short, deterministic "make this one different" clause from a seed.
+ * Same seed → same hint; adjacent seeds → different symmetry/feature/texture.
+ */
+export function lifeformVariationHints(seed: number): string {
+  const s = Math.abs(Math.floor(seed)) || 1;
+  const pick = <T>(arr: T[], salt: number): T => arr[(s * 2654435761 + salt * 40503) % arr.length];
+  return `${pick(VAR_SYMMETRY, 1)} symmetry, ${pick(VAR_FEATURE, 2)}, ${pick(VAR_TEXTURE, 3)} texture, with ${pick(VAR_MOTIF, 4)}`;
+}
+
 /**
  * Compose a still-image prompt (Nano Banana 2 / Kling image) from an appearance
- * fragment. `envClause` (optional) describes the living medium so the organism
- * matches its planet (e.g. "resting on dry mineral regolith in near-vacuum").
+ * fragment. `envClause` (optional) describes the living medium/habitat so the
+ * organism matches its planet. `scale` selects the framing (microscope → epic
+ * in-situ); defaults to 'micro' for backward compatibility.
  */
-export function buildPhotoPromptFromAppearance(appearance: string, envClause?: string): string {
-  const env = (envClause && envClause.trim()) || DEFAULT_ENV_CLAUSE;
-  return `${PHOTO_WRAP_PREFIX} ${appearance}. ${env}. ${PHOTO_WRAP_SUFFIX}`;
+export function buildPhotoPromptFromAppearance(appearance: string, envClause?: string, scale: LifeformScale = 'micro'): string {
+  const wrap = SCALE_WRAPS[scale];
+  const env = (envClause && envClause.trim()) || wrap.defaultEnv;
+  return `${wrap.prefix} ${appearance}. ${env}. ${wrap.photoSuffix}`;
 }
 
 /** Compose an image-to-video motion prompt (Kling V3) from an action fragment. */
-export function buildVideoPromptFromAction(action: string): string {
-  return `The alien organism is alive: ${action}. ${VIDEO_WRAP_SUFFIX}`;
+export function buildVideoPromptFromAction(action: string, scale: LifeformScale = 'micro'): string {
+  const wrap = SCALE_WRAPS[scale];
+  return `${wrap.videoOpener} ${action}. ${wrap.videoSuffix}`;
 }
 
 /** Compose a Kling V3 audio prompt (sound, no voice) from a sound fragment. */
@@ -189,7 +277,7 @@ export function buildSoundPrompt(sound: string): string {
   return `${sound}. ${SOUND_WRAP_SUFFIX}`;
 }
 
-/** Deterministically pick one of the 30 specs (e.g. by planet/lifeform seed). */
+/** Deterministically pick one of the specs (e.g. by planet/lifeform seed). */
 export function pickLifeformSpec(seed: number): LifeformSpec {
   const idx = Math.abs(Math.floor(seed)) % LIFEFORM_SPECS.length;
   return LIFEFORM_SPECS[idx];

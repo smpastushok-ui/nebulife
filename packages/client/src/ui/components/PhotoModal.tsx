@@ -5,6 +5,7 @@ import { Capacitor } from '@capacitor/core';
 import type { Discovery, CatalogEntry } from '@nebulife/core';
 import { RARITY_COLORS, getRarityLabel, getCatalogEntry, getCatalogName, getCatalogDescription } from '@nebulife/core';
 import { useReliableImage } from '../hooks/useReliableImage.js';
+import { saveMediaToGallery, isShareCancelled } from '../../utils/media-saver.js';
 
 // ---------------------------------------------------------------------------
 // PhotoModal — fullscreen photo view with share & save buttons
@@ -210,36 +211,16 @@ export function PhotoModal({
   const handleDownload = useCallback(async () => {
     const filename = `nebulife-${safeFilenameSegment(discovery.type)}-${discovery.id.slice(0, 8)}.png`;
 
-    // Native (Android / iOS) — save via Capacitor Filesystem to Documents
-    // and open the native share sheet with the local file attached. On iOS,
-    // writing to Documents alone is easy to miss; the sheet gives the user a
-    // visible "Save Image" / "Save to Files" action from the same tap.
-    // Directory.ExternalStorage hit Android 10+ scoped-storage restrictions
-    // (silent failures, no file actually persisted). Documents works on both
-    // platforms without extra permissions and is visible in the Files app.
+    // Native (Android / iOS) — save straight into the device gallery
+    // (Photos / "Nebulife" album). No share sheets, no browser redirects.
     if (Capacitor.isNativePlatform()) {
       try {
-        const { Filesystem, Directory } = await import('@capacitor/filesystem');
-        const { Share } = await import('@capacitor/share');
-        const blob = await fetchImageBlob(imageUrl);
-        const base64 = await blobToBase64(blob);
-        const writeRes = await Filesystem.writeFile({
-          path: `Nebulife/${filename}`,
-          data: base64,
-          directory: Directory.Documents,
-          recursive: true,
-        });
-        console.info('[PhotoModal] saved to', writeRes.uri);
+        await saveMediaToGallery(imageUrl, false);
         setDownloaded(true);
-        await Share.share({
-          title: filename,
-          text: filename,
-          files: [writeRes.uri],
-          dialogTitle: filename,
-        });
       } catch (err) {
-        console.warn('[PhotoModal] native download failed:', err);
-        // Fallback: share sheet (lets user save via Photos / Files app).
+        console.warn('[PhotoModal] gallery save failed, falling back to share sheet:', err);
+        // Single fallback: one share sheet (user can pick "Save Image").
+        // A user cancel is not an error — never escalate to window.open.
         try {
           const { Share } = await import('@capacitor/share');
           await Share.share({
@@ -247,8 +228,8 @@ export function PhotoModal({
             url: imageUrl,
             dialogTitle: filename,
           });
-        } catch {
-          window.open(imageUrl, '_blank');
+        } catch (shareErr) {
+          if (!isShareCancelled(shareErr)) console.warn('[PhotoModal] share fallback failed:', shareErr);
         }
       }
       return;
@@ -549,13 +530,4 @@ async function fetchImageBlob(imageUrl: string): Promise<Blob> {
   const res = await fetch(imageUrl);
   if (!res.ok) throw new Error(`Image download failed: ${res.status}`);
   return res.blob();
-}
-
-function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve((reader.result as string).split(',')[1] ?? '');
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(blob);
-  });
 }

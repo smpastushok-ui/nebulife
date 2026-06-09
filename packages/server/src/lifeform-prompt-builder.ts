@@ -2,10 +2,17 @@
 // Lifeform prompt builder (Genesis module)
 // ---------------------------------------------------------------------------
 // Builds Kling prompts for Alpha-photo (still) and Alpha-video (image2video)
-// of a discovered/created alien lifeform. Rarity drives complexity and awe.
-// Aligned with the game art direction: dark cosmos (#020510), muted palette,
-// scientific microscope / astrobiology aesthetic, no text, no cartoon.
+// of a discovered/created alien lifeform. Rarity drives both complexity AND
+// scale: common/uncommon are microbes, rare+ are visible macro creatures,
+// fauna and megafauna. Aligned with the game art direction: dark cosmos
+// (#020510), muted palette, no text, no cartoon.
+//
+// NOTE: the primary paid path goes through `generateLifeformBrief` (Gemini) +
+// the scale-aware wraps in `lifeform-prompt-library.ts`. The builders here are
+// the deterministic fallback used for legacy rows / image-less video steps.
 // ---------------------------------------------------------------------------
+
+import { buildPhotoPromptFromAppearance, buildVideoPromptFromAction, scaleForRarity } from './lifeform-prompt-library.js';
 
 export type LifeformRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 
@@ -29,9 +36,18 @@ const RARITY_GLOW: Record<LifeformRarity, string> = {
 const RARITY_FORM: Record<LifeformRarity, string> = {
   common: 'a simple translucent single-cell organism with gentle cilia',
   uncommon: 'a translucent multi-lobed micro-colony with delicate filaments',
-  rare: 'an intricate radial diatom-like organism with crystalline symmetry',
-  epic: 'a complex branching micro-fauna with layered membranes and internal organelles',
-  legendary: 'an otherworldly, never-before-seen organism of impossible elegant geometry',
+  rare: 'a small multicellular alien organism a few centimeters across, like an exotic invertebrate or coral polyp',
+  epic: 'a fully visible life-size alien creature with believable exotic anatomy in its habitat',
+  legendary: 'a large, awe-inspiring exotic alien organism — towering megafauna or monumental alien flora, never-before-seen',
+};
+
+// Generic fallback motion per scale (used only when no Gemini brief is stored).
+const RARITY_ACTION: Record<LifeformRarity, string> = {
+  common: 'it breathes and pulses gently, cilia and filaments drifting',
+  uncommon: 'it breathes and pulses gently, fine filaments rippling around it',
+  rare: 'it slowly flexes and feeds, soft tentacles or fronds swaying',
+  epic: 'it moves with slow lifelike intent, breathing and shifting its weight in its habitat',
+  legendary: 'it moves with slow majestic power, breathing deeply as the environment stirs around it',
 };
 
 const RARITY_DETAIL: Record<LifeformRarity, string> = {
@@ -47,35 +63,22 @@ const RARITY_DETAIL: Record<LifeformRarity, string> = {
  */
 export function buildLifeformPhotoPrompt(opts: LifeformPromptOptions): string {
   const rarity = opts.rarity;
+  const scale = scaleForRarity(rarity);
   const glow = RARITY_GLOW[rarity];
   const form = RARITY_FORM[rarity];
   const detail = RARITY_DETAIL[rarity];
-  const env = opts.planetHint
-    ? `suspended in dark mineral-rich fluid hinting at ${opts.planetHint}`
-    : 'suspended in dark mineral-rich fluid';
-
-  return [
-    `Ultra-detailed scientific microscope capture of a newly discovered alien microorganism,`,
-    `${form}, with faint ${glow} pulsing through its membrane, delicate internal structures visible,`,
-    `${env}.`,
-    `Cinematic deep-space dark background (#020510 tone), soft volumetric backlight,`,
-    `high microscopic depth of field, subtle chromatic scan artifacts, faint scanner grid overlay at very low opacity.`,
-    `Muted desaturated palette with cold accents and hints of dim amber.`,
-    `Photorealistic astrobiology lab imagery, electron-microscope aesthetic, ${detail}.`,
-    `Mysterious, awe-inspiring, not cartoonish, no faces, no text, no watermark.`,
-  ].join(' ');
+  const appearance = `${form}, with faint ${glow} pulsing through it, delicate structures visible, ${detail}`;
+  const env = opts.planetHint ? `hinting at ${opts.planetHint}` : undefined;
+  return buildPhotoPromptFromAppearance(appearance, env, scale);
 }
 
 /**
  * Build the Alpha-video (image-to-video) motion prompt for a lifeform.
+ * Scale-aware: microbes drift in fluid, creatures/megafauna move in a habitat.
  */
 export function buildLifeformVideoPrompt(opts: LifeformPromptOptions): string {
   const glow = RARITY_GLOW[opts.rarity];
-  return [
-    `The alien microorganism is alive: it breathes and pulses gently,`,
-    `its ${glow} flowing slowly through translucent membranes,`,
-    `cilia and filaments drifting in the fluid, slow graceful organic motion,`,
-    `subtle particle drift in the medium, gentle camera focus breathing.`,
-    `Calm, hypnotic, scientific, cinematic. No text, no people.`,
-  ].join(' ');
+  const scale = scaleForRarity(opts.rarity);
+  const action = `${RARITY_ACTION[opts.rarity]}, its ${glow} flowing slowly through it`;
+  return buildVideoPromptFromAction(action, scale);
 }

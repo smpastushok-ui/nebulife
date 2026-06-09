@@ -47,10 +47,11 @@ import type {
   Planet, Star, StarSystem, ResearchState, SystemResearchState, Discovery, CatalogEntry,
 } from '@nebulife/core';
 import { getCatalogEntry, getCatalogName, BUILDING_DEFS } from '@nebulife/core';
-import { rollLifeformFind, isLifeformTriggerBuilding, rollIngredientDrop, buildLifeformPlanetContext } from '@nebulife/core';
+import { rollLifeformFind, rollLifeformHarvestFind, isLifeformTriggerBuilding, rollIngredientDrop, buildLifeformPlanetContext, simpleLifeformPhoto, simpleLifeformVideo, simpleLifeformName, simpleKeyFromAssetUrl, pickUnseenSimpleLifeform } from '@nebulife/core';
 import type { LifeformPlanetContext } from '@nebulife/core';
 import type { DiscoveryRarity, LifeformIngredientId } from '@nebulife/core';
-import { checkPremiumStatus, initIAP } from './api/iap-service.js';
+import { checkPremiumStatus, initIAP, redeemPremiumCode } from './api/iap-service.js';
+import { saveMediaToGallery } from './utils/media-saver.js';
 import { getPlayerAliases, setAlias } from './api/alias-api.js';
 import {
   createResearchState,
@@ -1018,10 +1019,20 @@ function AppInner() {
   const [activeLifeformBundle, setActiveLifeformBundle] = useState<{ photo?: string; video?: string } | null>(null);
   const [activeLifeformPlanet, setActiveLifeformPlanet] = useState<LifeformPlanetContext | null>(null);
   const [activeLifeformOnboarding, setActiveLifeformOnboarding] = useState(false);
+  // Deep-link: lifeform id whose specimen card should auto-open in the Archive.
+  const [archiveLifeformId, setArchiveLifeformId] = useState<string | null>(null);
   const lifeformBuildCounter = useRef(0);
-  // TEMP TEST (revert before release): rotates rarity for the 100%-on-harvest
-  // lifeform reveal in handleHarvestFull. Remove together with that block.
-  const lifeformHarvestTestCounter = useRef(0);
+  // Monotonic counter to vary the per-harvest lifeform roll + which unseen
+  // simple species is granted on a common find.
+  const lifeformHarvestCounter = useRef(0);
+  // Latest lifeforms map, readable from stable callbacks without stale closures
+  // (used to compute already-owned simple species for dedup).
+  const lifeformsRef = useRef(lifeforms);
+  lifeformsRef.current = lifeforms;
+  // Stable indirection to the shared find→reveal handler (defined later).
+  const revealFoundLifeformRef = useRef<
+    (rarity: DiscoveryRarity, planet: Parameters<typeof buildLifeformPlanetContext>[0], system: { id: string }, pickSeed: number) => boolean
+  >(() => false);
   // Genesis Lab (Phase 2) — opened from the Genesis Vault building.
   const [showGenesisLab, setShowGenesisLab] = useState(false);
   useEffect(() => {
@@ -1784,78 +1795,20 @@ function AppInner() {
       lifeIngredientHarvestCounter.current += 1;
       const lfPlanet = surfaceTargetRef.current?.planet ?? homeInfoRef.current?.planet;
 
-      // TEMP TEST (revert before release): EVERY successful harvest reveals a
-      // brand-new lifeform at 100%, rotating through all rarities so the reveal
-      // popup + paid photo/video generation flow are trivial to verify.
-      // Remove this whole block (and lifeformHarvestTestCounter) for production.
+      // Lifeform Genesis — "digging finds something": each successful harvest
+      // has a small seeded chance to surface native life. Common rolls reveal
+      // one of the 28 bundled simple species (next not-yet-collected one);
+      // uncommon+ open the paid Alpha-photo/video flow. Duplicates of an
+      // already-collected simple species are silently skipped (not saved).
       if (actualAmount > 0) {
-        const lfPidTest = playerId.current;
-        const lfSystemTest = surfaceTargetRef.current?.system ?? homeInfoRef.current?.system;
-        if (lfPidTest && lfPlanet && lfSystemTest) {
-          const TEST_RARITIES: DiscoveryRarity[] = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
-          lifeformHarvestTestCounter.current += 1;
-          const testRarity = TEST_RARITIES[lifeformHarvestTestCounter.current % TEST_RARITIES.length];
-          const testBundle = testRarity === 'common' ? { photo: '/lifeforms/common/photo.webp' } : undefined;
-          void trackEvent('lifeform_found', { rarity: testRarity, source: 'harvest_test' });
-          setActiveLifeformOnboarding(false);
-          // Planet-aware biology so the Alpha-photo matches this exact world.
-          setActiveLifeformPlanet(buildLifeformPlanetContext(lfPlanet));
-
-          // Optimistic local record so the reveal popup ALWAYS appears, even if
-          // the /api/lifeform/found call fails (offline / DB error). The server
-          // response, when it lands, replaces this record by id.
-          const localLf: LifeformRecord = {
-            id: `local-${Date.now()}`,
-            player_id: lfPidTest,
-            system_id: lfSystemTest.id,
-            planet_id: lfPlanet.id,
-            source: 'found',
-            rarity: testRarity,
-            species_name: null,
-            is_bundle: !!testBundle?.photo,
-            photo_url: testBundle?.photo ?? null,
-            photo_status: testBundle?.photo ? 'succeed' : null,
-            photo_task_id: null,
-            video_url: null,
-            video_status: null,
-            video_task_id: null,
-            quarks_paid: 0,
-            created_at: new Date().toISOString(),
-            completed_at: null,
-          };
-          if (testBundle?.photo) {
-            // Common (bundled): show instantly — it needs no server id to render
-            // its bundled art, and never calls the paid generation endpoints.
-            setLifeforms((prev) => new Map(prev).set(localLf.id, localLf));
-            setActiveLifeformBundle(testBundle);
-            setActiveLifeform(localLf);
-            reportLifeformFound(lfPidTest, testRarity, { systemId: lfSystemTest.id, planetId: lfPlanet.id })
-              .then((lf) => {
-                const stamped = { ...lf, is_bundle: true, photo_url: lf.photo_url ?? testBundle.photo };
-                setLifeforms((prev) => {
-                  const next = new Map(prev);
-                  next.delete(localLf.id);
-                  next.set(stamped.id, stamped);
-                  return next;
-                });
-                setActiveLifeform((cur) => (cur && cur.id === localLf.id ? stamped : cur));
-              })
-              .catch(() => { /* keep optimistic local record visible */ });
-          } else {
-            // Paid (uncommon+): persist server-side FIRST so the reveal opens with
-            // a real id — photo/video generation 404s ("Lifeform not found") if it
-            // runs against the optimistic `local-…` id. On failure we still show
-            // the local record so the discovery moment is never lost.
-            setActiveLifeformBundle(null);
-            reportLifeformFound(lfPidTest, testRarity, { systemId: lfSystemTest.id, planetId: lfPlanet.id })
-              .then((lf) => {
-                setLifeforms((prev) => new Map(prev).set(lf.id, lf));
-                setActiveLifeform(lf);
-              })
-              .catch(() => {
-                setLifeforms((prev) => new Map(prev).set(localLf.id, localLf));
-                setActiveLifeform(localLf);
-              });
+        const lfSystem = surfaceTargetRef.current?.system ?? homeInfoRef.current?.system;
+        if (playerId.current && lfPlanet && lfSystem) {
+          lifeformHarvestCounter.current += 1;
+          const roll = rollLifeformHarvestFind(lfPlanet.seed ?? 0, lifeformHarvestCounter.current);
+          if (roll.found) {
+            const pickSeed = (Math.floor(lfPlanet.seed ?? 0) ^ (lifeformHarvestCounter.current * 0x45d9f3b)) >>> 0;
+            const shown = revealFoundLifeformRef.current(roll.rarity, lfPlanet, lfSystem, pickSeed);
+            if (shown) awardXP(60, 'lifeform_found');
           }
         }
       }
@@ -1874,7 +1827,7 @@ function AppInner() {
       addResources(planetId, { [key]: actualAmount });
     }
     return { actualAmount, depleted };
-  }, [addResources, getPlanetKeyForId, getResources, getStorageCapacityForPlanet, playerLevel, t]);
+  }, [addResources, awardXP, getPlanetKeyForId, getResources, getStorageCapacityForPlanet, playerLevel, t]);
 
   /** Handle fly-to-HUD animation for harvested resource. */
   const handleHarvestFx = useCallback((type: SurfaceObjectType, sx: number, sy: number) => {
@@ -7684,6 +7637,17 @@ function AppInner() {
   const handleTelescopeDownload = useCallback(async () => {
     if (!telescopeOverlay?.photoUrl) return;
     const filename = `nebulife-${telescopeOverlay.photoKey.replace(/[^a-z0-9_-]+/gi, '-')}.jpg`;
+    // Native — save straight into the device gallery, no share sheets.
+    if (Capacitor.isNativePlatform()) {
+      try {
+        await saveMediaToGallery(telescopeOverlay.photoUrl, false);
+        setToastMessage(t('app.toast.photo_saved'));
+        setTimeout(() => setToastMessage(null), 2500);
+      } catch (err) {
+        console.warn('[App] telescope gallery save failed:', err);
+      }
+      return;
+    }
     try {
       const response = await fetch(telescopeOverlay.photoUrl);
       const blob = await response.blob();
@@ -8484,6 +8448,157 @@ function AppInner() {
     ]);
   }, []);
 
+  /** System-chat notification about a found lifeform with a "view specimen"
+   *  button — lets the player postpone the reveal and return to it later. */
+  const addLifeformFoundNotif = useCallback((lifeformId: string, planetName: string, systemId: string, planetId: string) => {
+    setSystemNotifs((prev) => [
+      ...prev,
+      {
+        id: `notif-lf-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        text: t('app.notif.lifeform_found').replace('{planet}', planetName),
+        planetName,
+        systemId,
+        planetId,
+        lifeformId,
+        timestamp: Date.now(),
+        read: false,
+      },
+    ]);
+  }, []);
+
+  /**
+   * Shared "lifeform found → reveal" handler for every find source (harvest,
+   * building placement, first contact). Returns true when a discovery was
+   * actually presented + saved, false when it was a duplicate that is skipped.
+   *
+   *  • common  — grants the next NOT-yet-collected of the 28 bundled simple
+   *    species (per-species photo+video), persisting the bundled asset URLs so
+   *    the gallery shows the right art after reload. When all 28 are already
+   *    owned the find is a duplicate → NOT saved (returns false).
+   *  • uncommon+ — persists server-side first (real id) so the paid Alpha-photo
+   *    / video generation can run; falls back to a local record when offline.
+   */
+  const revealFoundLifeform = useCallback((
+    rarity: DiscoveryRarity,
+    planet: Parameters<typeof buildLifeformPlanetContext>[0],
+    system: { id: string },
+    pickSeed: number,
+  ): boolean => {
+    const lfPid = playerId.current;
+    if (!lfPid) return false;
+    setActiveLifeformOnboarding(false);
+    // Planet-aware biology so any paid Alpha media matches this exact world.
+    setActiveLifeformPlanet(buildLifeformPlanetContext(planet));
+
+    if (rarity === 'common') {
+      // Which of the 28 simple species does the player already own? (dedup)
+      const owned = new Set<string>();
+      for (const lf of lifeformsRef.current.values()) {
+        const k = simpleKeyFromAssetUrl(lf.photo_url);
+        if (k) owned.add(k);
+      }
+      const key = pickUnseenSimpleLifeform(owned, pickSeed);
+      if (!key) {
+        // All 28 collected — this is a duplicate, do NOT save it to the gallery.
+        void trackEvent('lifeform_found_duplicate', { rarity: 'common' });
+        return false;
+      }
+      const photo = simpleLifeformPhoto(key);
+      const video = simpleLifeformVideo(key);
+      const name = simpleLifeformName(key, i18n.language);
+      const bundle = { photo, video };
+      void trackEvent('lifeform_found', { rarity: 'common', species: key });
+      const localLf: LifeformRecord = {
+        id: `local-${Date.now()}`,
+        player_id: lfPid,
+        system_id: system.id,
+        planet_id: planet.id,
+        source: 'found',
+        rarity: 'common',
+        species_name: name,
+        is_bundle: true,
+        photo_url: photo,
+        photo_status: 'succeed',
+        photo_task_id: null,
+        video_url: video,
+        video_status: 'succeed',
+        video_task_id: null,
+        quarks_paid: 0,
+        created_at: new Date().toISOString(),
+        completed_at: null,
+      };
+      setLifeforms((prev) => new Map(prev).set(localLf.id, localLf));
+      setActiveLifeformBundle(bundle);
+      setActiveLifeform(localLf);
+      reportLifeformFound(lfPid, 'common', {
+        systemId: system.id, planetId: planet.id, speciesName: name, photoUrl: photo, videoUrl: video,
+      })
+        .then((lf) => {
+          const stamped = { ...lf, is_bundle: true, photo_url: lf.photo_url ?? photo, video_url: lf.video_url ?? video };
+          setLifeforms((prev) => {
+            const next = new Map(prev);
+            next.delete(localLf.id);
+            next.set(stamped.id, stamped);
+            return next;
+          });
+          setActiveLifeform((cur) => (cur && cur.id === localLf.id ? stamped : cur));
+          addLifeformFoundNotif(stamped.id, planet.name, system.id, planet.id);
+        })
+        .catch(() => {
+          addLifeformFoundNotif(localLf.id, planet.name, system.id, planet.id);
+        });
+      return true;
+    }
+
+    // Paid (uncommon+): persist server-side FIRST so the reveal opens with a
+    // real id — photo/video generation 404s ("Lifeform not found") if it runs
+    // against the optimistic `local-…` id.
+    void trackEvent('lifeform_found', { rarity });
+    setActiveLifeformBundle(null);
+    reportLifeformFound(lfPid, rarity, { systemId: system.id, planetId: planet.id })
+      .then((lf) => {
+        setLifeforms((prev) => new Map(prev).set(lf.id, lf));
+        setActiveLifeform(lf);
+        addLifeformFoundNotif(lf.id, planet.name, system.id, planet.id);
+      })
+      .catch(() => {
+        const localLf: LifeformRecord = {
+          id: `local-${Date.now()}`,
+          player_id: lfPid,
+          system_id: system.id,
+          planet_id: planet.id,
+          source: 'found',
+          rarity,
+          species_name: null,
+          is_bundle: false,
+          photo_url: null,
+          photo_status: null,
+          photo_task_id: null,
+          video_url: null,
+          video_status: null,
+          video_task_id: null,
+          quarks_paid: 0,
+          created_at: new Date().toISOString(),
+          completed_at: null,
+        };
+        setLifeforms((prev) => new Map(prev).set(localLf.id, localLf));
+        setActiveLifeform(localLf);
+        addLifeformFoundNotif(localLf.id, planet.name, system.id, planet.id);
+      });
+    return true;
+  }, [addLifeformFoundNotif]);
+  revealFoundLifeformRef.current = revealFoundLifeform;
+
+  /** Open the specimen card in the Cosmic Archive Life gallery (deep link
+   *  from the chat notification button). */
+  const openLifeformCard = useCallback((lifeformId: string) => {
+    setArchiveLifeformId(lifeformId);
+    setShowCosmicArchive(true);
+    // Defer until the archive re-renders as visible, then jump to the Life tab.
+    window.setTimeout(() => cosmicArchiveRef.current?.navigateTo('collections', 'life'), 0);
+    return true;
+  }, []);
+
   // ── System Log helper ──────────────────────────────────────────────────
   const addLogEntry = useCallback((
     category: LogCategory,
@@ -8874,8 +8989,11 @@ function AppInner() {
       const next = { ...prev, [messageId]: selectedIndex };
       const pid = playerId.current;
       if (pid) {
+        // Merge with the server-hydrated baseline so answering one quiz on a
+        // fresh device can't overwrite the rest of the server-side answers.
+        const baseline = (gameStateRef.current?.astra_quiz_answers as Record<string, number> | undefined) ?? {};
         updatePlayer(pid, {
-          game_state: { astra_quiz_answers: next },
+          game_state: { astra_quiz_answers: { ...baseline, ...next } },
         }).catch(() => {});
       }
       return next;
@@ -8959,7 +9077,13 @@ function AppInner() {
       custom_ship_id: localStorage.getItem('nebulife_custom_ship_id'),
       custom_ship_glb_url: localStorage.getItem('nebulife_custom_ship_glb_url'),
       observatory_state: observatoryState,
-      astra_quiz_answers: astraQuizAnswers,
+      // MERGE with the server-hydrated baseline instead of replacing: a device
+      // with freshly-cleared localStorage would otherwise sync an empty map and
+      // wipe every quiz answer stored in game_state (quizzes appear unanswered).
+      astra_quiz_answers: {
+        ...((gameStateRef.current?.astra_quiz_answers as Record<string, number> | undefined) ?? {}),
+        ...astraQuizAnswers,
+      },
       // Planet overrides — type/habitability mutations from terraform completion (Phase 7C)
       planet_overrides: planetOverrides,
       // Planet resource stocks (v168 — finite extraction deposits; stored in JSONB)
@@ -10651,6 +10775,17 @@ function AppInner() {
           }}
           onDownload={async () => {
             const filename = `nebulife-${missionPhotoViewer.photoKey.replace(/[^a-z0-9_-]+/gi, '-')}.jpg`;
+            // Native — save straight into the device gallery, no share sheets.
+            if (Capacitor.isNativePlatform()) {
+              try {
+                await saveMediaToGallery(missionPhotoViewer.photoUrl, false);
+                setToastMessage(t('app.toast.photo_saved'));
+                setTimeout(() => setToastMessage(null), 2500);
+              } catch (err) {
+                console.warn('[App] mission photo gallery save failed:', err);
+              }
+              return;
+            }
             try {
               const response = await fetch(missionPhotoViewer.photoUrl);
               const blob = await response.blob();
@@ -10994,7 +11129,11 @@ function AppInner() {
           onCreated={(lf) => {
             setLifeforms((prev) => new Map(prev).set(lf.id, lf));
             setShowGenesisLab(false);
-            setActiveLifeformBundle(lf.rarity === 'common' ? { photo: '/lifeforms/common/photo.webp' } : null);
+            setActiveLifeformBundle(
+              lf.rarity === 'common'
+                ? { photo: lf.photo_url ?? '/lifeforms/common/photo.webp', video: lf.video_url ?? undefined }
+                : null,
+            );
             setActiveLifeformOnboarding(false);
             setActiveLifeform(lf);
           }}
@@ -11185,11 +11324,9 @@ function AppInner() {
                 const lfSystem = surfaceTarget.system;
                 const lfPid = playerId.current;
 
-                // TEMP TEST (revert before release): first-contact reveal fires on
-                // EVERY greenhouse placement (100%, no localStorage guard) so the
-                // popup is easy to verify. Restore `&& !firstSeen` + the setItem
-                // line below to return to the one-time production behavior.
-                if (type === 'greenhouse') {
+                // First greenhouse = guaranteed one-time bundled "first contact".
+                const firstSeen = localStorage.getItem('nebulife_first_lifeform_seen') === '1';
+                if (type === 'greenhouse' && !firstSeen) {
                   localStorage.setItem('nebulife_first_lifeform_seen', '1');
                   awardXP(100, 'first_lifeform');
                   void trackEvent('first_lifeform_revealed', { planet_id: lfPlanet.id });
@@ -11206,6 +11343,7 @@ function AppInner() {
                         setLifeforms((prev) => new Map(prev).set(withBundle.id, withBundle));
                         setActiveLifeformBundle(bundle);
                         setActiveLifeform(withBundle);
+                        addLifeformFoundNotif(withBundle.id, lfPlanet.name, lfSystem.id, lfPlanet.id);
                       })
                       .catch(() => {
                         // Offline / unauth fallback — still show the bundled reveal.
@@ -11223,22 +11361,13 @@ function AppInner() {
                       });
                   }
                 } else if (isLifeformTriggerBuilding(type) && lfPid) {
+                  // Placing a bio/science building can surface native life.
                   lifeformBuildCounter.current += 1;
                   const roll = rollLifeformFind(lfPlanet.seed ?? 0, type, lifeformBuildCounter.current);
                   if (roll.found) {
-                    void trackEvent('lifeform_found', { rarity: roll.rarity, source: 'building' });
-                    awardXP(60, 'lifeform_found');
-                    const bundle = roll.rarity === 'common' ? { photo: '/lifeforms/common/photo.webp' } : undefined;
-                    setActiveLifeformOnboarding(false);
-                    setActiveLifeformPlanet(buildLifeformPlanetContext(lfPlanet));
-                    reportLifeformFound(lfPid, roll.rarity as DiscoveryRarity, { systemId: lfSystem.id, planetId: lfPlanet.id })
-                      .then((lf) => {
-                        const stamped = bundle?.photo ? { ...lf, is_bundle: true, photo_url: lf.photo_url ?? bundle.photo } : lf;
-                        setLifeforms((prev) => new Map(prev).set(stamped.id, stamped));
-                        setActiveLifeformBundle(bundle ?? null);
-                        setActiveLifeform(stamped);
-                      })
-                      .catch(() => { /* ignore — don't disrupt building flow */ });
+                    const pickSeed = (Math.floor(lfPlanet.seed ?? 0) ^ (lifeformBuildCounter.current * 0x45d9f3b)) >>> 0;
+                    const shown = revealFoundLifeformRef.current(roll.rarity, lfPlanet, lfSystem, pickSeed);
+                    if (shown) awardXP(60, 'lifeform_found');
                   }
                 }
               } catch { /* ignore */ }
@@ -11392,6 +11521,15 @@ function AppInner() {
           onSendTestPush={handleSendTestPush}
           ambientVolume={ambientVolume}
           onChangeAmbientVolume={setAmbientVolume}
+          onRedeemPromoCode={async (code) => {
+            const result = await redeemPremiumCode(code);
+            if (result.success && result.status) {
+              setIsPremiumActive(result.status.active);
+              setPremiumExpiresAt(result.status.expiresAt ?? null);
+              setPremiumProductId(result.status.productId ?? null);
+            }
+            return { success: result.success, error: result.error };
+          }}
         />
       )}
 
@@ -11558,6 +11696,10 @@ function AppInner() {
           visible={showCosmicArchive}
           playerId={playerId.current}
           lifeforms={Array.from(lifeforms.values())}
+          onQuarksChange={setQuarks}
+          onLifeformUpdated={(lf) => setLifeforms((prev) => new Map(prev).set(lf.id, lf))}
+          openLifeformId={archiveLifeformId}
+          onOpenLifeformConsumed={() => setArchiveLifeformId(null)}
           allSystems={engineRef.current?.getAllSystems() ?? []}
           aliases={aliases}
           logEntries={logEntries}
@@ -12091,6 +12233,7 @@ function AppInner() {
           onSystemNotifRead={(id) =>
             setSystemNotifs((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n))
           }
+          onOpenLifeform={openLifeformCard}
           onAwardXP={awardXP}
           onNavigateToPlanet={(systemId, planetId) => {
             const allSystems = engineRef.current?.getAllSystems() ?? [];

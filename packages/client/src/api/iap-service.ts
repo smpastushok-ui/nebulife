@@ -542,6 +542,48 @@ export async function purchaseQuarkPack(
   }
 }
 
+export type PromoRedeemError =
+  | 'invalid_code'
+  | 'not_found'
+  | 'already_redeemed'
+  | 'expired'
+  | 'already_premium'
+  | 'too_many_attempts'
+  | 'network';
+
+export interface PromoRedeemResult {
+  success: boolean;
+  status?: PremiumStatus;
+  error?: PromoRedeemError;
+}
+
+/**
+ * Redeem a one-time premium promo code on the server.
+ * On success, the server has already granted premium (DB + RevenueCat
+ * promotional entitlement), so the returned status is authoritative.
+ */
+export async function redeemPremiumCode(code: string): Promise<PromoRedeemResult> {
+  try {
+    const res = await authFetch('/api/premium/redeem-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as { error?: string };
+      const error = (res.status === 429 ? 'too_many_attempts' : body.error) as PromoRedeemError | undefined;
+      return { success: false, error: error ?? 'invalid_code' };
+    }
+    const status = await res.json() as PremiumStatus;
+    cachePremiumStatus(status.active);
+    void trackEvent('promo_code_redeemed', { item_name: 'premium' });
+    return { success: true, status };
+  } catch (err) {
+    console.warn('[IAP] Promo redeem failed:', err);
+    return { success: false, error: 'network' };
+  }
+}
+
 export async function restoreIAPPurchases(playerId?: string): Promise<{ restored: boolean }> {
   if (!await ensureIAPConfigured(playerId)) return { restored: false };
 

@@ -1,5 +1,6 @@
 import type { PlayerRow, PremiumStatus } from './db.js';
 import {
+  claimPremiumPromoCode,
   getPlayer,
   getPremiumStatus,
   markPremiumWebInviteSent,
@@ -152,6 +153,60 @@ export async function syncRevenueCatPremium(playerId: string): Promise<PremiumSt
 
 export async function getServerPremiumStatus(playerId: string): Promise<PremiumStatus> {
   return getPremiumStatus(playerId);
+}
+
+export const PROMO_PREMIUM_PRODUCT_ID = 'nebulife_pro_promo';
+
+export type PromoRedeemResult =
+  | { ok: true; status: PremiumStatus }
+  | { ok: false; reason: 'invalid_code' | 'not_found' | 'already_redeemed' | 'expired' | 'already_premium' };
+
+/** Normalize user input: uppercase, strip spaces and dashes (codes are stored bare). */
+export function normalizePromoCode(input: unknown): string | null {
+  if (typeof input !== 'string') return null;
+  const normalized = input.toUpperCase().replace(/[\s-]/g, '');
+  // NEBU + 8 chars; accept 8-32 alphanumerics to stay future-proof.
+  return /^[A-Z0-9]{8,32}$/.test(normalized) ? normalized : null;
+}
+
+/**
+ * Redeem a one-time premium promo code (tester/partner codes from migration 031).
+ * Grants premium for `duration_days` from the moment of redemption and mirrors
+ * the entitlement into RevenueCat so native clients see it too.
+ */
+export async function redeemPremiumPromoCode(playerId: string, rawCode: unknown): Promise<PromoRedeemResult> {
+  const code = normalizePromoCode(rawCode);
+  if (!code) return { ok: false, reason: 'invalid_code' };
+
+  // Don't burn a one-time code on a player who already has premium.
+  const current = await getPremiumStatus(playerId);
+  if (isPremiumActive(current)) return { ok: false, reason: 'already_premium' };
+
+  const claim = await claimPremiumPromoCode(code, playerId);
+  if (!claim.ok) return { ok: false, reason: claim.reason };
+
+  const expiresAt = addDaysIso(claim.row.duration_days);
+  const status = await updatePlayerPremium(playerId, {
+    active: true,
+    expiresAt,
+    productId: PROMO_PREMIUM_PRODUCT_ID,
+    source: 'promo_code',
+  });
+  await savePremiumEntitlementEvent({
+    playerId,
+    eventType: 'grant',
+    source: 'promo_code',
+    productId: PROMO_PREMIUM_PRODUCT_ID,
+    expiresAt,
+    reference: code,
+    meta: { durationDays: claim.row.duration_days, note: claim.row.note },
+  });
+  await grantRevenueCatPromotionalEntitlement(
+    playerId,
+    claim.row.duration_days >= 365 ? 'yearly' : 'monthly',
+    `promo:${code}`,
+  );
+  return { ok: true, status };
 }
 
 async function maybeSendWebAccessInvite(playerId: string, source: string): Promise<void> {
@@ -325,5 +380,11 @@ function addMonthsIso(months: number): string {
 function addYearsIso(years: number): string {
   const date = new Date();
   date.setFullYear(date.getFullYear() + years);
+  return date.toISOString();
+}
+
+function addDaysIso(days: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
   return date.toISOString();
 }

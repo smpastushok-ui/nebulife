@@ -43,6 +43,8 @@ interface PlayerPageProps {
   /** Ambient volume 0-1 (0 = muted, 1 = max). Replaces the old on/off toggle. */
   ambientVolume?: number;
   onChangeAmbientVolume?: (val: number) => void;
+  /** Redeem a one-time premium promo code. Returns error key on failure. */
+  onRedeemPromoCode?: (code: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 // ── Pro badge ─────────────────────────────────────────────────────────────
@@ -154,9 +156,13 @@ export function PlayerPage({
   onRemoveAvatar,
   ambientVolume = 0.30,
   onChangeAmbientVolume,
+  onRedeemPromoCode,
 }: PlayerPageProps) {
   const { t, i18n } = useTranslation();
   const [confirmReset, setConfirmReset] = useState(false);
+  const [promoInput, setPromoInput] = useState('');
+  const [promoBusy, setPromoBusy] = useState(false);
+  const [promoResult, setPromoResult] = useState<{ ok: boolean; msgKey: string } | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTypeInput, setDeleteTypeInput] = useState('');
   const [avatarError, setAvatarError] = useState<string | null>(null);
@@ -228,6 +234,40 @@ export function PlayerPage({
       return;
     }
     onStartOver();
+  };
+
+  const PROMO_ERROR_KEYS: Record<string, string> = {
+    invalid_code: 'promo.err_invalid',
+    not_found: 'promo.err_invalid',
+    already_redeemed: 'promo.err_used',
+    expired: 'promo.err_expired',
+    already_premium: 'promo.err_already_premium',
+    too_many_attempts: 'promo.err_rate_limited',
+    network: 'promo.err_network',
+  };
+
+  const handleRedeemPromo = async () => {
+    if (!onRedeemPromoCode || promoBusy) return;
+    playSfx('ui-click', 0.07);
+    if (isGuest) {
+      onLinkAccount();
+      return;
+    }
+    const code = promoInput.trim();
+    if (!code) return;
+    setPromoBusy(true);
+    setPromoResult(null);
+    try {
+      const result = await onRedeemPromoCode(code);
+      if (result.success) {
+        setPromoInput('');
+        setPromoResult({ ok: true, msgKey: 'promo.success' });
+      } else {
+        setPromoResult({ ok: false, msgKey: PROMO_ERROR_KEYS[result.error ?? ''] ?? 'promo.err_invalid' });
+      }
+    } finally {
+      setPromoBusy(false);
+    }
   };
 
   const handleGraphicsTierChange = (tier: PerfTierChoice) => {
@@ -566,6 +606,70 @@ export function PlayerPage({
             </div>
           )}
         </div>
+
+        {/* Activation code (one-time premium promo codes for testers) */}
+        {isNative && !isPremium && onRedeemPromoCode && (
+          <div style={{
+            ...panelStyle,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 10,
+          }}>
+            <div style={sectionLabelStyle}>{t('promo.section')}</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                type="text"
+                value={promoInput}
+                onChange={(e) => {
+                  setPromoInput(e.target.value.toUpperCase());
+                  if (promoResult) setPromoResult(null);
+                }}
+                onKeyDown={(e) => { if (e.key === 'Enter') void handleRedeemPromo(); }}
+                placeholder={t('promo.placeholder')}
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
+                maxLength={20}
+                disabled={promoBusy}
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  padding: '8px 10px',
+                  background: 'rgba(5, 10, 20, 0.7)',
+                  border: '1px solid rgba(68, 102, 136, 0.5)',
+                  borderRadius: 3,
+                  color: '#aabbcc',
+                  fontFamily: 'monospace',
+                  fontSize: 11,
+                  letterSpacing: 1,
+                  outline: 'none',
+                }}
+              />
+              <button
+                onClick={() => void handleRedeemPromo()}
+                disabled={promoBusy || !promoInput.trim()}
+                style={{
+                  ...actionButtonStyle,
+                  width: 'auto',
+                  padding: '8px 14px',
+                  opacity: promoBusy || !promoInput.trim() ? 0.55 : 1,
+                  cursor: promoBusy || !promoInput.trim() ? 'default' : 'pointer',
+                }}
+              >
+                {promoBusy ? t('promo.checking') : t('promo.apply')}
+              </button>
+            </div>
+            {promoResult && (
+              <div style={{
+                fontSize: 10,
+                lineHeight: 1.4,
+                color: promoResult.ok ? '#44ff88' : '#cc8844',
+              }}>
+                {t(promoResult.msgKey)}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Register / Link account — prominent for guests */}
         {isGuest && (
