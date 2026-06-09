@@ -2481,10 +2481,10 @@ export async function enqueueBroadcastPush(input: BroadcastPushInput): Promise<n
       'broadcast',
       ${input.titleUk}, ${input.bodyUk}, ${input.titleEn}, ${input.bodyEn},
       jsonb_build_object(
-        'action', ${input.action},
-        'link', ${input.link},
+        'action', ${input.action}::text,
+        'link', ${input.link}::text,
         'source', 'broadcast',
-        'campaign', ${input.campaignId}
+        'campaign', ${input.campaignId}::text
       ),
       ${input.priority ?? 8},
       CASE
