@@ -444,9 +444,12 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
   const effectiveUnreadAstra = (!collapsed && tab === 'astra') ? 0 : unreadAstra;
   const effectiveUnreadSystemMessages = (!collapsed && tab === 'system') ? 0 : unreadSystemMessages;
   const effectiveUnreadDm = (!collapsed && (tab === 'dm-list' || tab === 'dm-chat')) ? 0 : unreadDm;
+  // Global chat unread is intentionally excluded from the ASTRA icon / comms
+  // badge — it surfaces only on the "global" tab. The icon reflects ASTRA + DM
+  // + SYSTEM activity (channels personally addressed to the player).
   useEffect(() => {
-    onUnreadChange?.(effectiveUnreadGlobal + unreadSystem + effectiveUnreadSystemMessages + effectiveUnreadAstra + effectiveUnreadDm);
-  }, [effectiveUnreadGlobal, unreadSystem, effectiveUnreadSystemMessages, effectiveUnreadAstra, effectiveUnreadDm, onUnreadChange]);
+    onUnreadChange?.(unreadSystem + effectiveUnreadSystemMessages + effectiveUnreadAstra + effectiveUnreadDm);
+  }, [unreadSystem, effectiveUnreadSystemMessages, effectiveUnreadAstra, effectiveUnreadDm, onUnreadChange]);
 
   // Mark system notifs as read when viewing system tab
   useEffect(() => {
@@ -728,7 +731,8 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
 
   // ── Collapsed state ──
   if (collapsed) {
-    const totalUnread = effectiveUnreadGlobal + unreadSystem + effectiveUnreadSystemMessages + effectiveUnreadAstra + effectiveUnreadDm;
+    // Global excluded from the FAB badge — only ASTRA + DM + SYSTEM count here.
+    const totalUnread = unreadSystem + effectiveUnreadSystemMessages + effectiveUnreadAstra + effectiveUnreadDm;
     if (hideCollapsedButton) return null;
     return (
       <AstraFabButton
