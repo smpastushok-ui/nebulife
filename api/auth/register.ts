@@ -4,6 +4,11 @@ import {
   getPlayerByFirebaseUid,
   linkFirebaseToPlayer,
   createPlayerWithAuth,
+  findRecoverableGuest,
+  relinkGuestToUid,
+  detachFirebaseUid,
+  setPlayerDeviceId,
+  isFreshPlayerRow,
 } from '../../packages/server/src/db.js';
 import { assignPlayerToCluster } from '@nebulife/server';
 import { sendWelcomeEmail } from '../../packages/server/src/email-client.js';
@@ -34,7 +39,11 @@ function maybeSendWelcomeEmail(player: {
  * Called after Firebase authentication to create or link a player.
  *
  * Auth: Bearer <firebase-id-token>
- * Body: { legacyPlayerId?: string }
+ * Body: { legacyPlayerId?: string, deviceId?: string }
+ *
+ * `deviceId` (Capacitor Device.getId()) is a recovery key for guests: if the
+ * Firebase anonymous UID changed (lost WebView session after an app update), we
+ * re-link the old anonymous row on this device instead of orphaning its progress.
  *
  * Returns: PlayerRow
  */
@@ -49,16 +58,64 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!auth) return; // 401 already sent
     console.log(`[register] Token verified: uid=${auth.uid}, provider=${auth.provider}`);
 
-    const { legacyPlayerId } = req.body ?? {};
+    const { legacyPlayerId, deviceId: rawDeviceId, fcmToken: rawFcmToken } = req.body ?? {};
+    const deviceId = typeof rawDeviceId === 'string' && rawDeviceId.trim()
+      ? rawDeviceId.trim().slice(0, 128)
+      : null;
+    const fcmToken = typeof rawFcmToken === 'string' && rawFcmToken.trim()
+      ? rawFcmToken.trim().slice(0, 4096)
+      : null;
+
+    const normalizedProvider = auth.provider === 'google.com' ? 'google'
+      : auth.provider === 'password' ? 'email'
+      : auth.provider === 'apple.com' ? 'apple'
+      : 'anonymous';
 
     // Rewarded ads are only enabled in Tier-1 (high-eCPM) countries. Surface
     // this to the client so it can hide the ad UI outside those regions.
     const adsGeoAllowed = areAdsAllowedForRequest(req.headers);
 
-    // 1. Check if player already exists for this Firebase UID
+    // 1. Player already exists for this Firebase UID AND has real progress →
+    //    normal path. (A FRESH/empty stub is NOT returned here: it may be the
+    //    row a guest churned INTO after losing their session — we let recovery
+    //    below override it with their original progress.)
     const existing = await getPlayerByFirebaseUid(auth.uid);
-    if (existing) {
+    if (existing && !isFreshPlayerRow(existing)) {
       console.log(`[register] Found existing player: id=${existing.id}`);
+      // Keep the recovery key fresh so a future UID change on this device can
+      // still find this row (best-effort; never blocks the response).
+      if (deviceId && existing.device_id !== deviceId) {
+        try { await setPlayerDeviceId(existing.id, deviceId); } catch { /* non-critical */ }
+      }
+      return res.status(200).json({ ...existing, ads_geo_allowed: adsGeoAllowed });
+    }
+
+    // 2. Guest recovery: re-link an orphaned guest row (matched by FCM token or
+    //    device_id) whose Firebase UID changed after an app update. Only for
+    //    anonymous logins so a shared device can never steal a linked account.
+    if (normalizedProvider === 'anonymous') {
+      const candidate = await findRecoverableGuest({ fcmToken, deviceId, excludeUid: auth.uid });
+      if (candidate) {
+        // Free the new UID if an empty stub already holds it (unique index).
+        if (existing) {
+          try { await detachFirebaseUid(existing.id); } catch { /* non-critical */ }
+        }
+        const recovered = await relinkGuestToUid(candidate.id, auth.uid, deviceId);
+        if (recovered) {
+          console.log(`[register] Recovered guest: id=${recovered.id} (key=${fcmToken ? 'fcm' : 'device'})`);
+          if (recovered.global_index != null && !recovered.cluster_id) {
+            try { await assignPlayerToCluster(recovered.id, recovered.global_index); }
+            catch (clusterErr) { console.warn('[register] Cluster assign (recovered) failed:', clusterErr); }
+          }
+          return res.status(200).json({ ...recovered, ads_geo_allowed: adsGeoAllowed });
+        }
+      }
+    }
+
+    // No recovery candidate. If a fresh stub already exists for this UID, just
+    // return it (don't create a duplicate); otherwise fall through to create.
+    if (existing) {
+      if (deviceId) { try { await setPlayerDeviceId(existing.id, deviceId); } catch { /* non-critical */ } }
       return res.status(200).json({ ...existing, ads_geo_allowed: adsGeoAllowed });
     }
     console.log('[register] No existing player found, creating new...');
@@ -89,12 +146,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.log('[register] Legacy link failed, creating fresh player');
     }
 
-    // 3. Create a new player with Firebase auth
-    const normalizedProvider = auth.provider === 'google.com' ? 'google'
-      : auth.provider === 'password' ? 'email'
-      : auth.provider === 'apple.com' ? 'apple'
-      : 'anonymous';
-
+    // 4. Create a new player with Firebase auth
     console.log(`[register] Creating player: uid=${auth.uid}, provider=${normalizedProvider}`);
     const player = await createPlayerWithAuth({
       id: auth.uid,
@@ -104,6 +156,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       name: 'Explorer',
       homeSystemId: 'home',
       homePlanetId: 'home',
+      deviceId,
     });
 
     console.log(`[register] Player created: id=${player?.id}, phase=${player?.game_phase}`);

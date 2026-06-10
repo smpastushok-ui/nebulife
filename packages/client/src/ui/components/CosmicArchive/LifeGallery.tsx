@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { Capacitor } from '@capacitor/core';
 import {
   RARITY_COLORS,
-  getRarityLabel,
   buildLifeformPlanetContext,
   LIFEFORM_PHOTO_COST,
   LIFEFORM_VIDEO_COST,
@@ -25,6 +24,7 @@ import { AdProgressButton } from '../AdProgressButton.js';
 import { trackEvent } from '../../../analytics/firebase-analytics.js';
 import { useVideoAudioFocus } from '../../../audio/useVideoAudioFocus.js';
 import { saveMediaToGallery, isShareCancelled } from '../../../utils/media-saver.js';
+import { buildShareCaption } from '../../../utils/share-caption.js';
 
 const GAME_URL_WEB = 'https://nebulife.space';
 
@@ -348,7 +348,7 @@ function LifeLightbox({ playerId, lifeform: initial, mode, planetContext, onGoTo
   onUpdated?: (lf: LifeformRecord) => void;
   onClose: () => void;
 }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   // Live record — updated in place by rename / deferred generation.
   const [lifeform, setLifeform] = useState<LifeformRecord>(initial);
   const color = RARITY_COLORS[lifeform.rarity as DiscoveryRarity] ?? '#8899aa';
@@ -456,21 +456,20 @@ function LifeLightbox({ playerId, lifeform: initial, mode, planetContext, onGoTo
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
   const shareName = lifeform.species_name || t('lifeform.default_species');
-  const rarityLabel = getRarityLabel(lifeform.rarity as DiscoveryRarity, i18n.language) ?? lifeform.rarity;
   const actionMediaUrl = showVideo ? (lifeform.video_url || '') : photo;
 
   const handleShare = useCallback(async () => {
     if (!actionMediaUrl || busy) return;
     setBusy(true);
     try {
-      await shareLifeformMedia(actionMediaUrl, showVideo, shareName, rarityLabel);
+      await shareLifeformMedia(actionMediaUrl, showVideo, shareName);
       setShared(true);
     } catch (err) {
       if ((err as Error).name !== 'AbortError') console.warn('[LifeGallery] share failed:', err);
     } finally {
       setBusy(false);
     }
-  }, [actionMediaUrl, showVideo, shareName, rarityLabel, busy]);
+  }, [actionMediaUrl, showVideo, shareName, busy]);
 
   const handleDownload = useCallback(async () => {
     if (!actionMediaUrl || busy) return;
@@ -697,17 +696,12 @@ function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
-function buildLifeShareText(name: string, rarityLabel: string, isVideo: boolean): string {
-  const glyph = isVideo ? '\u{1F3AC}' : '\u{1F9EC}'; // clapper / DNA
-  return [`${glyph} ${name}`, `\u{2728} ${rarityLabel}`, '', GAME_URL_WEB].join('\n');
-}
-
 /** Share the lifeform's current media (photo or video) with a local file for rich previews. */
-async function shareLifeformMedia(mediaUrl: string, isVideo: boolean, name: string, rarityLabel: string): Promise<void> {
+async function shareLifeformMedia(mediaUrl: string, isVideo: boolean, name: string): Promise<void> {
   const ext = extFromUrl(mediaUrl, isVideo);
   const filename = `nebulife-${safeSeg(name)}.${ext}`;
   const title = `${isVideo ? '\u{1F3AC}' : '\u{1F9EC}'} ${name} | Nebulife`;
-  const text = buildLifeShareText(name, rarityLabel, isVideo);
+  const text = buildShareCaption({ name, subject: 'life', url: GAME_URL_WEB });
 
   if (Capacitor.isNativePlatform()) {
     const { Share } = await import('@capacitor/share');

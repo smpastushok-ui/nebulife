@@ -193,6 +193,29 @@ export async function signInAsGuest(): Promise<User> {
   return cred.user;
 }
 
+/**
+ * Guest sign-in that NEVER mints a new anonymous account while a persisted
+ * session is still being restored.
+ *
+ * Root cause of "guest progress lost after an app update": the silent guest
+ * sign-in could fire before Firebase finished restoring the stored anonymous
+ * user, creating a brand-new UID (and thus a fresh empty player). We first wait
+ * for `authStateReady()` (persistence restore complete) and reuse the existing
+ * user if there is one — only signing in anonymously when there is genuinely no
+ * session to restore.
+ */
+export async function ensureGuestSession(): Promise<User> {
+  const a = requireAuth();
+  // authStateReady resolves once the initial persisted state is determined.
+  // Guard for older SDKs / test doubles that may not expose it.
+  if (typeof a.authStateReady === 'function') {
+    try { await a.authStateReady(); } catch { /* fall through to currentUser check */ }
+  }
+  if (a.currentUser) return a.currentUser;
+  const cred = await signInAnonymously(a);
+  return cred.user;
+}
+
 /** Sign in with Google popup (web) or native Capacitor plugin.
  *  Best-effort: clears the cached native Google account first so the OS
  *  account picker actually appears (wrapped in a 1.5s timeout — some

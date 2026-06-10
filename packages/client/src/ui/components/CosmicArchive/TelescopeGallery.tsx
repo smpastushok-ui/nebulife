@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next';
 import type { StarSystem } from '@nebulife/core';
 import type { SystemPhotoData } from '../SystemContextMenu';
+import { buildShareCaption, type ShareSubject } from '../../../utils/share-caption.js';
 
 // ---------------------------------------------------------------------------
 // TelescopeGallery — Grid of telescope photos (system panoramas or planets)
@@ -142,7 +143,12 @@ export function TelescopeGallery({ photos, type, allSystems, aliases, onGoToExos
     const shareUrl = entry.key.startsWith('planet-')
       ? `${window.location.origin}/photo/${encodeURIComponent(entry.key)}`
       : window.location.origin;
-    const text = `Nebulife Telescope: ${entry.name}\n${shareUrl}`;
+    const subject: ShareSubject =
+      type === 'system' ? 'system'
+      : type === 'biosphere' ? 'life'
+      : type === 'aerial' ? 'world'
+      : 'planet'; // planet, mission
+    const text = buildShareCaption({ name: entry.name, subject, url: shareUrl });
     try {
       if (navigator.share) {
         await navigator.share({ title: 'Nebulife', text, url: shareUrl });
@@ -152,7 +158,7 @@ export function TelescopeGallery({ photos, type, allSystems, aliases, onGoToExos
     } catch {
       // User cancelled
     }
-  }, []);
+  }, [type]);
 
   const typeLabel = type === 'system'
     ? t('archive.sub_star_systems')

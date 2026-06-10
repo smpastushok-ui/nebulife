@@ -328,3 +328,23 @@ export async function fetchUniverseInfo(): Promise<UniverseInfo> {
   return res.json();
 }
 
+// ---------------------------------------------------------------------------
+// Galaxy stats (cluster-scoped) — for the top HUD stats bar
+// ---------------------------------------------------------------------------
+
+export interface GalaxyStats {
+  playersOnline: number;
+  colonies: number;
+  starSystems: number;
+  planets: number;
+}
+
+/** Aggregate stats for the player's galaxy (cluster). Auth required. */
+export async function fetchGalaxyStats(): Promise<GalaxyStats> {
+  const res = await authFetch(`${API_BASE}/cluster/stats`);
+  if (!res.ok) {
+    throw new Error(`Fetch galaxy stats failed: ${res.status}`);
+  }
+  return res.json();
+}
+

@@ -18,6 +18,7 @@ export function CommandBar({
   onNavigate,
   onOpenPlayerPage,
   navigationDisabled,
+  highlightAuth,
 }: CommandBarProps) {
   const injected = useRef(false);
 
@@ -57,6 +58,7 @@ export function CommandBar({
           playerLevel={playerLevel}
           playerXP={playerXP}
           onClick={onOpenPlayerPage}
+          highlight={highlightAuth}
         />
       </div>
     </div>

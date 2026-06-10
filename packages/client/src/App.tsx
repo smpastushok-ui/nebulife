@@ -138,6 +138,36 @@ import { getMissionPhotoKey, renderMissionProbePhoto } from './ui/components/Pla
 import { GuestRegistrationReminder } from './ui/components/GuestRegistrationReminder.js';
 import { GalleryCompareModal } from './ui/components/GalleryCompareModal.js';
 import { ResourceDisplay } from './ui/components/ResourceDisplay.js';
+import { GalaxyStatsBar } from './ui/components/GalaxyStatsBar.js';
+import { buildShareCaption } from './utils/share-caption.js';
+
+// One-time UI flags that live only in localStorage and must be mirrored into the
+// server game_state — otherwise an app update that wipes web storage re-triggers
+// them on the same account (surface onboarding, "buildings unlocked" popups, tips…).
+// EXCLUDES: nebulife_onboarding_done / nebulife_clock_revealed (synced separately),
+// nebulife_lang_chosen (handled by language sync), nebulife_perf_tier_chosen
+// (per-device hardware choice — must NOT cross devices).
+const SYNCED_UI_FLAG_KEYS = new Set<string>([
+  'nebulife_building_quest_step',
+  'nebulife_surface_astra_lesson_seen',
+  'nebulife_starter_toast_shown',
+  'nebulife_quantum_seed_seen',
+  'nebulife_arena_tutorial_done',
+  'nebulife_surface_5slots_hint_seen',
+  'nebulife_encyclopedia_opened',
+  'nebulife_mission_curriculum_done',
+  'nebulife_app_review_prompt_done',
+  'nebulife_link_prompt_at',
+]);
+/** Dynamic, per-target one-time flags (player/planet-scoped). */
+const SYNCED_UI_FLAG_PREFIXES = [
+  'nebulife_unlock_popup_',        // buildings/arena/raid/terraform unlock popups
+  'nebulife_home_resource_floor_', // home-planet resource hint
+];
+function isSyncedUiFlagKey(key: string): boolean {
+  return SYNCED_UI_FLAG_KEYS.has(key)
+    || SYNCED_UI_FLAG_PREFIXES.some((p) => key.startsWith(p));
+}
 import { ResourceDescriptionModal, type ResourceType } from './ui/components/ResourceDescriptionModal.js';
 import { ResourceWidget } from './ui/components/ResourceWidget.js';
 import { BuildingQuest } from './ui/components/BuildingQuest.js';
@@ -155,10 +185,11 @@ import {
 } from './api/lifeform-api.js';
 import { EvacuationPrompt } from './ui/components/EvacuationPrompt.js';
 import { ColonyFoundingPrompt } from './ui/components/ColonyFoundingPrompt.js';
-import { getPlayer, createPlayer, getDiscoveries, saveDiscoveryToServer, updatePlayer, updateFcmToken, sendTestPush, fetchUniverseInfo, uploadPlayerAvatar, removePlayerAvatar } from './api/player-api.js';
+import { getPlayer, createPlayer, getDiscoveries, saveDiscoveryToServer, updatePlayer, updateFcmToken, sendTestPush, fetchUniverseInfo, uploadPlayerAvatar, removePlayerAvatar, fetchGalaxyStats, type GalaxyStats } from './api/player-api.js';
 import type { DiscoveryData } from './api/player-api.js';
 import { requestPushPermissionDetailed, startForegroundListener, ensurePushTokenIfGranted, startTokenRefreshListener } from './notifications/push-service.js';
-import { getCurrentUser, onAuthChange, signOut, signInAsGuest } from './auth/auth-service.js';
+import { getCurrentUser, onAuthChange, signOut, ensureGuestSession } from './auth/auth-service.js';
+import { getDeviceId } from './auth/device-id.js';
 import { authFetch, apiFetch } from './auth/api-client.js';
 import { isFirebaseConfigured } from './auth/firebase-config.js';
 import { AuthScreen } from './ui/components/AuthScreen.js';
@@ -433,6 +464,9 @@ interface SyncedGameState {
   destroyed_planets: Array<{ planetId: string; systemId: string; orbitAU: number }>;
   onboarding_done: boolean;
   tutorial_step: number;
+  // One-time UI flags (intro/onboarding/unlock popups/tips) mirrored from
+  // localStorage so they survive an app update wiping web storage (same account).
+  ui_flags?: Record<string, string>;
   // Timer
   game_started_at: number | null;
   time_multiplier: number;
@@ -1011,6 +1045,11 @@ function AppInner() {
   const [cinematicActive, setCinematicActive] = useState(false);
   const [cinematicVideoPlaying, setCinematicVideoPlaying] = useState(false);
   const [showGuestReminder, setShowGuestReminder] = useState(false);
+  // Top HUD swap: 'stats' = GalaxyStatsBar (galaxy scale), 'resources' = ResourceDisplay.
+  // Galaxy scene always shows 'stats'; other scenes show 'stats' for 7s on entry
+  // then swap to 'resources'. Starts on 'stats' so the session opens with it.
+  const [topBarMode, setTopBarMode] = useState<'stats' | 'resources'>('stats');
+  const [galaxyStats, setGalaxyStats] = useState<GalaxyStats | null>(null);
   // Lifeform Genesis — discovered lifeforms (Map keyed by lifeform id) + the
   // currently-presented lifeform. The first greenhouse triggers the special
   // bundled "first contact" common; later buildings can surface rarer life.
@@ -1089,7 +1128,10 @@ function AppInner() {
     if (!isFirebaseConfigured || authLoading || !bootLoaderDone || manualSetup || firebaseUser) return;
     if (guestAutoAttemptedRef.current) return;
     guestAutoAttemptedRef.current = true;
-    signInAsGuest().catch((err) => {
+    // ensureGuestSession waits for Firebase to finish restoring any persisted
+    // anonymous session before minting a new one — prevents UID churn (and the
+    // resulting lost guest progress) after an app update.
+    ensureGuestSession().catch((err) => {
       console.warn('[Auth] Silent guest sign-in failed; showing login form:', err);
       setGuestAutoFailed(true);
     });
@@ -4160,6 +4202,29 @@ function AppInner() {
     }
   }, [activeTutorialStep]);
 
+  // Guest (not linked to Google/Apple) who already has progress — finished
+  // onboarding + tutorial. Drives both the occasional badge pulse and the
+  // recurring link prompt: the pre-update rescue so unlinked players secure
+  // their progress before an app update can lose their anonymous session.
+  const guestNeedsLink = isGuest && !needsOnboarding && tutorialStep >= tutorialCompleteStep;
+
+  // Recurring "save your progress" prompt for such guests. Opens shortly after
+  // launch, then snoozes ~2 days on dismiss (localStorage) so it keeps nudging
+  // until they link, without nagging every session. The colonization handler
+  // also opens the same modal once at that milestone.
+  useEffect(() => {
+    if (!guestNeedsLink) return;
+    if (showPlayerPage || showLinkModal) return;
+    let snoozeUntil = 0;
+    try {
+      const last = Number(localStorage.getItem('nebulife_link_prompt_at') || 0);
+      if (Number.isFinite(last) && last > 0) snoozeUntil = last + 2 * 24 * 60 * 60 * 1000;
+    } catch { /* ignore */ }
+    if (Date.now() < snoozeUntil) return;
+    const t = setTimeout(() => setShowGuestReminder(true), 2500);
+    return () => clearTimeout(t);
+  }, [guestNeedsLink, showPlayerPage, showLinkModal]);
+
   /* Коментар українською: Стан згорнутого онбордингу */
   const [tutorialMinimized, setTutorialMinimized] = useState(false);
 
@@ -4701,6 +4766,9 @@ function AppInner() {
     Object.keys(localStorage).filter(k => k.startsWith('nebulife_quiz_')).forEach(k => localStorage.removeItem(k));
     // Legacy per-planet harvest progress (from old surface system: harvest_<planetId>)
     Object.keys(localStorage).filter(k => k.startsWith('harvest_')).forEach(k => localStorage.removeItem(k));
+    // One-time UI flags (now server-synced) — clear so they don't leak to the
+    // new account and then get re-synced into ITS game_state.
+    Object.keys(localStorage).filter(isSyncedUiFlagKey).forEach(k => localStorage.removeItem(k));
 
     // 2b. Clear React state to prevent effects from re-persisting to localStorage
     // Every useState with a localStorage.setItem useEffect must be reset here,
@@ -4887,6 +4955,20 @@ function AppInner() {
     }
 
     gameStateRef.current = { ...gs };
+
+    // Restore one-time UI flags (intro/onboarding/unlock popups/tips) that live
+    // only in localStorage. Without this, an app update that clears web storage
+    // re-triggers them on the same account. Union semantics: never overwrite a
+    // value already present locally (this session is the freshest truth); only
+    // fill in flags the device has lost.
+    if (gs.ui_flags && typeof gs.ui_flags === 'object') {
+      try {
+        for (const [k, v] of Object.entries(gs.ui_flags as Record<string, string>)) {
+          if (!isSyncedUiFlagKey(k) || typeof v !== 'string') continue;
+          if (localStorage.getItem(k) === null) localStorage.setItem(k, v);
+        }
+      } catch { /* ignore */ }
+    }
 
     // Progression
     if (typeof gs.xp === 'number' && gs.xp >= 0) {
@@ -5636,10 +5718,24 @@ function AppInner() {
         for (let attempt = 0; attempt < 3 && !registered; attempt++) {
           try {
             const legacyId = localStorage.getItem('nebulife_player_id');
+            // Recovery keys: if the Firebase anonymous UID changed (lost session
+            // after an app update) the server re-links the orphaned guest row by
+            // fcmToken (already stored on pre-device_id builds → rescues players
+            // who already churned) or device_id (forward-looking). Both reads are
+            // silent — getDeviceId never prompts; ensurePushTokenIfGranted only
+            // returns a token when push permission was ALREADY granted.
+            const [deviceId, fcmToken] = await Promise.all([
+              getDeviceId().catch(() => null),
+              ensurePushTokenIfGranted().catch(() => null),
+            ]);
             const res = await authFetch('/api/auth/register', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ legacyPlayerId: legacyId || undefined }),
+              body: JSON.stringify({
+                legacyPlayerId: legacyId || undefined,
+                deviceId: deviceId || undefined,
+                fcmToken: fcmToken || undefined,
+              }),
             });
             if (res.ok) {
               const player = await res.json();
@@ -7602,14 +7698,9 @@ function AppInner() {
   const buildTelescopeShareText = useCallback((): string => {
     if (!telescopeOverlay) return 'Nebulife';
     const shareUrl = buildPhotoShareUrl(telescopeOverlay.photoKey, telescopeOverlay.photoUrl, telescopeOverlay.targetName, telescopeOverlay.source);
-    if (telescopeOverlay.source === 'mission') {
-      const signature = i18n.language.startsWith('uk')
-        ? `Отримано фото з місії на планету ${telescopeOverlay.targetName}. Небулайф - твій власний космос`
-        : `Photo from mission to planet ${telescopeOverlay.targetName}. Nebulife - your own cosmos`;
-      return `${signature}\n${shareUrl}`;
-    }
-    return `Nebulife Telescope: ${telescopeOverlay.targetName}\n${shareUrl}`;
-  }, [buildPhotoShareUrl, i18n.language, telescopeOverlay]);
+    const subject = telescopeOverlay.targetType === 'system' ? 'system' : 'planet';
+    return buildShareCaption({ name: telescopeOverlay.targetName, subject, url: shareUrl });
+  }, [buildPhotoShareUrl, telescopeOverlay]);
 
   const handleTelescopeShare = useCallback(async () => {
     if (!telescopeOverlay?.photoUrl) return;
@@ -9024,6 +9115,20 @@ function AppInner() {
       }
     } catch { /* ignore */ }
 
+    // One-time UI flags → server (survive app-update storage wipes). Merge with
+    // the hydrated baseline so a freshly-cleared device never erases flags set
+    // on another device/session.
+    const uiFlags: Record<string, string> = {
+      ...((gameStateRef.current?.ui_flags as Record<string, string> | undefined) ?? {}),
+    };
+    try {
+      for (const key of Object.keys(localStorage)) {
+        if (!isSyncedUiFlagKey(key)) continue;
+        const val = localStorage.getItem(key);
+        if (val !== null) uiFlags[key] = val;
+      }
+    } catch { /* ignore */ }
+
     return {
       xp: playerXP,
       level: playerLevel,
@@ -9040,6 +9145,7 @@ function AppInner() {
       exodus_phase: isExodusPhase,
       destroyed_planets: destroyedPlanets,
       onboarding_done: localStorage.getItem('nebulife_onboarding_done') === '1',
+      ui_flags: uiFlags,
       tutorial_step: tutorialStep,
       tech_tree: techTreeState,
       game_started_at: gameStartedAt,
@@ -9795,6 +9901,35 @@ function AppInner() {
       ? 'surface'
       : state.scene;
 
+  // Top HUD swap driver: galaxy → always GalaxyStatsBar; any other scene →
+  // show the stats bar for 7s on entry, then swap to the resources panel.
+  // (Re-runs on every scene change, so each entry briefly previews galaxy scale.)
+  useEffect(() => {
+    if (effectiveScene === 'galaxy') {
+      setTopBarMode('stats');
+      return;
+    }
+    setTopBarMode('stats');
+    const swap = setTimeout(() => setTopBarMode('resources'), 7000);
+    return () => clearTimeout(swap);
+  }, [effectiveScene]);
+
+  // Fetch galaxy (cluster) stats whenever the stats bar is on screen. Polls
+  // while visible — matters most on the galaxy scene where it's persistent.
+  useEffect(() => {
+    if (topBarMode !== 'stats') return;
+    if (!firebaseUser) return;
+    let cancelled = false;
+    const load = () => {
+      fetchGalaxyStats()
+        .then((s) => { if (!cancelled) setGalaxyStats(s); })
+        .catch(() => { /* keep last-known / placeholder */ });
+    };
+    load();
+    const iv = setInterval(load, 25_000);
+    return () => { cancelled = true; clearInterval(iv); };
+  }, [topBarMode, firebaseUser]);
+
   // SVG navigation icons
   const homeIcon = <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M3 8.5V14h4v-4h2v4h4V8.5" /><path d="M1 9l7-7 7 7" /></svg>;
   const galaxyIcon = <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="8" cy="8" r="2" /><ellipse cx="8" cy="8" rx="7" ry="3" /><ellipse cx="8" cy="8" rx="3" ry="7" /></svg>;
@@ -10113,7 +10248,14 @@ function AppInner() {
         observatoryUsed={researchState.slots.filter(s => s.systemId !== null).length}
         observatoryTotal={researchState.slots.length}
         highlightResearchData={showGetResearchData}
+        showResources={topBarMode === 'resources'}
       />
+      )}
+
+      {/* Galaxy stats bar — top center, swaps with the resources panel above.
+          Same visibility gating as ResourceDisplay; shown while topBarMode==='stats'. */}
+      {!shouldShowWebAccessGate && !showArena && !showRaid && !showHangar && !cinematicActive && !needsOnboarding && topBarMode === 'stats' && (
+        <GalaxyStatsBar stats={galaxyStats} />
       )}
 
       {/* Doomsday Clock — above command bar (Exodus phase only) */}
@@ -10359,6 +10501,7 @@ function AppInner() {
           onNavigate={handleBreadcrumbNavigate}
           onOpenPlayerPage={() => setShowPlayerPage(true)}
           navigationDisabled={false}
+          highlightAuth={guestNeedsLink}
         />
       )}
 
@@ -10765,9 +10908,7 @@ function AppInner() {
               missionPhotoViewer.planetName,
               'mission',
             );
-            const text = i18n.language.startsWith('uk')
-              ? `Отримано фото з місії на планету ${missionPhotoViewer.planetName}. Небулайф - твій власний космос\n${shareUrl}`
-              : `Photo from mission to planet ${missionPhotoViewer.planetName}. Nebulife - your own cosmos\n${shareUrl}`;
+            const text = buildShareCaption({ name: missionPhotoViewer.planetName, subject: 'planet', url: shareUrl });
             try {
               if (navigator.share) await navigator.share({ title: 'Nebulife', text, url: shareUrl });
               else await navigator.clipboard.writeText(text);
@@ -12598,10 +12739,15 @@ function AppInner() {
       {/* Guest registration reminder */}
       {showGuestReminder && isGuest && !showLinkModal && !needsCallsign && !needsOnboarding && tutorialStep >= tutorialCompleteStep && (
         <GuestRegistrationReminder
-          onDismiss={() => setShowGuestReminder(false)}
+          onDismiss={() => {
+            setShowGuestReminder(false);
+            // Snooze the recurring prompt ~2 days; the badge keeps pulsing.
+            try { localStorage.setItem('nebulife_link_prompt_at', String(Date.now())); } catch { /* ignore */ }
+          }}
           onLinked={() => {
             setShowGuestReminder(false);
             setIsGuest(false);
+            try { localStorage.removeItem('nebulife_link_prompt_at'); } catch { /* ignore */ }
           }}
         />
       )}

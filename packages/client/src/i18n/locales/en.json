@@ -1426,6 +1426,21 @@
     "topup": "top-up",
     "gift": "gift"
   },
+  "share": {
+    "found_life": "I found new life in Nebulife",
+    "found_planet": "I found a new planet in Nebulife",
+    "found_system": "I found a new star system in Nebulife",
+    "found_cosmos": "I found a new cosmic object in Nebulife",
+    "found_anomaly": "I found a new cosmic event in Nebulife",
+    "found_world": "I found a new world in Nebulife",
+    "found_discovery": "I made a new discovery in Nebulife"
+  },
+  "galaxy_stats": {
+    "colonies": "Colonies in the galaxy",
+    "players_online": "Players online now",
+    "star_systems": "Star systems",
+    "planets": "Planets in the galaxy"
+  },
   "resource_display": {
     "observatories_title": "Observatories — research stations",
     "research_data_title": "Research data — resource for scanning systems",

@@ -3,9 +3,10 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Capacitor } from '@capacitor/core';
 import type { Discovery, CatalogEntry } from '@nebulife/core';
-import { RARITY_COLORS, getRarityLabel, getCatalogEntry, getCatalogName, getCatalogDescription } from '@nebulife/core';
+import { RARITY_COLORS, getRarityLabel, getCatalogEntry, getCatalogName } from '@nebulife/core';
 import { useReliableImage } from '../hooks/useReliableImage.js';
 import { saveMediaToGallery, isShareCancelled } from '../../utils/media-saver.js';
+import { buildShareCaption, subjectFromGalleryCategory } from '../../utils/share-caption.js';
 
 // ---------------------------------------------------------------------------
 // PhotoModal — fullscreen photo view with share & save buttons
@@ -25,15 +26,6 @@ const RARITY_EMOJI: Record<string, string> = {
   legendary: '\u{1F31F}',    // glowing star
 };
 
-/** Category emojis for share messages */
-const CATEGORY_EMOJI: Record<string, string> = {
-  cosmos: '\u{1F30C}',       // milky way
-  flora: '\u{1F33F}',        // herb
-  fauna: '\u{1F9AC}',        // bison (alien creature)
-  anomalies: '\u{26A0}\u{FE0F}', // warning
-  landscapes: '\u{1F3D4}\u{FE0F}', // mountain
-};
-
 /**
  * Build share URL with dynamic OG tags.
  * Telegram/messengers will fetch this URL and see the discovery photo as og:image.
@@ -48,46 +40,22 @@ function buildShareUrl(discovery: Discovery, imageUrl?: string): string {
 }
 
 /**
- * Build a beautiful share text that grabs attention.
- * Includes a share URL with dynamic OG tags so messengers show the discovery photo.
+ * Build the social share caption: "<Name>. I found a new <X> in Nebulife\n<link>".
+ * The X is derived from the discovery's gallery category. The link carries
+ * dynamic OG tags so messengers show the discovery photo.
  */
 function buildShareText(
   name: string,
-  rarityKey: string,
   galleryCategory: string,
   shareUrl: string,
   lang: string,
-  systemName?: string,
-  description?: string,
 ): string {
-  const emoji = RARITY_EMOJI[rarityKey] ?? '\u{2B50}';
-  const catEmoji = CATEGORY_EMOJI[galleryCategory] ?? '\u{1F30D}';
-  const rarityLabel = getRarityLabel(rarityKey as import('@nebulife/core').DiscoveryRarity, lang) ?? rarityKey;
-
-  const lines: string[] = [];
-
-  // Hook line
-  lines.push(`${emoji} ${name}`);
-  lines.push(`${catEmoji} ${rarityLabel}`);
-
-  // Short description
-  if (description) {
-    const shortDesc = description.length > 120 ? description.slice(0, 117) + '...' : description;
-    lines.push('');
-    lines.push(shortDesc);
-  }
-
-  // System context
-  if (systemName) {
-    lines.push('');
-    lines.push(`\u{1F4CD} ${systemName}`);
-  }
-
-  // Share link (with dynamic OG tags — Telegram will show discovery photo)
-  lines.push('');
-  lines.push(shareUrl);
-
-  return lines.join('\n');
+  return buildShareCaption({
+    name,
+    subject: subjectFromGalleryCategory(galleryCategory),
+    url: shareUrl,
+    lang,
+  });
 }
 
 /**
@@ -125,11 +93,7 @@ export function PhotoModal({
     try {
       const shareTitle = buildShareTitle(name, discovery.rarity);
       const shareUrl = buildShareUrl(discovery, imageUrl);
-      const description = catalog ? getCatalogDescription(catalog, lang) : undefined;
-      const shareText = buildShareText(
-        name, discovery.rarity, discovery.galleryCategory, shareUrl,
-        lang, systemName, description,
-      );
+      const shareText = buildShareText(name, discovery.galleryCategory, shareUrl, lang);
 
       // Native (Android / iOS) — use Capacitor Share plugin.
       // To get the IMAGE PREVIEW in Telegram / Instagram / WhatsApp the image
@@ -193,12 +157,8 @@ export function PhotoModal({
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
         try {
-          const clipDescription = catalog ? getCatalogDescription(catalog, lang) : undefined;
           const clipShareUrl = buildShareUrl(discovery, imageUrl);
-          const clipText = buildShareText(
-            name, discovery.rarity, discovery.galleryCategory, clipShareUrl,
-            lang, systemName, clipDescription,
-          );
+          const clipText = buildShareText(name, discovery.galleryCategory, clipShareUrl, lang);
           await navigator.clipboard.writeText(clipText);
           setShared(true);
         } catch {

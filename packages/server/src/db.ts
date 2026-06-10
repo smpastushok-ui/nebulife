@@ -54,6 +54,8 @@ export interface PlayerRow {
   player_xp: number;
   player_level: number;
   last_seen_at: string | null;
+  /** Capacitor Device.getId() — secondary recovery key for guest accounts. */
+  device_id: string | null;
 }
 
 /** Starter wallet for new players. 30⚛ — first photo is FREE (handled in
@@ -996,6 +998,103 @@ export async function linkFirebaseToPlayer(
   return (rows[0] as PlayerRow) ?? null;
 }
 
+/**
+ * A "fresh" player row carries no real progress yet — still in onboarding,
+ * level <= 1, onboarding not completed. Used so guest recovery only OVERRIDES a
+ * brand-new empty account (the churned-into row) and never a session the player
+ * has already invested in.
+ */
+function isFreshPlayerRow(row: PlayerRow): boolean {
+  const gs = (row.game_state ?? {}) as Record<string, unknown>;
+  const onboardingDone = gs.onboarding_done === true;
+  const level = row.player_level ?? Number(gs.level ?? 0) ?? 0;
+  return !onboardingDone && row.game_phase === 'onboarding' && level <= 1;
+}
+
+/**
+ * Find a guest's ORPHANED progress row by a recovery key, after their Firebase
+ * anonymous UID changed (lost WebView session on an app update).
+ *
+ * Keys, in priority: FCM token (the only key already collected on pre-device_id
+ * builds → rescues already-affected players) and device_id (forward-looking).
+ * Both survive in-place updates while the Firebase UID may not.
+ *
+ * SAFETY:
+ *  - ONLY anonymous (unlinked) rows — never Google/Apple/email, so a shared
+ *    device can't hijack a real account.
+ *  - ONLY rows with REAL progress (not fresh) — we never resurrect empty stubs.
+ *  - Excludes the caller's current UID.
+ *  - Returns the most-progressed match; caller decides whether to re-link.
+ */
+export async function findRecoverableGuest(opts: {
+  fcmToken?: string | null;
+  deviceId?: string | null;
+  excludeUid: string;
+}): Promise<PlayerRow | null> {
+  const fcmToken = opts.fcmToken ?? null;
+  const deviceId = opts.deviceId ?? null;
+  if (!fcmToken && !deviceId) return null;
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT * FROM players
+    WHERE auth_provider = 'anonymous'
+      AND firebase_uid IS DISTINCT FROM ${opts.excludeUid}
+      AND (
+        (${fcmToken}::text IS NOT NULL AND fcm_token = ${fcmToken})
+        OR (${deviceId}::text IS NOT NULL AND device_id = ${deviceId})
+      )
+      -- real progress only (mirror of isFreshPlayerRow)
+      AND NOT (
+        game_phase = 'onboarding'
+        AND COALESCE(player_level, (game_state->>'level')::int, 0) <= 1
+        AND COALESCE((game_state->>'onboarding_done')::boolean, false) = false
+      )
+    ORDER BY
+      COALESCE(player_level, (game_state->>'level')::int, 0) DESC,
+      COALESCE(player_xp, (game_state->>'xp')::int, 0) DESC,
+      last_login DESC NULLS LAST
+    LIMIT 1
+  `;
+  return (rows[0] as PlayerRow) ?? null;
+}
+
+export { isFreshPlayerRow };
+
+/**
+ * Re-point a recovered guest row to the player's current Firebase UID. The
+ * primary key (old UID) is preserved; only firebase_uid moves, so subsequent
+ * token auth resolves to this row. Caller must first free the new UID (see
+ * detachFirebaseUid) when an empty stub already holds it.
+ */
+export async function relinkGuestToUid(
+  playerId: string,
+  newFirebaseUid: string,
+  deviceId?: string | null,
+): Promise<PlayerRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    UPDATE players
+    SET firebase_uid = ${newFirebaseUid},
+        device_id = COALESCE(${deviceId ?? null}, device_id),
+        last_login = NOW()
+    WHERE id = ${playerId}
+    RETURNING *
+  `;
+  return (rows[0] as PlayerRow) ?? null;
+}
+
+/** Free a UID from an empty stub row so a recovered row can take it (unique idx). */
+export async function detachFirebaseUid(playerId: string): Promise<void> {
+  const sql = getSQL();
+  await sql`UPDATE players SET firebase_uid = NULL WHERE id = ${playerId}`;
+}
+
+/** Stamp/refresh a player's device_id (recovery key) on register. Best-effort. */
+export async function setPlayerDeviceId(playerId: string, deviceId: string): Promise<void> {
+  const sql = getSQL();
+  await sql`UPDATE players SET device_id = ${deviceId} WHERE id = ${playerId}`;
+}
+
 /** Check if a callsign is available (case-insensitive). */
 export async function checkCallsignAvailable(callsign: string): Promise<boolean> {
   const sql = getSQL();
@@ -1031,18 +1130,21 @@ export async function createPlayerWithAuth(player: {
   name: string;
   homeSystemId: string;
   homePlanetId: string;
+  deviceId?: string | null;
 }): Promise<PlayerRow> {
   const sql = getSQL();
   console.log(`[db] createPlayerWithAuth: id=${player.id}, provider=${player.authProvider}`);
   try {
     const rows = await sql`
-      INSERT INTO players (id, firebase_uid, auth_provider, email, name, home_system_id, home_planet_id, game_phase, last_login, quarks)
+      INSERT INTO players (id, firebase_uid, auth_provider, email, name, home_system_id, home_planet_id, game_phase, last_login, quarks, device_id)
       VALUES (${player.id}, ${player.firebaseUid}, ${player.authProvider}, ${player.email ?? null},
-              ${player.name}, ${player.homeSystemId}, ${player.homePlanetId}, 'onboarding', NOW(), ${STARTER_QUARKS})
+              ${player.name}, ${player.homeSystemId}, ${player.homePlanetId}, 'onboarding', NOW(), ${STARTER_QUARKS},
+              ${player.deviceId ?? null})
       ON CONFLICT (id) DO UPDATE SET
         last_login = NOW(),
         firebase_uid = COALESCE(players.firebase_uid, EXCLUDED.firebase_uid),
-        auth_provider = EXCLUDED.auth_provider
+        auth_provider = EXCLUDED.auth_provider,
+        device_id = COALESCE(EXCLUDED.device_id, players.device_id)
       RETURNING *
     `;
     console.log(`[db] createPlayerWithAuth: inserted/updated, rows=${rows.length}`);
@@ -3734,6 +3836,47 @@ export async function getClusterOnlineMembers(
     ORDER BY last_heartbeat DESC
   ` as ClusterOnlineMember[];
   return rows;
+}
+
+export interface GalaxyStats {
+  /** Players in this cluster online right now (heartbeat < 5 min). */
+  playersOnline: number;
+  /** Colonized planets in this cluster (planet_claims rows). */
+  colonies: number;
+  /** Star systems in this cluster: 19 per registered player + 500 core mesh. */
+  starSystems: number;
+  /** Approximate planet total (MEAN_PLANETS per system). */
+  planets: number;
+}
+
+/**
+ * Aggregate "galaxy" (= cluster) stats for the top HUD stats bar. One round-trip:
+ * online count + colony count + cluster player_count, then derive the system /
+ * planet totals from the macro-architecture model (see CLAUDE.md):
+ *   • 19 personal systems per player (rings 0-2: 1+6+12)
+ *   • +500 shared core-zone systems
+ *   • ~6 planets per system (MEAN_PLANETS)
+ */
+export async function getGalaxyStats(clusterId: string): Promise<GalaxyStats> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT
+      (SELECT COUNT(*)::int FROM v_cluster_online_members WHERE cluster_id = ${clusterId}) AS online,
+      (SELECT COUNT(*)::int FROM planet_claims         WHERE cluster_id = ${clusterId}) AS colonies,
+      (SELECT COALESCE(player_count, 0)::int FROM clusters WHERE id = ${clusterId})     AS players
+  ` as { online: number; colonies: number; players: number }[];
+  const r = rows[0] ?? { online: 0, colonies: 0, players: 0 };
+  const players = Math.max(1, r.players);
+  const SYSTEMS_PER_PLAYER = 19;   // rings 0-2: 1 + 6 + 12
+  const CORE_SYSTEMS = 500;        // galactic core mesh shared by the cluster
+  const MEAN_PLANETS = 6;
+  const starSystems = players * SYSTEMS_PER_PLAYER + CORE_SYSTEMS;
+  return {
+    playersOnline: r.online,
+    colonies: r.colonies,
+    starSystems,
+    planets: starSystems * MEAN_PLANETS,
+  };
 }
 
 /** Daily login bonus amount (per Game Bible §0.4-bis: tighter free-AI control) */

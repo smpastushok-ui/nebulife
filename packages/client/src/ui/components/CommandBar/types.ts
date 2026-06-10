@@ -42,4 +42,6 @@ export interface CommandBarProps {
   onNavigate: (targetScene: string) => void;
   onOpenPlayerPage?: () => void;
   navigationDisabled?: boolean;
+  /** Guest (not linked) with progress → pulse the player badge to nudge sign-in. */
+  highlightAuth?: boolean;
 }

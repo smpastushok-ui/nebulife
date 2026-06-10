@@ -1424,6 +1424,21 @@
     "topup": "поповнення",
     "gift": "подарунок"
   },
+  "share": {
+    "found_life": "Я знайшов нове життя в Nebulife",
+    "found_planet": "Я знайшов нову планету в Nebulife",
+    "found_system": "Я знайшов нову зоряну систему в Nebulife",
+    "found_cosmos": "Я знайшов новий космічний об'єкт в Nebulife",
+    "found_anomaly": "Я знайшов нову космічну подію в Nebulife",
+    "found_world": "Я знайшов новий світ в Nebulife",
+    "found_discovery": "Я зробив нове відкриття в Nebulife"
+  },
+  "galaxy_stats": {
+    "colonies": "Колонії в галактиці",
+    "players_online": "Гравців онлайн зараз",
+    "star_systems": "Зоряних систем",
+    "planets": "Планет у галактиці"
+  },
   "resource_display": {
     "observatories_title": "Обсерваторії — дослідницькі станції",
     "research_data_title": "Дані досліджень — ресурс для сканування систем",

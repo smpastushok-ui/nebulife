@@ -24,6 +24,17 @@ export const KEYFRAMES_CSS = `
   0%, 100% { border-color: rgba(68, 102, 136, 0.42); }
   50%      { border-color: rgba(120, 184, 255, 0.62); }
 }
+
+/* Auth nudge: a short double-flash of light on the player badge for guests who
+   haven't linked an account. Fired at random intervals (see PlayerPanel) so it
+   reads as an occasional, attention-grabbing pulse rather than a constant glow. */
+@keyframes cmdbar-auth-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(123, 184, 255, 0); border-color: rgba(68, 102, 136, 0.5); }
+  18%  { box-shadow: 0 0 16px 4px rgba(123, 184, 255, 0.7); border-color: rgba(160, 205, 255, 0.98); }
+  40%  { box-shadow: 0 0 5px 0 rgba(123, 184, 255, 0.18); border-color: rgba(90, 130, 170, 0.7); }
+  62%  { box-shadow: 0 0 18px 5px rgba(123, 184, 255, 0.78); border-color: rgba(170, 212, 255, 1); }
+  100% { box-shadow: 0 0 0 0 rgba(123, 184, 255, 0); border-color: rgba(68, 102, 136, 0.5); }
+}
 `;
 
 /* ------------------------------------------------------------------ */

@@ -62,6 +62,12 @@ interface ResourceDisplayProps {
   observatoryTotal?: number;
   /** When true, pulse-highlight the Research Data item to draw attention */
   highlightResearchData?: boolean;
+  /**
+   * Show the top-center resources panel. When false, only the bottom doomsday
+   * timer renders (the GalaxyStatsBar takes the top spot instead — see
+   * App.tsx topBarMode). Defaults to true.
+   */
+  showResources?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -197,6 +203,7 @@ export function ResourceDisplay({
   isCountdownPaused, onTimerClick,
   observatoryUsed = 0, observatoryTotal = 0,
   highlightResearchData = false,
+  showResources = true,
 }: ResourceDisplayProps) {
   const { t } = useTranslation();
   const [hoverTimer, setHoverTimer] = useState(false);
@@ -230,6 +237,10 @@ export function ResourceDisplay({
         .countdown-urgent {
           animation: cmdbar-terminal-pulse 0.8s infinite;
         }
+        @keyframes galaxyStatsIn {
+          from { opacity: 0; transform: translate(-50%, -12px); }
+          to   { opacity: 1; transform: translate(-50%, 0); }
+        }
       `}</style>
 
       {/* Doomsday clock — above TERMINAL button (bottom bar).
@@ -261,6 +272,7 @@ export function ResourceDisplay({
       )}
 
       {/* Resources — fixed top-center. Always shows totals across all colonies. */}
+      {showResources && (
       <div
         style={{
           ...panelStyle,
@@ -269,6 +281,7 @@ export function ResourceDisplay({
           left: '50%',
           transform: 'translateX(-50%)',
           cursor: 'default',
+          animation: 'galaxyStatsIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both',
         }}
       >
         {/* Observatories */}
@@ -372,6 +385,7 @@ export function ResourceDisplay({
           <span style={numStyle}>{formatShort(quarks)}</span>
         </div>
       </div>
+      )}
     </>
   );
 }
