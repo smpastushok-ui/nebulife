@@ -121,6 +121,7 @@ import {
   getOverallProgress,
   tickMission,
   tierForBuildings,
+  flightHoursLY,
   systemDistanceLY,
   generatePlanetStocks,
   depleteStock,
@@ -3571,12 +3572,15 @@ function AppInner() {
   }, []);
 
   const estimateShipFlightMs = useCallback((ship: Ship, fromPlanetId: string, toPlanetId: string): number => {
-    const def = PRODUCIBLE_DEFS[ship.type];
     const systems = engineRef.current?.getAllSystems?.() ?? [];
     const fromSystem = systems.find((system) => system.planets.some((planet) => planet.id === fromPlanetId));
     const toSystem = systems.find((system) => system.planets.some((planet) => planet.id === toPlanetId));
     const distanceLY = fromSystem && toSystem ? Math.max(0.05, systemDistanceLY(fromSystem, toSystem)) : 0.25;
-    return Math.max(60_000, Math.ceil((distanceLY / Math.max(0.001, def.baseSpeed)) * 60_000));
+    // Same sqrt-compressed, capped model as terraform missions (hours, not days).
+    // Bigger haulers (transport_large / freighter) ride the mid tier; the small
+    // transport is a touch faster (tier 3).
+    const tier = ship.type === 'transport_small' ? 3 : 2;
+    return Math.max(60_000, Math.ceil(flightHoursLY(distanceLY, tier) * 3_600_000));
   }, []);
 
   const handleStartCargoShipment = useCallback((params: {

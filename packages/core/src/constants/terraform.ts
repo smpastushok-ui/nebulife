@@ -56,10 +56,32 @@ export const TF_COMPLETION_THRESHOLD = 95;
 export const TF_TARGET_HABITABILITY_BOOST = 0.4;
 
 // ── Fleet constants ─────────────────────────────────────────────────────────
+//
+// The galaxy spans ~600 LY (player home → galactic core). Linear distance→time
+// at the old speeds made any cross-zone delivery take weeks-to-months, and even
+// intra-zone hops (10-20 LY) took days. Endgame players (L48+) terraform/transport
+// from their NEAREST colony with ships, so the relevant hop is usually small —
+// but we compress with sqrt and hard-cap so even a far donor stays in HOURS.
+//
+//   flightHours(tier) = clamp(BASE_H[tier] × sqrt(distanceLY), MIN, CAP)
+//
+// Examples (tier 3): 13 LY → ~1.0h, 30 LY → ~1.5h, 170 LY → ~3.7h, 600 LY → cap 6h.
+
+/** Per-tier flight-time coefficient (game-hours per √LY). Higher tier = faster. */
+export const TF_FLIGHT_HOURS_PER_SQRT_LY: Record<1 | 2 | 3, number> = {
+  1: 0.55,
+  2: 0.40,
+  3: 0.28,
+};
+
+/** Lower / upper bound on one-way flight time (game-hours). */
+export const TF_FLIGHT_MIN_HOURS = 0.1;
+export const TF_FLIGHT_MAX_HOURS = 6;
 
 /**
- * Repair cost multiplier: minerals = distance × tierMaxCargo × TF_REPAIR_BASE_MULT.
- * A round trip of 10 LY with a tier-2 ship (cargo 1000) costs
- * ceil(10 × 1000 × 0.05) = 500 minerals.
+ * Repair cost: minerals = ceil(tierMaxCargo × TF_REPAIR_K × √distanceLY).
+ * Scales with hauler size and (compressed) distance so far hops cost more
+ * without exploding at galaxy scale. tier-3 (cargo 5000): 13 LY → ~3.2k,
+ * 50 LY → ~6.4k, 170 LY → ~11.7k, 600 LY → ~22k.
  */
-export const TF_REPAIR_BASE_MULT = 0.05;
+export const TF_REPAIR_K = 0.18;

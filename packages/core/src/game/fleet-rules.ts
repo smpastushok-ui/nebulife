@@ -13,7 +13,12 @@
 
 import type { PlacedBuilding, BuildingType } from '../types/surface.js';
 import type { Mission, MissionPhase, ResourceCost, ShipTier } from '../types/terraform.js';
-import { TF_REPAIR_BASE_MULT } from '../constants/terraform.js';
+import {
+  TF_FLIGHT_HOURS_PER_SQRT_LY,
+  TF_FLIGHT_MIN_HOURS,
+  TF_FLIGHT_MAX_HOURS,
+  TF_REPAIR_K,
+} from '../constants/terraform.js';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -82,18 +87,28 @@ export function tierSpeedLY(tier: ShipTier): number {
 
 // ── Flight calculations ──────────────────────────────────────────────────────
 
-/** One-way flight time in game-hours for a given distance and tier. */
+/**
+ * One-way flight time in game-hours for a given distance and tier.
+ *
+ * sqrt-compressed and hard-capped so endgame deliveries stay in HOURS even when
+ * the donor colony is far from the target. With nearest-colony dispatch the hop
+ * is usually small (~10-30 LY → 1-2h); the cap protects the worst case.
+ * See TF_FLIGHT_* in constants/terraform.ts.
+ */
 export function flightHoursLY(distanceLY: number, tier: ShipTier): number {
-  return distanceLY / tierSpeedLY(tier);
+  const k = TF_FLIGHT_HOURS_PER_SQRT_LY[tier];
+  const raw = k * Math.sqrt(Math.max(0, distanceLY));
+  return Math.min(TF_FLIGHT_MAX_HOURS, Math.max(TF_FLIGHT_MIN_HOURS, raw));
 }
 
 /**
  * Resource cost to repair the ship after one full round trip.
- * minerals = ceil(distanceLY × tierMaxCargo(tier) × TF_REPAIR_BASE_MULT)
+ * minerals = ceil(tierMaxCargo(tier) × TF_REPAIR_K × √distanceLY)
+ * (sqrt-compressed distance so far hops cost more without exploding).
  */
 export function repairCost(distanceLY: number, tier: ShipTier): ResourceCost {
   return {
-    minerals: Math.ceil(distanceLY * tierMaxCargo(tier) * TF_REPAIR_BASE_MULT),
+    minerals: Math.ceil(tierMaxCargo(tier) * TF_REPAIR_K * Math.sqrt(Math.max(0, distanceLY))),
   };
 }
 

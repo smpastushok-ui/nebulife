@@ -84,9 +84,37 @@ export function MissionDispatchModal({
 }: MissionDispatchModalProps): React.ReactElement | null {
   const { t } = useTranslation();
 
-  const [selectedDonorId, setSelectedDonorId] = useState<string>(
-    donorPlanets[0]?.id ?? '',
+  // Default to the NEAREST colony that actually has an available ship docked —
+  // that's the adequate dispatch point (keeps flight time to ~1-2h). Falls back
+  // to the nearest donor overall if none currently have a free ship.
+  const defaultDonorId = useMemo(() => {
+    const hasFreeShip = (planetId: string) =>
+      availableShips.some((s) => s.currentPlanetId === planetId && s.status === 'docked' && !s.assignmentId);
+    const withShips = donorPlanets.filter((p) => hasFreeShip(p.id));
+    const pool = withShips.length > 0 ? withShips : donorPlanets;
+    let best = pool[0]?.id ?? '';
+    let bestLy = Infinity;
+    for (const p of pool) {
+      const ly = distanceLY(p.id);
+      if (ly < bestLy) { bestLy = ly; best = p.id; }
+    }
+    return best;
+  }, [donorPlanets, availableShips, distanceLY]);
+
+  const [selectedDonorId, setSelectedDonorId] = useState<string>(defaultDonorId);
+  // Keep the nearest-with-ships default unless the user picked a still-valid donor.
+  useEffect(() => {
+    setSelectedDonorId((prev) =>
+      prev && donorPlanets.some((p) => p.id === prev) ? prev : defaultDonorId,
+    );
+  }, [defaultDonorId, donorPlanets]);
+
+  // Donor dropdown sorted nearest-first.
+  const sortedDonors = useMemo(
+    () => [...donorPlanets].sort((a, b) => distanceLY(a.id) - distanceLY(b.id)),
+    [donorPlanets, distanceLY],
   );
+
   const donorShips = useMemo(
     () => availableShips.filter((ship) => ship.currentPlanetId === selectedDonorId && ship.status === 'docked' && !ship.assignmentId),
     [availableShips, selectedDonorId],
@@ -122,11 +150,11 @@ export function MissionDispatchModal({
     [selectedDonorId, distanceLY],
   );
 
-  const oneWayHours = useMemo(() => {
-    if (!selectedShip) return flightHoursLY(selectedDistance, tier);
-    const def = PRODUCIBLE_DEFS[selectedShip.type];
-    return Math.max(0.1, selectedDistance / Math.max(0.01, def.baseSpeed * 10));
-  }, [selectedDistance, selectedShip, tier]);
+  // Single source of truth (sqrt-compressed + capped) so deliveries stay in hours.
+  const oneWayHours = useMemo(
+    () => flightHoursLY(selectedDistance, tier),
+    [selectedDistance, tier],
+  );
   const roundTripHours = oneWayHours * 2;
 
   const repair = useMemo(
@@ -297,7 +325,7 @@ export function MissionDispatchModal({
                 width: '100%',
               }}
             >
-              {donorPlanets.map((p) => (
+              {sortedDonors.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name} — {t('terraform.distance', { ly: distanceLY(p.id).toFixed(2) })}
                 </option>
