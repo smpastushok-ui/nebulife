@@ -118,6 +118,8 @@ export async function grantWebPremium(opts: {
     },
   });
   await grantRevenueCatPromotionalEntitlement(opts.playerId, opts.plan.duration, opts.reference);
+  // Email the player the stylised /play web-access link (once).
+  await maybeSendWebAccessInvite(opts.playerId, 'web_monobank', opts.email);
   return status;
 }
 
@@ -206,28 +208,45 @@ export async function redeemPremiumPromoCode(playerId: string, rawCode: unknown)
     claim.row.duration_days >= 365 ? 'yearly' : 'monthly',
     `promo:${code}`,
   );
+  // Email the player the stylised /play web-access link (once).
+  await maybeSendWebAccessInvite(playerId, 'promo_code');
   return { ok: true, status };
 }
 
-async function maybeSendWebAccessInvite(playerId: string, source: string): Promise<void> {
+/**
+ * Send the stylised "web version is available at /play" email once per player.
+ *
+ * Transactional (access instructions for a paid product) → sent regardless of
+ * the digest opt-out (`email_notifications`); deduped by `premium_web_invite_sent_at`.
+ * `preferredEmail` lets the web-checkout email win over the account email.
+ */
+async function maybeSendWebAccessInvite(
+  playerId: string,
+  source: string,
+  preferredEmail?: string | null,
+): Promise<void> {
   const player = await getPlayer(playerId);
-  if (!player?.email || player.email_notifications === false || player.premium_web_invite_sent_at) return;
+  if (!player) return;
+  const target = normalizeEmail(preferredEmail)
+    || normalizeEmail(player.email)
+    || normalizeEmail(player.premium_web_access_email);
+  if (!target || player.premium_web_invite_sent_at) return;
   if (!process.env.RESEND_API_KEY) return;
 
   const lang = player.preferred_language === 'en' ? 'en' : 'uk';
   await sendWebAccessEmail({
-    to: player.email,
+    to: target,
     playerName: player.callsign || player.name,
     playerId,
     lang,
   }).then(async () => {
-    await updatePlayerPremiumWebAccessEmail(playerId, normalizeEmail(player.email));
+    await updatePlayerPremiumWebAccessEmail(playerId, target);
     await markPremiumWebInviteSent(playerId);
     await savePremiumEntitlementEvent({
       playerId,
       eventType: 'web_invite_sent',
       source,
-      meta: { email: normalizeEmail(player.email) },
+      meta: { email: target },
     });
   }).catch(async (err) => {
     console.warn('[premium] Web access invite failed:', err);

@@ -1872,10 +1872,10 @@
     "err_network": "No connection. Try again."
   },
   "web_access": {
-    "kicker": "WEB PREMIUM",
-    "title": "Nebulife Web Version",
-    "checking": "Checking Premium access...",
-    "no_access": "You do not have access. Purchase a Premium package to enter the Nebulife web version.",
+    "kicker": "ALPHA ACCESS",
+    "title": "Alpha access required",
+    "checking": "Checking Alpha access...",
+    "no_access": "The web game is available only with Alpha access (Premium). Purchase a package below or activate Premium on iOS/Android — then log in with the same email. We will also email you the game link.",
     "email_mismatch": "Premium was found, but the login email does not match the Premium account email. Log in with the same email or purchase a Premium package for this account.",
     "payment_pending": "The payment is open in MonoPay. After payment, check access again.",
     "refresh_access": "Check access",

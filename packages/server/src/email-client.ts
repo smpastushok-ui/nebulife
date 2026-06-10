@@ -312,8 +312,9 @@ function buildWelcomeHtml(payload: ServiceEmailPayload): string {
 function buildWebAccessHtml(payload: ServiceEmailPayload): string {
   const lang = payload.lang ?? 'uk';
   const playerName = payload.playerName ? escapeHtml(payload.playerName) : '';
-  const baseUrl = process.env.APP_BASE_URL ?? 'https://www.nebulife.space';
-  const playUrl = `${baseUrl}/play`;
+  // Canonical web-play entry point — kept on the www host independent of
+  // APP_BASE_URL (which may point to the apex domain for unsubscribe links).
+  const playUrl = process.env.WEB_PLAY_URL ?? 'https://www.nebulife.space/play';
   const title = lang === 'uk'
     ? 'Веб-версія Nebulife доступна'
     : 'Nebulife web version is available';
