@@ -47,7 +47,7 @@ import type {
   Planet, Star, StarSystem, ResearchState, SystemResearchState, Discovery, CatalogEntry,
 } from '@nebulife/core';
 import { getCatalogEntry, getCatalogName, BUILDING_DEFS } from '@nebulife/core';
-import { rollLifeformFind, rollLifeformHarvestFind, isLifeformTriggerBuilding, rollIngredientDrop, buildLifeformPlanetContext, simpleLifeformPhoto, simpleLifeformVideo, simpleLifeformName, simpleKeyFromAssetUrl, pickUnseenSimpleLifeform } from '@nebulife/core';
+import { rollLifeformFind, rollLifeformHarvestFind, isLifeformTriggerBuilding, rollIngredientDrop, buildLifeformPlanetContext, simpleLifeformPhoto, simpleLifeformVideo, simpleLifeformName, simpleKeyFromAssetUrl, pickUnseenSimpleLifeform, LIFEFORM_FIND_COOLDOWN_MS } from '@nebulife/core';
 import type { LifeformPlanetContext } from '@nebulife/core';
 import type { DiscoveryRarity, LifeformIngredientId } from '@nebulife/core';
 import { checkPremiumStatus, initIAP, redeemPremiumCode } from './api/iap-service.js';
@@ -159,7 +159,25 @@ const SYNCED_UI_FLAG_KEYS = new Set<string>([
   'nebulife_mission_curriculum_done',
   'nebulife_app_review_prompt_done',
   'nebulife_link_prompt_at',
+  'nebulife_first_lifeform_seen',
+  'nebulife_last_lifeform_find_at',
 ]);
+
+/** Real-time pacing for lifeform discovery — at most one find per cooldown
+ *  window, persisted (and synced) so harvest-spamming or reinstalling cannot
+ *  burn through the 28-form set in days. */
+const LIFEFORM_FIND_AT_KEY = 'nebulife_last_lifeform_find_at';
+function lifeformFindOnCooldown(): boolean {
+  try {
+    const raw = localStorage.getItem(LIFEFORM_FIND_AT_KEY);
+    const last = raw ? Number(raw) : 0;
+    if (!Number.isFinite(last) || last <= 0) return false;
+    return Date.now() - last < LIFEFORM_FIND_COOLDOWN_MS;
+  } catch { return false; }
+}
+function markLifeformFind(): void {
+  try { localStorage.setItem(LIFEFORM_FIND_AT_KEY, String(Date.now())); } catch { /* ignore */ }
+}
 /** Dynamic, per-target one-time flags (player/planet-scoped). */
 const SYNCED_UI_FLAG_PREFIXES = [
   'nebulife_unlock_popup_',        // buildings/arena/raid/terraform unlock popups
@@ -1069,6 +1087,11 @@ function AppInner() {
   // (used to compute already-owned simple species for dedup).
   const lifeformsRef = useRef(lifeforms);
   lifeformsRef.current = lifeforms;
+  // Re-entrancy guard: a single find event (same deterministic pickSeed) must
+  // reveal/save exactly once even if its handler fires twice in quick
+  // succession (rapid harvest taps, double-invoked callbacks). Without this a
+  // lifeform could be saved two-at-once for one discovery.
+  const lifeformRevealGuardRef = useRef<{ seed: number; at: number } | null>(null);
   // Stable indirection to the shared find→reveal handler (defined later).
   const revealFoundLifeformRef = useRef<
     (rarity: DiscoveryRarity, planet: Parameters<typeof buildLifeformPlanetContext>[0], system: { id: string }, pickSeed: number) => boolean
@@ -1843,7 +1866,7 @@ function AppInner() {
       // one of the 28 bundled simple species (next not-yet-collected one);
       // uncommon+ open the paid Alpha-photo/video flow. Duplicates of an
       // already-collected simple species are silently skipped (not saved).
-      if (actualAmount > 0) {
+      if (actualAmount > 0 && !lifeformFindOnCooldown()) {
         const lfSystem = surfaceTargetRef.current?.system ?? homeInfoRef.current?.system;
         if (playerId.current && lfPlanet && lfSystem) {
           lifeformHarvestCounter.current += 1;
@@ -1851,7 +1874,7 @@ function AppInner() {
           if (roll.found) {
             const pickSeed = (Math.floor(lfPlanet.seed ?? 0) ^ (lifeformHarvestCounter.current * 0x45d9f3b)) >>> 0;
             const shown = revealFoundLifeformRef.current(roll.rarity, lfPlanet, lfSystem, pickSeed);
-            if (shown) awardXP(60, 'lifeform_found');
+            if (shown) { markLifeformFind(); awardXP(60, 'lifeform_found'); }
           }
         }
       }
@@ -8581,6 +8604,12 @@ function AppInner() {
   ): boolean => {
     const lfPid = playerId.current;
     if (!lfPid) return false;
+    // De-dupe a re-fired find: same deterministic seed within a short window
+    // means the same discovery — reveal/save it only once.
+    const now = Date.now();
+    const guard = lifeformRevealGuardRef.current;
+    if (guard && guard.seed === pickSeed && now - guard.at < 2500) return false;
+    lifeformRevealGuardRef.current = { seed: pickSeed, at: now };
     setActiveLifeformOnboarding(false);
     // Planet-aware biology so any paid Alpha media matches this exact world.
     setActiveLifeformPlanet(buildLifeformPlanetContext(planet));
@@ -11505,14 +11534,14 @@ function AppInner() {
                         setActiveLifeform(local);
                       });
                   }
-                } else if (isLifeformTriggerBuilding(type) && lfPid) {
+                } else if (isLifeformTriggerBuilding(type) && lfPid && !lifeformFindOnCooldown()) {
                   // Placing a bio/science building can surface native life.
                   lifeformBuildCounter.current += 1;
                   const roll = rollLifeformFind(lfPlanet.seed ?? 0, type, lifeformBuildCounter.current);
                   if (roll.found) {
                     const pickSeed = (Math.floor(lfPlanet.seed ?? 0) ^ (lifeformBuildCounter.current * 0x45d9f3b)) >>> 0;
                     const shown = revealFoundLifeformRef.current(roll.rarity, lfPlanet, lfSystem, pickSeed);
-                    if (shown) awardXP(60, 'lifeform_found');
+                    if (shown) { markLifeformFind(); awardXP(60, 'lifeform_found'); }
                   }
                 }
               } catch { /* ignore */ }

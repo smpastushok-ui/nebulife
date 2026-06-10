@@ -61,12 +61,21 @@ export const LIFEFORM_FIND_WEIGHTS: Record<DiscoveryRarity, number> = {
 
 /**
  * Per-harvest chance that digging a resource deposit surfaces native life.
- * Release tuning for "all 28 simple forms in ~1 month of active play":
- *   ~22 harvests/day × 0.05 × 72% common ≈ ~0.8 common finds/day → ~28 days
- *   for the full set (unseen-first selection guarantees no wasted finds until
- *   complete; building placements below add a little on top).
+ * Active players harvest far more than the original estimate (hundreds per
+ * session, not ~22/day), so the raw probability is low AND a real-time
+ * cooldown (LIFEFORM_FIND_COOLDOWN_MS) hard-caps the pace. Together they
+ * stretch the 28-form set to ~1 month of active play regardless of how hard a
+ * player spams harvesting.
  */
-export const LIFEFORM_HARVEST_FIND_CHANCE = 0.05;
+export const LIFEFORM_HARVEST_FIND_CHANCE = 0.02;
+
+/**
+ * Minimum real time between two lifeform finds (harvest OR building placement).
+ * This is the authoritative pacing lever: even a player mining non-stop can
+ * surface at most one lifeform per window, so the full set takes ~weeks, not
+ * days. Enforced client-side against a persisted last-find timestamp.
+ */
+export const LIFEFORM_FIND_COOLDOWN_MS = 2.5 * 60 * 60 * 1000;
 
 /**
  * Buildings that can surface a lifeform when placed, with per-build chance.

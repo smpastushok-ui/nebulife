@@ -1617,6 +1617,19 @@ export async function saveLifeform(data: {
   videoUrl?: string | null;
 }): Promise<LifeformRow> {
   const sql = getSQL();
+  // Dedup bundled species: a player must never hold two of the same simple
+  // lifeform. The bundled photo_url uniquely identifies the species, so if a
+  // row already exists for this player+photo we return it instead of inserting
+  // a duplicate (authoritative guard against any client double-fire / replay).
+  if (data.isBundle && data.photoUrl) {
+    const existing = await sql`
+      SELECT * FROM lifeforms
+      WHERE player_id = ${data.playerId} AND photo_url = ${data.photoUrl}
+      ORDER BY created_at ASC
+      LIMIT 1
+    `;
+    if (existing[0]) return existing[0] as LifeformRow;
+  }
   // Bundled common media is ready immediately, so mark status 'succeed'.
   const photoStatus = data.photoUrl ? 'succeed' : null;
   const videoStatus = data.videoUrl ? 'succeed' : null;

@@ -39,9 +39,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const isBundle = rarity === 'common';
 
     // Only persist bundled (relative) media URLs for common lifeforms; paid
-    // tiers fetch their unique Alpha media separately.
+    // tiers fetch their unique Alpha media separately. Persisting the URL is
+    // also what lets the server dedupe a species (one row per player+photo).
     const isBundledUrl = (u: unknown): u is string =>
-      typeof u === 'string' && u.startsWith('/lifeforms/common/');
+      typeof u === 'string'
+      && (u.startsWith('/lifeforms/common/') || u.startsWith('/lifeforms/first/'));
 
     const lifeform = await saveLifeform({
       id,
