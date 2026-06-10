@@ -329,7 +329,8 @@ export type RewardType =
   | 'research_data'
   | 'discovery_photo'
   | 'planet_photo'
-  | 'panorama_photo';
+  | 'panorama_photo'
+  | 'lifeform_photo';
 
 /** Get a signed ad session token from the server before showing an ad. */
 async function getAdSessionToken(): Promise<string | null> {
@@ -513,7 +514,7 @@ export async function watchAdsWithProgress(
     }
 
     // Photo reward types require a photoToken
-    const isPhotoType = rewardType === 'discovery_photo' || rewardType === 'planet_photo' || rewardType === 'panorama_photo';
+    const isPhotoType = rewardType === 'discovery_photo' || rewardType === 'planet_photo' || rewardType === 'panorama_photo' || rewardType === 'lifeform_photo';
     if (isPhotoType && !data.photoToken) {
       return { rewarded: false, reason: 'error' };
     }

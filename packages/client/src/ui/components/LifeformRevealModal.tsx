@@ -16,7 +16,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RARITY_COLORS, getRarityLabel, LIFEFORM_PHOTO_COST, LIFEFORM_VIDEO_COST } from '@nebulife/core';
+import { RARITY_COLORS, getRarityLabel, LIFEFORM_PHOTO_COST, LIFEFORM_VIDEO_COST, LIFEFORM_PHOTO_ADS } from '@nebulife/core';
 import type { DiscoveryRarity } from '@nebulife/core';
 import {
   generateLifeformPhoto,
@@ -27,6 +27,8 @@ import {
   type LifeformRecord,
   type LifeformMediaStatus,
 } from '../../api/lifeform-api.js';
+import { canShowAd } from '../../services/ads-service.js';
+import { AdProgressButton } from './AdProgressButton.js';
 import { trackEvent } from '../../analytics/firebase-analytics.js';
 import { useVideoAudioFocus } from '../../audio/useVideoAudioFocus.js';
 
@@ -192,23 +194,24 @@ export function LifeformRevealModal({
     setBeat('reward');
   }, [name, record, onUpdated, playerId, t]);
 
-  // ── Paid Alpha-photo generation ─────────────────────────────────────────
-  const startPhotoGen = useCallback(async () => {
+  // ── Paid Alpha-photo generation (quarks, or a rewarded-ad token) ─────────
+  const startPhotoGen = useCallback(async (adToken?: string) => {
     if (record.id.startsWith('local-')) {
       setGenError(t('lifeform.err_offline'));
       return;
     }
-    if (quarks < photoCost) {
+    if (!adToken && quarks < photoCost) {
       setGenError(t('lifeform.err_quarks'));
       return;
     }
     setGenError(null);
     setPhotoGenStatus('generating');
-    void trackEvent('lifeform_alpha_photo', { rarity, cost: photoCost });
+    void trackEvent('lifeform_alpha_photo', { rarity, cost: adToken ? 0 : photoCost, via: adToken ? 'ad' : 'quarks' });
     try {
       const resp = await generateLifeformPhoto(playerId, record.id, {
         planetHint: planetContext?.hint,
         planetMedium: planetContext?.medium,
+        adToken,
       });
       if (resp.quarksRemaining !== null && resp.quarksRemaining !== undefined) {
         onQuarksChange(resp.quarksRemaining);
@@ -266,6 +269,9 @@ export function LifeformRevealModal({
   const rarityLabel = getRarityLabel(rarity, lang);
   const photoBusy = photoGenStatus === 'generating' || photoGenStatus === 'pending' || photoGenStatus === 'processing';
   const videoBusy = videoGenStatus === 'generating' || videoGenStatus === 'pending' || videoGenStatus === 'processing';
+  // Rewarded-ad alternative for the Alpha-PHOTO only (Tier-1 ad regions,
+  // native, daily limit not reached). Alpha-video stays quarks-only.
+  const [adChoiceAvailable] = useState(() => canShowAd());
 
   // ── Render helpers ───────────────────────────────────────────────────────
   const renderMedia = (mode: 'scan' | 'video' | 'still' | 'clip') => (
@@ -425,17 +431,33 @@ export function LifeformRevealModal({
 
             {/* Premium media — paid unique 4K generation (uncommon+ only) */}
             {!record.photo_url ? (
-              <PremiumCard
-                accent={accent}
-                kicker={t('lifeform.premium')}
-                label={t('lifeform.alpha_photo')}
-                desc={t('lifeform.alpha_photo_desc')}
-                infoTitle={t('lifeform.alpha_info_title')}
-                cost={photoCost}
-                busy={photoBusy}
-                busyLabel={t('lifeform.generating')}
-                onClick={startPhotoGen}
-              />
+              <>
+                <PremiumCard
+                  accent={accent}
+                  kicker={t('lifeform.premium')}
+                  label={t('lifeform.alpha_photo')}
+                  desc={t('lifeform.alpha_photo_desc')}
+                  infoTitle={t('lifeform.alpha_info_title')}
+                  cost={photoCost}
+                  busy={photoBusy}
+                  busyLabel={t('lifeform.generating')}
+                  onClick={() => void startPhotoGen()}
+                />
+                {/* Choice: fund the Alpha-photo with rewarded ads instead (photo only). */}
+                {adChoiceAvailable && !photoBusy && (
+                  <>
+                    <div style={styles.orDivider}>{t('lifeform.or_divider')}</div>
+                    <AdProgressButton
+                      label={t('lifeform.alpha_photo_ad')}
+                      progressLabel={t('lifeform.alpha_photo_ad_progress')}
+                      requiredAds={LIFEFORM_PHOTO_ADS}
+                      adRewardType="lifeform_photo"
+                      onComplete={(photoToken) => void startPhotoGen(photoToken)}
+                      variant="menu"
+                    />
+                  </>
+                )}
+              </>
             ) : !record.video_url ? (
               <PremiumCard
                 accent={accent}
@@ -691,6 +713,10 @@ const styles: Record<string, React.CSSProperties> = {
   },
   scanDot: { width: 7, height: 7, borderRadius: '50%', flexShrink: 0 },
   scanText: { position: 'relative' },
+  orDivider: {
+    alignSelf: 'center', color: TEXT_MUTED, fontSize: 10, letterSpacing: 2,
+    textTransform: 'uppercase', margin: '-4px 0',
+  },
   premiumKicker: { fontSize: 9, letterSpacing: 2, fontWeight: 700, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 4 },
   premiumStar: { fontSize: 10 },
   premiumMain: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 },

@@ -595,8 +595,11 @@ const figureStyle: React.CSSProperties = {
 const imgStyle: React.CSSProperties = {
   width: '100%',
   height: 'auto',
-  maxHeight: '34vh',
-  objectFit: 'cover',
+  maxHeight: '48vh',
+  // 'contain' (not 'cover'): generated figures carry labels/text at the edges —
+  // cropping them loses information. Letterbox bars blend into the dark bg.
+  objectFit: 'contain',
+  background: '#020510',
   borderRadius: 4,
   border: '1px solid #334455',
   display: 'block',

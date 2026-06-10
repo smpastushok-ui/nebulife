@@ -8,9 +8,12 @@ import {
   creditQuarks,
   getLifeformById,
   updateLifeformPhoto,
+  acquireIdempotencyKey,
+  releaseIdempotencyKey,
 } from '../../../packages/server/src/db.js';
 import { authenticate } from '../../../packages/server/src/auth-middleware.js';
 import { RATE_LIMITS } from '../../../packages/server/src/rate-limiter.js';
+import { verifyAdMediaToken } from '../../../packages/server/src/ad-media-token.js';
 import { LIFEFORM_PHOTO_COST } from '@nebulife/core';
 
 // Allow up to 60s for the (synchronous) Gemini image generation.
@@ -32,8 +35,12 @@ function seedFromId(id: string): number {
  * POST /api/lifeform/photo/generate
  *
  * Auth: Bearer token (Firebase)
- * Body: { playerId, lifeformId, planetHint? }
+ * Body: { playerId, lifeformId, planetHint?, adToken? }
  * Returns: { lifeformId, status, photoUrl?, quarksRemaining }
+ *
+ * Payment: quarks by default. `adToken` (signed by /api/ads/reward after the
+ * player watched the required rewarded ads — Tier-1 ad regions only) covers
+ * the cost instead; each token is single-use.
  *
  * Pipeline:
  *   1. Gemini 3.5 Flash → unique creative brief (appearance/action/sound)
@@ -56,9 +63,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   let deductedCost = 0;
   let deductedPlayerId: string | null = null;
+  let adNonceKey: string | null = null;
 
   try {
-    const { playerId, lifeformId, planetHint, planetMedium } = req.body;
+    const { playerId, lifeformId, planetHint, planetMedium, adToken } = req.body;
 
     if (!playerId || !lifeformId) {
       return res.status(400).json({ error: 'Missing required fields: playerId, lifeformId' });
@@ -81,15 +89,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ lifeformId, status: 'succeed', photoUrl: lifeform.photo_url });
     }
 
-    const cost = LIFEFORM_PHOTO_COST[lifeform.rarity as keyof typeof LIFEFORM_PHOTO_COST] ?? 0;
+    let cost = LIFEFORM_PHOTO_COST[lifeform.rarity as keyof typeof LIFEFORM_PHOTO_COST] ?? 0;
 
-    // 1. Deduct quarks up front (refund on failure).
-    const player = await deductQuarks(playerId, cost);
-    if (!player) {
-      return res.status(402).json({ error: 'Insufficient quarks', required: cost });
+    // Ad-funded path: a valid (single-use) token from /api/ads/reward covers
+    // the cost — no quark deduction.
+    if (typeof adToken === 'string' && adToken) {
+      const verified = verifyAdMediaToken(adToken, playerId, 'lifeform_photo');
+      if (!verified) {
+        return res.status(400).json({ error: 'Invalid or expired ad token' });
+      }
+      const lock = await acquireIdempotencyKey(`adlf:${verified.nonce}`, playerId, 'lifeform/photo/generate');
+      if (!lock.acquired) {
+        return res.status(400).json({ error: 'Ad token already used' });
+      }
+      adNonceKey = `adlf:${verified.nonce}`;
+      cost = 0;
     }
-    deductedCost = cost;
-    deductedPlayerId = playerId;
+
+    // 1. Deduct quarks up front (refund on failure). Skipped when ad-funded.
+    let quarksRemaining: number | null = null;
+    if (cost > 0) {
+      const player = await deductQuarks(playerId, cost);
+      if (!player) {
+        return res.status(402).json({ error: 'Insufficient quarks', required: cost });
+      }
+      deductedCost = cost;
+      deductedPlayerId = playerId;
+      quarksRemaining = player.quarks;
+    }
 
     // 2. Gemini 3.5 Flash creative brief (deterministic fallback on failure).
     const brief = await generateLifeformBrief({
@@ -125,10 +152,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       lifeformId,
       status: 'succeed',
       photoUrl: image.imageUrl,
-      quarksRemaining: player.quarks,
+      quarksRemaining,
     });
   } catch (err) {
     console.error('Lifeform photo generate error:', err);
+    // Ad-funded run failed — release the nonce so the player's ad token can retry.
+    if (adNonceKey) {
+      try { await releaseIdempotencyKey(adNonceKey); } catch { /* best effort */ }
+    }
     if (deductedPlayerId && deductedCost > 0) {
       try {
         const refunded = await creditQuarks(deductedPlayerId, deductedCost);

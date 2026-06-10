@@ -1746,14 +1746,33 @@ export async function getPlayerDMChannels(playerId: string): Promise<DMChannelIn
   `;
 
   // Resolve peer info from channel ID
-  return (rows as Array<Record<string, string>>).map((row) => {
+  const mapped = (rows as Array<Record<string, string>>).map((row) => {
     const parts = row.channel.split(':');
     const peerId = parts[1] === playerId ? parts[2] : parts[1];
-    const peerName = row.sender_id === playerId ? '' : row.sender_name;
+    return { row, peerId };
+  });
+
+  // Resolve peer display names from the players table. Relying on the last
+  // message's sender_name breaks right after YOU message someone: the last
+  // sender is you, so peer_name came back empty and the client fell back to
+  // a truncated player id ("набір символів").
+  const peerIds = [...new Set(mapped.map((m) => m.peerId).filter(Boolean))];
+  const nameById = new Map<string, string>();
+  if (peerIds.length > 0) {
+    const players = await sql`
+      SELECT id, callsign, name FROM players WHERE id = ANY(${peerIds})
+    `;
+    for (const p of players as Array<{ id: string; callsign: string | null; name: string | null }>) {
+      nameById.set(p.id, p.callsign || p.name || '');
+    }
+  }
+
+  return mapped.map(({ row, peerId }) => {
+    const fallback = row.sender_id === playerId ? '' : row.sender_name;
     return {
       channel: row.channel,
       peer_id: peerId,
-      peer_name: peerName,
+      peer_name: nameById.get(peerId) || fallback || '',
       last_message: row.last_message,
       last_at: row.last_at,
     } as DMChannelInfo;
@@ -2514,15 +2533,114 @@ export async function enqueueBroadcastPush(input: BroadcastPushInput): Promise<n
   return rows.length;
 }
 
+// ---------------------------------------------------------------------------
+// Daily push pool (admin-editable texts for the daily auto-push rotation)
+// ---------------------------------------------------------------------------
+
+export interface DailyPushPoolItem {
+  id: string;
+  title_uk: string;
+  body_uk: string;
+  title_en: string;
+  body_en: string;
+  enabled: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** All pool rows for the admin page (including disabled), ordered. */
+export async function listDailyPushPool(): Promise<DailyPushPoolItem[]> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT * FROM daily_push_pool ORDER BY sort_order ASC, created_at ASC
+  `;
+  return rows as DailyPushPoolItem[];
+}
+
+/** Only enabled rows — the rotation the cron actually sends from. */
+export async function getEnabledDailyPushPool(): Promise<DailyPushPoolItem[]> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT * FROM daily_push_pool WHERE enabled = TRUE ORDER BY sort_order ASC, created_at ASC
+  `;
+  return rows as DailyPushPoolItem[];
+}
+
+export async function saveDailyPushPoolItem(input: {
+  id?: string | null;
+  titleUk: string;
+  bodyUk: string;
+  titleEn: string;
+  bodyEn: string;
+  enabled: boolean;
+  sortOrder: number;
+}): Promise<DailyPushPoolItem> {
+  const sql = getSQL();
+  const id = input.id || `dp_${Date.now()}_${randomUUID().slice(0, 6)}`;
+  const rows = await sql`
+    INSERT INTO daily_push_pool (id, title_uk, body_uk, title_en, body_en, enabled, sort_order)
+    VALUES (${id}, ${input.titleUk}, ${input.bodyUk}, ${input.titleEn}, ${input.bodyEn},
+            ${input.enabled}, ${input.sortOrder})
+    ON CONFLICT (id) DO UPDATE SET
+      title_uk = EXCLUDED.title_uk,
+      body_uk = EXCLUDED.body_uk,
+      title_en = EXCLUDED.title_en,
+      body_en = EXCLUDED.body_en,
+      enabled = EXCLUDED.enabled,
+      sort_order = EXCLUDED.sort_order,
+      updated_at = NOW()
+    RETURNING *
+  `;
+  return rows[0] as DailyPushPoolItem;
+}
+
+export async function deleteDailyPushPoolItem(id: string): Promise<boolean> {
+  const sql = getSQL();
+  const rows = await sql`DELETE FROM daily_push_pool WHERE id = ${id} RETURNING id`;
+  return rows.length > 0;
+}
+
+/** Aggregate delivery stats for the admin page. */
+export async function getDailyPushStats(): Promise<{ sent24h: number; sent7d: number; queued: number }> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT
+      COUNT(*) FILTER (WHERE status = 'sent' AND sent_at > NOW() - INTERVAL '24 hours')::int AS sent24h,
+      COUNT(*) FILTER (WHERE status = 'sent' AND sent_at > NOW() - INTERVAL '7 days')::int  AS sent7d,
+      COUNT(*) FILTER (WHERE status IN ('pending','sending'))::int                          AS queued
+    FROM push_queue
+    WHERE type = 'daily_space_reminder'
+  `;
+  const r = rows[0] as { sent24h: number; sent7d: number; queued: number };
+  return { sent24h: r.sent24h, sent7d: r.sent7d, queued: r.queued };
+}
+
+/**
+ * Players due a daily auto-push right now.
+ *
+ * Selection rules:
+ *  - push-enabled with a valid FCM token;
+ *  - NOT active today (no point nudging someone already playing);
+ *  - active within the last `activeWindowDays` (long-idle players are handled
+ *    by the escalating inactivity-pushes cron instead — no double pestering);
+ *  - delivery time = player's most-active hour (fallback: signup hour) +10 min;
+ *  - one per day per player (dedupe daily_space_reminder:<id>:<day>);
+ *  - FREQUENCY CAP: if ANY other push (digest excluded) was sent to the player
+ *    within the last 24 h — or is queued — the daily push is skipped.
+ *
+ * `reminder_day` = days since signup; the cron uses it as a stable rotation
+ * index into the daily_push_pool list (index % pool size).
+ */
 export async function getDueDailyReminderCandidates(options: {
   lookbackMinutes?: number;
   limit?: number;
-  maxReminderDays?: number;
+  activeWindowDays?: number;
 } = {}): Promise<DailyReminderCandidate[]> {
   const sql = getSQL();
   const lookbackMinutes = options.lookbackMinutes ?? 30;
   const limit = options.limit ?? 100;
-  const maxReminderDays = options.maxReminderDays ?? 14;
+  const activeWindowDays = options.activeWindowDays ?? 14;
 
   const rows = await sql`
     WITH hour_preference AS (
@@ -2544,29 +2662,40 @@ export async function getDueDailyReminderCandidates(options: {
     due AS (
       SELECT
         p.id AS player_id,
-        gs.day_number AS reminder_day,
-        ((gs.day_number - 1) % 5) AS message_index,
-        CASE
-          WHEN hp.hour_utc IS NULL THEN p.created_at + (gs.day_number * INTERVAL '1 day') + INTERVAL '10 minutes'
-          ELSE date_trunc('day', p.created_at + (gs.day_number * INTERVAL '1 day'))
-            + (hp.hour_utc * INTERVAL '1 hour')
-            + INTERVAL '10 minutes'
-        END AS scheduled_at
+        (CURRENT_DATE - p.created_at::date)::int AS reminder_day,
+        GREATEST((CURRENT_DATE - p.created_at::date)::int - 1, 0) AS message_index,
+        date_trunc('day', NOW())
+          + (COALESCE(hp.hour_utc, EXTRACT(HOUR FROM p.created_at)::int) * INTERVAL '1 hour')
+          + INTERVAL '10 minutes' AS scheduled_at
       FROM players p
       LEFT JOIN hour_preference hp ON hp.player_id = p.id
-      CROSS JOIN generate_series(1, ${maxReminderDays}) AS gs(day_number)
       WHERE p.fcm_token IS NOT NULL
         AND p.push_notifications = TRUE
+        AND (CURRENT_DATE - p.created_at::date) >= 1
     )
     SELECT due.*
     FROM due
     JOIN players p ON p.id = due.player_id
     WHERE due.scheduled_at <= NOW()
       AND due.scheduled_at > NOW() - (${lookbackMinutes}::int * INTERVAL '1 minute')
-      AND COALESCE(p.last_login, p.created_at) < date_trunc('day', due.scheduled_at)
+      -- not active today
+      AND COALESCE(p.last_seen_at, p.last_login, p.created_at) < date_trunc('day', NOW())
+      -- active recently (long-idle handled by inactivity-pushes cron)
+      AND COALESCE(p.last_seen_at, p.last_login, p.created_at) > NOW() - (${activeWindowDays}::int * INTERVAL '1 day')
+      -- once per day
       AND NOT EXISTS (
         SELECT 1 FROM push_queue q
         WHERE q.dedupe_key = 'daily_space_reminder:' || due.player_id || ':' || due.reminder_day
+      )
+      -- 24h frequency cap: any other push (except digest) sent or queued recently
+      AND NOT EXISTS (
+        SELECT 1 FROM push_queue q2
+        WHERE q2.player_id = due.player_id
+          AND q2.type <> 'digest_ready'
+          AND (
+            (q2.status = 'sent' AND q2.sent_at > NOW() - INTERVAL '24 hours')
+            OR (q2.status IN ('pending', 'sending') AND q2.created_at > NOW() - INTERVAL '24 hours')
+          )
       )
     ORDER BY due.scheduled_at ASC
     LIMIT ${limit}

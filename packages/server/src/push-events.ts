@@ -47,12 +47,25 @@ const DAILY_SPACE_REMINDERS = [
   },
 ] as const;
 
+export interface DailyPushCopy {
+  titleUk: string;
+  bodyUk: string;
+  titleEn: string;
+  bodyEn: string;
+  /** daily_push_pool row id — carried in the payload for analytics. */
+  poolId?: string;
+}
+
 export async function enqueueDailySpaceReminderPush(input: PushEventBase & {
   reminderDay: number;
   messageIndex: number;
   scheduledAt: string;
+  /** Text from the admin-editable daily_push_pool; falls back to built-ins. */
+  copy?: DailyPushCopy;
 }): Promise<boolean> {
-  const copy = DAILY_SPACE_REMINDERS[input.messageIndex % DAILY_SPACE_REMINDERS.length] ?? DAILY_SPACE_REMINDERS[0];
+  const copy: DailyPushCopy = input.copy
+    ?? DAILY_SPACE_REMINDERS[input.messageIndex % DAILY_SPACE_REMINDERS.length]
+    ?? DAILY_SPACE_REMINDERS[0];
   return enqueueSafe({
     playerId: input.playerId,
     type: 'daily_space_reminder',
@@ -63,6 +76,7 @@ export async function enqueueDailySpaceReminderPush(input: PushEventBase & {
     data: {
       action: 'open-game',
       reminderDay: String(input.reminderDay),
+      ...(copy.poolId ? { poolId: copy.poolId } : {}),
       link: '/?action=open-game',
     },
     priority: 3,

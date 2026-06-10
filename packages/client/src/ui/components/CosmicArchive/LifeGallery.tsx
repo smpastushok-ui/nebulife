@@ -7,6 +7,7 @@ import {
   buildLifeformPlanetContext,
   LIFEFORM_PHOTO_COST,
   LIFEFORM_VIDEO_COST,
+  LIFEFORM_PHOTO_ADS,
 } from '@nebulife/core';
 import type { DiscoveryRarity, StarSystem, Planet } from '@nebulife/core';
 import {
@@ -19,6 +20,8 @@ import {
   type LifeformRecord,
   type LifeformMediaStatus,
 } from '../../../api/lifeform-api.js';
+import { canShowAd } from '../../../services/ads-service.js';
+import { AdProgressButton } from '../AdProgressButton.js';
 import { trackEvent } from '../../../analytics/firebase-analytics.js';
 import { useVideoAudioFocus } from '../../../audio/useVideoAudioFocus.js';
 import { saveMediaToGallery, isShareCancelled } from '../../../utils/media-saver.js';
@@ -417,22 +420,23 @@ function LifeLightbox({ playerId, lifeform: initial, mode, planetContext, onGoTo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const startGen = useCallback(async (kind: 'photo' | 'video') => {
+  const startGen = useCallback(async (kind: 'photo' | 'video', adToken?: string) => {
     if (!canGenerate || genBusy) return;
     const cost = kind === 'photo' ? photoCost : videoCost;
-    if ((quarks ?? 0) < cost) {
+    if (!adToken && (quarks ?? 0) < cost) {
       setGenError(t('lifeform.err_quarks'));
       return;
     }
     setGenError(null);
     setGenBusy(kind);
-    void trackEvent(kind === 'photo' ? 'lifeform_alpha_photo' : 'lifeform_alpha_video', { rarity, cost, source: 'archive_card' });
+    void trackEvent(kind === 'photo' ? 'lifeform_alpha_photo' : 'lifeform_alpha_video', { rarity, cost: adToken ? 0 : cost, source: 'archive_card', via: adToken ? 'ad' : 'quarks' });
     try {
       if (kind === 'photo') {
         const ctx = planetContext ? buildLifeformPlanetContext(planetContext.planet) : null;
         const resp = await generateLifeformPhoto(playerId, lifeform.id, {
           planetHint: ctx?.hint,
           planetMedium: ctx?.medium,
+          adToken,
         });
         if (resp.quarksRemaining !== null && resp.quarksRemaining !== undefined) onQuarksChange?.(resp.quarksRemaining);
         stopPoll.current = pollLifeformPhotoStatus(lifeform.id, handlePhotoPoll);
@@ -597,6 +601,20 @@ function LifeLightbox({ playerId, lifeform: initial, mode, planetContext, onGoTo
                   )}
                 </span>
               </button>
+              {/* Rewarded-ad alternative — Alpha-PHOTO only; video stays quarks-only. */}
+              {!lifeform.photo_url && !genBusy && canShowAd() && (
+                <>
+                  <div style={styles.lbOrDivider}>{t('lifeform.or_divider')}</div>
+                  <AdProgressButton
+                    label={t('lifeform.alpha_photo_ad')}
+                    progressLabel={t('lifeform.alpha_photo_ad_progress')}
+                    requiredAds={LIFEFORM_PHOTO_ADS}
+                    adRewardType="lifeform_photo"
+                    onComplete={(photoToken) => void startGen('photo', photoToken)}
+                    variant="menu"
+                  />
+                </>
+              )}
             </div>
           )}
 
@@ -854,6 +872,10 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: 'monospace', textAlign: 'left',
   },
   lbGenKicker: { fontSize: 9, letterSpacing: 2, fontWeight: 700, textTransform: 'uppercase' },
+  lbOrDivider: {
+    alignSelf: 'center', color: TEXT_MUTED, fontSize: 10, letterSpacing: 2,
+    textTransform: 'uppercase', margin: '-2px 0',
+  },
   lbGenMain: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, fontSize: 13 },
   lbGenCost: { fontSize: 12, fontWeight: 700, border: '1px solid', borderRadius: 999, padding: '2px 10px', whiteSpace: 'nowrap' },
   lbPlanetBtn: {

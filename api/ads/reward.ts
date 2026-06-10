@@ -4,12 +4,17 @@ import { authenticate } from '../../packages/server/src/auth-middleware.js';
 import { addAdReward, creditQuarks, creditResearchData } from '../../packages/server/src/db.js';
 import { RATE_LIMITS } from '../../packages/server/src/rate-limiter.js';
 import { areAdsAllowedForRequest } from '../../packages/server/src/ad-geo.js';
+import { mintAdMediaToken } from '../../packages/server/src/ad-media-token.js';
+import { LIFEFORM_PHOTO_ADS } from '@nebulife/core';
 
-// Ad-funded AI photo generation was removed. Rewarded ads now only grant
-// quarks (1 quark per 1 ad) and research data.
+// Rewarded ads grant quarks (1 quark per 1 ad), research data, and an
+// ad-funded lifeform Alpha-photo (returns a signed photoToken that
+// /api/lifeform/photo/generate accepts instead of quarks). Alpha-VIDEO has
+// no ad path — quarks only.
 const REWARD_CONFIG: Record<string, { requiredAds: number }> = {
   quarks: { requiredAds: 1 },
   research_data: { requiredAds: 2 },
+  lifeform_photo: { requiredAds: LIFEFORM_PHOTO_ADS },
 };
 
 interface AdTokenPayload {
@@ -154,6 +159,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Grant reward
     let amount = 0;
+    let photoToken: string | undefined;
 
     if (rewardType === 'quarks') {
       await creditQuarks(auth.playerId, 1);
@@ -164,9 +170,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // despite the ad rewarding 10 RD.
       amount = 10;
       await creditResearchData(auth.playerId, amount);
+    } else if (rewardType === 'lifeform_photo') {
+      // Signed single-use token — redeemed by /api/lifeform/photo/generate.
+      photoToken = mintAdMediaToken(auth.playerId, 'lifeform_photo');
     }
 
-    return res.status(200).json({ rewarded: true, amount });
+    return res.status(200).json({ rewarded: true, amount, ...(photoToken ? { photoToken } : {}) });
   } catch (err) {
     console.error('Ad reward error:', err);
     return res.status(500).json({ error: err instanceof Error ? err.message : 'Internal error' });

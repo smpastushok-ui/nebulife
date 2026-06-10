@@ -126,7 +126,7 @@ export async function renameLifeform(
 export async function generateLifeformPhoto(
   playerId: string,
   lifeformId: string,
-  opts?: { screenWidth?: number; screenHeight?: number; planetHint?: string; planetMedium?: string },
+  opts?: { screenWidth?: number; screenHeight?: number; planetHint?: string; planetMedium?: string; adToken?: string },
 ): Promise<{ lifeformId: string; status: LifeformMediaStatus; quarksRemaining: number | null }> {
   const res = await authFetch(`${API_BASE}/lifeform/photo/generate`, {
     method: 'POST',
@@ -138,6 +138,7 @@ export async function generateLifeformPhoto(
       screenHeight: opts?.screenHeight ?? window.innerHeight,
       ...(opts?.planetHint ? { planetHint: opts.planetHint } : {}),
       ...(opts?.planetMedium ? { planetMedium: opts.planetMedium } : {}),
+      ...(opts?.adToken ? { adToken: opts.adToken } : {}),
     }),
   });
   if (!res.ok) {

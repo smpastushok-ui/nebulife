@@ -135,6 +135,30 @@
 
     .section { display: none; }
     .section.active { display: block; }
+
+    /* Daily push pool cards */
+    .daily-card {
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 14px;
+      margin-bottom: 14px;
+      background: #070d18;
+    }
+    .daily-card.disabled { opacity: 0.55; }
+    .daily-card .card-head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 10px; margin-bottom: 12px; flex-wrap: wrap;
+    }
+    .daily-card .card-idx {
+      font-size: 11px; color: var(--accent); letter-spacing: 1px; text-transform: uppercase;
+    }
+    .daily-card .card-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .daily-card .card-controls input[type="number"] { width: 64px; padding: 5px 8px; }
+    .daily-card .card-actions { display: flex; gap: 8px; margin-top: 10px; }
+    button.danger { border-color: rgba(204,68,68,0.6); color: #ff9a9a; }
+    button.danger:hover { background: rgba(204,68,68,0.12); }
+    button.small { padding: 7px 12px; font-size: 12px; }
+    .daily-empty { color: var(--muted); font-size: 12px; padding: 8px 0; }
   </style>
 </head>
 <body>
@@ -152,6 +176,7 @@
             </div>
             <div class="nav-items">
               <div class="nav-item active" data-section="sec-push">Push-розсилка</div>
+              <div class="nav-item" data-section="sec-daily">Щоденні автопуші</div>
               <div class="nav-item" data-section="sec-chat">Чат (Ткач)</div>
             </div>
           </div>
@@ -270,6 +295,29 @@
               <button id="btnSend" type="button" class="primary">Надіслати розсилку</button>
             </div>
             <div class="out" id="out"></div>
+          </div>
+        </div>
+
+        <!-- ════════════ SECTION: DAILY AUTO-PUSHES ════════════ -->
+        <div class="section" id="sec-daily">
+          <div class="panel">
+            <h2>Щоденні автопуші — ротація</h2>
+            <p class="hint" style="margin-top:-6px;margin-bottom:12px">
+              Система щодня бере з цього списку <b>наступний варіант по черзі</b> (індекс =
+              день від реєстрації гравця % кількість увімкнених) і надсилає гравцям, які
+              сьогодні ще не заходили. Правила: <b>1 пуш на день</b> на гравця;
+              якщо за останні <b>24 години</b> гравець уже отримав будь-який інший пуш
+              (фото готове, місія, неактивність тощо) — щоденний <b>пропускається</b>.
+              Виняток — <b>тижневий дайджест</b>: він не блокується і не блокує.
+              Зміни тут діють одразу, без деплою.
+            </p>
+            <div class="actions" style="margin-bottom:14px">
+              <button id="btnDailyLoad" type="button">Оновити список</button>
+              <button id="btnDailyAdd" type="button" class="primary">+ Додати варіант</button>
+            </div>
+            <div class="out" id="dailyStats"></div>
+            <div id="dailyList"><div class="daily-empty">Введи адмін-секрет і натисни «Оновити список».</div></div>
+            <div class="out" id="dailyOut"></div>
           </div>
         </div>
 
@@ -534,6 +582,143 @@
     }
 
     $('btnChatSend').addEventListener('click', sendChat);
+
+    // ════════════ DAILY AUTO-PUSHES section logic ════════════
+    var dailyLoaded = false;
+
+    function setDailyOut(kind, msg) {
+      var el = $('dailyOut');
+      el.className = 'out ' + kind;
+      el.textContent = msg;
+    }
+
+    function esc(s) {
+      var d = document.createElement('div');
+      d.textContent = s == null ? '' : String(s);
+      return d.innerHTML;
+    }
+
+    async function dailyApi(payload) {
+      var secret = $('secret').value.trim();
+      if (!secret) { setDailyOut('err', 'Спочатку введи адмін-секрет.'); return null; }
+      persistSecret();
+      payload.secret = secret;
+      var res = await fetch('/api/admin/daily-pushes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      var data = await res.json().catch(function () { return {}; });
+      if (!res.ok) {
+        setDailyOut('err', '[' + res.status + '] ' + (data.message || data.error || 'Помилка запиту'));
+        return null;
+      }
+      return data;
+    }
+
+    function dailyCardHtml(item, idx) {
+      var isNew = !item.id;
+      return '' +
+        '<div class="daily-card' + (item.enabled === false ? ' disabled' : '') + '" data-id="' + esc(item.id || '') + '">' +
+          '<div class="card-head">' +
+            '<span class="card-idx">' + (isNew ? 'Новий варіант' : ('Варіант #' + (idx + 1) + ' · ' + esc(item.id))) + '</span>' +
+            '<div class="card-controls">' +
+              '<span class="checkbox-row"><input type="checkbox" class="f-enabled"' + (item.enabled === false ? '' : ' checked') + ' id="en_' + idx + '" /><label for="en_' + idx + '">активний</label></span>' +
+              '<span class="checkbox-row"><label>порядок</label><input type="number" class="f-sort" value="' + (item.sort_order != null ? item.sort_order : (idx + 1)) + '" /></span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="row">' +
+            '<div class="field"><label>Заголовок (UK)</label><input type="text" class="f-title-uk" maxlength="120" value="' + esc(item.title_uk) + '" /></div>' +
+            '<div class="field"><label>Заголовок (EN)</label><input type="text" class="f-title-en" maxlength="120" value="' + esc(item.title_en) + '" /></div>' +
+          '</div>' +
+          '<div class="row">' +
+            '<div class="field"><label>Текст (UK)</label><textarea class="f-body-uk" maxlength="300">' + esc(item.body_uk) + '</textarea></div>' +
+            '<div class="field"><label>Текст (EN)</label><textarea class="f-body-en" maxlength="300">' + esc(item.body_en) + '</textarea></div>' +
+          '</div>' +
+          '<div class="card-actions">' +
+            '<button type="button" class="primary small btn-save">Зберегти</button>' +
+            (isNew ? '' : '<button type="button" class="danger small btn-del">Видалити</button>') +
+          '</div>' +
+        '</div>';
+    }
+
+    function bindDailyCard(card) {
+      card.querySelector('.btn-save').addEventListener('click', async function () {
+        var btn = this; btn.disabled = true; btn.textContent = '…';
+        try {
+          var data = await dailyApi({
+            op: 'save',
+            id: card.getAttribute('data-id') || '',
+            titleUk: card.querySelector('.f-title-uk').value.trim(),
+            titleEn: card.querySelector('.f-title-en').value.trim(),
+            bodyUk: card.querySelector('.f-body-uk').value.trim(),
+            bodyEn: card.querySelector('.f-body-en').value.trim(),
+            enabled: card.querySelector('.f-enabled').checked,
+            sortOrder: parseInt(card.querySelector('.f-sort').value, 10) || 0
+          });
+          if (data && data.ok) {
+            setDailyOut('ok', 'Збережено: ' + data.item.id);
+            loadDailyList();
+          }
+        } finally { btn.disabled = false; btn.textContent = 'Зберегти'; }
+      });
+      var del = card.querySelector('.btn-del');
+      if (del) del.addEventListener('click', async function () {
+        var id = card.getAttribute('data-id');
+        if (!confirm('Видалити цей варіант назавжди? (Можна просто вимкнути чекбоксом «активний».)')) return;
+        var data = await dailyApi({ op: 'delete', id: id });
+        if (data && data.ok) {
+          setDailyOut('ok', 'Видалено: ' + id);
+          loadDailyList();
+        }
+      });
+    }
+
+    function renderDailyList(items) {
+      var list = $('dailyList');
+      if (!items.length) {
+        list.innerHTML = '<div class="daily-empty">Список порожній — додай перший варіант. (Поки порожньо, крон шле вбудовані резервні тексти.)</div>';
+        return;
+      }
+      list.innerHTML = items.map(function (it, i) { return dailyCardHtml(it, i); }).join('');
+      list.querySelectorAll('.daily-card').forEach(bindDailyCard);
+    }
+
+    async function loadDailyList() {
+      var btn = $('btnDailyLoad'); btn.disabled = true;
+      try {
+        var data = await dailyApi({ op: 'list' });
+        if (!data) return;
+        dailyLoaded = true;
+        renderDailyList(data.items || []);
+        var s = data.stats || {};
+        var enabledCount = (data.items || []).filter(function (i) { return i.enabled !== false; }).length;
+        var st = $('dailyStats');
+        st.className = 'out ok';
+        st.textContent = 'В ротації: ' + enabledCount + ' з ' + (data.items || []).length +
+          ' · Надіслано за 24 год: ' + (s.sent24h || 0) +
+          ' · за 7 днів: ' + (s.sent7d || 0) +
+          ' · у черзі: ' + (s.queued || 0);
+      } finally { btn.disabled = false; }
+    }
+
+    $('btnDailyLoad').addEventListener('click', loadDailyList);
+    $('btnDailyAdd').addEventListener('click', function () {
+      var list = $('dailyList');
+      var empty = list.querySelector('.daily-empty');
+      if (empty) empty.remove();
+      var wrap = document.createElement('div');
+      wrap.innerHTML = dailyCardHtml({ id: '', title_uk: '', title_en: '', body_uk: '', body_en: '', enabled: true, sort_order: list.querySelectorAll('.daily-card').length + 1 }, list.querySelectorAll('.daily-card').length);
+      var card = wrap.firstChild;
+      list.insertBefore(card, list.firstChild);
+      bindDailyCard(card);
+      card.querySelector('.f-title-uk').focus();
+    });
+
+    // Auto-load the pool the first time the section is opened (if secret saved)
+    document.querySelector('.nav-item[data-section="sec-daily"]').addEventListener('click', function () {
+      if (!dailyLoaded && $('secret').value.trim()) loadDailyList();
+    });
   </script>
 </body>
 </html>

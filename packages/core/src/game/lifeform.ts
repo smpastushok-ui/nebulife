@@ -22,6 +22,13 @@ export const LIFEFORM_PHOTO_COST: Record<DiscoveryRarity, number> = {
 };
 
 /**
+ * Rewarded ads required to fund one Alpha-photo (Tier-1 ad regions only —
+ * the choice "quarks OR ads" is offered where rewarded ads are available).
+ * Alpha-video has NO ad path: quarks only.
+ */
+export const LIFEFORM_PHOTO_ADS = 5;
+
+/**
  * Alpha-video cost in quarks (image-to-video from the Alpha-photo).
  * Kling V3 Pro, 1080p, 5s, with ambient audio costs us ~$0.84 PER VIDEO
  * regardless of rarity, so the price is FLAT — at 89⚛ this clears ~44% margin
