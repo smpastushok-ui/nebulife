@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Planet, StarSystem } from '@nebulife/core';
-import { playSfx } from '../../audio/SfxPlayer.js';
 
 // ---------------------------------------------------------------------------
 // ColonyFoundingPrompt — shown when ship arrives at destination planet.
@@ -101,7 +100,9 @@ export function ColonyFoundingPrompt({ planet, system, onFoundColony }: ColonyFo
   const { t } = useTranslation();
   const [hover, setHover] = useState(false);
 
-  useEffect(() => { playSfx('colony-founded', 0.6); }, []);
+  // No "colony-founded" sfx here — the prompt is only the offer screen; the
+  // single founding cue plays in handleCutsceneLandingComplete (App.tsx)
+  // together with the XP award, after the landing cutscene.
 
   return (
     <div
