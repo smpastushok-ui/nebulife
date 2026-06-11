@@ -2604,6 +2604,12 @@ function AppInner() {
   useEffect(() => {
     if (surfaceTarget) engineRef.current?.pause();
     else engineRef.current?.resume();
+    // Same for the Three.js universe/cluster view: stop its RAF loop while the
+    // surface covers it (opening surface from universe kept it animating).
+    // No resume here — closing the surface always lands on planet-view and
+    // hides the universe (handleCloseSurface), and warping back to universe
+    // re-enables it explicitly via setVisible(true).
+    if (surfaceTarget) universeEngineRef.current?.setVisible(false);
   }, [surfaceTarget]);
 
   useEffect(() => {
@@ -10208,10 +10214,15 @@ function AppInner() {
   }, [state.selectedPlanet, state.selectedSystem, sortedPlanets]);
 
   // ── CommandBar data ──────────────────────────────────────────────────
-  const effectiveScene: ExtendedScene =
-    surfaceTarget && (state.scene === 'planet-view' || state.scene === 'home-intro')
-      ? 'surface'
-      : state.scene;
+  // The surface overlay renders fullscreen whenever surfaceTarget is set, no
+  // matter which scene it was opened from (galaxy/system "Surface" button,
+  // Cosmic Archive colony links, planet-view). The CommandBar must follow it
+  // unconditionally — limiting this to planet-view/home-intro left the bar in
+  // galaxy mode when the surface was opened from the galaxy (reported as
+  // "galaxy menu overlays the surface menu, screen switcher stuck on galaxy").
+  // Stale-surfaceTarget breadcrumb bugs are prevented at the source: every
+  // navigation path (handleBreadcrumbNavigate, warp to universe) clears it.
+  const effectiveScene: ExtendedScene = surfaceTarget ? 'surface' : state.scene;
 
   // Fetch galaxy (cluster) stats once while the stats bar is on screen.
   useEffect(() => {
@@ -11035,8 +11046,9 @@ function AppInner() {
         />
       )}
 
-      {/* Left-side scene controls — universe */}
-      {state.scene === 'universe' && universeVisible && (
+      {/* Left-side scene controls — universe (hidden when surface is open —
+          the surface owns its own left panel, same as galaxy/system above) */}
+      {state.scene === 'universe' && universeVisible && !surfaceTarget && (
         <SceneControlsPanel
           onBack={handleGoToHomePlanet}
           onZoomIn={() => universeEngineRef.current?.zoomIn()}
@@ -11060,8 +11072,8 @@ function AppInner() {
         />
       )}
 
-      {/* Left-side scene controls — cluster */}
-      {state.scene === 'cluster' && universeVisible && (
+      {/* Left-side scene controls — cluster (hidden when surface is open) */}
+      {state.scene === 'cluster' && universeVisible && !surfaceTarget && (
         <SceneControlsPanel
           onBack={handleGoToHomePlanet}
           onZoomIn={() => universeEngineRef.current?.zoomIn()}
