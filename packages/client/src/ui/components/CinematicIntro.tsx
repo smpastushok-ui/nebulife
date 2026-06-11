@@ -11,6 +11,8 @@ import { trackEvent } from '../../analytics/firebase-analytics.js';
 // mp4s (~21 MB total, downloaded as full blobs before playback) are the prime
 // suspect on slow mobile networks. Flip to `true` to restore the videos.
 // Evacuation cutscene videos elsewhere are NOT affected by this flag.
+// NOTE: catastrophe.mp4 + briefing.mp4 are REMOVED from public/videos to cut
+// deploy size — restore the files (git history) before flipping back to true.
 // ---------------------------------------------------------------------------
 const INTRO_VIDEOS_ENABLED = false;
 const INTRO_VARIANT: 'video' | 'text' = INTRO_VIDEOS_ENABLED ? 'video' : 'text';

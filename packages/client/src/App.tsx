@@ -2061,12 +2061,12 @@ function AppInner() {
   // Evacuation phase (declared early so tick effect can reference it)
   type EvacuationPhase =
     | 'idle'
-    | 'stage0-launch'          // CutsceneVideo: evac-launch.mp4
+    | 'stage0-launch'          // CutsceneVideo: evac-launch.webm
     | 'stage1-system-flight'   // SystemScene + ship Bezier flight to planet
-    | 'stage2-explosion'       // CutsceneVideo: evac-explosion.mp4
+    | 'stage2-explosion'       // CutsceneVideo: evac-explosion.webm
     | 'stage3-planet-approach' // PlanetViewScene + ship from edge to orbit
     | 'stage4-orbit'           // Ship on orbit + colony founding button
-    | 'cutscene-landing'       // CutsceneVideo: evac-landing.mp4
+    | 'cutscene-landing'       // CutsceneVideo: evac-landing.webm
     | 'surface';               // Surface view on new planet
   const [evacuationPhase, setEvacuationPhase] = useState<EvacuationPhase>('idle');
 
@@ -11622,7 +11622,7 @@ function AppInner() {
       {/* Stage 0: Ship launch cutscene */}
       {evacuationPhase === 'stage0-launch' && (
         <CutsceneVideo
-          src="/videos/evac-launch.mp4"
+          src="/videos/evac-launch.webm"
           onComplete={handleStage0Complete}
           onPlayingChange={setCinematicVideoPlaying}
         />
@@ -11631,7 +11631,7 @@ function AppInner() {
       {/* Stage 2: Planet explosion cutscene (6s) */}
       {evacuationPhase === 'stage2-explosion' && (
         <CutsceneVideo
-          src="/videos/evac-explosion.mp4"
+          src="/videos/evac-explosion.webm"
           onComplete={handleStage2Complete}
           onPlayingChange={setCinematicVideoPlaying}
         />
@@ -11652,7 +11652,7 @@ function AppInner() {
       {/* Cutscene: Landing on new planet (5s) */}
       {evacuationPhase === 'cutscene-landing' && (
         <CutsceneVideo
-          src="/videos/evac-landing.mp4"
+          src="/videos/evac-landing.webm"
           onComplete={handleCutsceneLandingComplete}
           onPlayingChange={setCinematicVideoPlaying}
         />
