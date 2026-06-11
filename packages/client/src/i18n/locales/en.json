@@ -9,6 +9,7 @@
     "alert_line_3": "Initiating deep scan...",
     "scanning": "DEEP SCAN",
     "scan_caption": "Resolving organism...",
+    "bioscan_required": "Deep BIO-SCAN required",
     "reveal_title": "FIRST CONTACT",
     "classify_title": "A living organism. Native to this world.",
     "tax_domain": "Domain",

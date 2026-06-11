@@ -259,6 +259,12 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
   const instantSystemScrollRef = useRef(true);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const authFailedRef = useRef(false);
+  // Guards the chat-open "mark read" fan-out so it fires ONCE per open, not on
+  // every dependency churn. Parent re-renders (e.g. the 60fps surface HUD) pass
+  // fresh callback props that rebuild this effect's deps; without this guard the
+  // fan-out (channels + per-channel list?limit=1) re-fired continuously and
+  // tripped the shared poll rate limit (429 flood).
+  const chatOpenMarkedRef = useRef(false);
 
   const readKeyForChannel = useCallback((channel: string): string => {
     if (channel === 'global') return 'nebulife_chat_last_read_global';
@@ -504,7 +510,14 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
   }, [collapsed, latestDigestWeekDate, markDigestSeen, onSystemNotifRead, systemNotifs, tab]);
 
   useEffect(() => {
-    if (collapsed) return;
+    if (collapsed) {
+      // Reset so the next open marks read again.
+      chatOpenMarkedRef.current = false;
+      return;
+    }
+    // Already marked for this open session — ignore dependency churn.
+    if (chatOpenMarkedRef.current) return;
+    chatOpenMarkedRef.current = true;
 
     let cancelled = false;
     const markChatOpenRead = async () => {

@@ -509,6 +509,52 @@ export class GameEngine {
   }
 
   /**
+   * Resolve a system by id even when it falls outside the currently-loaded set.
+   *
+   * `getAllSystems()` is intentionally limited (core is capped by the player's
+   * BFS depth, neighbors expose only ~5 of 19 systems). Observatory discoveries
+   * and research can however reference systems beyond that visible subset, so
+   * the chat "go to system" / "view report" buttons silently failed for science
+   * entries while expedition entries (always on the player's own rings) worked.
+   *
+   * This falls back to generating the FULL core (all depths) and the FULL
+   * neighbor rings (all 19 systems) to locate the target deterministically.
+   */
+  findSystemById(systemId: string): StarSystem | null {
+    if (!systemId) return null;
+
+    // 1) Fast path: already-loaded systems.
+    const loaded = this.getAllSystems().find((s) => s.id === systemId);
+    if (loaded) return loaded;
+
+    // 2) Full core (uncapped BFS depth).
+    if (systemId.startsWith('core-')) {
+      try {
+        const core = generateGalaxyGroupCore(deriveGroupSeed(this.galaxySeed, this.playerGroupIndex));
+        const match = core.systems.find((cs) => `core-${cs.id}-${cs.seed}` === systemId);
+        if (match) return generateCoreStarSystem(match);
+      } catch { /* fall through */ }
+    }
+
+    // 3) Full neighbor rings (all 19 systems per cluster co-player).
+    try {
+      const base = this.playerGroupIndex * PLAYERS_PER_GROUP;
+      for (let slot = 0; slot < PLAYERS_PER_GROUP; slot++) {
+        const globalIdx = base + slot;
+        if (globalIdx === this.playerIndex) continue;
+        const pos = assignPlayerPosition(this.galaxySeed, globalIdx);
+        const neighborRings = generatePlayerRings(this.galaxySeed, pos.x, pos.y, `player-${globalIdx}`);
+        for (const ring of neighborRings) {
+          const found = ring.starSystems.find((s) => s.id === systemId);
+          if (found) return found;
+        }
+      }
+    } catch { /* fall through */ }
+
+    return null;
+  }
+
+  /**
    * Relocate the "home" to a different system/planet after evacuation.
    * Clears ownerPlayerId + isHomePlanet on the old home, sets them on the new one.
    */

@@ -39,9 +39,11 @@ interface BuildingQuestProps {
   /** Current step trigger signals from parent */
   hubBuilt: boolean;
   solarBuilt: boolean;
+  /** Fired ONCE when the player finishes every step naturally (NOT on skip). */
+  onComplete?: () => void;
 }
 
-export function BuildingQuest({ hubBuilt, solarBuilt }: BuildingQuestProps) {
+export function BuildingQuest({ hubBuilt, solarBuilt, onComplete }: BuildingQuestProps) {
   const { t } = useTranslation();
   const [step, setStep] = useState<number>(() => {
     try {
@@ -92,11 +94,15 @@ export function BuildingQuest({ hubBuilt, solarBuilt }: BuildingQuestProps) {
         if (next >= STEPS.length) {
           setVisible(false);
           try { localStorage.setItem(LS_KEY, String(next)); } catch { /* ignore */ }
+          // Natural completion (built hub + solar through every step) — this is
+          // the final surface part of the full tutorial. Skip uses its own path
+          // below and intentionally does NOT call onComplete.
+          onComplete?.();
         }
         return next;
       });
     }, 300);
-  }, []);
+  }, [onComplete]);
 
   // Done or already completed
   if (!visible || step >= STEPS.length) return null;

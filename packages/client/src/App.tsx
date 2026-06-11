@@ -161,6 +161,7 @@ const SYNCED_UI_FLAG_KEYS = new Set<string>([
   'nebulife_link_prompt_at',
   'nebulife_first_lifeform_seen',
   'nebulife_last_lifeform_find_at',
+  'nebulife_tutorial_main_done',
 ]);
 
 /** Real-time pacing for lifeform discovery — at most one find per cooldown
@@ -6512,10 +6513,10 @@ function AppInner() {
     setNeedsOnboarding(false);
     setCinematicActive(false);
     localStorage.setItem('nebulife_onboarding_done', '1');
-    trackTutorialComplete({
-      player_id: playerId.current,
-      language: lang,
-    });
+    // NOTE: `tutorial_complete` is no longer fired here. The cinematic intro can
+    // be skipped and does not cover the hands-on steps. The event now fires only
+    // when the WHOLE tutorial is genuinely finished — the cosmos step flow AND
+    // the surface building quest — see completeTutorialFlow + BuildingQuest.
 
     // Starter wallet toast now fires AFTER onboarding completes — previously
     // it was queued during the cinematic intro, but the CinematicIntro overlay
@@ -7517,8 +7518,7 @@ function AppInner() {
   }, [state.selectedSystem]);
 
   const openPlanetMissionReportByIds = useCallback((systemId: string, planetId: string): boolean => {
-    const allSystems = engineRef.current?.getAllSystems() ?? [];
-    const sys = allSystems.find((system) => system.id === systemId);
+    const sys = engineRef.current?.findSystemById(systemId) ?? null;
     const planet = sys?.planets.find((entry) => entry.id === planetId);
     const report = getPlanetScopedValue(planetReports, systemId, planetId);
     if (!sys || !planet || !report) return false;
@@ -7947,7 +7947,13 @@ function AppInner() {
     unblockPopupQueue(2000); // Show next popup 2s after closing telemetry
   }, [unblockPopupQueue]);
 
-  const completeTutorialFlow = useCallback(() => {
+  const completeTutorialFlow = useCallback((opts?: { completed?: boolean }) => {
+    // Record whether the cosmos step flow was genuinely finished (vs skipped).
+    // The `tutorial_complete` analytics event only fires later, when the surface
+    // building quest also completes, and only if this flag is set.
+    try {
+      if (opts?.completed) localStorage.setItem('nebulife_tutorial_main_done', '1');
+    } catch { /* ignore */ }
     setShowAcademy(false);
     setAcademyInitialTab(undefined);
     setAcademyMissionChapter(undefined);
@@ -7999,7 +8005,7 @@ function AppInner() {
             setDiscoveryQueue(q => [{ discovery: fakeDiscovery, system: nonHomeSys }, ...q]);
           }
         } else if (action === 'complete-tutorial') {
-          completeTutorialFlow();
+          completeTutorialFlow({ completed: true });
           return;
         }
       }
@@ -8011,7 +8017,7 @@ function AppInner() {
 
     if (nextStep >= TUTORIAL_STEPS.length) {
       // Tutorial complete
-      completeTutorialFlow();
+      completeTutorialFlow({ completed: true });
       return;
     }
 
@@ -11636,6 +11642,13 @@ function AppInner() {
         <BuildingQuest
           hubBuilt={surfaceBuildingCount > 0}
           solarBuilt={surfaceBuildingCount > 1}
+          onComplete={() => {
+            // Full tutorial finished — cosmos step flow (not skipped) AND the
+            // surface building quest. Only then count it as a real completion.
+            if (localStorage.getItem('nebulife_tutorial_main_done') === '1') {
+              trackTutorialComplete({ player_id: playerId.current, language: lang });
+            }
+          }}
         />
       )}
       {surfaceTarget && showSurfaceAstraLesson && !showAcademy && !showCosmicArchive && (
@@ -12421,8 +12434,7 @@ function AppInner() {
             return false;
           }}
           onNavigateToSystem={(systemId) => {
-            const allSystems = engineRef.current?.getAllSystems() ?? [];
-            const sys = allSystems.find((s) => s.id === systemId);
+            const sys = engineRef.current?.findSystemById(systemId) ?? null;
             if (sys) {
               engineRef.current?.showSystemScene(sys);
               setState((prev) => ({ ...prev, scene: 'system' as const, selectedSystem: sys, selectedPlanet: null }));
@@ -12432,8 +12444,7 @@ function AppInner() {
           }}
           onOpenPlanetMissionReport={openPlanetMissionReportByIds}
           onOpenSystemReport={(systemId) => {
-            const allSystems = engineRef.current?.getAllSystems() ?? [];
-            const sys = allSystems.find((s) => s.id === systemId);
+            const sys = engineRef.current?.findSystemById(systemId) ?? null;
             const research = researchState.systems[systemId];
             if (sys && research) {
               setCompletedModalQueue(q => [{ system: sys, research }, ...q]);

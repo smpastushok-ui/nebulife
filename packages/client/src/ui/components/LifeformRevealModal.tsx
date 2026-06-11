@@ -36,6 +36,11 @@ const PANEL_BG = 'rgba(10,15,25,0.96)';
 const BORDER = '#334455';
 const TEXT = '#aabbcc';
 const TEXT_MUTED = '#667788';
+// Premium accent (gold/amber) for the paid Alpha-photo/video card. Distinct
+// from the blue interface + rarity accents (uncommon = #4488aa) so the premium
+// action reads as special and never blends into the UI chrome.
+const PREMIUM_GOLD = '#ffcc66';
+const PREMIUM_GOLD_DEEP = '#cc8822';
 
 type Beat = 'alert' | 'scan' | 'video' | 'classify' | 'media' | 'reward';
 
@@ -280,6 +285,13 @@ export function LifeformRevealModal({
         <>
           {photoSrc && !photoFailed ? (
             <img src={photoSrc} alt="" onError={() => setPhotoFailed(true)} style={styles.mediaImg} />
+          ) : mode === 'still' ? (
+            // Paid (anomaly) species before capture: this is a prompt to act,
+            // not a live read-out. While the Alpha bio-scan runs, show the
+            // animated research overlay instead of the static prompt.
+            photoBusy
+              ? <BioScanOverlay accent={PREMIUM_GOLD} label={t('lifeform.scanning')} />
+              : <Placeholder label={t('lifeform.bioscan_required')} accent={PREMIUM_GOLD} />
           ) : (
             <Placeholder label={t('lifeform.scan_caption')} accent={accent} />
           )}
@@ -433,7 +445,7 @@ export function LifeformRevealModal({
             {!record.photo_url ? (
               <>
                 <PremiumCard
-                  accent={accent}
+                  accent={PREMIUM_GOLD}
                   kicker={t('lifeform.premium')}
                   label={t('lifeform.alpha_photo')}
                   desc={t('lifeform.alpha_photo_desc')}
@@ -460,7 +472,7 @@ export function LifeformRevealModal({
               </>
             ) : !record.video_url ? (
               <PremiumCard
-                accent={accent}
+                accent={PREMIUM_GOLD}
                 kicker={t('lifeform.premium')}
                 label={t('lifeform.alpha_video')}
                 desc={t('lifeform.alpha_video_desc')}
@@ -540,6 +552,34 @@ function Placeholder({ label, accent }: { label: string; accent: string }) {
     <div style={styles.placeholder}>
       <div style={{ ...styles.placeholderGlyph, color: accent }}>✶</div>
       <div style={styles.placeholderText}>{label}</div>
+    </div>
+  );
+}
+
+/**
+ * Animated deep bio-scan visualization shown while the Alpha-photo generates.
+ * Pure CSS/SVG (no assets): a pulsing scan grid, a sweeping scan band, a
+ * rotating analysis reticle, and a shimmering "DEEP SCAN" read-out — so the
+ * wait reads as active research, not a frozen screen.
+ */
+function BioScanOverlay({ accent, label }: { accent: string; label: string }) {
+  return (
+    <div style={styles.bioScan}>
+      <div className="lf-bioscan-grid" style={{ ['--lf-accent' as string]: hexA(accent, 0.5) }} />
+      <div className="lf-bioscan-sweep" style={{ background: `linear-gradient(180deg, transparent, ${hexA(accent, 0.55)}, transparent)` }} />
+      <svg width="84" height="84" viewBox="0 0 84 84" fill="none" style={styles.bioScanReticle}>
+        <circle className="lf-bioscan-ring" cx="42" cy="42" r="30" stroke={hexA(accent, 0.8)} strokeWidth="1.4" strokeDasharray="40 14" />
+        <circle className="lf-bioscan-ring-rev" cx="42" cy="42" r="20" stroke={hexA(accent, 0.5)} strokeWidth="1" strokeDasharray="18 10" />
+        <circle cx="42" cy="42" r="3" fill={accent} />
+        <line x1="42" y1="4" x2="42" y2="14" stroke={hexA(accent, 0.7)} strokeWidth="1.2" />
+        <line x1="42" y1="70" x2="42" y2="80" stroke={hexA(accent, 0.7)} strokeWidth="1.2" />
+        <line x1="4" y1="42" x2="14" y2="42" stroke={hexA(accent, 0.7)} strokeWidth="1.2" />
+        <line x1="70" y1="42" x2="80" y2="42" stroke={hexA(accent, 0.7)} strokeWidth="1.2" />
+      </svg>
+      <div style={styles.bioScanText}>
+        <span className="lf-scan-text" style={{ ['--lf-accent' as string]: accent }}>{label}</span>
+        <span className="lf-scan-ellipsis" style={{ color: accent }} />
+      </div>
     </div>
   );
 }
@@ -757,6 +797,16 @@ const styles: Record<string, React.CSSProperties> = {
   },
   placeholderGlyph: { fontSize: 34, opacity: 0.5, animation: 'lf-flicker 2.2s infinite' },
   placeholderText: { color: TEXT_MUTED, fontSize: 11, letterSpacing: 1 },
+  bioScan: {
+    position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
+    alignItems: 'center', justifyContent: 'center', gap: 12, overflow: 'hidden',
+    background: 'radial-gradient(ellipse at center, #06101e 0%, #03070f 100%)',
+  },
+  bioScanReticle: { animation: 'lf-flicker 3s ease-in-out infinite' },
+  bioScanText: {
+    display: 'inline-flex', alignItems: 'center', gap: 4,
+    fontSize: 11, letterSpacing: 3, fontWeight: 700,
+  },
   caption: { color: TEXT_MUTED, fontSize: 12, textAlign: 'center', minHeight: 16 },
   classifyTitle: { color: TEXT, fontSize: 15, fontWeight: 700, textAlign: 'center' },
   taxonomy: {
@@ -825,4 +875,22 @@ const KEYFRAMES = `
   animation: lf-scan 3.3s cubic-bezier(0.4,0,0.2,1) forwards;
 }
 @keyframes lf-scan { 0% { left: 0%; opacity: 1; } 95% { opacity: 1; } 100% { left: 100%; opacity: 0; } }
+.lf-bioscan-grid {
+  position: absolute; inset: -20%;
+  background-image:
+    linear-gradient(var(--lf-accent) 1px, transparent 1px),
+    linear-gradient(90deg, var(--lf-accent) 1px, transparent 1px);
+  background-size: 22px 22px;
+  opacity: 0.18;
+  animation: lf-bioscan-grid 6s linear infinite, lf-flicker 2.4s ease-in-out infinite;
+}
+@keyframes lf-bioscan-grid { from { transform: translateY(0); } to { transform: translateY(22px); } }
+.lf-bioscan-sweep {
+  position: absolute; left: 0; right: 0; height: 38%;
+  filter: blur(1px);
+  animation: lf-bioscan-sweep 2.1s ease-in-out infinite;
+}
+@keyframes lf-bioscan-sweep { 0% { top: -40%; } 100% { top: 100%; } }
+.lf-bioscan-ring { transform-origin: 42px 42px; animation: lf-vid-spin 3.4s linear infinite; }
+.lf-bioscan-ring-rev { transform-origin: 42px 42px; animation: lf-vid-spin 2.2s linear infinite reverse; }
 `;
