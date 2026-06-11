@@ -5,7 +5,6 @@ import { App } from './App.js';
 import { getDeviceTier } from './utils/device-tier.js';
 import { LandingPage } from './ui/landing/LandingPage.js';
 import { AppReviewPrompt } from './ui/components/AppReviewPrompt.js';
-import { OpsHubPreview } from './dev/OpsHubPreview.js';
 
 // ---------------------------------------------------------------------------
 // Perf-tier root attribute + global CSS kill-switch
@@ -141,10 +140,6 @@ function RootRouter() {
 
   if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('review_prompt_preview') === '1') {
     return <AppReviewPrompt onClose={() => { /* preview only */ }} />;
-  }
-
-  if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('ops_preview') === '1') {
-    return <OpsHubPreview />;
   }
 
   if (shouldRenderGame(window.location.pathname, window.location.search)) {
