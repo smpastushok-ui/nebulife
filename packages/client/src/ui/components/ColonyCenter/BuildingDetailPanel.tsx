@@ -6,7 +6,7 @@ import { BUILDING_DEFS, PRODUCIBLE_ASSET_PATHS, PRODUCIBLE_DEFS, getAvailableObs
 import { ResourceIcon, RESOURCE_COLORS } from '../ResourceIcon.js';
 import { buildingName, buildingDesc } from '../../../i18n/building-labels.js';
 import { formatSignedRatePerHour, formatHourlyAmount, tickRateToHourly } from '../../../i18n/format-rate.js';
-import { watchAdsWithProgress } from '../../../services/ads-service.js';
+import { watchAdsWithProgress, isNativePlatform } from '../../../services/ads-service.js';
 import {
   deriveBuildingDetailStats,
   getBuildingPassiveEffects,
@@ -1198,7 +1198,11 @@ export function BuildingDetailPanel({
                       disabled={stats.isShutdown || !hasObservatorySlot || !onStartObservatorySearch || observatoryAdsRunning}
                       onClick={async () => {
                         if (!hasObservatorySlot || observatoryAdsRunning) return;
-                        if (!isPremium) {
+                        // Ad gate only where rewarded ads can actually show
+                        // (AdMob = native shells). On web showRewardedAd
+                        // instantly returns rewarded:false, which silently
+                        // blocked the search for every non-premium player.
+                        if (!isPremium && isNativePlatform()) {
                           setObservatoryAdsRunning(true);
                           const result = await watchAdsWithProgress('research_data', 3, () => {});
                           setObservatoryAdsRunning(false);
