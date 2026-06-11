@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cometHash } from '@nebulife/core';
+import { SignalAudioEngine, rollSignalRarity } from '../../../audio/SignalAudioEngine.js';
+import type { SignalRarity } from '../../../audio/SignalAudioEngine.js';
 
 // ---------------------------------------------------------------------------
 // SignalDecoderGame — terminal code-breaking minigame.
@@ -10,6 +12,13 @@ import { cometHash } from '@nebulife/core';
 // matches, and the live waveform on the oscilloscope becomes cleaner the
 // closer the best attempt is to the true code (noise = distance from
 // solution). Deterministic per (playerId, date, round) — no reroll scumming.
+//
+// Audio: the true signal is a real 5s loop (rarity roll per round) jammed by
+// one interference layer per code slot — each symbol is its own noise type.
+// An exact-guessed slot locks in: the symbol is written into its cell, that
+// slot's noise fades out and the base signal gets 25% louder (see
+// SignalAudioEngine). Listening IS a hint — players who learn to tell the
+// noise types apart can read part of the code by ear.
 // ---------------------------------------------------------------------------
 
 export const SIGNAL_CODE_LENGTH = 4;
@@ -88,6 +97,16 @@ const SLOT_MARK_STYLE: Record<SlotMark, { border: string; background: string }> 
   miss: { border: '#33454f', background: 'transparent' },
 };
 
+const RARITY_COLORS: Record<SignalRarity, string> = {
+  common: '#8899aa',
+  uncommon: '#44ff88',
+  rare: '#7bb8ff',
+  epic: '#cc88ff',
+  legendary: '#ffd700',
+};
+
+const SOUND_MUTE_KEY = 'nebulife_decoder_muted';
+
 /** Oscilloscope: target waveform + noise scaled by how far the player is. */
 function Waveform({ code, bestExact, won }: { code: number[]; bestExact: number; won: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -164,22 +183,65 @@ function Waveform({ code, bestExact, won }: { code: number[]; bestExact: number;
 export function SignalDecoderGame({ seed, onFinish, onExit }: SignalDecoderGameProps) {
   const { t } = useTranslation();
   const code = useMemo(() => makeCode(seed), [seed]);
+  const rarity = useMemo<SignalRarity>(() => rollSignalRarity(cometHash(`${seed}:rarity`)), [seed]);
   const [attempts, setAttempts] = useState<Attempt[]>([]);
-  const [current, setCurrent] = useState<number[]>([]);
+  // Symbols picked for the UNSOLVED slots only (in left-to-right slot order);
+  // solved slots are locked and auto-filled from the code.
+  const [picks, setPicks] = useState<number[]>([]);
+  const [solved, setSolved] = useState<boolean[]>(() => new Array(SIGNAL_CODE_LENGTH).fill(false));
+  const [muted, setMuted] = useState(() => {
+    try { return localStorage.getItem(SOUND_MUTE_KEY) === '1'; } catch { return false; }
+  });
   const [result, setResult] = useState<'won' | 'lost' | null>(null);
   const finishedRef = useRef(false);
+  const engineRef = useRef<SignalAudioEngine | null>(null);
 
   const bestExact = attempts.reduce((m, a) => Math.max(m, a.exact), 0);
+  const unsolvedCount = solved.reduce((n, s) => n + (s ? 0 : 1), 0);
+
+  // Live signal audio: base loop + one interference layer per code slot
+  useEffect(() => {
+    const engine = new SignalAudioEngine();
+    engineRef.current = engine;
+    engine.setMuted(muted);
+    void engine.start(code, rarity, cometHash(`${seed}:audio`));
+    return () => { engine.stop(); engineRef.current = null; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seed]);
+
+  const toggleMute = () => {
+    const next = !muted;
+    setMuted(next);
+    engineRef.current?.setMuted(next);
+    try { localStorage.setItem(SOUND_MUTE_KEY, next ? '1' : '0'); } catch { /* ignore */ }
+  };
+
+  // Full guess = solved slots from code + player picks for the rest
+  const buildGuess = (): number[] => {
+    const guess: number[] = [];
+    let p = 0;
+    for (let i = 0; i < SIGNAL_CODE_LENGTH; i++) {
+      guess.push(solved[i] ? code[i] : picks[p++]);
+    }
+    return guess;
+  };
 
   const submit = () => {
-    if (current.length !== SIGNAL_CODE_LENGTH || result) return;
-    const { exact, partial } = scoreGuess(code, current);
-    const attempt: Attempt = { guess: current, exact, partial, slots: scoreSlots(code, current) };
+    if (picks.length !== unsolvedCount || result) return;
+    const guess = buildGuess();
+    const { exact, partial } = scoreGuess(code, guess);
+    const attempt: Attempt = { guess, exact, partial, slots: scoreSlots(code, guess) };
     const next = [...attempts, attempt];
     setAttempts(next);
-    setCurrent([]);
+    setPicks([]);
+    // Lock newly decoded slots: symbol written into its cell, noise layer off,
+    // base signal +25% louder per slot (user-facing "decoding" feedback)
+    const nextSolved = solved.map((s, i) => s || guess[i] === code[i]);
+    setSolved(nextSolved);
+    engineRef.current?.setSolved(nextSolved);
     if (exact === SIGNAL_CODE_LENGTH) {
       setResult('won');
+      engineRef.current?.win();
       if (!finishedRef.current) { finishedRef.current = true; onFinish(true); }
     } else if (next.length >= SIGNAL_MAX_ATTEMPTS) {
       setResult('lost');
@@ -203,6 +265,21 @@ export function SignalDecoderGame({ seed, onFinish, onExit }: SignalDecoderGameP
       </div>
 
       <Waveform code={code} bestExact={bestExact} won={result === 'won'} />
+
+      {/* Signal classification + sound toggle */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: 9, letterSpacing: 1, color: '#667788' }}>
+          {t('ops.decoder_signal_label')}:{' '}
+          <span style={{ color: RARITY_COLORS[rarity] }}>{t(`ops.signal_${rarity}`)}</span>
+        </span>
+        <button onClick={toggleMute} style={{
+          background: 'none', border: `1px solid ${muted ? BORDER : '#446688'}`, borderRadius: 3,
+          color: muted ? '#667788' : '#7bb8ff', fontFamily: 'monospace', fontSize: 9,
+          padding: '3px 8px', cursor: 'pointer', letterSpacing: 0.5,
+        }}>
+          {muted ? t('ops.decoder_sound_off') : t('ops.decoder_sound_on')}
+        </button>
+      </div>
 
       <div style={{ color: '#667788', fontSize: 9.5, lineHeight: 1.5 }}>
         {t('ops.decoder_hint', { length: SIGNAL_CODE_LENGTH, attempts: SIGNAL_MAX_ATTEMPTS })}
@@ -263,22 +340,34 @@ export function SignalDecoderGame({ seed, onFinish, onExit }: SignalDecoderGameP
         </div>
       )}
 
-      {/* Input row */}
+      {/* Input row — decoded slots are locked: the symbol is written into its
+          cell, only the remaining slots accept input */}
       {!result && (
         <>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-            {Array.from({ length: SIGNAL_CODE_LENGTH }, (_, i) => (
-              <div key={i} style={{
-                width: 42, height: 42, borderRadius: 4,
-                border: `1px solid ${i === current.length ? '#4488aa' : BORDER}`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 19,
-                color: current[i] != null ? SYMBOL_COLORS[current[i]] : '#33454f',
-                background: 'rgba(4,8,16,0.8)',
-              }}>
-                {current[i] != null ? SYMBOLS[current[i]] : '\u00b7'}
-              </div>
-            ))}
+            {(() => {
+              const values: Array<number | null> = [];
+              let cursorSlot = -1;
+              let p = 0;
+              for (let i = 0; i < SIGNAL_CODE_LENGTH; i++) {
+                if (solved[i]) { values.push(code[i]); continue; }
+                values.push(p < picks.length ? picks[p] : null);
+                if (p >= picks.length && cursorSlot === -1) cursorSlot = i;
+                p++;
+              }
+              return values.map((value, i) => (
+                <div key={i} style={{
+                  width: 42, height: 42, borderRadius: 4,
+                  border: `1px solid ${solved[i] ? '#44ff88' : (i === cursorSlot ? '#4488aa' : BORDER)}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 19,
+                  color: value != null ? SYMBOL_COLORS[value] : '#33454f',
+                  background: solved[i] ? 'rgba(68,255,136,0.1)' : 'rgba(4,8,16,0.8)',
+                }}>
+                  {value != null ? SYMBOLS[value] : '\u00b7'}
+                </div>
+              ));
+            })()}
           </div>
 
           <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -286,7 +375,7 @@ export function SignalDecoderGame({ seed, onFinish, onExit }: SignalDecoderGameP
               <button
                 key={sym}
                 onClick={() => {
-                  if (current.length < SIGNAL_CODE_LENGTH) setCurrent([...current, idx]);
+                  if (picks.length < unsolvedCount) setPicks([...picks, idx]);
                 }}
                 style={{
                   width: 46, height: 40, borderRadius: 4,
@@ -303,27 +392,27 @@ export function SignalDecoderGame({ seed, onFinish, onExit }: SignalDecoderGameP
 
           <div style={{ display: 'flex', gap: 8 }}>
             <button
-              onClick={() => setCurrent(current.slice(0, -1))}
-              disabled={current.length === 0}
+              onClick={() => setPicks(picks.slice(0, -1))}
+              disabled={picks.length === 0}
               style={{
                 flex: 1, padding: '10px 0', borderRadius: 4,
                 border: `1px solid ${BORDER}`, background: 'rgba(20,30,45,0.7)',
-                color: current.length > 0 ? '#8899aa' : '#445566',
-                fontFamily: 'monospace', fontSize: 11, cursor: current.length > 0 ? 'pointer' : 'default',
+                color: picks.length > 0 ? '#8899aa' : '#445566',
+                fontFamily: 'monospace', fontSize: 11, cursor: picks.length > 0 ? 'pointer' : 'default',
               }}
             >
               {'\u232b'} {t('ops.decoder_erase')}
             </button>
             <button
               onClick={submit}
-              disabled={current.length !== SIGNAL_CODE_LENGTH}
+              disabled={picks.length !== unsolvedCount}
               style={{
                 flex: 2, padding: '10px 0', borderRadius: 4,
-                border: `1px solid ${current.length === SIGNAL_CODE_LENGTH ? '#44ff88' : BORDER}`,
-                background: current.length === SIGNAL_CODE_LENGTH ? 'rgba(68,255,136,0.12)' : 'rgba(20,30,45,0.7)',
-                color: current.length === SIGNAL_CODE_LENGTH ? '#44ff88' : '#445566',
+                border: `1px solid ${picks.length === unsolvedCount ? '#44ff88' : BORDER}`,
+                background: picks.length === unsolvedCount ? 'rgba(68,255,136,0.12)' : 'rgba(20,30,45,0.7)',
+                color: picks.length === unsolvedCount ? '#44ff88' : '#445566',
                 fontFamily: 'monospace', fontSize: 11, letterSpacing: 1,
-                cursor: current.length === SIGNAL_CODE_LENGTH ? 'pointer' : 'default',
+                cursor: picks.length === unsolvedCount ? 'pointer' : 'default',
               }}
             >
               {t('ops.decoder_transmit')} [{attempts.length + 1}/{SIGNAL_MAX_ATTEMPTS}]
