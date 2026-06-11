@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
-  <title>Nebulife - Аудіо-тест</title>
+  <title>Nebulife - Аудіо-ревізія</title>
   <style>
     :root {
       --bg: #020510;
@@ -18,6 +18,7 @@
       --orange: #ff8844;
       --red: #cc4444;
       --accent: #4488aa;
+      --violet: #cc88ff;
     }
     * { box-sizing: border-box; }
     body {
@@ -25,9 +26,12 @@
       font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
       font-size: 14px; line-height: 1.5; padding: 24px 16px 80px;
     }
-    .wrap { max-width: 1040px; margin: 0 auto; }
+    .wrap { max-width: 1120px; margin: 0 auto; }
     h1 { font-size: 18px; letter-spacing: 1px; margin: 0 0 4px; }
-    .sub { color: var(--muted); font-size: 12px; margin: 0 0 20px; }
+    .sub { color: var(--muted); font-size: 12px; margin: 0 0 6px; }
+    .stats { color: var(--text-2); font-size: 11px; margin: 0 0 16px; }
+    .stats b { color: var(--green); font-weight: normal; }
+    .stats .miss { color: var(--red); }
     .bar {
       position: sticky; top: 0; z-index: 5; background: var(--bg);
       padding: 10px 0 14px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
@@ -45,33 +49,43 @@
       border: 1px solid var(--border-active); background: #0a0f19; color: var(--text);
     }
     button:hover { background: #11192a; }
+    button:disabled { opacity: 0.35; cursor: default; }
     button.stop { border-color: var(--red); color: #ff9a9a; }
     h2 {
       font-size: 12px; text-transform: uppercase; letter-spacing: 1px;
-      color: var(--text-2); margin: 22px 0 10px;
+      color: var(--text-2); margin: 24px 0 10px;
     }
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+    h2 .cnt { color: var(--muted); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 8px; }
     .cell {
-      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
       background: var(--panel); border: 1px solid var(--border); border-radius: 4px;
-      padding: 8px 10px;
+      padding: 9px 11px;
     }
     .cell.playing { border-color: var(--green); }
-    .cell .name { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .cell .tag { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--orange); }
-    .cell .ctl { display: flex; gap: 6px; flex-shrink: 0; }
+    .cell.is-missing { border-style: dashed; opacity: 0.75; }
+    .meta { min-width: 0; }
+    .meta .uk { font-size: 13px; color: var(--text); }
+    .meta .file { font-size: 10px; color: var(--accent); }
+    .meta .where { font-size: 10px; color: var(--muted); margin-top: 2px; }
+    .tag { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; margin-left: 6px; }
+    .tag.missing { color: var(--red); }
+    .tag.unused { color: var(--orange); }
+    .tag.planned { color: var(--violet); }
+    .tag.loop { color: var(--accent); }
+    .ctl { display: flex; gap: 6px; flex-shrink: 0; }
     .hidden { display: none; }
-    .note { color: var(--muted); font-size: 11px; margin-top: 6px; }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <h1>NEBULIFE - АУДІО-ТЕСТ</h1>
-    <p class="sub">Усі SFX та музика гри. Службова сторінка (не для продакшену).</p>
+    <h1>NEBULIFE - АУДІО-РЕВІЗІЯ</h1>
+    <p class="sub">Всі звуки та музика гри: що є, де звучить, чого бракує. Службова сторінка (не для продакшену).</p>
+    <p class="stats" id="stats">сканування файлів…</p>
 
     <div class="bar">
       <span><label>Гучність</label> <input id="vol" type="range" min="0" max="1" step="0.05" value="0.6" /></span>
-      <input id="filter" type="search" placeholder="фільтр за назвою..." autocomplete="off" />
+      <input id="filter" type="search" placeholder="фільтр за назвою…" autocomplete="off" />
       <button id="stopAll" class="stop" type="button">Зупинити все</button>
     </div>
 
@@ -79,22 +93,106 @@
   </div>
 
   <script>
-    // SFX from /public/sfx (each has .webm + .mp3, except ui-click which is .mp3 only).
-    var SFX = {
-      "UI / система": ["ui-click", "ui-error", "text-massage", "chat-send", "notify*", "ui_click_disabled*"],
-      "Прогрес / нагороди": ["level-up", "xp-gain", "tech-unlock", "research-system-start", "research-complete-all", "new-discovery-find", "quiz-correct", "quiz-wrong"],
-      "Поверхня / колонія": ["harvest-all", "building-place", "building-demolish", "colony-founded", "bot-launch", "pixel-reveal", "tile-discover", "respawn", "name-planet-load"],
-      "Навігація / космос": ["system-select", "planet-select", "warp-jump", "warp-arrive", "go-to-exosphera", "scene-transition", "fly", "quantum-focus", "angar"],
-      "Тривоги": ["alarm", "evac-alarm"],
-      "Арена / бій": ["arena-start", "arena-countdown", "arena-warp", "arena-laser", "arena-missile", "arena-explosion", "arena-shield-break", "arena-powerup", "arena-grav", "arena-blackhole", "lazer-red", "missile-hit", "asteroid-explosion"],
-      "Трейлери": ["before-trailers"]
-    };
-    var LOOPS = { "Цикли (loop)": ["planet-loop", "terminal-loop"] };
-    var MUSIC = { "Музика (/music)": ["space", "onboarding"] };
+    // -----------------------------------------------------------------------
+    // Повний каталог звуків гри.
+    //   f     — назва файлу (без розширення; шукаємо .webm з фолбеком .mp3)
+    //   uk    — українська назва
+    //   d     — де звучить у грі
+    //   loop  — у грі грає циклом (кнопка-перемикач)
+    //   unused — файл є, але в коді ніде не викликається
+    // Наявність файлів перевіряється автоматично (HEAD-запит): щойно
+    // закинути новий файл у /public/sfx — він стане відтворюваним тут.
+    // -----------------------------------------------------------------------
+    var GROUPS = [
+      { title: 'UI / система', folder: 'sfx', items: [
+        { f: 'ui-click', uk: 'Клік кнопки', d: 'Всі меню, панелі, перемикачі (30+ компонентів)' },
+        { f: 'ui-error', uk: 'Помилка дії', d: 'Склад повний, ліміти, арена до 10 рівня, збої запитів' },
+        { f: 'text-massage', uk: 'Друк тексту', d: 'Наукові звіти, термінали інтро, звіти місій' },
+        { f: 'chat-send', uk: 'Повідомлення надіслано', d: 'Чат / A.S.T.R.A.' },
+      ]},
+      { title: 'Прогрес / нагороди', folder: 'sfx', items: [
+        { f: 'level-up', uk: 'Новий рівень', d: 'Банер рівня + попапи розблокувань (бій L10, тераформінг L48)' },
+        { f: 'xp-gain', uk: 'Отримано досвід', d: 'Правильна відповідь у щоденній вікторині Академії' },
+        { f: 'tech-unlock', uk: 'Технологію відкрито', d: 'Старт дослідження ноди + тост завершення' },
+        { f: 'research-system-start', uk: 'Старт дослідження системи', d: 'Панель дослідження, меню системи, телеметрія' },
+        { f: 'research-complete-all', uk: 'Систему досліджено', d: 'Модал повного дослідження системи' },
+        { f: 'new-discovery-find', uk: 'Нове відкриття', d: 'Сповіщення про відкриття (виїжджає збоку)' },
+        { f: 'quiz-correct', uk: 'Правильна відповідь', d: 'Вікторини Академії та в чаті A.S.T.R.A.' },
+        { f: 'quiz-wrong', uk: 'Неправильна відповідь', d: 'Вікторини Академії та в чаті A.S.T.R.A.' },
+        { f: 'pixel-reveal', uk: 'Проявлення фото', d: 'Піксельне розкриття фото відкриття' },
+      ]},
+      { title: 'Поверхня / колонія', folder: 'sfx', items: [
+        { f: 'harvest-all', uk: 'Збір ресурсів', d: 'Збір з гекса + «зібрати все» на поверхні' },
+        { f: 'building-place', uk: 'Будівлю поставлено', d: 'Розміщення будівлі на поверхні' },
+        { f: 'building-demolish', uk: 'Будівлю знесено', d: 'Знесення будівлі' },
+        { f: 'colony-founded', uk: 'Колонію засновано', d: 'Фінал евакуації + промпт заснування (подвійний виклик!)' },
+        { f: 'bot-launch', uk: 'Запуск розвід-бота', d: 'Відправка бота на клітинку поверхні' },
+        { f: 'tile-discover', uk: 'Нова клітинка', d: 'Бот відкриває нові клітинки (кожна 3-тя)' },
+        { f: 'respawn', uk: 'Відродження', d: 'Респавн гравця на арені' },
+        { f: 'name-planet-load', uk: 'Назва планети', d: 'Відкриття поверхні (екран з назвою)' },
+      ]},
+      { title: 'Навігація / космос', folder: 'sfx', items: [
+        { f: 'system-select', uk: 'Вибір системи', d: 'Клік по зорі на карті галактики' },
+        { f: 'planet-select', uk: 'Вибір планети', d: 'Клік по планеті в системі' },
+        { f: 'warp-jump', uk: 'Варп-стрибок', d: 'Початок перельоту між системами' },
+        { f: 'warp-arrive', uk: 'Прибуття з варпу', d: 'Кінець перельоту, поява в системі' },
+        { f: 'go-to-exosphera', uk: 'Вхід в екзосферу', d: 'Перехід до виду планети / посадка на поверхню' },
+        { f: 'scene-transition', uk: 'Перехід сцени', d: 'GalaxyWarpOverlay — оверлей ніколи не монтується', unused: true },
+        { f: 'fly', uk: 'Двигун корабля', d: 'Гул польоту на арені/рейді, гучність від швидкості', loop: true },
+        { f: 'quantum-focus', uk: 'Квантове фокусування', d: 'Цикл під час генерації AI-фото в обсерваторії', loop: true },
+        { f: 'angar', uk: 'Ангар', d: 'Ембієнт сторінки ангара / симулятора бою', loop: true },
+      ]},
+      { title: 'Тривоги', folder: 'sfx', items: [
+        { f: 'alarm', uk: 'Тривога (зворотний відлік)', d: 'Перша поява годинника відліку після онбордингу (3 рази)' },
+        { f: 'evac-alarm', uk: 'Сирена евакуації', d: 'Старт евакуації з приреченої планети' },
+      ]},
+      { title: 'Арена / бій', folder: 'sfx', items: [
+        { f: 'arena-start', uk: 'Бій почався', d: 'Кінець відліку, старт матчу (арена + рейд)' },
+        { f: 'arena-countdown', uk: 'Відлік до бою', d: 'Кожна секунда передматчевого відліку' },
+        { f: 'arena-warp', uk: 'Маневр-ривок', d: 'Деш, бочка, мертва петля' },
+        { f: 'arena-laser', uk: 'Лазер', d: 'Постріл лазером (гравець і боти)' },
+        { f: 'arena-missile', uk: 'Запуск ракети', d: 'Самонавідна ракета' },
+        { f: 'arena-explosion', uk: 'Вибух корабля', d: 'Знищення корабля, гучність від відстані' },
+        { f: 'arena-shield-break', uk: 'Щит поглинув удар', d: 'SHIELD рятує від смертельного попадання' },
+        { f: 'arena-powerup', uk: 'Підсилення підібрано', d: 'Аптечка або бонус' },
+        { f: 'arena-grav', uk: 'Гравітаційний поштовх', d: 'Грав-сектор штовхає астероїд' },
+        { f: 'arena-blackhole', uk: 'Чорна діра', d: 'Поява чорної діри в центрі арени' },
+        { f: 'lazer-red', uk: 'Червоний лазер', d: 'Бафф DAMAGE_UP підібрано' },
+        { f: 'missile-hit', uk: 'Влучання ракети', d: 'Ракета влучає в ціль' },
+        { f: 'asteroid-explosion', uk: 'Вибух астероїда', d: 'Куля знищує астероїд' },
+      ]},
+      { title: 'Цикли / ембієнти', folder: 'sfx', items: [
+        { f: 'planet-loop', uk: 'Ембієнт поверхні', d: 'Фон, поки відкрита поверхня планети', loop: true },
+        { f: 'terminal-loop', uk: 'Гул термінала', d: 'Слайди інтро + Космічний Архів', loop: true },
+        { f: 'before-trailers', uk: 'Стара мелодія інтро', d: 'Вимкнена свідомо, в коді лише cleanup-stopLoop', loop: true, unused: true },
+      ]},
+      { title: 'Музика (/music)', folder: 'music', items: [
+        { f: 'space', uk: 'Космічна тема', d: 'Основний фоновий трек гри (SpaceAmbient) + лендінг', loop: true },
+        { f: 'onboarding', uk: 'Тема туторіалу', d: 'Фон інтерактивного туторіалу + лендінг', loop: true },
+      ]},
+      // ── Заплановані: див. SOUND_PLAN_INTRO.md. Кнопки оживуть, щойно
+      //    файли з цими іменами з'являться в /public/sfx. ──
+      { title: 'До генерації — інтро (план)', folder: 'sfx', planned: true, items: [
+        { f: 'intro-genesis-loop', uk: 'Гул народження Всесвіту', d: 'StarBirthIntro — фон сцени генезису', loop: true },
+        { f: 'intro-bigbang', uk: 'Спалах сингулярності', d: 'StarBirthIntro — момент спалаху зорі' },
+        { f: 'intro-star-chime', uk: 'Народження зорі', d: 'StarBirthIntro — поява навігаційних ниток' },
+        { f: 'intro-theme', uk: 'Тема входу', d: 'Генезис + екран входу (зараз тиша)', loop: true },
+        { f: 'alert-transmission', uk: 'Вхідна передача: тривога', d: 'Інтро, слайд 0 — поява червоної панелі' },
+        { f: 'directive-stamp', uk: 'Директиву прийнято', d: 'Інтро, слайд 2 — поява директиви евакуації' },
+        { f: 'mission-start', uk: 'Початок місії', d: 'Кнопка «Почати місію» в кінці інтро' },
+      ]},
+      { title: 'До генерації — сигнали декодера (план)', folder: 'sfx', planned: true, items: [
+        { f: 'signal-common-1', uk: 'Космічний фон', d: 'Декодер: нагорода за звичайний сигнал', loop: true },
+        { f: 'signal-uncommon-1', uk: 'Пульсар', d: 'Декодер: незвичайний — ритмічні імпульси', loop: true },
+        { f: 'signal-rare-1', uk: 'Магнітосферний спів', d: 'Декодер: рідкісний — «свистуни»', loop: true },
+        { f: 'signal-epic-1', uk: 'Вибух наднової', d: 'Декодер: епічний — рокіт з ударом', loop: true },
+        { f: 'signal-legendary-1', uk: 'Голоси', d: 'Декодер: легендарний — голосоподібна передача', loop: true },
+      ]},
+    ];
 
     var $ = function (id) { return document.getElementById(id); };
-    var current = null;       // single one-shot
-    var loopAudios = {};      // name -> Audio (loops + music)
+    var current = null;       // активний one-shot
+    var loopAudios = {};      // name -> Audio (цикли + музика)
 
     function webmOk() {
       try { var a = document.createElement('audio'); return !!(a.canPlayType('audio/webm; codecs="opus"') || a.canPlayType('audio/webm')); }
@@ -102,17 +200,34 @@
     }
     var EXT = webmOk() ? 'webm' : 'mp3';
 
+    var resolvedSrc = {}; // name -> робочий src (після HEAD-перевірки, з фолбеком .mp3/.webm)
+
     function srcFor(folder, name) {
-      var clean = name.replace(/\*$/, '');
-      if (clean === 'ui-click') return '/sfx/ui-click.mp3';
-      return '/' + folder + '/' + clean + '.' + EXT;
+      return resolvedSrc[name] || ('/' + folder + '/' + name + '.' + EXT);
+    }
+
+    // Деякі звуки існують лише в одному форматі (напр. quantum-focus.mp3),
+    // тому пробуємо основний формат, а потім альтернативний.
+    function probeFile(folder, name) {
+      var alt = EXT === 'webm' ? 'mp3' : 'webm';
+      function head(ext) {
+        return fetch('/' + folder + '/' + name + '.' + ext, { method: 'HEAD' }).then(function (r) {
+          // dev-сервер (vite) на неіснуючі шляхи віддає SPA-фолбек index.html
+          // зі статусом 200, тому перевіряємо ще й content-type
+          var ct = (r.headers.get('content-type') || '').toLowerCase();
+          return (r.ok && ct.indexOf('text/html') === -1) ? ('/' + folder + '/' + name + '.' + ext) : null;
+        }).catch(function () { return null; });
+      }
+      return head(EXT).then(function (src) { return src || head(alt); });
     }
 
     function vol() { return parseFloat($('vol').value); }
 
     function playOnce(folder, name, cell) {
       if (current) { try { current.pause(); } catch (e) {} }
-      document.querySelectorAll('.cell.playing').forEach(function (c) { c.classList.remove('playing'); });
+      document.querySelectorAll('.cell.playing').forEach(function (c) {
+        if (!c.dataset.looping) c.classList.remove('playing');
+      });
       var a = new Audio(srcFor(folder, name));
       a.volume = vol();
       current = a;
@@ -125,53 +240,87 @@
       if (loopAudios[name]) {
         try { loopAudios[name].pause(); } catch (e) {}
         delete loopAudios[name];
-        cell.classList.remove('playing'); btn.textContent = 'Грати';
+        cell.classList.remove('playing'); delete cell.dataset.looping; btn.textContent = 'Грати';
         return;
       }
       var a = new Audio(srcFor(folder, name));
       a.loop = true; a.volume = vol();
       loopAudios[name] = a;
-      cell.classList.add('playing'); btn.textContent = 'Стоп';
-      a.play().catch(function (e) { cell.classList.remove('playing'); btn.textContent = 'Грати'; delete loopAudios[name]; alert('Не вдалось: ' + (e && e.message ? e.message : e)); });
+      cell.classList.add('playing'); cell.dataset.looping = '1'; btn.textContent = 'Стоп';
+      a.play().catch(function (e) { cell.classList.remove('playing'); delete cell.dataset.looping; btn.textContent = 'Грати'; delete loopAudios[name]; alert('Не вдалось: ' + (e && e.message ? e.message : e)); });
     }
 
-    function makeCell(folder, name, looping) {
-      var clean = name.replace(/\*$/, '');
-      var missing = /\*$/.test(name);
+    function makeCell(group, item) {
       var cell = document.createElement('div');
       cell.className = 'cell';
-      cell.dataset.name = clean;
-      var label = document.createElement('div');
-      label.className = 'name';
-      label.textContent = clean;
-      if (missing) { var t = document.createElement('span'); t.className = 'tag'; t.textContent = ' нема файлу'; label.appendChild(t); }
+      cell.dataset.name = (item.f + ' ' + item.uk + ' ' + item.d).toLowerCase();
+
+      var meta = document.createElement('div'); meta.className = 'meta';
+      var uk = document.createElement('div'); uk.className = 'uk'; uk.textContent = item.uk;
+      if (item.loop) { var tl = document.createElement('span'); tl.className = 'tag loop'; tl.textContent = 'loop'; uk.appendChild(tl); }
+      if (item.unused) { var tu = document.createElement('span'); tu.className = 'tag unused'; tu.textContent = 'не використовується'; uk.appendChild(tu); }
+      if (group.planned) { var tp = document.createElement('span'); tp.className = 'tag planned'; tp.textContent = 'план'; uk.appendChild(tp); }
+      var file = document.createElement('div'); file.className = 'file'; file.textContent = '/' + group.folder + '/' + item.f;
+      var where = document.createElement('div'); where.className = 'where'; where.textContent = item.d;
+      meta.appendChild(uk); meta.appendChild(file); meta.appendChild(where);
+
       var ctl = document.createElement('div'); ctl.className = 'ctl';
       var btn = document.createElement('button'); btn.type = 'button'; btn.textContent = 'Грати';
-      if (missing) { btn.disabled = true; btn.style.opacity = 0.4; }
-      else if (looping) { btn.addEventListener('click', function () { toggleLoop(folder, clean, cell, btn); }); }
-      else { btn.addEventListener('click', function () { playOnce(folder, clean, cell); }); }
+      btn.disabled = true; // вмикається після HEAD-перевірки наявності файлу
       ctl.appendChild(btn);
-      cell.appendChild(label); cell.appendChild(ctl);
+      cell.appendChild(meta); cell.appendChild(ctl);
+
+      // Автоперевірка наявності файлу — план/відсутні файли позначаються самі.
+      probeFile(group.folder, item.f).then(function (src) {
+        if (src) {
+          resolvedSrc[item.f] = src;
+          btn.disabled = false;
+          if (item.loop) btn.addEventListener('click', function () { toggleLoop(group.folder, item.f, cell, btn); });
+          else btn.addEventListener('click', function () { playOnce(group.folder, item.f, cell); });
+          window.__present++;
+        } else { markMissing(); }
+        updateStats();
+      });
+
+      function markMissing() {
+        cell.classList.add('is-missing');
+        var tm = document.createElement('span'); tm.className = 'tag missing'; tm.textContent = 'нема файлу';
+        uk.appendChild(tm);
+        window.__missing++;
+      }
+
       return cell;
     }
 
-    function renderGroup(title, names, folder, looping) {
-      var h = document.createElement('h2'); h.textContent = title;
-      var grid = document.createElement('div'); grid.className = 'grid';
-      names.forEach(function (n) { grid.appendChild(makeCell(folder, n, looping)); });
-      var wrap = $('sections');
-      wrap.appendChild(h); wrap.appendChild(grid);
+    window.__present = 0; window.__missing = 0; window.__total = 0;
+    function updateStats() {
+      if (window.__present + window.__missing < window.__total) {
+        $('stats').textContent = 'сканування файлів… ' + (window.__present + window.__missing) + '/' + window.__total;
+        return;
+      }
+      $('stats').innerHTML = 'Всього позицій: ' + window.__total
+        + ' · є файлів: <b>' + window.__present + '</b>'
+        + ' · бракує: <span class="miss">' + window.__missing + '</span>'
+        + ' · формат: ' + EXT;
     }
 
-    Object.keys(SFX).forEach(function (k) { renderGroup(k, SFX[k], 'sfx', false); });
-    Object.keys(LOOPS).forEach(function (k) { renderGroup(k, LOOPS[k], 'sfx', true); });
-    Object.keys(MUSIC).forEach(function (k) { renderGroup(k, MUSIC[k], 'music', true); });
+    GROUPS.forEach(function (group) {
+      var h = document.createElement('h2');
+      h.textContent = group.title + ' ';
+      var cnt = document.createElement('span'); cnt.className = 'cnt'; cnt.textContent = '(' + group.items.length + ')';
+      h.appendChild(cnt);
+      var grid = document.createElement('div'); grid.className = 'grid';
+      group.items.forEach(function (item) { window.__total++; grid.appendChild(makeCell(group, item)); });
+      var wrap = $('sections');
+      wrap.appendChild(h); wrap.appendChild(grid);
+    });
+    updateStats();
 
     $('stopAll').addEventListener('click', function () {
       if (current) { try { current.pause(); } catch (e) {} current = null; }
       Object.keys(loopAudios).forEach(function (n) { try { loopAudios[n].pause(); } catch (e) {} });
       loopAudios = {};
-      document.querySelectorAll('.cell.playing').forEach(function (c) { c.classList.remove('playing'); });
+      document.querySelectorAll('.cell.playing').forEach(function (c) { c.classList.remove('playing'); delete c.dataset.looping; });
       document.querySelectorAll('.ctl button').forEach(function (b) { if (b.textContent === 'Стоп') b.textContent = 'Грати'; });
     });
 
