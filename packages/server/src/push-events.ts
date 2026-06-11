@@ -155,6 +155,84 @@ function nextUtcHour(hourUtc: number): string {
   return target.toISOString();
 }
 
+/**
+ * Comet Herald event push. mode 'tomorrow' = heads-up the day before;
+ * mode 'today' = window-open reminder on the fly-by day.
+ */
+export async function enqueueCometEventPush(input: PushEventBase & {
+  occurrenceDate: string;
+  mode: 'tomorrow' | 'today';
+}): Promise<boolean> {
+  const copy = input.mode === 'tomorrow'
+    ? {
+        titleUk: 'Комета-провісник наближається',
+        bodyUk: 'Завтра комета пройде повз твою систему. Будь онлайн і запусти відстеження в обсерваторії — 20 кварків і легендарний запис у Космічний Архів.',
+        titleEn: 'The Herald Comet approaches',
+        bodyEn: 'Tomorrow the comet passes your system. Be online and launch the observatory tracking — 20 quarks and a legendary Cosmic Archive entry.',
+      }
+    : {
+        titleUk: 'Комета-провісник вже тут',
+        bodyUk: 'Вікно спостереження відкрите лише сьогодні. Запусти відстеження комети в обсерваторії, поки вона не зникла.',
+        titleEn: 'The Herald Comet is here',
+        bodyEn: 'The observation window is open today only. Launch the comet tracking before it fades away.',
+      };
+  return enqueueSafe({
+    playerId: input.playerId,
+    type: 'comet_event',
+    ...copy,
+    data: {
+      action: 'open-game',
+      occurrenceDate: input.occurrenceDate,
+      link: '/?action=open-game',
+    },
+    priority: 4,
+    maxAttempts: 2,
+    dedupeKey: `comet:${input.playerId}:${input.occurrenceDate}:${input.mode}`,
+  });
+}
+
+/** Weekly rating results push for cluster champions / global top-10. */
+export async function enqueueChampionPush(input: PushEventBase & {
+  weekDate: string;
+  globalRank: number | null;
+  rewardQuarks: number;
+}): Promise<boolean> {
+  const isTop = input.globalRank != null;
+  const copy = input.globalRank === 1
+    ? {
+        titleUk: 'Ти — №1 галактики!',
+        bodyUk: `Найкращий командир тижня серед усіх кластерів. Нагорода: ${input.rewardQuarks} кварків. Зайди й подивись Зал Слави.`,
+        titleEn: 'You are #1 in the galaxy!',
+        bodyEn: `Best commander of the week across all clusters. Reward: ${input.rewardQuarks} quarks. Check the Hall of Fame.`,
+      }
+    : isTop
+      ? {
+          titleUk: 'Ти в топ-10 галактики',
+          bodyUk: `Чемпіон кластера й топ-${input.globalRank} тижня. Нагорода: ${input.rewardQuarks} кварк. Зал Слави чекає.`,
+          titleEn: 'You made the galaxy top-10',
+          bodyEn: `Cluster champion and #${input.globalRank} of the week. Reward: ${input.rewardQuarks} quark. The Hall of Fame awaits.`,
+        }
+      : {
+          titleUk: 'Ти — чемпіон кластера!',
+          bodyUk: 'Найкращий результат тижня у своєму кластері. Твій титул вже в рейтингу.',
+          titleEn: 'You are the cluster champion!',
+          bodyEn: 'Best weekly result in your cluster. Your title is now on the leaderboard.',
+        };
+  return enqueueSafe({
+    playerId: input.playerId,
+    type: 'weekly_champion',
+    ...copy,
+    data: {
+      action: 'open-game',
+      weekDate: input.weekDate,
+      link: '/?action=open-game',
+    },
+    priority: 4,
+    maxAttempts: 2,
+    dedupeKey: `champion:${input.playerId}:${input.weekDate}`,
+  });
+}
+
 export async function enqueueDigestReadyPush(input: PushEventBase & {
   weekDate: string;
   /** Player's most-active UTC hour (timezone proxy). null = send immediately. */

@@ -114,7 +114,14 @@ export async function completeLesson(lessonId: string): Promise<{
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ lessonId }),
   });
-  return await res.json();
+  const data = await res.json();
+  if (data?.ok) notifyAcademyDirective();
+  return data;
+}
+
+/** Daily-directives hook: any academy completion counts toward the task. */
+function notifyAcademyDirective(): void {
+  try { window.dispatchEvent(new CustomEvent('nebulife:academy-completed')); } catch { /* ignore */ }
 }
 
 export async function completeQuest(
@@ -134,7 +141,9 @@ export async function completeQuest(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ lessonId, calculationAnswer }),
   });
-  return await res.json();
+  const data = await res.json();
+  if (data?.correct) notifyAcademyDirective();
+  return data;
 }
 
 export async function answerQuiz(
@@ -157,7 +166,9 @@ export async function answerQuiz(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ lessonId, answerIndex, quizId }),
   });
-  return await res.json();
+  const data = await res.json();
+  if (data?.correct && !data?.alreadyAnswered) notifyAcademyDirective();
+  return data;
 }
 
 export async function shareNotify(fromPlayerName: string, lessonTitle: string): Promise<void> {

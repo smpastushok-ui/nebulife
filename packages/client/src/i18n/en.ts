@@ -15,6 +15,8 @@ export const en: Record<TranslationKey, string> = {
 
   // ─── CommandBar buttons ───────────────────────────────────────────────────
   'cmd.terminal':        'TERMINAL',
+  'cmd.ops':             'OPERATIONS',
+  'cmd.ops_tooltip':     'Operations Center: directives, rating, signals and events',
   'cmd.web':             'WEB',
   'cmd.soon':            'soon',
   'cmd.web_tooltip':     'Nebulife web version opens with Premium access',

@@ -3945,3 +3945,380 @@ export async function claimDailyLoginBonus(playerId: string): Promise<{
     streak: row.login_streak,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Retention: daily directives, cluster rating, comet event (migration 035)
+// ---------------------------------------------------------------------------
+
+export const DIRECTIVE_QUARKS = 1;
+export const DIRECTIVE_STREAK_QUARKS = 3;
+export const DIRECTIVE_STREAK_LEN = 7;
+
+/**
+ * Claim today's daily-directives reward. Idempotent per UTC day.
+ * Streak: consecutive UTC days with a claim. Every 7th day pays 3 quarks
+ * instead of 1.
+ *
+ * NOTE: task completion itself is client-tracked (XP only); the quark grant
+ * is capped at one claim/day server-side, so the worst a tampered client can
+ * earn is the same 1 quark/day an honest player gets.
+ */
+export async function claimDailyDirectives(playerId: string): Promise<{
+  credited: number;
+  newBalance: number;
+  streak: number;
+}> {
+  const sql = getSQL();
+  const rows = await sql`
+    WITH cur AS (
+      SELECT quarks, directive_streak, last_directive_date,
+             DATE(NOW() AT TIME ZONE 'UTC') AS today
+      FROM players WHERE id = ${playerId}
+    ),
+    calc AS (
+      SELECT *,
+        CASE
+          WHEN last_directive_date = today THEN directive_streak
+          WHEN last_directive_date = today - INTERVAL '1 day' THEN directive_streak + 1
+          ELSE 1
+        END AS new_streak,
+        (last_directive_date IS DISTINCT FROM today) AS can_claim
+      FROM cur
+    ),
+    upd AS (
+      UPDATE players p
+      SET quarks = p.quarks + CASE
+            WHEN calc.can_claim AND calc.new_streak % ${DIRECTIVE_STREAK_LEN} = 0 THEN ${DIRECTIVE_STREAK_QUARKS}
+            WHEN calc.can_claim THEN ${DIRECTIVE_QUARKS}
+            ELSE 0
+          END,
+          directive_streak = CASE WHEN calc.can_claim THEN calc.new_streak ELSE p.directive_streak END,
+          last_directive_date = CASE WHEN calc.can_claim THEN calc.today ELSE p.last_directive_date END
+      FROM calc
+      WHERE p.id = ${playerId}
+      RETURNING p.quarks, p.directive_streak,
+        CASE
+          WHEN calc.can_claim AND calc.new_streak % ${DIRECTIVE_STREAK_LEN} = 0 THEN ${DIRECTIVE_STREAK_QUARKS}
+          WHEN calc.can_claim THEN ${DIRECTIVE_QUARKS}
+          ELSE 0
+        END AS credited
+    )
+    SELECT quarks, directive_streak, credited FROM upd
+  ` as Array<{ quarks: number; directive_streak: number; credited: number }>;
+
+  const row = rows[0];
+  if (!row) return { credited: 0, newBalance: 0, streak: 0 };
+  return { credited: row.credited, newBalance: row.quarks, streak: row.directive_streak };
+}
+
+/** Read-only directive streak info (for the panel header). */
+export async function getDirectiveStreak(playerId: string): Promise<{
+  streak: number;
+  claimedToday: boolean;
+}> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT directive_streak,
+           (last_directive_date = DATE(NOW() AT TIME ZONE 'UTC')) AS claimed_today
+    FROM players WHERE id = ${playerId}
+  ` as Array<{ directive_streak: number; claimed_today: boolean | null }>;
+  const row = rows[0];
+  return { streak: row?.directive_streak ?? 0, claimedToday: row?.claimed_today === true };
+}
+
+// ── Cluster rating ─────────────────────────────────────────────────────────
+
+/** Monday (UTC) of the week containing `now`, as YYYY-MM-DD. */
+export function weekMondayString(now: Date = new Date()): string {
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const dow = d.getUTCDay(); // 0=Sun
+  const delta = dow === 0 ? 6 : dow - 1;
+  d.setUTCDate(d.getUTCDate() - delta);
+  return d.toISOString().slice(0, 10);
+}
+
+export interface ClusterLeaderboardRow {
+  player_id: string;
+  name: string;
+  callsign: string | null;
+  player_level: number;
+  weekly_xp: number;
+  champion_weeks: number;
+  is_online: boolean;
+}
+
+/**
+ * Weekly leaderboard of the player's cluster.
+ * Lazily resets stale week_xp_base rows for the whole cluster first, so
+ * weekly XP is always measured within the current Monday-anchored week.
+ */
+export async function getClusterLeaderboard(playerId: string): Promise<{
+  week: string;
+  clusterId: string | null;
+  rows: ClusterLeaderboardRow[];
+  myRank: number | null;
+}> {
+  const sql = getSQL();
+  const week = weekMondayString();
+
+  const me = await sql`SELECT cluster_id FROM players WHERE id = ${playerId}` as Array<{ cluster_id: string | null }>;
+  const clusterId = me[0]?.cluster_id ?? null;
+  if (!clusterId) return { week, clusterId: null, rows: [], myRank: null };
+
+  // Roll stale bases into the current week (new week → everyone restarts at 0).
+  await sql`
+    UPDATE players
+    SET week_xp_base = player_xp, week_xp_base_week = ${week}
+    WHERE cluster_id = ${clusterId}
+      AND week_xp_base_week IS DISTINCT FROM ${week}
+  `;
+
+  const rows = await sql`
+    SELECT id AS player_id, name, callsign, player_level,
+           GREATEST(0, player_xp - week_xp_base) AS weekly_xp,
+           champion_weeks,
+           (COALESCE(last_seen_at, last_login, created_at) > NOW() - INTERVAL '10 minutes') AS is_online
+    FROM players
+    WHERE cluster_id = ${clusterId}
+    ORDER BY weekly_xp DESC, player_level DESC, created_at ASC
+    LIMIT 50
+  ` as unknown as ClusterLeaderboardRow[];
+
+  const myRank = rows.findIndex((r) => r.player_id === playerId);
+  return { week, clusterId, rows, myRank: myRank >= 0 ? myRank + 1 : null };
+}
+
+export interface ChampionRow {
+  week_date: string;
+  cluster_id: string;
+  player_id: string;
+  player_name: string;
+  weekly_xp: number;
+  global_rank: number | null;
+  reward_quarks: number;
+}
+
+/** Hall of fame: top-10 champions of the latest finalized week + my cluster's champion. */
+export async function getHallOfFame(clusterId: string | null): Promise<{
+  week: string | null;
+  top: ChampionRow[];
+  myClusterChampion: ChampionRow | null;
+}> {
+  const sql = getSQL();
+  const latest = await sql`
+    SELECT week_date FROM cluster_champions ORDER BY week_date DESC LIMIT 1
+  ` as Array<{ week_date: string }>;
+  const week = latest[0]?.week_date ?? null;
+  if (!week) return { week: null, top: [], myClusterChampion: null };
+
+  const top = await sql`
+    SELECT week_date, cluster_id, player_id, player_name, weekly_xp, global_rank, reward_quarks
+    FROM cluster_champions
+    WHERE week_date = ${week} AND global_rank IS NOT NULL
+    ORDER BY global_rank ASC
+    LIMIT 10
+  ` as unknown as ChampionRow[];
+
+  let myClusterChampion: ChampionRow | null = null;
+  if (clusterId) {
+    const mine = await sql`
+      SELECT week_date, cluster_id, player_id, player_name, weekly_xp, global_rank, reward_quarks
+      FROM cluster_champions
+      WHERE week_date = ${week} AND cluster_id = ${clusterId}
+      LIMIT 1
+    ` as unknown as ChampionRow[];
+    myClusterChampion = mine[0] ?? null;
+  }
+  return { week, top, myClusterChampion };
+}
+
+/** My permanent rating achievements. */
+export async function getRatingAchievements(playerId: string): Promise<{
+  championWeeks: number;
+  bestGlobalRank: number | null;
+  top10Weeks: number;
+}> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT
+      (SELECT champion_weeks FROM players WHERE id = ${playerId}) AS champion_weeks,
+      (SELECT MIN(global_rank) FROM cluster_champions WHERE player_id = ${playerId} AND global_rank IS NOT NULL) AS best_rank,
+      (SELECT COUNT(*) FROM cluster_champions WHERE player_id = ${playerId} AND global_rank IS NOT NULL) AS top10_weeks
+  ` as Array<{ champion_weeks: number | null; best_rank: number | null; top10_weeks: number }>;
+  const row = rows[0];
+  return {
+    championWeeks: row?.champion_weeks ?? 0,
+    bestGlobalRank: row?.best_rank ?? null,
+    top10Weeks: Number(row?.top10_weeks ?? 0),
+  };
+}
+
+/**
+ * Finalize the week that just ended: pick each cluster's champion, rank the
+ * top-10 globally, pay quarks (rank 1 → 100, ranks 2-10 → 1), bump
+ * champion_weeks and reset every player's weekly window.
+ *
+ * Idempotent: skips if champions for `finishedWeek` already exist.
+ * Returns the champion rows (with ranks) for downstream notifications.
+ */
+export async function finalizeWeeklyChampions(): Promise<{
+  finishedWeek: string;
+  champions: ChampionRow[];
+  alreadyDone: boolean;
+}> {
+  const sql = getSQL();
+  const currentWeek = weekMondayString();
+  const finished = new Date(`${currentWeek}T00:00:00Z`);
+  finished.setUTCDate(finished.getUTCDate() - 7);
+  const finishedWeek = finished.toISOString().slice(0, 10);
+
+  const existing = await sql`
+    SELECT COUNT(*)::int AS n FROM cluster_champions WHERE week_date = ${finishedWeek}
+  ` as Array<{ n: number }>;
+  if ((existing[0]?.n ?? 0) > 0) {
+    const rows = await sql`
+      SELECT week_date, cluster_id, player_id, player_name, weekly_xp, global_rank, reward_quarks
+      FROM cluster_champions WHERE week_date = ${finishedWeek}
+      ORDER BY weekly_xp DESC
+    ` as unknown as ChampionRow[];
+    return { finishedWeek, champions: rows, alreadyDone: true };
+  }
+
+  // Champions: best weekly XP per cluster within the finished week window.
+  // Only players whose base was anchored to the finished week count.
+  const champions = await sql`
+    INSERT INTO cluster_champions (week_date, cluster_id, player_id, player_name, weekly_xp)
+    SELECT ${finishedWeek}, cluster_id, id, COALESCE(callsign, name),
+           GREATEST(0, player_xp - week_xp_base)
+    FROM (
+      SELECT *, ROW_NUMBER() OVER (
+        PARTITION BY cluster_id
+        ORDER BY (player_xp - week_xp_base) DESC, player_level DESC, created_at ASC
+      ) AS rn
+      FROM players
+      WHERE cluster_id IS NOT NULL
+        AND week_xp_base_week = ${finishedWeek}
+        AND player_xp - week_xp_base > 0
+    ) ranked
+    WHERE rn = 1
+    ON CONFLICT (week_date, cluster_id) DO NOTHING
+    RETURNING week_date, cluster_id, player_id, player_name, weekly_xp, global_rank, reward_quarks
+  ` as unknown as ChampionRow[];
+
+  // Global top-10 among champions.
+  await sql`
+    WITH ranked AS (
+      SELECT id, ROW_NUMBER() OVER (ORDER BY weekly_xp DESC, created_at ASC) AS rnk
+      FROM cluster_champions WHERE week_date = ${finishedWeek}
+    )
+    UPDATE cluster_champions c
+    SET global_rank = ranked.rnk,
+        reward_quarks = CASE WHEN ranked.rnk = 1 THEN 100 WHEN ranked.rnk <= 10 THEN 1 ELSE 0 END
+    FROM ranked
+    WHERE c.id = ranked.id AND ranked.rnk <= 10
+  `;
+
+  // Pay rewards + bump permanent champion counters.
+  await sql`
+    UPDATE players p
+    SET quarks = p.quarks + c.reward_quarks,
+        champion_weeks = p.champion_weeks + 1
+    FROM cluster_champions c
+    WHERE c.week_date = ${finishedWeek} AND c.player_id = p.id
+  `;
+
+  // Open the new week for everyone still anchored to the finished one.
+  await sql`
+    UPDATE players
+    SET week_xp_base = player_xp, week_xp_base_week = ${currentWeek}
+    WHERE week_xp_base_week IS DISTINCT FROM ${currentWeek}
+  `;
+
+  const finalRows = await sql`
+    SELECT week_date, cluster_id, player_id, player_name, weekly_xp, global_rank, reward_quarks
+    FROM cluster_champions WHERE week_date = ${finishedWeek}
+    ORDER BY weekly_xp DESC
+  ` as unknown as ChampionRow[];
+
+  return { finishedWeek, champions: finalRows, alreadyDone: false };
+}
+
+// ── Cluster seat recycling ─────────────────────────────────────────────────
+
+/**
+ * Free a stale cluster seat for a new registration.
+ *
+ * A seat is stale when its player is still level ≤1 AND has been absent for
+ * 3+ days. The newcomer takes the stale player's global_index (and thus their
+ * cluster seat); the stale player is moved to the newcomer's fresh index with
+ * cluster_id cleared (re-assigned deterministically if they ever return).
+ * Home ids of the stale player are reset because the galaxy layout is
+ * derived from global_index.
+ *
+ * Returns the recycled global_index, or null when no stale seat exists.
+ */
+export async function recycleStaleClusterSeat(
+  newPlayerId: string,
+  newGlobalIndex: number,
+): Promise<{ recycledIndex: number; recycledClusterId: string | null } | null> {
+  const sql = getSQL();
+
+  const candidates = await sql`
+    SELECT id, global_index, cluster_id
+    FROM players
+    WHERE player_level <= 1
+      AND COALESCE(last_seen_at, last_login, created_at) < NOW() - INTERVAL '3 days'
+      AND cluster_id IS NOT NULL
+      AND global_index IS NOT NULL
+      AND global_index < ${newGlobalIndex}
+      AND id <> ${newPlayerId}
+    ORDER BY global_index ASC
+    LIMIT 1
+  ` as Array<{ id: string; global_index: number; cluster_id: string | null }>;
+
+  const stale = candidates[0];
+  if (!stale) return null;
+
+  try {
+    // Three-step swap inside one transaction: global_index has a partial
+    // unique index, so the stale row must vacate its index (NULL) before the
+    // newcomer can take it. Guards on the expected indices make concurrent
+    // registrations abort via the unique index instead of corrupting seats.
+    await sql.transaction((tx) => [
+      tx`
+        UPDATE players
+        SET global_index = NULL, cluster_id = NULL,
+            home_system_id = 'home', home_planet_id = 'home'
+        WHERE id = ${stale.id} AND global_index = ${stale.global_index}
+      `,
+      tx`
+        UPDATE players SET global_index = ${stale.global_index}
+        WHERE id = ${newPlayerId} AND global_index = ${newGlobalIndex}
+      `,
+      tx`
+        UPDATE players SET global_index = ${newGlobalIndex}
+        WHERE id = ${stale.id} AND global_index IS NULL
+      `,
+    ]);
+  } catch (err) {
+    console.warn('[recycleStaleClusterSeat] swap failed (likely concurrent registration):', err);
+    return null;
+  }
+
+  return { recycledIndex: stale.global_index, recycledClusterId: stale.cluster_id };
+}
+
+/** Players eligible for comet pushes (active in last 14d, push-enabled). */
+export async function getCometPushCandidates(): Promise<Array<{
+  id: string;
+  preferred_language: string;
+}>> {
+  const sql = getSQL();
+  return await sql`
+    SELECT id, preferred_language
+    FROM players
+    WHERE fcm_token IS NOT NULL
+      AND push_notifications = TRUE
+      AND COALESCE(last_seen_at, last_login, created_at) > NOW() - INTERVAL '14 days'
+  ` as unknown as Array<{ id: string; preferred_language: string }>;
+}

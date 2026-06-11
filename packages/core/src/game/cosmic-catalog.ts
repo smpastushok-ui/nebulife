@@ -18,6 +18,11 @@ export interface CatalogEntry {
   scientificFacts: string[];
   /** English scientific facts — optional; English report skips this section if absent */
   scientificFactsEn?: string[];
+  /**
+   * Live-event exclusive entries are never rolled by regular observatory
+   * searches or research discoveries — only granted by their event flow.
+   */
+  eventOnly?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -950,6 +955,18 @@ const SMALL_BODIES: CatalogEntry[] = [
     descriptionEn: 'A ring of dust and rocky debris orbiting a mature star — the remnant of planet formation. Gaps in the disk often betray the presence of unseen planets sweeping their orbital paths clear.',
     promptTemplate: 'A debris disk around a mature star with a broad ring of dust and rocky fragments, possible gaps carved by unseen planets, infrared glow from warm dust, subtle asymmetries in the disk structure',
     scientificFacts: ['Вега та Фомальгаут мають вражаючі уламкові диски', 'Свідчать про наявність або формування планетної системи', 'Зображення диска Фомальгаута — одне з перших прямих зображень екзопланетного диска'],
+  },
+  {
+    // Live-event exclusive: granted only by completing the timed "Comet
+    // Herald" observatory tracking during its 24h fly-by window. Never rolled
+    // by regular observatory searches (see EVENT_ONLY_CATALOG_TYPES).
+    type: 'comet-herald', category: 'small-bodies', rarity: 'legendary', galleryCategory: 'cosmos', eventOnly: true,
+    nameUk: 'Комета-провісник', nameEn: 'Herald Comet',
+    descriptionUk: 'Легендарна довгоперіодична комета, що пролітає повз домашню систему раз на покоління. Стародавні цивілізації вважали її провісником великих змін. Спостереження можливе лише у вузькому 24-годинному вікні максимального зближення.',
+    descriptionEn: 'A legendary long-period comet that passes the home system once in a generation. Ancient civilizations considered it a herald of great change. Observation is only possible within a narrow 24-hour window of closest approach.',
+    promptTemplate: 'A breathtaking legendary comet at perihelion blazing past a planet, enormous twin tails of golden dust and electric-blue ions stretching across the entire sky, brilliant fragmenting nucleus with jets of sublimating ice, aurora-like glow where the coma interacts with the magnetosphere, cinematic composition',
+    scientificFacts: ['Довгоперіодичні комети прибувають з хмари Оорта і можуть мати періоди в тисячі років', 'Хвіст комети завжди спрямований від зорі — його "видуває" зоряний вітер', 'Комета Галлея повертається кожні 75-79 років і спостерігається людством понад 2000 років'],
+    scientificFactsEn: ['Long-period comets arrive from the Oort cloud and can have periods of thousands of years', 'A comet\'s tail always points away from the star — pushed by stellar wind and radiation pressure', 'Halley\'s Comet returns every 75-79 years and has been observed by humanity for over 2000 years'],
   },
   {
     type: 'interstellar-object', category: 'small-bodies', rarity: 'epic', galleryCategory: 'cosmos',

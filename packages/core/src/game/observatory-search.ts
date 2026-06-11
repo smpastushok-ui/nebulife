@@ -325,8 +325,9 @@ function selectDiscoveryFromCatalog(
   rarity: DiscoveryRarity,
   level: number,
 ): Discovery | null {
-  let pool = catalog.filter((entry) => entry.rarity === rarity);
-  if (pool.length === 0) pool = [...catalog];
+  const rollable = catalog.filter((entry) => !entry.eventOnly);
+  let pool = rollable.filter((entry) => entry.rarity === rarity);
+  if (pool.length === 0) pool = [...rollable];
   if (pool.length === 0) return null;
 
   const hasUnseenInPool = pool.some((entry) => !state.events[entry.type]);

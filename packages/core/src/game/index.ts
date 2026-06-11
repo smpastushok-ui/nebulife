@@ -111,6 +111,37 @@ export {
 } from './observatory-search.js';
 export type { ObservatorySearchResult } from './observatory-search.js';
 
+// Comet Herald live event
+export {
+  COMET_CYCLE_DAYS,
+  COMET_REWARD_QUARKS,
+  COMET_REWARD_XP,
+  COMET_REWARD_RESOURCES,
+  COMET_CATALOG_TYPE,
+  COMET_TRACKING_DURATION_MS,
+  cometHash,
+  getCometSchedule,
+  cometClaimKey,
+} from './comet-event.js';
+export type { CometSchedule } from './comet-event.js';
+
+// Daily directives
+export {
+  DIRECTIVE_POOL,
+  DAILY_DIRECTIVE_COUNT,
+  DIRECTIVE_REWARD_QUARKS,
+  DIRECTIVE_STREAK_REWARD_QUARKS,
+  DIRECTIVE_STREAK_LENGTH,
+  utcDayString,
+  pickDailyDirectives,
+  createDailyDirectiveState,
+  normalizeDailyDirectiveState,
+  bumpDirectiveMetric,
+  isDirectiveDone,
+  areAllDirectivesDone,
+} from './daily-directives.js';
+export type { DirectiveMetric, DirectiveDef, DailyDirectiveState } from './daily-directives.js';
+
 // Prompt builder
 export { buildPrompt, buildExpeditionPrompt } from './prompt-builder.js';
 

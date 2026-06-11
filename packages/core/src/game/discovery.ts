@@ -196,7 +196,7 @@ export function rollForDiscovery(
   systemSeed: number,
   progress: number,
   progressGained: number,
-  catalog: ReadonlyArray<{ type: string; category: CosmicObjectCategory; rarity: DiscoveryRarity; galleryCategory: GalleryCategory }>,
+  catalog: ReadonlyArray<{ type: string; category: CosmicObjectCategory; rarity: DiscoveryRarity; galleryCategory: GalleryCategory; eventOnly?: boolean }>,
   forceCommon: boolean = false,
   ringIndex: number = 1,
   totalCompletedSessions: number = 0,
@@ -230,8 +230,8 @@ export function rollForDiscovery(
     }
   }
 
-  // 2. Filter catalog to matching rarity
-  const pool = catalog.filter((c) => c.rarity === rarity);
+  // 2. Filter catalog to matching rarity (event-only entries never roll here)
+  const pool = catalog.filter((c) => c.rarity === rarity && !c.eventOnly);
   if (pool.length === 0) return null;
 
   // 3. Pick random object from pool

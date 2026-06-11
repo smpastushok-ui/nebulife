@@ -48,6 +48,19 @@ import type {
 } from '@nebulife/core';
 import { getCatalogEntry, getCatalogName, BUILDING_DEFS } from '@nebulife/core';
 import { rollLifeformFind, rollLifeformHarvestFind, isLifeformTriggerBuilding, rollIngredientDrop, buildLifeformPlanetContext, simpleLifeformPhoto, simpleLifeformVideo, simpleLifeformName, simpleKeyFromAssetUrl, pickUnseenSimpleLifeform, LIFEFORM_FIND_COOLDOWN_MS } from '@nebulife/core';
+import {
+  getCometSchedule,
+  COMET_CATALOG_TYPE,
+  COMET_REWARD_XP,
+  COMET_REWARD_RESOURCES,
+  COMET_TRACKING_DURATION_MS,
+  pickDailyDirectives,
+  normalizeDailyDirectiveState,
+  bumpDirectiveMetric,
+} from '@nebulife/core';
+import type { CometSchedule, DailyDirectiveState, DirectiveMetric } from '@nebulife/core';
+import { OperationsHub, EventCountdownChip, SIGNAL_REWARD_XP, SIGNAL_REWARD_RESEARCH, type OpsTab } from './ui/components/OperationsHub/index.js';
+import { claimDirectivesReward, getDirectiveStreakInfo, claimCometReward } from './api/retention-api.js';
 import type { LifeformPlanetContext } from '@nebulife/core';
 import type { DiscoveryRarity, LifeformIngredientId } from '@nebulife/core';
 import { checkPremiumStatus, initIAP, redeemPremiumCode } from './api/iap-service.js';
@@ -163,6 +176,10 @@ const SYNCED_UI_FLAG_KEYS = new Set<string>([
   'nebulife_last_lifeform_find_at',
   'nebulife_tutorial_main_done',
 ]);
+
+/** Bundled photo for the legendary "Comet Herald" live-event gallery entry.
+ *  Optimized WebP artwork at packages/client/public/events/comet-herald.webp. */
+const COMET_PHOTO_URL = '/events/comet-herald.webp';
 
 /** Real-time pacing for lifeform discovery — at most one find per cooldown
  *  window, persisted (and synced) so harvest-spamming or reinstalling cannot
@@ -530,6 +547,9 @@ interface SyncedGameState {
   custom_ship_glb_url?: string | null;
   observatory_state?: ObservatoryState;
   astra_quiz_answers?: Record<string, number>;
+  // Retention: daily directives progress + claimed comet occurrences
+  daily_directives?: DailyDirectiveState;
+  comet_claims?: string[];
   // Metadata
   synced_at: number;
   last_regen_time?: number;
@@ -638,7 +658,7 @@ function getDestroyedPlanetIdsForSystem(systemId: string): Set<string> | undefin
   return ids.size > 0 ? ids : undefined;
 }
 
-type CommandModeIconKind = 'surface' | 'terminal' | 'academy' | 'arena' | 'web';
+type CommandModeIconKind = 'surface' | 'terminal' | 'academy' | 'arena' | 'web' | 'ops';
 
 function CommandModeIcon({
   kind,
@@ -711,6 +731,17 @@ function CommandModeIcon({
           <path d="M14 4.5 C16.2 7.2 17.2 9.7 17.2 12 C17.2 14.3 16.2 16.8 14 19.5" opacity="0.65" />
           <path d="M8.8 7.2 C12.1 8.4 15.9 8.4 19.2 7.2" opacity="0.35" />
           <path d="M8.8 16.8 C12.1 15.6 15.9 15.6 19.2 16.8" opacity="0.35" />
+        </svg>
+      )}
+      {kind === 'ops' && (
+        // Mission-control radar: sweep dish + target blips (Operations Center)
+        <svg style={iconStyle} viewBox="0 0 28 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="14" cy="12" r="8" opacity="0.6" />
+          <circle cx="14" cy="12" r="4.6" opacity="0.4" />
+          <path d="M14 12 L19.6 6.8" />
+          <path d="M14 12 L19.6 6.8 A8 8 0 0 1 22 12 Z" fill="currentColor" fillOpacity="0.14" stroke="none" />
+          <circle cx="10.6" cy="14.6" r="1.1" fill="currentColor" stroke="none" opacity="0.85" />
+          <circle cx="16.8" cy="15.6" r="0.9" fill="currentColor" stroke="none" opacity="0.55" />
         </svg>
       )}
     </span>
@@ -1773,6 +1804,40 @@ function AppInner() {
     awardXPRef.current(amount, reason);
   }, []);
 
+  // ── Retention: daily directives + Comet Herald event ──────────────────────
+  const [dailyDirectives, setDailyDirectives] = useState<DailyDirectiveState>(() => {
+    try {
+      const raw = localStorage.getItem('nebulife_daily_directives');
+      if (raw) return normalizeDailyDirectiveState(JSON.parse(raw) as DailyDirectiveState, Date.now());
+    } catch { /* ignore */ }
+    return normalizeDailyDirectiveState(null, Date.now());
+  });
+  const dailyDirectivesRef = useRef(dailyDirectives);
+  dailyDirectivesRef.current = dailyDirectives;
+  const [directiveStreak, setDirectiveStreak] = useState(0);
+  const [directiveClaimedToday, setDirectiveClaimedToday] = useState(false);
+  const [directiveClaiming, setDirectiveClaiming] = useState(false);
+  const [showOpsHub, setShowOpsHub] = useState(false);
+  const [opsHubTab, setOpsHubTab] = useState<OpsTab>('directives');
+  /** Occurrence dates (YYYY-MM-DD) of already-claimed comet windows. */
+  const [cometClaims, setCometClaims] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem('nebulife_comet_claims');
+      if (raw) { const arr = JSON.parse(raw); if (Array.isArray(arr)) return arr as string[]; }
+    } catch { /* ignore */ }
+    return [];
+  });
+  const cometClaimsRef = useRef(cometClaims);
+  cometClaimsRef.current = cometClaims;
+  const [cometSchedule, setCometSchedule] = useState<CometSchedule>(() => getCometSchedule('local', Date.now()));
+  const [cometTrackingStartedAt, setCometTrackingStartedAt] = useState<number | null>(null);
+  const [cometClaiming, setCometClaiming] = useState(false);
+  const bumpDirectiveRef = useRef<(metric: DirectiveMetric, amount?: number) => void>(() => {});
+  /** Stable wrapper usable in callbacks defined before the implementation. */
+  const bumpDirective = useCallback((metric: DirectiveMetric, amount = 1) => {
+    bumpDirectiveRef.current(metric, amount);
+  }, []);
+
   /**
    * Backward-compat setter for colonyResources (Phase 7A bridge).
    * Routes to the per-planet store keyed by the currently active surface planet
@@ -1879,6 +1944,7 @@ function AppInner() {
           }
         }
       }
+      if (actualAmount > 0) bumpDirective('harvests');
       const ingredient = actualAmount > 0
         ? rollIngredientDrop(lfPlanet?.seed ?? 0, objectType, lifeIngredientHarvestCounter.current, playerLevel)
         : null;
@@ -1894,7 +1960,7 @@ function AppInner() {
       addResources(planetId, { [key]: actualAmount });
     }
     return { actualAmount, depleted };
-  }, [addResources, awardXP, getPlanetKeyForId, getResources, getStorageCapacityForPlanet, playerLevel, t]);
+  }, [addResources, awardXP, bumpDirective, getPlanetKeyForId, getResources, getStorageCapacityForPlanet, playerLevel, t]);
 
   /** Handle fly-to-HUD animation for harvested resource. */
   const handleHarvestFx = useCallback((type: SurfaceObjectType, sx: number, sy: number) => {
@@ -3513,6 +3579,7 @@ function AppInner() {
       ? { ...spedMission, carrierReturnAt: now + Math.round(MISSION_CARRIER_RETURN_MS * durationMultiplier) }
       : spedMission;
 
+    bumpDirectiveRef.current('planet_scans');
     const cost = mission.costPaid;
     if (cost.payload) {
       setExplorationPayloads((prev) => ({
@@ -5491,6 +5558,27 @@ function AppInner() {
       }));
     }
 
+    // Daily directives — server progress wins when it's for today and ahead of
+    // local (device switch mid-day); stale dates roll to a fresh day.
+    if (gs.daily_directives && typeof gs.daily_directives === 'object') {
+      const server = normalizeDailyDirectiveState(gs.daily_directives as DailyDirectiveState, Date.now());
+      setDailyDirectives((local) => {
+        const cur = normalizeDailyDirectiveState(local, Date.now());
+        if (server.date !== cur.date) return cur;
+        const merged: DailyDirectiveState = { ...cur, progress: { ...cur.progress } };
+        for (const [metric, value] of Object.entries(server.progress)) {
+          const key = metric as DirectiveMetric;
+          merged.progress[key] = Math.max(merged.progress[key] ?? 0, value ?? 0);
+        }
+        dailyDirectivesRef.current = merged;
+        return merged;
+      });
+    }
+    // Comet claims — union (a claimed window can never be un-claimed).
+    if (Array.isArray(gs.comet_claims)) {
+      setCometClaims((local) => Array.from(new Set([...local, ...(gs.comet_claims as string[])])));
+    }
+
     // Planet overrides — merge: server wins on a per-planet basis (promotedAt tie-break)
     if (gs.planet_overrides && typeof gs.planet_overrides === 'object') {
       const serverOverrides = gs.planet_overrides as Record<string, PlanetOverride>;
@@ -6029,6 +6117,7 @@ function AppInner() {
                   totalDiscoveries: ps.totalDiscoveries + (result.discovery ? 1 : 0),
                   lastDiscoverySession: result.discovery ? ps.totalCompletedSessions + 1 : ps.lastDiscoverySession,
                 }));
+                bumpDirectiveRef.current('research_sessions');
                 engine.updateSystemResearchVisual(slot.systemId, current);
                 setHoveredStarInfo((prev) => {
                   if (!prev || prev.systemId !== slot.systemId) return prev;
@@ -6089,6 +6178,7 @@ function AppInner() {
                   totalDiscoveries: ps.totalDiscoveries + (result.discovery ? 1 : 0),
                   lastDiscoverySession: result.discovery ? ps.totalCompletedSessions + 1 : ps.lastDiscoverySession,
                 }));
+                bumpDirectiveRef.current('research_sessions');
 
                 // Update galaxy visual
                 engine.updateSystemResearchVisual(slot.systemId, current);
@@ -8756,8 +8846,177 @@ function AppInner() {
       now,
       `${playerId.current || 'local'}:${homeInfo?.system.id ?? 'home'}`,
     ));
+    bumpDirectiveRef.current('observatory_search');
     scheduleSyncToServer();
   }, [homeInfo?.system.id, scheduleSyncToServer]);
+
+  // ── Retention systems: directives impl, comet event, ops hub ─────────────
+
+  /** Today's directive defs — deterministic from (playerId, UTC date, level). */
+  const todaysDirectives = pickDailyDirectives(
+    playerId.current || 'local',
+    dailyDirectives.date,
+    playerLevel,
+  );
+
+  // Implementation behind bumpDirective(): rolls the day, bumps the metric,
+  // awards XP exactly when a directive crosses its target.
+  bumpDirectiveRef.current = (metric: DirectiveMetric, amount = 1) => {
+    const cur = normalizeDailyDirectiveState(dailyDirectivesRef.current, Date.now());
+    const next = bumpDirectiveMetric(cur, metric, amount);
+    dailyDirectivesRef.current = next;
+    setDailyDirectives(next);
+
+    const defs = pickDailyDirectives(playerId.current || 'local', next.date, playerLevelRef.current);
+    const def = defs.find((d) => d.metric === metric);
+    if (def) {
+      const before = cur.progress[metric] ?? 0;
+      const after = next.progress[metric] ?? 0;
+      if (before < def.target && after >= def.target) {
+        awardXP(def.xp, 'daily_directive');
+        addLogEntry('system', i18n.t('ops.log_directive_done', { task: i18n.t(`ops.${def.labelKey}`, { target: def.target }) }));
+      }
+    }
+    scheduleSyncToServer();
+  };
+
+  // Persist directive progress + comet claims locally.
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_daily_directives', JSON.stringify(dailyDirectives)); } catch { /* ignore */ }
+  }, [dailyDirectives]);
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_comet_claims', JSON.stringify(cometClaims)); } catch { /* ignore */ }
+  }, [cometClaims]);
+
+  // Roll the directive day at UTC midnight + keep the comet schedule fresh.
+  useEffect(() => {
+    const tick = () => {
+      const now = Date.now();
+      const normalized = normalizeDailyDirectiveState(dailyDirectivesRef.current, now);
+      if (normalized.date !== dailyDirectivesRef.current.date) {
+        dailyDirectivesRef.current = normalized;
+        setDailyDirectives(normalized);
+        setDirectiveClaimedToday(false);
+      }
+      setCometSchedule((prev) => {
+        const next = getCometSchedule(playerId.current || 'local', now);
+        return prev.occurrenceDate === next.occurrenceDate
+          && prev.active === next.active
+          && Math.abs(prev.msUntilWindow - next.msUntilWindow) < 30_000
+          ? prev : next;
+      });
+    };
+    tick();
+    const id = setInterval(tick, 15_000);
+    return () => clearInterval(id);
+  }, [serverHydrated]);
+
+  // Streak info from the server when the hub opens.
+  useEffect(() => {
+    if (!showOpsHub || !playerId.current) return;
+    getDirectiveStreakInfo()
+      .then((info) => {
+        setDirectiveStreak(info.streak);
+        setDirectiveClaimedToday(info.claimedToday);
+      })
+      .catch(() => { /* offline-tolerant */ });
+  }, [showOpsHub]);
+
+  const handleClaimDirectives = useCallback(() => {
+    if (directiveClaiming) return;
+    setDirectiveClaiming(true);
+    claimDirectivesReward()
+      .then((result) => {
+        setDirectiveStreak(result.streak);
+        setDirectiveClaimedToday(true);
+        if (result.credited > 0) {
+          window.dispatchEvent(new CustomEvent('nebulife:quark-balance', { detail: result.newBalance }));
+          enqueueQuarkToast({ amount: result.credited, reason: 'gift' });
+          addLogEntry('system', i18n.t('ops.log_directives_claimed', { n: result.credited }));
+        }
+      })
+      .catch(() => { /* keep claimable; player can retry */ })
+      .finally(() => setDirectiveClaiming(false));
+  }, [directiveClaiming, addLogEntry]);
+
+  /** Signal decoder win: XP + research data + directive metric. */
+  const handleSignalDecodeWin = useCallback(() => {
+    awardXP(SIGNAL_REWARD_XP, 'signal_decode');
+    setResearchData((prev) => prev + SIGNAL_REWARD_RESEARCH);
+    bumpDirective('signal_decodes');
+  }, [awardXP, bumpDirective]);
+
+  const cometClaimedForCurrent = cometClaims.includes(cometSchedule.occurrenceDate);
+
+  /** Finish of the 30s tracking — server-validated claim, then local rewards. */
+  const finishCometTracking = useCallback(() => {
+    setCometClaiming(true);
+    claimCometReward()
+      .then((result) => {
+        setCometClaims((prev) => prev.includes(result.occurrenceDate) ? prev : [...prev, result.occurrenceDate]);
+        // Quarks (server-credited)
+        window.dispatchEvent(new CustomEvent('nebulife:quark-balance', { detail: result.newBalance }));
+        enqueueQuarkToast({ amount: result.quarksGranted, reason: 'gift' });
+        // XP + resources (client-side part of the reward)
+        awardXP(COMET_REWARD_XP, 'comet_event');
+        const planet = surfaceTargetRef.current?.planet ?? homeInfoRef.current?.planet;
+        if (planet) addResources(planet.id, { ...COMET_REWARD_RESOURCES });
+        // Legendary gallery entry (event-only catalog type)
+        const sysId = (surfaceTargetRef.current?.system ?? homeInfoRef.current?.system)?.id ?? 'home';
+        const entry: DiscoveryData = {
+          id: `comet-herald-${result.occurrenceDate}`,
+          player_id: playerId.current,
+          object_type: COMET_CATALOG_TYPE,
+          rarity: 'legendary',
+          gallery_category: 'cosmos',
+          system_id: sysId,
+          planet_id: null,
+          photo_url: COMET_PHOTO_URL,
+          prompt_used: null,
+          scientific_report: null,
+          discovered_at: new Date().toISOString(),
+        };
+        setGalleryMap((prev) => {
+          const next = new Map(prev);
+          if (!next.has(COMET_CATALOG_TYPE)) next.set(COMET_CATALOG_TYPE, entry);
+          return next;
+        });
+        saveDiscoveryToServer({
+          id: entry.id,
+          playerId: playerId.current,
+          objectType: COMET_CATALOG_TYPE,
+          rarity: 'legendary',
+          galleryCategory: 'cosmos',
+          systemId: sysId,
+          planetId: null,
+          photoUrl: COMET_PHOTO_URL,
+        }).catch((err) => console.warn('[comet] gallery save failed:', err));
+        addLogEntry('science', i18n.t('ops.log_comet_claimed'));
+        scheduleSyncToServer();
+      })
+      .catch((err) => {
+        console.warn('[comet] claim failed:', err);
+        setToastMessage(i18n.t('ops.comet_claim_failed'));
+        setTimeout(() => setToastMessage(null), 3500);
+      })
+      .finally(() => {
+        setCometClaiming(false);
+        setCometTrackingStartedAt(null);
+      });
+  }, [awardXP, addResources, addLogEntry, scheduleSyncToServer]);
+
+  const handleStartCometTracking = useCallback(() => {
+    if (cometTrackingStartedAt != null || cometClaiming) return;
+    setCometTrackingStartedAt(Date.now());
+    window.setTimeout(() => { finishCometTracking(); }, COMET_TRACKING_DURATION_MS);
+  }, [cometTrackingStartedAt, cometClaiming, finishCometTracking]);
+
+  // Academy completions bump the academy directive (event from academy-api).
+  useEffect(() => {
+    const handler = () => bumpDirectiveRef.current('academy_lessons');
+    window.addEventListener('nebulife:academy-completed', handler);
+    return () => window.removeEventListener('nebulife:academy-completed', handler);
+  }, []);
 
   useEffect(() => {
     if (!homeInfo) return;
@@ -9229,6 +9488,12 @@ function AppInner() {
         ...((gameStateRef.current?.astra_quiz_answers as Record<string, number> | undefined) ?? {}),
         ...astraQuizAnswers,
       },
+      daily_directives: dailyDirectivesRef.current,
+      // Union with server baseline — claimed comet windows must never un-claim.
+      comet_claims: Array.from(new Set([
+        ...(((gameStateRef.current?.comet_claims as string[] | undefined)) ?? []),
+        ...cometClaimsRef.current,
+      ])),
       // Planet overrides — type/habitability mutations from terraform completion (Phase 7C)
       planet_overrides: planetOverrides,
       // Planet resource stocks (v168 — finite extraction deposits; stored in JSONB)
@@ -9349,7 +9614,7 @@ function AppInner() {
     if (!pid) return;
     if (isFirebaseConfigured && !serverHydrated) return;
     scheduleSyncToServer();
-  }, [serverHydrated, playerXP, playerLevel, researchState, isExodusPhase, colonyResources, colonyResourcesByPlanet, playerStats, arenaStats, researchData, techTreeState, logEntries, favoritePlanets, pinnedSystems, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet, shipFleet, planetRevealLevels, planetMissions, planetReports, explorationPayloads, explorationProductionQueue, observatoryState, astraQuizAnswers, planetOverrides, planetResourceStocks]);
+  }, [serverHydrated, playerXP, playerLevel, researchState, isExodusPhase, colonyResources, colonyResourcesByPlanet, playerStats, arenaStats, researchData, techTreeState, logEntries, favoritePlanets, pinnedSystems, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet, shipFleet, planetRevealLevels, planetMissions, planetReports, explorationPayloads, explorationProductionQueue, observatoryState, astraQuizAnswers, planetOverrides, planetResourceStocks, dailyDirectives, cometClaims]);
 
   // Sync on page hide / beforeunload (best-effort) + re-sync from server on foreground
   useEffect(() => {
@@ -10090,6 +10355,32 @@ function AppInner() {
         icon: <CommandModeIcon kind="surface" />,
         tooltip: t('cmd.home_tooltip'),
         onClick: handleGoToHomeSurface,
+      }],
+    });
+  }
+
+  // Operations Center — daily directives, cluster rating, signal minigames and
+  // live events. Badge pulses when the directive reward is claimable or the
+  // comet window is open.
+  {
+    const allDirectivesDone = todaysDirectives.length > 0
+      && todaysDirectives.every((d) => (dailyDirectives.progress[d.metric] ?? 0) >= d.target);
+    const opsBadge = (allDirectivesDone && !directiveClaimedToday)
+      || (cometSchedule.active && !cometClaimedForCurrent);
+    toolGroups.push({
+      type: 'buttons',
+      items: [{
+        id: 'ops-center',
+        label: t('cmd.ops'),
+        variant: 'terminal' as const,
+        tooltip: t('cmd.ops_tooltip'),
+        badge: opsBadge ? '!' : undefined,
+        icon: <CommandModeIcon kind="ops" />,
+        onClick: () => {
+          playSfx('ui-click', 0.08);
+          setOpsHubTab(cometSchedule.active && !cometClaimedForCurrent ? 'event' : 'directives');
+          setShowOpsHub(true);
+        },
       }],
     });
   }
@@ -11678,6 +11969,35 @@ function AppInner() {
           />
         );
       })}
+      {/* Operations Center — daily directives, cluster rating, minigames, events */}
+      {showOpsHub && (
+        <OperationsHub
+          initialTab={opsHubTab}
+          onClose={() => setShowOpsHub(false)}
+          playerId={playerId.current}
+          playerLevel={playerLevel}
+          directiveState={dailyDirectives}
+          directives={todaysDirectives}
+          directiveStreak={directiveStreak}
+          claimedToday={directiveClaimedToday}
+          claiming={directiveClaiming}
+          onClaimDirectives={handleClaimDirectives}
+          onSignalDecodeWin={handleSignalDecodeWin}
+          cometSchedule={cometSchedule}
+          cometClaimed={cometClaimedForCurrent}
+          cometTrackingStartedAt={cometTrackingStartedAt}
+          cometClaiming={cometClaiming}
+          onStartCometTracking={handleStartCometTracking}
+        />
+      )}
+      {/* Comet Herald bottom countdown — calm sibling of the evacuation timer */}
+      {serverHydrated && !showOpsHub && state.scene !== 'home-intro' && (
+        <EventCountdownChip
+          schedule={cometSchedule}
+          claimed={cometClaimedForCurrent}
+          onClick={() => { setOpsHubTab('event'); setShowOpsHub(true); }}
+        />
+      )}
       {/* Player Page (profile, quarks, logout, reset) */}
       {showPlayerPage && (
         <PlayerPage

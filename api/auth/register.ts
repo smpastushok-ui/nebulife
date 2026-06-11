@@ -9,6 +9,7 @@ import {
   detachFirebaseUid,
   setPlayerDeviceId,
   isFreshPlayerRow,
+  recycleStaleClusterSeat,
 } from '../../packages/server/src/db.js';
 import { assignPlayerToCluster } from '@nebulife/server';
 import { sendWelcomeEmail } from '../../packages/server/src/email-client.js';
@@ -161,13 +162,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     console.log(`[register] Player created: id=${player?.id}, phase=${player?.game_phase}`);
 
-    // Assign the new player to their cluster
+    // Assign the new player to their cluster. Before that, try to recycle a
+    // stale seat (level ≤1 player absent 3+ days) so long-lived clusters stay
+    // populated and the weekly rating stays meaningful.
     if (player?.global_index != null) {
+      let effectiveIndex = player.global_index;
       try {
-        await assignPlayerToCluster(player.id, player.global_index);
-        console.log(`[register] Cluster assigned for new player: id=${player.id}, globalIndex=${player.global_index}`);
+        const recycled = await recycleStaleClusterSeat(player.id, player.global_index);
+        if (recycled) {
+          effectiveIndex = recycled.recycledIndex;
+          console.log(`[register] Recycled stale seat: globalIndex=${effectiveIndex} for ${player.id}`);
+        }
+      } catch (recycleErr) {
+        console.warn('[register] Seat recycle failed (continuing with fresh index):', recycleErr);
+      }
+      try {
+        await assignPlayerToCluster(player.id, effectiveIndex);
+        console.log(`[register] Cluster assigned for new player: id=${player.id}, globalIndex=${effectiveIndex}`);
       } catch (clusterErr) {
         console.warn('[register] Failed to assign cluster for new player:', clusterErr);
+      }
+      if (effectiveIndex !== player.global_index) {
+        player.global_index = effectiveIndex;
       }
     }
 
