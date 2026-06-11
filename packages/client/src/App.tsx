@@ -1097,9 +1097,17 @@ function AppInner() {
   const [cinematicVideoPlaying, setCinematicVideoPlaying] = useState(false);
   const [showGuestReminder, setShowGuestReminder] = useState(false);
   // Top HUD swap: 'stats' = GalaxyStatsBar (galaxy scale), 'resources' = ResourceDisplay.
-  // Galaxy scene always shows 'stats'; other scenes show 'stats' for 7s on entry
-  // then swap to 'resources'. Starts on 'stats' so the session opens with it.
-  const [topBarMode, setTopBarMode] = useState<'stats' | 'resources'>('stats');
+  // The galaxy stats bar is shown only ONCE per day on entry (~5s) then swaps to
+  // the resources panel for the rest of the day. If already seen today, the
+  // session opens directly on 'resources'.
+  const [topBarMode, setTopBarMode] = useState<'stats' | 'resources'>(() => {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      return localStorage.getItem('nebulife_galaxy_stats_date') === today ? 'resources' : 'stats';
+    } catch { return 'stats'; }
+  });
+  // One-shot guard so the daily galaxy stats flourish only triggers its 5s timer once per session.
+  const statsShownRef = useRef(false);
   const [galaxyStats, setGalaxyStats] = useState<GalaxyStats | null>(null);
   // Lifeform Genesis — discovered lifeforms (Map keyed by lifeform id) + the
   // currently-presented lifeform. The first greenhouse triggers the special
@@ -10205,33 +10213,15 @@ function AppInner() {
       ? 'surface'
       : state.scene;
 
-  // Top HUD swap driver: galaxy → always GalaxyStatsBar; any other scene →
-  // show the stats bar for 7s on entry, then swap to the resources panel.
-  // (Re-runs on every scene change, so each entry briefly previews galaxy scale.)
-  useEffect(() => {
-    if (effectiveScene === 'galaxy') {
-      setTopBarMode('stats');
-      return;
-    }
-    setTopBarMode('stats');
-    const swap = setTimeout(() => setTopBarMode('resources'), 7000);
-    return () => clearTimeout(swap);
-  }, [effectiveScene]);
-
-  // Fetch galaxy (cluster) stats whenever the stats bar is on screen. Polls
-  // while visible — matters most on the galaxy scene where it's persistent.
+  // Fetch galaxy (cluster) stats once while the stats bar is on screen.
   useEffect(() => {
     if (topBarMode !== 'stats') return;
     if (!firebaseUser) return;
     let cancelled = false;
-    const load = () => {
-      fetchGalaxyStats()
-        .then((s) => { if (!cancelled) setGalaxyStats(s); })
-        .catch(() => { /* keep last-known / placeholder */ });
-    };
-    load();
-    const iv = setInterval(load, 25_000);
-    return () => { cancelled = true; clearInterval(iv); };
+    fetchGalaxyStats()
+      .then((s) => { if (!cancelled) setGalaxyStats(s); })
+      .catch(() => { /* keep last-known / placeholder */ });
+    return () => { cancelled = true; };
   }, [topBarMode, firebaseUser]);
 
   // SVG navigation icons
@@ -10521,6 +10511,24 @@ function AppInner() {
     && !shouldShowWebAccessGate
     && !needsCallsign
     && !needsOnboarding;
+
+  // Top HUD swap driver: the galaxy stats bar is a once-per-day welcome flourish.
+  // When eligible (mode==='stats' and no blocking overlay) we reveal it for 5s,
+  // then swap to the resources panel and remember today's date so it won't
+  // reappear until tomorrow. Fires once per session via the ref guard.
+  useEffect(() => {
+    if (topBarMode !== 'stats' || statsShownRef.current) return;
+    const canShow =
+      !shouldShowWebAccessGate && !showArena && !showRaid &&
+      !showHangar && !cinematicActive && !needsOnboarding;
+    if (!canShow) return;
+    statsShownRef.current = true;
+    const swap = setTimeout(() => {
+      setTopBarMode('resources');
+      try { localStorage.setItem('nebulife_galaxy_stats_date', new Date().toISOString().slice(0, 10)); } catch { /* ignore */ }
+    }, 5000);
+    return () => clearTimeout(swap);
+  }, [topBarMode, shouldShowWebAccessGate, showArena, showRaid, showHangar, cinematicActive, needsOnboarding]);
 
   return (
     <>

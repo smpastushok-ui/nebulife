@@ -1441,6 +1441,7 @@
   "galaxy_stats": {
     "colonies": "Colonies in the galaxy",
     "players_online": "Players online now",
+    "players_total": "Total players in the galaxy",
     "star_systems": "Star systems",
     "planets": "Planets in the galaxy"
   },

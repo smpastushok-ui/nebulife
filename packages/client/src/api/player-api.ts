@@ -334,6 +334,7 @@ export async function fetchUniverseInfo(): Promise<UniverseInfo> {
 
 export interface GalaxyStats {
   playersOnline: number;
+  totalPlayers: number;
   colonies: number;
   starSystems: number;
   planets: number;

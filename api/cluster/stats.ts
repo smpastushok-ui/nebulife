@@ -28,7 +28,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const player = await getPlayer(auth.playerId);
   if (!player?.cluster_id) {
     // Not yet assigned to a cluster — return a sensible empty-galaxy shape.
-    return res.status(200).json({ playersOnline: 0, colonies: 0, starSystems: 500, planets: 3000 });
+    return res.status(200).json({ playersOnline: 0, totalPlayers: 0, colonies: 0, starSystems: 500, planets: 3000 });
   }
 
   try {

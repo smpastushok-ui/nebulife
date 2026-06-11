@@ -3854,6 +3854,8 @@ export async function getClusterOnlineMembers(
 export interface GalaxyStats {
   /** Players in this cluster online right now (heartbeat < 5 min). */
   playersOnline: number;
+  /** All players registered in this cluster (player_count). */
+  totalPlayers: number;
   /** Colonized planets in this cluster (planet_claims rows). */
   colonies: number;
   /** Star systems in this cluster: 19 per registered player + 500 core mesh. */
@@ -3886,6 +3888,7 @@ export async function getGalaxyStats(clusterId: string): Promise<GalaxyStats> {
   const starSystems = players * SYSTEMS_PER_PLAYER + CORE_SYSTEMS;
   return {
     playersOnline: r.online,
+    totalPlayers: r.players,
     colonies: r.colonies,
     starSystems,
     planets: starSystems * MEAN_PLANETS,
