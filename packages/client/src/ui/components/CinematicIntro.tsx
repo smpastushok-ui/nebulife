@@ -3,6 +3,17 @@ import { useTranslation } from 'react-i18next';
 import type { StarSystem, Planet } from '@nebulife/core';
 import type { GameEngine } from '../../game/GameEngine.js';
 import { playSfx, playLoop, stopLoop, setLoopVolume } from '../../audio/SfxPlayer.js';
+import { trackEvent } from '../../analytics/firebase-analytics.js';
+
+// ---------------------------------------------------------------------------
+// A/B experiment (2026-06): intro videos replaced with terminal-style text
+// slides. GA4 funnel showed heavy first-session drop-off; the two onboarding
+// mp4s (~21 MB total, downloaded as full blobs before playback) are the prime
+// suspect on slow mobile networks. Flip to `true` to restore the videos.
+// Evacuation cutscene videos elsewhere are NOT affected by this flag.
+// ---------------------------------------------------------------------------
+const INTRO_VIDEOS_ENABLED = false;
+const INTRO_VARIANT: 'video' | 'text' = INTRO_VIDEOS_ENABLED ? 'video' : 'text';
 // All tiers now share one onboarding path: subtitles + videos play with
 // the Star Group (galaxy) view behind them, slides end on the galaxy.
 // Previously only low/mid skipped the PlanetGlobeView exosphere; now it's
@@ -436,9 +447,11 @@ const TERMINAL_LOOP_VOLUME = 0.1;
 function TerminalTypewriter({
   lines,
   onDone,
+  color = '#44ff88',
 }: {
   lines: string[];
   onDone: () => void;
+  color?: string;
 }) {
   const { t } = useTranslation();
   const [lineIdx, setLineIdx] = useState(0);
@@ -487,10 +500,10 @@ function TerminalTypewriter({
         const text = skipRef.current || i < lineIdx ? line : line.slice(0, charIdx);
         const showCursor = !done && i === lineIdx;
         return (
-          <div key={i} style={{ color: '#44ff88', fontFamily: 'monospace', fontSize: 13, lineHeight: '1.8', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+          <div key={i} style={{ color, fontFamily: 'monospace', fontSize: 13, lineHeight: '1.8', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
             {text}
             {showCursor && (
-              <span style={{ display: 'inline-block', width: 7, height: 14, background: '#44ff88', marginLeft: 1, verticalAlign: 'text-bottom', animation: 'cin-blink 0.8s step-end infinite' }} />
+              <span style={{ display: 'inline-block', width: 7, height: 14, background: color, marginLeft: 1, verticalAlign: 'text-bottom', animation: 'cin-blink 0.8s step-end infinite' }} />
             )}
           </div>
         );
@@ -536,13 +549,14 @@ function OnboardingSlides({
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (slide === 0) {
+    if (INTRO_VIDEOS_ENABLED && slide === 0) {
       // App.tsx already plays 'before-trailers' as a loop during onboarding.
       // Do NOT call playSfx('before-trailers') here — it would create a duplicate.
       stopLoop('terminal-loop'); // ensure terminal-loop is silent on the video slide
       setLoopVolume('terminal-loop', 0); // mute during video
     } else {
-      setLoopVolume('terminal-loop', TERMINAL_LOOP_VOLUME); // quiet background on slides 1, 2, 3
+      // Text variant: every slide is a terminal — keep the quiet loop on all 4.
+      setLoopVolume('terminal-loop', TERMINAL_LOOP_VOLUME);
     }
   }, [slide]);
 
@@ -558,6 +572,22 @@ function OnboardingSlides({
     `> ${t('cinematic.status_evac')}`,
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [t, star.name, star.spectralClass, star.subType, star.temperatureK, planet.name]);
+
+  // Text variant of slide 0 (was: catastrophe.mp4) — emergency transmission.
+  const alertLines = useMemo(() => [
+    t('cinematic.alert_line1'),
+    t('cinematic.alert_line2'),
+    t('cinematic.alert_line3'),
+    t('cinematic.alert_line4'),
+  ], [t]);
+
+  // Text variant of slide 2 (was: briefing.mp4) — mission directive.
+  const briefingLines = useMemo(() => [
+    t('cinematic.briefing_commander'),
+    t('cinematic.goal_research'),
+    t('cinematic.goal_find'),
+    t('cinematic.goal_launch'),
+  ], [t]);
 
   const handleNext = () => {
     if (busy) return;
@@ -622,15 +652,35 @@ function OnboardingSlides({
         WebkitOverflowScrolling: 'touch',
         boxSizing: 'border-box',
       }}>
-        {/* Slide 0: Catastrophe video */}
-        {slide === 0 && (
+        {/* Slide 0: Catastrophe — video or emergency-transmission terminal */}
+        {slide === 0 && (INTRO_VIDEOS_ENABLED ? (
           <>
             <CinematicVideoSlide src="/videos/catastrophe.mp4" onPlayingChange={onVideoPlayingChange} onEnded={() => setVideoEnded(true)} />
             <p style={{ color: '#8899aa', fontSize: 13, textAlign: 'center', lineHeight: '1.6', maxWidth: 500, margin: 0 }}>
               {t('cinematic.civilization_intro')}
             </p>
           </>
-        )}
+        ) : (
+          <div style={{
+            width: '100%', maxWidth: 560, boxSizing: 'border-box',
+            background: 'rgba(20,10,12,0.96)', border: '1px solid #663333',
+            borderRadius: 6, padding: '24px 20px', overflow: 'hidden',
+            boxShadow: '0 0 32px rgba(204,68,68,0.12)',
+          }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              color: '#cc4444', fontSize: 10, letterSpacing: 1.5,
+              textTransform: 'uppercase', marginBottom: 16,
+            }}>
+              <span style={{
+                width: 7, height: 7, borderRadius: '50%', background: '#cc4444',
+                animation: 'cin-pulse 1.2s ease-in-out infinite', flexShrink: 0,
+              }} />
+              {t('cinematic.alert_header')}
+            </div>
+            <TerminalTypewriter lines={alertLines} color="#ff8844" onDone={() => setVideoEnded(true)} />
+          </div>
+        ))}
 
         {/* Slide 1: Terminal typewriter */}
         {slide === 1 && (
@@ -646,8 +696,8 @@ function OnboardingSlides({
           </div>
         )}
 
-        {/* Slide 2: Mission briefing + video */}
-        {slide === 2 && (
+        {/* Slide 2: Mission briefing — video or directive terminal */}
+        {slide === 2 && (INTRO_VIDEOS_ENABLED ? (
           <>
             <CinematicVideoSlide src="/videos/briefing.mp4" onPlayingChange={onVideoPlayingChange} onEnded={() => setVideoEnded(true)} />
             <div style={{ color: '#aabbcc', fontSize: 13, lineHeight: '1.8', maxWidth: 500, textAlign: 'left' }}>
@@ -662,7 +712,21 @@ function OnboardingSlides({
               </div>
             </div>
           </>
-        )}
+        ) : (
+          <div style={{
+            width: '100%', maxWidth: 560, boxSizing: 'border-box',
+            background: 'rgba(10,15,25,0.96)', border: '1px solid #334455',
+            borderRadius: 6, padding: '24px 20px', overflow: 'hidden',
+          }}>
+            <div style={{ color: '#556677', fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 6 }}>
+              {t('cinematic.evacuation_directive')}
+            </div>
+            <div style={{ color: '#aabbcc', fontSize: 13, marginBottom: 14 }}>
+              {t('cinematic.your_mission')}
+            </div>
+            <TerminalTypewriter lines={briefingLines} onDone={() => setVideoEnded(true)} />
+          </div>
+        ))}
 
         {/* Slide 3: Final */}
         {slide === 3 && (
@@ -774,6 +838,7 @@ export function CinematicIntro({
   // No AbortController needed — the fetch is fire-and-forget and the
   // module-level cache survives CinematicIntro unmount anyway.
   useEffect(() => {
+    if (!INTRO_VIDEOS_ENABLED) return; // text variant — don't burn ~21 MB of traffic
     if (typeof window === 'undefined' || typeof fetch !== 'function') return;
     preloadVideoBlob('/videos/catastrophe.mp4').catch(() => { /* retry on demand */ });
     preloadVideoBlob('/videos/briefing.mp4').catch(() => { /* retry on demand */ });
@@ -830,6 +895,8 @@ export function CinematicIntro({
 
   // ── Stage 3 → 4: Slides completed ──
   const handleSlidesComplete = useCallback(() => {
+    // intro_variant lets us compare text vs video onboarding cohorts in GA4.
+    void trackEvent('onboarding_slides_done', { intro_variant: INTRO_VARIANT });
     setSlidesVisible(false);
     setStage(4);
     // Land ALL tiers on the Star Group (galaxy) view — exosphere home
