@@ -311,6 +311,32 @@ function fixDiamondSlots(slots: HexSlotData[], size: HexPlanetSize = 'medium'): 
   return recalculateLockedCosts(result);
 }
 
+/**
+ * Overlay the freshest resource-harvest timestamps onto `base` slots.
+ *
+ * Reconciliation by unlock-count alone ignores `lastHarvestedAt`, so a stale
+ * server snapshot (same unlock count) could clobber a just-harvested local
+ * slot and make the deposit look ready again. We take the MAX lastHarvestedAt
+ * per slot id from both sides so a respawn timer can never run backwards,
+ * regardless of which store is staler.
+ */
+function mergeHarvestTimers(base: HexSlotData[], other: HexSlotData[]): HexSlotData[] {
+  const otherById = new Map(other.map((s) => [s.id, s]));
+  let changed = false;
+  const merged = base.map((s) => {
+    const o = otherById.get(s.id);
+    const a = s.lastHarvestedAt ?? 0;
+    const b = o?.lastHarvestedAt ?? 0;
+    const newest = Math.max(a, b);
+    if (newest > 0 && newest !== a) {
+      changed = true;
+      return { ...s, lastHarvestedAt: newest };
+    }
+    return s;
+  });
+  return changed ? merged : base;
+}
+
 function idsWithinRadius(originId: string, radius: number, size: HexPlanetSize): Set<string> {
   const visited = new Set<string>([originId]);
   let frontier = new Set<string>([originId]);
@@ -599,10 +625,13 @@ export function useHexState(
           const localProgress = countUnlocked(slotsRef.current);
           if (JSON.stringify(serverSlots) !== JSON.stringify(slotsRef.current)) {
             if (serverProgress >= localProgress) {
-              // Server is at least as advanced — use server as truth
-              setSlots(serverSlots);
+              // Server is at least as advanced — use server as truth, but never
+              // let a stale server snapshot reset a freshly-harvested respawn
+              // timer (otherwise a deposit looks ready again on re-entry).
+              const reconciled = mergeHarvestTimers(serverSlots, slotsRef.current);
+              setSlots(reconciled);
               // Sync localStorage with server truth
-              try { localStorage.setItem(hexSlotsKey, JSON.stringify(serverSlots)); } catch { /* ignore */ }
+              try { localStorage.setItem(hexSlotsKey, JSON.stringify(reconciled)); } catch { /* ignore */ }
             }
             // else: local has more progress (e.g., just unlocked, server not saved yet) — keep local
           }
