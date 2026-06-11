@@ -1497,7 +1497,7 @@
     "game_soon": "NEW TERMINAL — COMING SOON",
     "decoder_header": "CHANNEL 7G · UNKNOWN SOURCE",
     "decoder_back": "BACK",
-    "decoder_hint": "The code is {{length}} symbols out of 6 frequencies. █ — exact hit, ~N — right frequencies in wrong slots.",
+    "decoder_hint": "The code is {{length}} symbols out of 6 frequencies. Frames on the right mirror the slots: green — right symbol in the right slot, orange — symbol is in the code but in another slot.",
     "decoder_awaiting": "> awaiting first transmission…",
     "decoder_erase": "ERASE",
     "decoder_transmit": "TRANSMIT",

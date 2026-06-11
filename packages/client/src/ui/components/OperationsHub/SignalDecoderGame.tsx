@@ -30,10 +30,13 @@ interface SignalDecoderGameProps {
   onExit: () => void;
 }
 
+type SlotMark = 'exact' | 'partial' | 'miss';
+
 interface Attempt {
   guess: number[];
   exact: number;
   partial: number;
+  slots: SlotMark[];
 }
 
 function makeCode(seed: string): number[] {
@@ -59,6 +62,31 @@ function scoreGuess(code: number[], guess: number[]): { exact: number; partial: 
   }
   return { exact, partial };
 }
+
+/** Wordle-style per-slot marks: exact (right symbol, right slot), partial
+ *  (symbol exists elsewhere in the code), miss. Duplicates handled the
+ *  standard way — exacts consume code symbols first, then partials
+ *  left-to-right. */
+function scoreSlots(code: number[], guess: number[]): SlotMark[] {
+  const marks: SlotMark[] = new Array(code.length).fill('miss');
+  const remaining: number[] = [];
+  for (let i = 0; i < code.length; i++) {
+    if (guess[i] === code[i]) marks[i] = 'exact';
+    else remaining.push(code[i]);
+  }
+  for (let i = 0; i < code.length; i++) {
+    if (marks[i] === 'exact') continue;
+    const idx = remaining.indexOf(guess[i]);
+    if (idx >= 0) { marks[i] = 'partial'; remaining.splice(idx, 1); }
+  }
+  return marks;
+}
+
+const SLOT_MARK_STYLE: Record<SlotMark, { border: string; background: string }> = {
+  exact: { border: '#44ff88', background: 'rgba(68,255,136,0.35)' },
+  partial: { border: '#ff8844', background: 'rgba(255,136,68,0.22)' },
+  miss: { border: '#33454f', background: 'transparent' },
+};
 
 /** Oscilloscope: target waveform + noise scaled by how far the player is. */
 function Waveform({ code, bestExact, won }: { code: number[]; bestExact: number; won: boolean }) {
@@ -146,7 +174,7 @@ export function SignalDecoderGame({ seed, onFinish, onExit }: SignalDecoderGameP
   const submit = () => {
     if (current.length !== SIGNAL_CODE_LENGTH || result) return;
     const { exact, partial } = scoreGuess(code, current);
-    const attempt: Attempt = { guess: current, exact, partial };
+    const attempt: Attempt = { guess: current, exact, partial, slots: scoreSlots(code, current) };
     const next = [...attempts, attempt];
     setAttempts(next);
     setCurrent([]);
@@ -197,9 +225,18 @@ export function SignalDecoderGame({ seed, onFinish, onExit }: SignalDecoderGameP
                 <span key={j} style={{ color: SYMBOL_COLORS[g] }}>{SYMBOLS[g]}</span>
               ))}
             </span>
-            <span style={{ marginLeft: 'auto', fontSize: 10, display: 'flex', gap: 8 }}>
-              <span style={{ color: '#44ff88' }}>{'\u2588'.repeat(a.exact)}<span style={{ color: '#33454f' }}>{'\u2588'.repeat(SIGNAL_CODE_LENGTH - a.exact)}</span></span>
-              <span style={{ color: '#ff8844' }}>{a.partial > 0 ? `~${a.partial}` : '  '}</span>
+            {/* Per-slot frames: position j mirrors guess symbol j. Green =
+                right symbol in the right slot, orange = symbol exists in
+                another slot, dim = not in code. */}
+            <span style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+              {a.slots.map((mark, j) => (
+                <span key={j} style={{
+                  width: 13, height: 13, borderRadius: 3, boxSizing: 'border-box',
+                  border: `1px solid ${SLOT_MARK_STYLE[mark].border}`,
+                  background: SLOT_MARK_STYLE[mark].background,
+                  display: 'inline-block',
+                }} />
+              ))}
             </span>
           </div>
         ))}
