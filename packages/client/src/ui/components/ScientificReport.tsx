@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DiscoveryRarity } from '@nebulife/core';
 import { RARITY_COLORS } from '@nebulife/core';
-import { playSfx } from '../../audio/SfxPlayer.js';
+import { playLoop, stopLoop } from '../../audio/SfxPlayer.js';
 
 // ---------------------------------------------------------------------------
 // ScientificReport — typewriter-styled scientific report for the president
@@ -11,7 +11,8 @@ import { playSfx } from '../../audio/SfxPlayer.js';
 
 const CHARS_PER_TICK = 2;
 const TICK_INTERVAL = 30;
-const TYPEWRITER_SFX_VOLUME = 0.01;
+const TERMINAL_TYPE_LOOP = 'terminal-type';
+const TERMINAL_TYPE_LOOP_VOLUME = 0.2;
 
 export function ScientificReport({
   reportText,
@@ -45,11 +46,17 @@ export function ScientificReport({
         }
         return next;
       });
-      playSfx('text-massage', TYPEWRITER_SFX_VOLUME);
     }, TICK_INTERVAL);
 
     return () => clearInterval(timer);
   }, [reportText, displayedChars]);
+
+  // Looping terminal typing hum while the report streams in.
+  useEffect(() => {
+    if (isComplete) { stopLoop(TERMINAL_TYPE_LOOP); return; }
+    playLoop(TERMINAL_TYPE_LOOP, TERMINAL_TYPE_LOOP_VOLUME);
+    return () => stopLoop(TERMINAL_TYPE_LOOP);
+  }, [isComplete]);
 
   // Auto-scroll as text appears
   useEffect(() => {

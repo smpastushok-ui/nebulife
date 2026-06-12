@@ -1,0 +1,50 @@
+{
+  "_comment": "Prompt manifest for ElevenLabs Sound Effects generation. Run scripts/sfx/generate.mjs. Files land in packages/client/public/sfx as .mp3 + .webm, loudness-normalized to ~-16 LUFS. Prompts are in English (the SFX model works best in English).",
+  "outDir": "packages/client/public/sfx",
+  "defaults": {
+    "promptInfluence": 0.35,
+    "outputFormat": "mp3_44100_128",
+    "loudnessLUFS": -16
+  },
+
+  "signals": {
+    "_comment": "Decoder base signals: the 'true' transmission heard as the player decodes. 10 variants per rarity, 15s seamless loops. Files: signal-<rarity>-<1..10>.",
+    "variants": 10,
+    "duration": 15,
+    "loop": true,
+    "rarities": {
+      "common": "Deep space cosmic background radiation, faint microwave hiss, a calm distant low rumble of the void, steady and featureless, no melody, no rhythm, gentle radio-telescope ambience, seamless loop",
+      "uncommon": "A radio pulsar: steady rhythmic radio pulses like a cosmic lighthouse beacon, regular metronome-like blips with a short reverb tail, clean sci-fi radio-telescope signal over faint static, seamless loop",
+      "rare": "Magnetospheric chorus 'dawn chorus': eerie whistling tones gliding upward in pitch, ghostly electromagnetic whistlers and chirps sweeping over each other, ethereal and otherworldly, seamless loop",
+      "epic": "A supernova signal: vast roaring cosmic energy, a deep resonant boom evolving into shimmering bright overtones, a powerful sustained tense drone full of awe and danger, seamless loop",
+      "legendary": "Mysterious alien voices: an indistinct whispering choir processed through radio static, otherworldly layered vocal pads and murmurs, haunting sense of first contact, seamless loop"
+    }
+  },
+
+  "noises": {
+    "_comment": "Per-symbol interference that garbles the signal until the slot is decoded. 6 symbols -> signal-noise-1..6, ~10s seamless loops.",
+    "duration": 10,
+    "loop": true,
+    "list": [
+      { "name": "signal-noise-1", "label": "hiss", "prompt": "Harsh white-noise radio hiss, detuned shortwave radio static, constant airy interference, seamless loop" },
+      { "name": "signal-noise-2", "label": "crackle", "prompt": "Irregular electrical crackle and pops, sparks and vinyl-like snaps, intermittent stuttering interference, seamless loop" },
+      { "name": "signal-noise-3", "label": "rumble", "prompt": "Low-frequency subwoofer rumble drone, deep ominous interference hum, heavy and dark, seamless loop" },
+      { "name": "signal-noise-4", "label": "beeps", "prompt": "Repeating mechanical interference beeps, glitchy digital error tones and data-burst chirps, seamless loop" },
+      { "name": "signal-noise-5", "label": "warble", "prompt": "Wobbling warbling modulation, wow-and-flutter detuned tape interference, swirling pitch-bending whine, seamless loop" },
+      { "name": "signal-noise-6", "label": "buzz", "prompt": "Harsh electrical buzz, distorted mains hum, angry insect-like buzzing interference, seamless loop" }
+    ]
+  },
+
+  "intro": {
+    "_comment": "Intro / onboarding SFX from SOUND_PLAN_INTRO.md.",
+    "list": [
+      { "name": "intro-genesis-loop", "duration": 20, "loop": true, "prompt": "Deep low cosmic drone slowly breathing, vast empty space about to give birth to a star, sub-bass swell with no melody and no rhythm, meditative and immense, seamless loop" },
+      { "name": "intro-bigbang", "duration": 3, "loop": false, "prompt": "A sub-bass impact then a wide whoosh blossoming into a bright ringing tail, an elegant cosmic big bang, powerful but not scary, one-shot" },
+      { "name": "intro-star-chime", "duration": 2, "loop": false, "prompt": "A soft crystalline chime, a two or three note magical arpeggio, a single point of light being born, gentle and bright, one-shot" },
+      { "name": "intro-theme", "duration": 20, "loop": true, "prompt": "Atmospheric minimalist ambient pad, calm and hopeful space-journey mood, slow evolving synth texture, no drums and no strong melody, soothing background, seamless loop" },
+      { "name": "alert-transmission", "duration": 2, "loop": false, "prompt": "A short incoming-transmission alert, two or three muffled radio beeps with static crackle, urgent but controlled, not a siren, one-shot" },
+      { "name": "directive-stamp", "duration": 1, "loop": false, "prompt": "A short low official stamp thud with a brief metallic resonance, the sense of an order being issued and approved, one-shot" },
+      { "name": "mission-start", "duration": 3, "loop": false, "prompt": "A heroic short riser building into a bright uplifting chord, engines igniting, an emotional lift and reward, one-shot" }
+    ]
+  }
+}

@@ -31,6 +31,10 @@ import { canShowAd } from '../../services/ads-service.js';
 import { AdProgressButton } from './AdProgressButton.js';
 import { trackEvent } from '../../analytics/firebase-analytics.js';
 import { useVideoAudioFocus } from '../../audio/useVideoAudioFocus.js';
+import { playLoop, stopLoop } from '../../audio/SfxPlayer.js';
+
+const TERMINAL_TYPE_LOOP = 'terminal-type';
+const TERMINAL_TYPE_LOOP_VOLUME = 0.2;
 
 const PANEL_BG = 'rgba(10,15,25,0.96)';
 const BORDER = '#334455';
@@ -132,6 +136,7 @@ export function LifeformRevealModal({
     let cancelled = false;
     const out: string[] = [''];
     setTypedLines(['']);
+    playLoop(TERMINAL_TYPE_LOOP, TERMINAL_TYPE_LOOP_VOLUME);
 
     const tick = () => {
       if (cancelled) return;
@@ -148,6 +153,7 @@ export function LifeformRevealModal({
         setTypedLines([...out]);
         window.setTimeout(tick, 360);
       } else {
+        stopLoop(TERMINAL_TYPE_LOOP);
         window.setTimeout(() => {
           // Common: scan-reveal a bundled organism. Paid (uncommon+): go straight
           // to capture (photo → video); naming happens last, after the media.
@@ -156,7 +162,7 @@ export function LifeformRevealModal({
       }
     };
     const startId = window.setTimeout(tick, 450);
-    return () => { cancelled = true; window.clearTimeout(startId); };
+    return () => { cancelled = true; window.clearTimeout(startId); stopLoop(TERMINAL_TYPE_LOOP); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [beat]);
 

@@ -18,6 +18,10 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { playLoop, stopLoop } from '../../audio/SfxPlayer.js';
+
+const TERMINAL_TYPE_LOOP = 'terminal-type';
+const TERMINAL_TYPE_LOOP_VOLUME = 0.2;
 
 const ACCENT = '#44ff88';
 const PANEL_BG = 'rgba(10,15,25,0.96)';
@@ -79,6 +83,7 @@ export function LifeformDiscoveryModal({
     let cancelled = false;
     const out: string[] = [''];
     setTypedLines(['']);
+    playLoop(TERMINAL_TYPE_LOOP, TERMINAL_TYPE_LOOP_VOLUME);
 
     const tick = () => {
       if (cancelled) return;
@@ -95,11 +100,12 @@ export function LifeformDiscoveryModal({
         setTypedLines([...out]);
         window.setTimeout(tick, 360);
       } else {
+        stopLoop(TERMINAL_TYPE_LOOP);
         window.setTimeout(() => { if (!cancelled) setBeat('scan'); }, 1100);
       }
     };
     const startId = window.setTimeout(tick, 500);
-    return () => { cancelled = true; window.clearTimeout(startId); };
+    return () => { cancelled = true; window.clearTimeout(startId); stopLoop(TERMINAL_TYPE_LOOP); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [beat]);
 

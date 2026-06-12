@@ -4,6 +4,7 @@ import { Capacitor } from '@capacitor/core';
 import * as THREE from 'three';
 import { getDeviceTier, setBenchmarkTier, type DeviceTier } from '../../utils/device-tier.js';
 import { OrbitLoader } from './OrbitLoader.js';
+import { playSfx } from '../../audio/SfxPlayer.js';
 
 // ---------------------------------------------------------------------------
 // StarBirthIntro — real-time 3D "system genesis" boot cinematic.
@@ -427,7 +428,7 @@ export function StarBirthIntro({ onComplete, minDurationMs = 9500 }: Props) {
 
       const labelIdx = g < 0.18 ? 0 : g < REVEAL_AT ? 1 : 2;
       if (labelIdx !== currentPhase) { currentPhase = labelIdx; setPhaseLabel(labelIdx); }
-      if (g >= REVEAL_AT && !revealed) { revealed = true; setReveal(true); }
+      if (g >= REVEAL_AT && !revealed) { revealed = true; setReveal(true); playSfx('intro-star-chime', 0.3); }
 
       // Home star ignition + slow spin (corona is parented → scales with it).
       const ignite = smooth(0.0, 0.16, g);

@@ -2876,14 +2876,6 @@ function AppInner() {
     return () => stopLoop('terminal-loop.mp3');
   }, [showCosmicArchive]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Intro melody DISABLED per owner request — the boot/onboarding sequence is
-  // silent now, only the cosmos backdrop + each cinematic video's own audio
-  // play. We still defensively stop the loop in case an older session/build
-  // left it running.
-  useEffect(() => {
-    stopLoop('before-trailers.mp3');
-  }, [needsOnboarding, cinematicVideoPlaying]);
-
   // Initialise colony tick state when entering surface for the first time
   useEffect(() => {
     if (!surfaceTarget) return;
@@ -4361,7 +4353,7 @@ function AppInner() {
     // intro and the auth screen, only easing in once the player is actually in
     // the game (logged in, guest, or legacy no-Firebase mode). The space ambient
     // SHOULD play from the cinematic intro onward — only the old intro melody
-    // (before-trailers) was removed, not this cosmos bed.
+    // was removed, not this cosmos bed.
     const preGame = !bootLoaderDone || (isFirebaseConfigured && !firebaseUser && !isGuest);
     const shouldPause = preGame || !ambientEnabled || !!surfaceTarget || showCosmicArchive || cinematicVideoPlaying || showHangar || showRaid || isTutorialInteractiveActive;
     const wasPaused = prevAmbientPausedRef.current;

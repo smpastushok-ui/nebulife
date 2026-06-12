@@ -443,8 +443,11 @@ const dotStyle: React.CSSProperties = {
 // ---------------------------------------------------------------------------
 const TERMINAL_TYPE_CHARS_PER_TICK = 4;
 const TERMINAL_TYPE_TICK_MS = 18;
-const TERMINAL_TYPE_SFX_VOLUME = 0.1;
 const TERMINAL_LOOP_VOLUME = 0.1;
+// Looping keyboard/terminal typing hum played while text streams in. Shared
+// name across every terminal-text surface (reports, lifeform alerts).
+const TERMINAL_TYPE_LOOP = 'terminal-type';
+const TERMINAL_TYPE_LOOP_VOLUME = 0.2;
 
 function TerminalTypewriter({
   lines,
@@ -485,7 +488,6 @@ function TerminalTypewriter({
     const currentLine = lines[lineIdx];
     if (charIdx < currentLine.length) {
       const t = setTimeout(() => {
-        playSfx('text-massage', TERMINAL_TYPE_SFX_VOLUME);
         setCharIdx((c) => Math.min(c + TERMINAL_TYPE_CHARS_PER_TICK, currentLine.length));
       }, TERMINAL_TYPE_TICK_MS);
       return () => clearTimeout(t);
@@ -494,6 +496,13 @@ function TerminalTypewriter({
       return () => clearTimeout(t);
     }
   }, [lineIdx, charIdx, lines]);
+
+  // Looping typing hum while text streams; stops when the block finishes.
+  useEffect(() => {
+    if (done) { stopLoop(TERMINAL_TYPE_LOOP); return; }
+    playLoop(TERMINAL_TYPE_LOOP, TERMINAL_TYPE_LOOP_VOLUME);
+    return () => stopLoop(TERMINAL_TYPE_LOOP);
+  }, [done]);
 
   return (
     <div onClick={handleSkip} style={{ cursor: done ? 'default' : 'pointer', userSelect: 'none' }}>
@@ -552,14 +561,20 @@ function OnboardingSlides({
 
   useEffect(() => {
     if (INTRO_VIDEOS_ENABLED && slide === 0) {
-      // App.tsx already plays 'before-trailers' as a loop during onboarding.
-      // Do NOT call playSfx('before-trailers') here — it would create a duplicate.
       stopLoop('terminal-loop'); // ensure terminal-loop is silent on the video slide
       setLoopVolume('terminal-loop', 0); // mute during video
     } else {
       // Text variant: every slide is a terminal — keep the quiet loop on all 4.
       setLoopVolume('terminal-loop', TERMINAL_LOOP_VOLUME);
     }
+  }, [slide]);
+
+  // Per-slide one-shot cues for the text variant (these slides replaced the old
+  // catastrophe/briefing videos): incoming transmission alert + directive stamp.
+  useEffect(() => {
+    if (INTRO_VIDEOS_ENABLED) return;
+    if (slide === 0) playSfx('alert-transmission', 0.8);
+    else if (slide === 2) playSfx('directive-stamp', 0.5);
   }, [slide]);
 
   const { star } = system;
@@ -607,6 +622,7 @@ function OnboardingSlides({
   const handleFinish = () => {
     if (busy) return;
     setBusy(true);
+    playSfx('mission-start', 0.4);
     setFadeOut(true);
     setTimeout(onComplete, 600);
   };

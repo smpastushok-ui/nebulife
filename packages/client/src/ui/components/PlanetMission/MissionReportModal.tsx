@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Planet, PlanetReportSummary } from '@nebulife/core';
-import { playSfx } from '../../../audio/SfxPlayer.js';
+import { playLoop, stopLoop } from '../../../audio/SfxPlayer.js';
 import { PremiumHelpButton } from '../PremiumHelp.js';
 
 const CHARS_PER_TICK = 3;
 const TICK_INTERVAL = 22;
-const TYPEWRITER_SFX_VOLUME = 0.01;
+const TERMINAL_TYPE_LOOP = 'terminal-type';
+const TERMINAL_TYPE_LOOP_VOLUME = 0.2;
 
 function getReportTitleKey(report: PlanetReportSummary): string {
   if (report.missionType === 'surface_landing' || report.missionType === 'drone_recon') return 'mission_report.surface_title';
@@ -70,10 +71,16 @@ export function MissionReportModal({
         }
         return next;
       });
-      playSfx('text-massage', TYPEWRITER_SFX_VOLUME);
     }, TICK_INTERVAL);
     return () => window.clearInterval(timer);
   }, [displayedChars, reportText]);
+
+  // Looping terminal typing hum while the mission report streams in.
+  useEffect(() => {
+    if (isComplete) { stopLoop(TERMINAL_TYPE_LOOP); return; }
+    playLoop(TERMINAL_TYPE_LOOP, TERMINAL_TYPE_LOOP_VOLUME);
+    return () => stopLoop(TERMINAL_TYPE_LOOP);
+  }, [isComplete]);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;

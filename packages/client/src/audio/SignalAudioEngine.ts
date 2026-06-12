@@ -35,11 +35,21 @@ const NOISE_LOOP_SEC = 4;
 //   0 solved -> 0   (silent base, only interference is audible)
 //   each solved symbol -> +0.10 and that symbol's interference is removed
 //   3 solved -> 0.30
-//   4 solved (win) -> 1.0 + reveal animation
+//   4 solved (win) -> the rarity's peak gain + reveal animation
 const BASE_START_GAIN = 0;
 const BASE_GAIN_PER_SOLVE = 0.1;
-const BASE_WIN_GAIN = 1.0;
-const NOISE_LAYER_GAIN = 0.55;
+// Peak (win) volume of the clean base signal, per rarity. Supernovas stay loud
+// and dramatic (80%); every other signal is capped at 40% because they read as
+// harsh at full volume.
+const BASE_PEAK_GAIN: Record<SignalRarity, number> = {
+  common: 0.4,
+  uncommon: 0.4,
+  rare: 0.4,
+  epic: 0.8,
+  legendary: 0.4,
+};
+// Overlay interference effects volume.
+const NOISE_LAYER_GAIN = 0.5;
 const MASTER_GAIN = 0.55;
 
 function lcg(seed: number): () => number {
@@ -218,10 +228,20 @@ function genNoise(symbol: number, sr: number, rng: () => number): Float32Array {
 
 // ── Optional real recordings ────────────────────────────────────────────────
 
-async function tryLoadRealBase(ctx: AudioContext, rarity: SignalRarity): Promise<AudioBuffer | null> {
+/** How many recorded variants exist per rarity (signal-<rarity>-1..N). */
+export const SIGNAL_BASE_VARIANTS = 10;
+/** Symbol interference filenames: signal-noise-1..6 map to symbols 0..5. */
+export const SIGNAL_NOISE_COUNT = 6;
+
+/** Deterministic 1..SIGNAL_BASE_VARIANTS pick from the round seed. */
+function pickBaseVariant(seedNum: number): number {
+  return (Math.abs(seedNum | 0) % SIGNAL_BASE_VARIANTS) + 1;
+}
+
+async function fetchAudioBuffer(ctx: AudioContext, path: string): Promise<AudioBuffer | null> {
   for (const ext of ['webm', 'mp3']) {
     try {
-      const res = await fetch(`/sfx/signal-${rarity}-1.${ext}`);
+      const res = await fetch(`${path}.${ext}`);
       const type = (res.headers.get('content-type') || '').toLowerCase();
       // dev server returns the SPA index.html (200) for missing files
       if (!res.ok || type.includes('text/html')) continue;
@@ -230,6 +250,25 @@ async function tryLoadRealBase(ctx: AudioContext, rarity: SignalRarity): Promise
     } catch { /* try next ext / fall back to procedural */ }
   }
   return null;
+}
+
+/** Recorded base signal — seeded variant first, then variant 1, else null. */
+async function tryLoadRealBase(
+  ctx: AudioContext,
+  rarity: SignalRarity,
+  seedNum: number,
+): Promise<AudioBuffer | null> {
+  const variant = pickBaseVariant(seedNum);
+  for (const v of variant === 1 ? [1] : [variant, 1]) {
+    const buf = await fetchAudioBuffer(ctx, `/sfx/signal-${rarity}-${v}`);
+    if (buf) return buf;
+  }
+  return null;
+}
+
+/** Recorded per-symbol interference — signal-noise-<symbol+1>, else null. */
+async function tryLoadRealNoise(ctx: AudioContext, symbol: number): Promise<AudioBuffer | null> {
+  return fetchAudioBuffer(ctx, `/sfx/signal-noise-${(symbol % SIGNAL_NOISE_COUNT) + 1}`);
 }
 
 // ── Engine ──────────────────────────────────────────────────────────────────
@@ -248,6 +287,7 @@ export class SignalAudioEngine {
   private stopped = false;
   private mutedFlag = false;
   private solvedCount = 0;
+  private basePeak = BASE_PEAK_GAIN.common;
   private onVisibility = () => {
     if (!this.ctx) return;
     if (document.visibilityState === 'hidden') void this.ctx.suspend().catch(() => {});
@@ -258,6 +298,7 @@ export class SignalAudioEngine {
    *  symbols (each adds its interference layer). */
   async start(code: number[], rarity: SignalRarity, seedNum: number): Promise<void> {
     try {
+      this.basePeak = BASE_PEAK_GAIN[rarity] ?? BASE_PEAK_GAIN.common;
       const ctx = new AudioContext();
       this.ctx = ctx;
       void ctx.resume().catch(() => {});
@@ -277,7 +318,7 @@ export class SignalAudioEngine {
 
       // Base signal: real file if present, procedural otherwise
       const sr = ctx.sampleRate;
-      let baseBuffer = await tryLoadRealBase(ctx, rarity);
+      let baseBuffer = await tryLoadRealBase(ctx, rarity, seedNum);
       if (this.stopped) { this.teardown(); return; }
       if (!baseBuffer) {
         const data = genBase(rarity, sr, lcg(seedNum));
@@ -294,11 +335,23 @@ export class SignalAudioEngine {
       baseSrc.connect(baseGain);
       baseSrc.start();
 
-      // One interference layer per code slot
+      // One interference layer per code slot. Recorded noise (signal-noise-N)
+      // is used when present, procedural otherwise. Buffers are cached per
+      // symbol so duplicate symbols don't re-fetch/re-synthesize.
+      const noiseCache = new Map<number, AudioBuffer>();
       for (let i = 0; i < code.length; i++) {
-        const data = genNoise(code[i], sr, lcg(seedNum * 31 + i * 7919 + code[i]));
-        const buf = ctx.createBuffer(1, data.length, sr);
-        buf.getChannelData(0).set(data);
+        const sym = code[i];
+        let buf = noiseCache.get(sym);
+        if (!buf) {
+          buf = (await tryLoadRealNoise(ctx, sym)) ?? undefined;
+          if (this.stopped) { this.teardown(); return; }
+          if (!buf) {
+            const data = genNoise(sym, sr, lcg(seedNum * 31 + sym * 7919));
+            buf = ctx.createBuffer(1, data.length, sr);
+            buf.getChannelData(0).set(data);
+          }
+          noiseCache.set(sym, buf);
+        }
         const gain = ctx.createGain();
         gain.gain.value = NOISE_LAYER_GAIN;
         gain.connect(master);
@@ -334,8 +387,8 @@ export class SignalAudioEngine {
     if (count !== this.solvedCount) {
       this.solvedCount = count;
       // 0 -> 0%, 1 -> 10%, 2 -> 20%, 3 -> 30% of the melody. The final symbol
-      // is owned by win() (clean 30% -> 100% reveal), so don't ramp the base
-      // here when everything is solved — that avoids a stray 40% mid-step.
+      // is owned by win() (clean 30% -> rarity-peak reveal), so don't ramp the
+      // base here when everything is solved — that avoids a stray mid-step.
       if (count < solved.length) {
         const target = BASE_START_GAIN + count * BASE_GAIN_PER_SOLVE;
         this.baseGain.gain.setTargetAtTime(target, now, 0.25);
@@ -354,8 +407,8 @@ export class SignalAudioEngine {
       layer.gain.gain.setTargetAtTime(0, now, 0.12);
       try { layer.source.stop(now + 0.8); } catch { /* already stopped */ }
     }
-    // Jump from ~30% to a full, slightly punched-up reveal of the clean signal.
-    this.baseGain?.gain.setTargetAtTime(BASE_WIN_GAIN, now, 0.3);
+    // Jump from ~30% to the rarity's peak reveal of the clean signal.
+    this.baseGain?.gain.setTargetAtTime(this.basePeak, now, 0.3);
   }
 
   setMuted(muted: boolean): void {

@@ -2186,7 +2186,9 @@ export class ArenaEngine {
       ? this.hasEnemyInAutoFireCone()
       : this.desktopLaserHeld;
     if (isFiring && this.fireCooldownTimer <= 0) {
-      playSfx('arena-laser', 0.1);
+      // DAMAGE_UP buff turns the laser red — fire it with its own punchier shot.
+      if (this.playerLaserColor === 'red') playSfx('lazer-red-shot', 0.12);
+      else playSfx('arena-laser', 0.1);
       this.fireBullet();
       this.fireCooldownTimer = this.FIRE_COOLDOWN;
     }
@@ -3065,7 +3067,7 @@ export class ArenaEngine {
     const expiresAt = Date.now() + this.POWERUP_BUFF_DURATION_MS;
 
     // Extra sound for specific powerup types
-    if (pu.type === 'DAMAGE_UP') playSfx('lazer-red', 0.25);
+    if (pu.type === 'DAMAGE_UP') playSfx('lazer-red', 0.3);
 
     // DAMAGE_UP and SLOW_LASER both change laser color → mutually exclusive
     if (pu.type === 'DAMAGE_UP' || pu.type === 'SLOW_LASER') {
