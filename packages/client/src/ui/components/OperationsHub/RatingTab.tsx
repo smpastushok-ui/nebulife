@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { fetchRating, type RatingData, type LeaderboardRow } from '../../../api/retention-api.js';
+import { fetchRating, type RatingData, type GalaxyLeaderRow } from '../../../api/retention-api.js';
 
 // ---------------------------------------------------------------------------
-// RatingTab — weekly cluster leaderboard (podium + list), permanent Hall of
-// Fame (galaxy top-10 champions of the finished week) and achievements.
+// RatingTab — live galaxy leaderboard: every cluster's #1 (this week) competes
+// against the #1s of all other clusters; we show that cross-cluster top-10.
+// Cluster-internal numbers are not shown (they're mostly zero while clusters
+// fill up). Plus the permanent Hall of Fame (finished-week champions) and
+// personal achievements.
 // ---------------------------------------------------------------------------
 
 interface RatingTabProps {
@@ -29,12 +32,12 @@ function MedalRank({ rank }: { rank: number }) {
   );
 }
 
-function Podium({ rows, myId }: { rows: LeaderboardRow[]; myId: string }) {
+function Podium({ rows, myId }: { rows: GalaxyLeaderRow[]; myId: string }) {
   const { t } = useTranslation();
   const top3 = rows.slice(0, 3);
   if (top3.length === 0) return null;
   // Visual order: 2nd, 1st, 3rd
-  const order = [top3[1], top3[0], top3[2]].filter(Boolean) as LeaderboardRow[];
+  const order = [top3[1], top3[0], top3[2]].filter(Boolean) as GalaxyLeaderRow[];
   const heights: Record<string, number> = {};
   if (top3[0]) heights[top3[0].player_id] = 74;
   if (top3[1]) heights[top3[1].player_id] = 54;
@@ -66,7 +69,7 @@ function Podium({ rows, myId }: { rows: LeaderboardRow[]; myId: string }) {
               display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
               paddingTop: 4, color: c, fontSize: 12,
             }}>
-              {rows.indexOf(row) + 1}
+              {row.global_rank}
             </div>
           </div>
         );
@@ -95,29 +98,34 @@ export function RatingTab({ playerId }: RatingTabProps) {
     return <div style={{ color: '#667788', fontSize: 11, textAlign: 'center', marginTop: 40 }}>{t('ops.loading')}</div>;
   }
 
-  const { rows, myRank, hallOfFame, achievements } = data;
+  const { galaxy, hallOfFame, achievements } = data;
+  const rows = galaxy.top;
   const restRows = rows.slice(3);
+  const me = galaxy.me;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {/* ── My cluster, current week ── */}
+      {/* ── Live galaxy top-10 (cluster leaders, current week) ── */}
       <div style={{ border: `1px solid ${BORDER}`, borderRadius: 4, background: 'rgba(20,30,45,0.5)' }}>
         <div style={{
           padding: '8px 12px', borderBottom: `1px solid ${BORDER}`,
           display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
         }}>
-          <span style={{ color: '#aabbcc', fontSize: 11, letterSpacing: 1 }}>{t('ops.my_cluster')}</span>
+          <span style={{ color: '#aabbcc', fontSize: 11, letterSpacing: 1 }}>{t('ops.galaxy_top')}</span>
           <span style={{ color: '#667788', fontSize: 9 }}>{t('ops.week_of', { week: data.week })}</span>
         </div>
 
+        <div style={{ padding: '6px 12px 2px', color: '#556677', fontSize: 9, lineHeight: 1.5 }}>
+          {t('ops.galaxy_top_sub')}
+        </div>
+
         {rows.length === 0 ? (
-          <div style={{ color: '#667788', fontSize: 10, padding: 16, textAlign: 'center' }}>{t('ops.rating_empty')}</div>
+          <div style={{ color: '#667788', fontSize: 10, padding: 16, textAlign: 'center' }}>{t('ops.galaxy_empty')}</div>
         ) : (
           <>
             <Podium rows={rows} myId={playerId} />
             <div style={{ borderTop: `1px solid ${BORDER}` }}>
-              {restRows.map((row, i) => {
-                const rank = i + 4;
+              {restRows.map((row) => {
                 const isMe = row.player_id === playerId;
                 return (
                   <div key={row.player_id} style={{
@@ -126,7 +134,7 @@ export function RatingTab({ playerId }: RatingTabProps) {
                     background: isMe ? 'rgba(68,136,170,0.16)' : 'transparent',
                     borderBottom: '1px solid rgba(51,68,85,0.35)',
                   }}>
-                    <MedalRank rank={rank} />
+                    <MedalRank rank={row.global_rank} />
                     <span style={{
                       width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
                       background: row.is_online ? '#44ff88' : '#334455',
@@ -146,12 +154,18 @@ export function RatingTab({ playerId }: RatingTabProps) {
                 );
               })}
             </div>
-            {myRank != null && (
-              <div style={{ padding: '8px 12px', color: '#8899aa', fontSize: 10 }}>
-                {t('ops.my_rank', { rank: myRank })}
-              </div>
-            )}
           </>
+        )}
+
+        {/* My standing this week */}
+        {me && (
+          <div style={{ padding: '8px 12px', color: '#8899aa', fontSize: 10, borderTop: `1px solid ${BORDER}` }}>
+            {me.isClusterLeader
+              ? (me.globalRank != null
+                  ? t('ops.my_galaxy_rank', { rank: me.globalRank, xp: me.weeklyXp })
+                  : t('ops.my_leader_unranked', { xp: me.weeklyXp }))
+              : t('ops.my_cluster_standing', { rank: me.clusterRank ?? '—', xp: me.weeklyXp })}
+          </div>
         )}
       </div>
 

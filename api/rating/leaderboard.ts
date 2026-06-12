@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import {
-  getClusterLeaderboard,
+  getGalaxyLeaderboard,
   getHallOfFame,
   getRatingAchievements,
 } from '../../packages/server/src/db.js';
@@ -10,12 +10,13 @@ import { RATE_LIMITS } from '../../packages/server/src/rate-limiter.js';
 /**
  * GET /api/rating/leaderboard
  *
- * Weekly cluster rating + hall of fame.
+ * Live galaxy rating (cluster leaders, current week) + hall of fame.
  * {
  *   week,                  — current week Monday (UTC)
- *   clusterId,
- *   rows: [{ player_id, name, callsign, player_level, weekly_xp, champion_weeks, is_online }],
- *   myRank,
+ *   galaxy: {
+ *     top: [{ player_id, name, callsign, player_level, weekly_xp, champion_weeks, is_online, global_rank }],
+ *     me: { weeklyXp, clusterRank, isClusterLeader, globalRank } | null,
+ *   },
  *   hallOfFame: { week, top: ChampionRow[], myClusterChampion },
  *   achievements: { championWeeks, bestGlobalRank, top10Weeks },
  * }
@@ -33,12 +34,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const leaderboard = await getClusterLeaderboard(auth.playerId);
+    const galaxy = await getGalaxyLeaderboard(auth.playerId);
     const [hallOfFame, achievements] = await Promise.all([
-      getHallOfFame(leaderboard.clusterId),
+      getHallOfFame(null),
       getRatingAchievements(auth.playerId),
     ]);
-    return res.status(200).json({ ...leaderboard, hallOfFame, achievements });
+    return res.status(200).json({
+      week: galaxy.week,
+      galaxy: { top: galaxy.top, me: galaxy.me },
+      hallOfFame,
+      achievements,
+    });
   } catch (err) {
     console.error('[rating/leaderboard] Error:', err instanceof Error ? err.message : err);
     return res.status(500).json({ error: 'Internal error' });

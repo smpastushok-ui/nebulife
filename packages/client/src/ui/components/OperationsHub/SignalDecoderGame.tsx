@@ -107,10 +107,13 @@ const RARITY_COLORS: Record<SignalRarity, string> = {
 
 const SOUND_MUTE_KEY = 'nebulife_decoder_muted';
 
-/** Oscilloscope: target waveform + noise scaled by how far the player is. */
+/** Oscilloscope: target waveform + noise scaled by how far the player is.
+ *  On a full decode it plays a celebratory reveal: amplitude swell, an
+ *  expanding bloom ring and a green glow that settles into the clean wave. */
 function Waveform({ code, bestExact, won }: { code: number[]; bestExact: number; won: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const phaseRef = useRef(0);
+  const winStartRef = useRef<number | null>(null);
   const stateRef = useRef({ code, bestExact, won });
   stateRef.current = { code, bestExact, won };
 
@@ -133,6 +136,15 @@ function Waveform({ code, bestExact, won }: { code: number[]; bestExact: number;
       const mid = height / 2;
       phaseRef.current += 0.035;
 
+      // Track the moment of victory to drive the reveal animation.
+      if (w && winStartRef.current === null) winStartRef.current = performance.now();
+      if (!w) winStartRef.current = null;
+      const winT = winStartRef.current !== null
+        ? Math.min(1, (performance.now() - winStartRef.current) / 1100)
+        : 0;
+      // ease-out burst that decays back to a calm clean wave
+      const burst = winT > 0 ? Math.sin(winT * Math.PI) : 0;
+
       ctx.fillStyle = 'rgba(4,8,16,1)';
       ctx.fillRect(0, 0, width, height);
 
@@ -144,9 +156,24 @@ function Waveform({ code, bestExact, won }: { code: number[]; bestExact: number;
       }
       ctx.beginPath(); ctx.moveTo(0, mid); ctx.lineTo(width, mid); ctx.stroke();
 
+      // Victory bloom: expanding ring sweeping outward from the centre.
+      if (winT > 0 && winT < 1) {
+        const r = winT * width * 0.6;
+        const grad = ctx.createRadialGradient(width / 2, mid, 0, width / 2, mid, r);
+        grad.addColorStop(0, `rgba(68,255,136,0)`);
+        grad.addColorStop(0.7, `rgba(68,255,136,${0.18 * (1 - winT)})`);
+        grad.addColorStop(1, `rgba(68,255,136,0)`);
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, width, height);
+      }
+
       const noiseAmp = w ? 0 : (1 - be / SIGNAL_CODE_LENGTH) * 0.55;
+      // Clean wave swells during the burst, then settles to normal height.
+      const ampScale = 0.36 * (1 + burst * 0.7);
       ctx.strokeStyle = w ? '#44ff88' : '#7bb8ff';
-      ctx.lineWidth = 1.4;
+      ctx.lineWidth = 1.4 + burst * 1.6;
+      ctx.shadowBlur = burst * 16;
+      ctx.shadowColor = '#44ff88';
       ctx.beginPath();
       for (let x = 0; x <= width; x += 2) {
         const tx = x / width * Math.PI * 2;
@@ -155,10 +182,11 @@ function Waveform({ code, bestExact, won }: { code: number[]; bestExact: number;
           y += Math.sin(tx * SYMBOL_FREQS[sym] * 2 + phaseRef.current) / c.length;
         }
         y += rand() * noiseAmp * 2;
-        const py = mid + y * (height * 0.36);
+        const py = mid + y * (height * ampScale);
         if (x === 0) ctx.moveTo(x, py); else ctx.lineTo(x, py);
       }
       ctx.stroke();
+      ctx.shadowBlur = 0;
 
       raf = requestAnimationFrame(draw);
     };
@@ -173,8 +201,10 @@ function Waveform({ code, bestExact, won }: { code: number[]; bestExact: number;
       height={110}
       style={{
         width: '100%', height: 86, display: 'block',
-        border: `1px solid ${BORDER}`, borderRadius: 4,
+        border: `1px solid ${won ? '#44ff88' : BORDER}`, borderRadius: 4,
         background: '#040810',
+        transition: 'border-color 0.4s, box-shadow 0.4s',
+        boxShadow: won ? '0 0 18px rgba(68,255,136,0.35)' : 'none',
       }}
     />
   );

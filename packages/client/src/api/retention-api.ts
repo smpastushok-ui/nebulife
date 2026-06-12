@@ -31,9 +31,10 @@ export async function claimDirectivesReward(): Promise<DirectiveClaimResult> {
   return res.json();
 }
 
-// ── Cluster rating ─────────────────────────────────────────────────────────
+// ── Galaxy rating ──────────────────────────────────────────────────────────
 
-export interface LeaderboardRow {
+/** A cluster leader competing in the live galaxy top-10 (current week). */
+export interface GalaxyLeaderRow {
   player_id: string;
   name: string;
   callsign: string | null;
@@ -41,6 +42,7 @@ export interface LeaderboardRow {
   weekly_xp: number;
   champion_weeks: number;
   is_online: boolean;
+  global_rank: number;
 }
 
 export interface ChampionRow {
@@ -55,9 +57,15 @@ export interface ChampionRow {
 
 export interface RatingData {
   week: string;
-  clusterId: string | null;
-  rows: LeaderboardRow[];
-  myRank: number | null;
+  galaxy: {
+    top: GalaxyLeaderRow[];
+    me: {
+      weeklyXp: number;
+      clusterRank: number | null;
+      isClusterLeader: boolean;
+      globalRank: number | null;
+    } | null;
+  };
   hallOfFame: {
     week: string | null;
     top: ChampionRow[];

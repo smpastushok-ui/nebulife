@@ -31,8 +31,14 @@ export function rollSignalRarity(hash100: number): SignalRarity {
 
 const BASE_LOOP_SEC = 5;
 const NOISE_LOOP_SEC = 4;
-const BASE_START_GAIN = 0.3;
-const BASE_SOLVE_MULT = 1.25; // user spec: each decoded symbol -> +25% louder
+// Volume ramp (fraction of the melody, 0..1):
+//   0 solved -> 0   (silent base, only interference is audible)
+//   each solved symbol -> +0.10 and that symbol's interference is removed
+//   3 solved -> 0.30
+//   4 solved (win) -> 1.0 + reveal animation
+const BASE_START_GAIN = 0;
+const BASE_GAIN_PER_SOLVE = 0.1;
+const BASE_WIN_GAIN = 1.0;
 const NOISE_LAYER_GAIN = 0.55;
 const MASTER_GAIN = 0.55;
 
@@ -309,7 +315,7 @@ export class SignalAudioEngine {
     } catch { /* no audio available — game stays fully playable silently */ }
   }
 
-  /** Reflect decoded slots: fade out their noise, boost the base +25% each. */
+  /** Reflect decoded slots: fade out their noise, raise base +10% per solve. */
   setSolved(solved: boolean[]): void {
     const ctx = this.ctx;
     if (!ctx || !this.baseGain) return;
@@ -327,8 +333,13 @@ export class SignalAudioEngine {
     }
     if (count !== this.solvedCount) {
       this.solvedCount = count;
-      const target = BASE_START_GAIN * Math.pow(BASE_SOLVE_MULT, count);
-      this.baseGain.gain.setTargetAtTime(target, now, 0.25);
+      // 0 -> 0%, 1 -> 10%, 2 -> 20%, 3 -> 30% of the melody. The final symbol
+      // is owned by win() (clean 30% -> 100% reveal), so don't ramp the base
+      // here when everything is solved — that avoids a stray 40% mid-step.
+      if (count < solved.length) {
+        const target = BASE_START_GAIN + count * BASE_GAIN_PER_SOLVE;
+        this.baseGain.gain.setTargetAtTime(target, now, 0.25);
+      }
     }
   }
 
@@ -343,7 +354,8 @@ export class SignalAudioEngine {
       layer.gain.gain.setTargetAtTime(0, now, 0.12);
       try { layer.source.stop(now + 0.8); } catch { /* already stopped */ }
     }
-    this.baseGain?.gain.setTargetAtTime(0.85, now, 0.3);
+    // Jump from ~30% to a full, slightly punched-up reveal of the clean signal.
+    this.baseGain?.gain.setTargetAtTime(BASE_WIN_GAIN, now, 0.3);
   }
 
   setMuted(muted: boolean): void {

@@ -4091,6 +4091,104 @@ export async function getClusterLeaderboard(playerId: string): Promise<{
   return { week, clusterId, rows, myRank: myRank >= 0 ? myRank + 1 : null };
 }
 
+export interface GalaxyLeaderRow {
+  player_id: string;
+  name: string;
+  callsign: string | null;
+  player_level: number;
+  weekly_xp: number;
+  champion_weeks: number;
+  is_online: boolean;
+  global_rank: number; // 1..10
+}
+
+/**
+ * Live galaxy leaderboard for the current week: the #1 player of every cluster
+ * (by weekly XP) competes against the #1s of all other clusters, and the global
+ * top-10 of those leaders is returned. This is the in-progress preview of what
+ * the Monday cron later freezes into `cluster_champions`. We surface this
+ * instead of the raw cluster board because per-cluster numbers are mostly zero
+ * while clusters fill up — the cross-cluster aggregate always has signal.
+ *
+ * Also returns the caller's own standing (weekly XP, rank inside their cluster,
+ * whether they're their cluster's leader and, if so, their galaxy rank).
+ */
+export async function getGalaxyLeaderboard(playerId: string): Promise<{
+  week: string;
+  top: GalaxyLeaderRow[];
+  me: {
+    weeklyXp: number;
+    clusterRank: number | null;
+    isClusterLeader: boolean;
+    globalRank: number | null;
+  } | null;
+}> {
+  const sql = getSQL();
+  const week = weekMondayString();
+
+  // New week → everyone restarts at 0. Cheap after the first call of the week
+  // (only rows whose anchor is stale are touched).
+  await sql`
+    UPDATE players
+    SET week_xp_base = player_xp, week_xp_base_week = ${week}
+    WHERE week_xp_base_week IS DISTINCT FROM ${week}
+  `;
+
+  // Rank players within each cluster, keep the leaders, rank leaders globally.
+  const leaders = await sql`
+    WITH ranked AS (
+      SELECT id, name, callsign, player_level, cluster_id,
+             GREATEST(0, player_xp - week_xp_base) AS weekly_xp,
+             champion_weeks,
+             (COALESCE(last_seen_at, last_login, created_at) > NOW() - INTERVAL '10 minutes') AS is_online,
+             ROW_NUMBER() OVER (
+               PARTITION BY cluster_id
+               ORDER BY (player_xp - week_xp_base) DESC, player_level DESC, created_at ASC
+             ) AS cluster_rn
+      FROM players
+      WHERE cluster_id IS NOT NULL
+    )
+    SELECT id AS player_id, name, callsign, player_level, weekly_xp, champion_weeks, is_online,
+           ROW_NUMBER() OVER (ORDER BY weekly_xp DESC, player_level DESC) AS global_rank
+    FROM ranked
+    WHERE cluster_rn = 1 AND weekly_xp > 0
+    ORDER BY global_rank ASC
+    LIMIT 10
+  ` as unknown as GalaxyLeaderRow[];
+
+  // Caller's own standing within their cluster.
+  const meRows = await sql`
+    WITH ranked AS (
+      SELECT id, cluster_id,
+             GREATEST(0, player_xp - week_xp_base) AS weekly_xp,
+             ROW_NUMBER() OVER (
+               PARTITION BY cluster_id
+               ORDER BY (player_xp - week_xp_base) DESC, player_level DESC, created_at ASC
+             ) AS cluster_rn
+      FROM players
+      WHERE cluster_id IS NOT NULL
+        AND cluster_id = (SELECT cluster_id FROM players WHERE id = ${playerId})
+    )
+    SELECT weekly_xp, cluster_rn FROM ranked WHERE id = ${playerId}
+  ` as Array<{ weekly_xp: number; cluster_rn: number }>;
+
+  let me: { weeklyXp: number; clusterRank: number | null; isClusterLeader: boolean; globalRank: number | null } | null = null;
+  if (meRows[0]) {
+    const isLeader = meRows[0].cluster_rn === 1;
+    const globalRank = isLeader
+      ? (leaders.find((l) => l.player_id === playerId)?.global_rank ?? null)
+      : null;
+    me = {
+      weeklyXp: Number(meRows[0].weekly_xp ?? 0),
+      clusterRank: Number(meRows[0].cluster_rn ?? 0) || null,
+      isClusterLeader: isLeader,
+      globalRank,
+    };
+  }
+
+  return { week, top: leaders.map((r) => ({ ...r, global_rank: Number(r.global_rank) })), me };
+}
+
 export interface ChampionRow {
   week_date: string;
   cluster_id: string;
