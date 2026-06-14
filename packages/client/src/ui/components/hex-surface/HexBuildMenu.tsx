@@ -30,17 +30,45 @@ interface HexBuildMenuProps {
   onClose: () => void;
 }
 
-function CostIcons({ cost }: { cost: { resource: string; amount: number }[] }) {
+function CostIcons({
+  cost,
+  res,
+  chemInv = {},
+}: {
+  cost: { resource: string; amount: number }[];
+  res?: { minerals: number; volatiles: number; isotopes: number; water: number };
+  chemInv?: Record<string, number>;
+}) {
   if (cost.length === 0) return <span style={{ fontSize: 7, color: '#4488aa' }}>FREE</span>;
   const resourceTypes = new Set<ResourceType>(['minerals', 'volatiles', 'isotopes', 'water']);
+  const have = (c: { resource: string; amount: number }): number => {
+    if (resourceTypes.has(c.resource as ResourceType)) {
+      return res ? (res as Record<string, number>)[c.resource] ?? 0 : c.amount;
+    }
+    return chemInv[c.resource] ?? 0;
+  };
   return (
     <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'center' }}>
       {cost.map((c) => {
-        if (!resourceTypes.has(c.resource as ResourceType)) return null;
+        const isBase = resourceTypes.has(c.resource as ResourceType);
+        const enough = have(c) >= c.amount;
+        const color = enough ? '#aabbcc' : '#cc4444';
         return (
           <span key={c.resource} style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <ResourceIcon type={c.resource as ResourceType} size={10} />
-            <span style={{ fontSize: 7, color: '#aabbcc' }}>{c.amount}</span>
+            {isBase ? (
+              <ResourceIcon type={c.resource as ResourceType} size={10} />
+            ) : (
+              <span style={{
+                fontSize: 7,
+                fontWeight: 700,
+                color: enough ? '#ff8844' : '#cc4444',
+                border: `1px solid ${enough ? '#ff8844' : '#cc4444'}`,
+                borderRadius: 2,
+                padding: '0 2px',
+                lineHeight: 1.3,
+              }}>{c.resource}</span>
+            )}
+            <span style={{ fontSize: 7, color }}>{c.amount}</span>
           </span>
         );
       })}
@@ -416,7 +444,7 @@ export function HexBuildMenu({
                           <PremiumHelpButton helpId="alpha-harvester" />
                         </span>
                       ) : (
-                        <CostIcons cost={def.cost} />
+                        <CostIcons cost={def.cost} res={colonyResources} chemInv={chemicalInventory} />
                       )}
                       {isotopeDepleted && (
                         <span style={{ marginTop: 2, fontSize: 7, color: '#ff8844', textAlign: 'center' }}>

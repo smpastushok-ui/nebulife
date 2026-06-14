@@ -354,7 +354,9 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     description: 'Термоядерна енергія. +50 енергії. Споживає ізотопи.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: LAND_TERRAIN,
-    cost: [{ resource: 'minerals', amount: 70 }, { resource: 'volatiles', amount: 40 }, { resource: 'isotopes', amount: 15 }, { resource: 'U', amount: 8 }],
+    // No U in cost — U is only produced by the L50 isotope_centrifuge, while
+    // this reactor unlocks at L42. Use isotopes (its operating fuel) instead.
+    cost: [{ resource: 'minerals', amount: 70 }, { resource: 'volatiles', amount: 40 }, { resource: 'isotopes', amount: 30 }],
     levelRequired: 42, techRequired: 'phy-fusion', maxPerPlanet: 1,
     energyOutput: 50, energyConsumption: 0, energyStorageAdd: 0,
     production: [],
@@ -532,7 +534,9 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     description: '+15 дані дослідж./год. Зменшує час досліджень на 20%.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: LAND_TERRAIN,
-    cost: [{ resource: 'minerals', amount: 60 }, { resource: 'volatiles', amount: 35 }, { resource: 'isotopes', amount: 10 }, { resource: 'Ti', amount: 5 }],
+    // No Ti in cost — element separation (Ti) only unlocks at L50, but this
+    // unlocks at L38. Built from base resources instead.
+    cost: [{ resource: 'minerals', amount: 90 }, { resource: 'volatiles', amount: 35 }, { resource: 'isotopes', amount: 10 }],
     levelRequired: 38, techRequired: 'phy-quantum', maxPerPlanet: 1,
     energyOutput: 0, energyConsumption: 18, energyStorageAdd: 0,
     production: [{ resource: 'researchData', amount: RESEARCH_DATA_RATE * 15 }], // 15 data/hour
@@ -641,7 +645,9 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     description: 'L50-збагачення ізотопів. Дає U/Th для термоядерної енергетики, Ковчега Генезису й ендгейм-будівництва.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: LAND_TERRAIN,
-    cost: [{ resource: 'minerals', amount: 50 }, { resource: 'volatiles', amount: 25 }, { resource: 'isotopes', amount: 8 }, { resource: 'U', amount: 3 }],
+    // No U in cost — the centrifuge is what *produces* U, so requiring it to
+    // build would be a circular dependency. Built from base resources.
+    cost: [{ resource: 'minerals', amount: 60 }, { resource: 'volatiles', amount: 30 }, { resource: 'isotopes', amount: 10 }],
     levelRequired: 50, techRequired: 'chem-isotope', maxPerPlanet: 2,
     energyOutput: 0, energyConsumption: 16, energyStorageAdd: 0,
     production: [],
@@ -659,7 +665,9 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     description: 'ДНК-архів і центр керування терраформуванням. Відкриває глобальні процеси зміни планети, сам по собі не піднімає придатність.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: LAND_TERRAIN,
-    cost: [{ resource: 'minerals', amount: 120 }, { resource: 'volatiles', amount: 50 }, { resource: 'isotopes', amount: 20 }, { resource: 'U', amount: 10 }, { resource: 'Pt', amount: 3 }],
+    // L48 building — element separation (U/Pt) only unlocks at L50, so the
+    // Genesis Vault is buildable from base colony resources alone.
+    cost: [{ resource: 'minerals', amount: 200 }, { resource: 'volatiles', amount: 100 }, { resource: 'isotopes', amount: 40 }],
     levelRequired: 48, techRequired: 'bio-genesis', maxPerPlanet: 1,
     energyOutput: 0, energyConsumption: 24, energyStorageAdd: 0,
     production: [{ resource: 'researchData', amount: RESEARCH_DATA_RATE * 4 }],

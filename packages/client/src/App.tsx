@@ -3736,6 +3736,43 @@ function AppInner() {
     scheduleSyncToServer();
   }, [addResources, estimateShipFlightMs, getResources, scheduleSyncToServer, t]);
 
+  // Robust per-planet resource lookup for the logistics donor list. The stored
+  // map is keyed by the scoped `${systemId}::${planetId}` key (or legacy bare
+  // planetId), but ship.currentPlanetId is always a bare planetId — a raw
+  // map[planetId] lookup therefore returned 0 for colonised donors, which made
+  // maxAmount 0 and silently disabled "send" (the empty-cargo bug). Match the
+  // bare key first, then any scoped key ending in `::planetId`.
+  const getDonorResources = useCallback((planetId: string): { minerals: number; volatiles: number; isotopes: number; water: number } => {
+    const map = colonyResourcesByPlanetRef.current;
+    if (map[planetId]) return map[planetId];
+    const suffix = `::${planetId}`;
+    for (const key of Object.keys(map)) {
+      if (key === planetId || key.endsWith(suffix)) return map[key];
+    }
+    return getResources(planetId);
+  }, [getResources]);
+
+  // Light-year distance between the donor's system and the target's system, for
+  // the logistics planet-picker tooltip. null when either system is unknown.
+  const getCargoRouteLY = useCallback((fromPlanetId: string, toPlanetId: string): number | null => {
+    const systems = engineRef.current?.getAllSystems?.() ?? [];
+    const fromSystem = systems.find((system) => system.planets.some((planet) => planet.id === fromPlanetId));
+    const toSystem = systems.find((system) => system.planets.some((planet) => planet.id === toPlanetId));
+    if (!fromSystem || !toSystem) return null;
+    if (fromSystem.id === toSystem.id) return 0;
+    return systemDistanceLY(fromSystem, toSystem);
+  }, []);
+
+  // Human-readable planet name for the logistics picker (falls back to the id).
+  const getPlanetLabel = useCallback((planetId: string): string => {
+    const systems = engineRef.current?.getAllSystems?.() ?? [];
+    for (const system of systems) {
+      const planet = system.planets.find((p) => p.id === planetId);
+      if (planet) return planet.name;
+    }
+    return planetId;
+  }, []);
+
   useEffect(() => {
     const id = window.setInterval(() => {
       const now = Date.now();
@@ -11405,6 +11442,9 @@ function AppInner() {
           })}
           cargoShipments={shipFleet.cargoShipments ?? []}
           planetResourcesById={colonyResourcesByPlanet}
+          getDonorResources={getDonorResources}
+          getCargoRouteLY={getCargoRouteLY}
+          getPlanetLabel={getPlanetLabel}
           onStartCargoShipment={handleStartCargoShipment}
         />
       )}

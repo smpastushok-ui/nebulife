@@ -664,135 +664,312 @@ function StatusChip({ label, active }: { label: string; active: boolean }) {
   );
 }
 
+// ── Logistics SVG icon set (procedural, monospace-friendly, stroke=currentColor) ──
+const LX_ICON = 15;
+function IcoPlanet() {
+  return (
+    <svg width={LX_ICON} height={LX_ICON} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
+      <circle cx="12" cy="12" r="6.2" />
+      <ellipse cx="12" cy="12" rx="11" ry="4.3" transform="rotate(-22 12 12)" />
+    </svg>
+  );
+}
+function IcoShip() {
+  return (
+    <svg width={LX_ICON} height={LX_ICON} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinejoin="round">
+      <path d="M4 9 L14 9 L20 12 L14 15 L4 15 Z" />
+      <path d="M7 15 L7 19 M11 15 L11 19" />
+    </svg>
+  );
+}
+function IcoMinerals() {
+  return (
+    <svg width={LX_ICON} height={LX_ICON} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinejoin="round">
+      <path d="M12 3 L20 9 L12 21 L4 9 Z" />
+      <path d="M4 9 H20 M12 3 L9 9 L12 21 M12 3 L15 9 L12 21" />
+    </svg>
+  );
+}
+function IcoVolatiles() {
+  return (
+    <svg width={LX_ICON} height={LX_ICON} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round">
+      <path d="M6 14 q-2 -4 2 -5 q0 -4 4 -4 q5 0 5 5 q3 0 3 3 q0 3 -3 3 H8 q-3 0 -2 -2Z" />
+    </svg>
+  );
+}
+function IcoIsotopes() {
+  return (
+    <svg width={LX_ICON} height={LX_ICON} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+      <circle cx="12" cy="12" r="1.8" />
+      <ellipse cx="12" cy="12" rx="9" ry="3.6" />
+      <ellipse cx="12" cy="12" rx="9" ry="3.6" transform="rotate(60 12 12)" />
+      <ellipse cx="12" cy="12" rx="9" ry="3.6" transform="rotate(120 12 12)" />
+    </svg>
+  );
+}
+function IcoWater() {
+  return (
+    <svg width={LX_ICON} height={LX_ICON} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinejoin="round">
+      <path d="M12 3 C12 3 5 11 5 15 a7 7 0 0 0 14 0 C19 11 12 3 12 3Z" />
+    </svg>
+  );
+}
+function IcoSend() {
+  return (
+    <svg width={LX_ICON} height={LX_ICON} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinejoin="round" strokeLinecap="round">
+      <path d="M3 12 L21 4 L14 21 L11 13 Z" />
+    </svg>
+  );
+}
+
+const LX_RES_KEYS: CargoResource[] = ['minerals', 'volatiles', 'isotopes', 'water'];
+const LX_RES_ICON: Record<CargoResource, () => React.ReactElement> = {
+  minerals: IcoMinerals,
+  volatiles: IcoVolatiles,
+  isotopes: IcoIsotopes,
+  water: IcoWater,
+};
+
 function LogisticsTab({
   ships,
   shipments = [],
   targetPlanetId,
   planetResources = {},
+  getDonorResources,
+  getCargoRouteLY,
+  getPlanetLabel,
   onStartCargoShipment,
 }: {
   ships: Ship[];
   shipments?: CargoShipment[];
   targetPlanetId: string;
   planetResources?: Record<string, { minerals: number; volatiles: number; isotopes: number; water: number }>;
+  getDonorResources?: (planetId: string) => { minerals: number; volatiles: number; isotopes: number; water: number };
+  getCargoRouteLY?: (fromPlanetId: string, toPlanetId: string) => number | null;
+  getPlanetLabel?: (planetId: string) => string;
   onStartCargoShipment?: (params: { shipId: string; fromPlanetId: string; toPlanetId: string; resource: CargoResource; amount: number }) => void;
 }) {
   const { t } = useTranslation();
   const [donorPlanetId, setDonorPlanetId] = useState('');
-  const [shipId, setShipId] = useState('');
+  const [shipType, setShipType] = useState<Ship['type'] | ''>('');
   const [resource, setResource] = useState<CargoResource>('minerals');
   const [amount, setAmount] = useState(0);
+
+  // Resolve a planet's resources by bare id, tolerating scoped `${systemId}::${id}` keys.
+  const resolveResources = (planetId: string) => {
+    if (getDonorResources) return getDonorResources(planetId);
+    if (planetResources[planetId]) return planetResources[planetId];
+    const suffix = `::${planetId}`;
+    for (const key of Object.keys(planetResources)) {
+      if (key === planetId || key.endsWith(suffix)) return planetResources[key];
+    }
+    return { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
+  };
+
   const cargoShips = ships.filter((ship) => ship.status === 'docked' && !ship.assignmentId);
+  // Donor planets = spaceports that hold free cargo ships, excluding the target
+  // itself (shipping to self is pointless). Sorted by distance to the target.
   const donors = Array.from(new Set(cargoShips.map((ship) => ship.currentPlanetId).filter(Boolean) as string[]))
+    .filter((planetId) => planetId !== targetPlanetId)
     .map((planetId) => ({
       planetId,
+      name: getPlanetLabel?.(planetId) ?? planetId,
+      distanceLY: getCargoRouteLY?.(planetId, targetPlanetId) ?? null,
       ships: cargoShips.filter((ship) => ship.currentPlanetId === planetId),
-      resources: planetResources[planetId] ?? { minerals: 0, volatiles: 0, isotopes: 0, water: 0 },
+      resources: resolveResources(planetId),
     }))
-    .sort((a, b) => b.ships.length - a.ships.length);
-  const nearest = donors[0] ?? null;
-  const selectedDonorId = donorPlanetId || nearest?.planetId || '';
-  const selectedDonor = donors.find((donor) => donor.planetId === selectedDonorId) ?? nearest;
-  const availableShips = selectedDonor?.ships ?? [];
-  const selectedShip = availableShips.find((ship) => ship.id === shipId) ?? availableShips[0] ?? null;
-  const selectedCapacity = selectedShip ? PRODUCIBLE_DEFS[selectedShip.type].cargoCapacity : 0;
+    .sort((a, b) => (a.distanceLY ?? Number.POSITIVE_INFINITY) - (b.distanceLY ?? Number.POSITIVE_INFINITY));
+
+  const selectedDonor = donors.find((donor) => donor.planetId === donorPlanetId) ?? donors[0] ?? null;
+
+  // Group the donor's ships by type → one row per type with a quantity badge.
+  const typeGroups = selectedDonor
+    ? Array.from(new Set(selectedDonor.ships.map((s) => s.type))).map((type) => {
+        const groupShips = selectedDonor.ships.filter((s) => s.type === type);
+        return { type, count: groupShips.length, ships: groupShips, capacity: PRODUCIBLE_DEFS[type].cargoCapacity };
+      })
+    : [];
+  const selectedGroup = typeGroups.find((group) => group.type === shipType) ?? typeGroups[0] ?? null;
+  const selectedShip = selectedGroup?.ships[0] ?? null;
+  const selectedCapacity = selectedGroup?.capacity ?? 0;
   const selectedStock = selectedDonor?.resources[resource] ?? 0;
   const maxAmount = Math.max(0, Math.min(selectedCapacity, Math.floor(selectedStock)));
+  const sendAmount = Math.min(Math.max(1, Math.floor(amount || maxAmount)), maxAmount || 0);
+  const canSend = Boolean(selectedShip && selectedDonor && maxAmount > 0 && onStartCargoShipment);
+
   const activeShipments = shipments.filter((shipment) => shipment.toPlanetId === targetPlanetId || shipment.fromPlanetId === targetPlanetId);
-  const inputStyle: React.CSSProperties = {
-    width: '100%',
-    background: 'rgba(5,10,20,0.75)',
-    border: '1px solid #334455',
-    borderRadius: 4,
-    color: '#aabbcc',
-    fontFamily: 'monospace',
-    fontSize: 10,
-    padding: '7px 8px',
-  };
+
+  const fmtLY = (ly: number | null) =>
+    ly == null ? '—' : ly <= 0.05 ? t('planet_terminal.same_system') : `${ly.toFixed(1)} ly`;
+
   const startShipment = () => {
-    if (!selectedShip || !selectedDonor || maxAmount <= 0 || !onStartCargoShipment) return;
-    onStartCargoShipment({
+    if (!canSend || !selectedShip || !selectedDonor) return;
+    onStartCargoShipment!({
       shipId: selectedShip.id,
       fromPlanetId: selectedDonor.planetId,
       toPlanetId: targetPlanetId,
       resource,
-      amount: Math.min(Math.max(1, Math.floor(amount || maxAmount)), maxAmount),
+      amount: sendAmount,
     });
   };
-  return (
-    <div style={{ padding: 12, display: 'grid', gap: 8 }}>
-      <div style={{ color: '#8899aa', fontSize: 10 }}>{t('planet_terminal.logistics_desc')}</div>
-      <div style={{ color: '#7bb8ff', fontSize: 11 }}>
-        {t('planet_terminal.free_ships', { count: cargoShips.length })}
+
+  const sectionLabel: React.CSSProperties = { color: '#667788', fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.5 };
+
+  if (donors.length === 0) {
+    return (
+      <div style={{ padding: 12, display: 'grid', gap: 8 }}>
+        <div style={{ color: '#8899aa', fontSize: 10 }}>{t('planet_terminal.logistics_desc')}</div>
+        <div style={{ color: '#cc8844', fontSize: 10 }}>{t('planet_terminal.no_cargo_ships')}</div>
       </div>
-      {nearest ? (
-        <div style={{ border: '1px solid rgba(51,68,85,0.5)', borderRadius: 4, padding: 8, background: 'rgba(5,10,20,0.35)' }}>
-          <div style={{ color: '#aabbcc', fontSize: 10, marginBottom: 5 }}>
-            {t('planet_terminal.nearest_spaceport', { planet: nearest.planetId })}
-          </div>
-          <div style={{ color: '#667788', fontSize: 9, lineHeight: 1.6 }}>
-            {t('planet_terminal.available_cargo', { count: nearest.ships.length })}
-            {' · '}
-            {t('planet_terminal.resources_short', {
-              minerals: Math.floor(nearest.resources.minerals),
-              volatiles: Math.floor(nearest.resources.volatiles),
-              isotopes: Math.floor(nearest.resources.isotopes),
-              water: Math.floor(nearest.resources.water),
+    );
+  }
+
+  return (
+    <div style={{ padding: 12, display: 'grid', gap: 10 }}>
+      <div style={{ color: '#8899aa', fontSize: 10 }}>{t('planet_terminal.logistics_desc')}</div>
+
+      {/* ── Donor planet picker — SVG icon buttons with distance in light-years ── */}
+      <div style={{ display: 'grid', gap: 5 }}>
+        <div style={sectionLabel}>{t('planet_terminal.select_planet')}</div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {donors.map((donor) => {
+            const active = donor.planetId === selectedDonor?.planetId;
+            return (
+              <button
+                key={donor.planetId}
+                type="button"
+                title={`${t('planet_terminal.select_planet')}: ${donor.name} · ${fmtLY(donor.distanceLY)}`}
+                onClick={() => { setDonorPlanetId(donor.planetId); setShipType(''); setAmount(0); }}
+                style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                  minWidth: 64, maxWidth: 92, padding: '7px 8px',
+                  border: `1px solid ${active ? '#446688' : '#334455'}`,
+                  borderRadius: 6,
+                  background: active ? 'rgba(40,70,100,0.3)' : 'rgba(5,10,20,0.5)',
+                  color: active ? '#7bb8ff' : '#8899aa',
+                  fontFamily: 'monospace', cursor: 'pointer',
+                }}
+              >
+                <IcoPlanet />
+                <span style={{ fontSize: 9, maxWidth: 76, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{donor.name}</span>
+                <span style={{ fontSize: 9, color: active ? '#7bb8ff' : '#667788' }}>{fmtLY(donor.distanceLY)}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Ship-type picker — one row per type with a quantity badge (×N) ── */}
+      {typeGroups.length > 0 && (
+        <div style={{ display: 'grid', gap: 5 }}>
+          <div style={sectionLabel}>{t('planet_terminal.select_ship')}</div>
+          <div style={{ display: 'grid', gap: 4 }}>
+            {typeGroups.map((group) => {
+              const active = group.type === selectedGroup?.type;
+              return (
+                <button
+                  key={group.type}
+                  type="button"
+                  onClick={() => { setShipType(group.type); setAmount(0); }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '7px 9px',
+                    border: `1px solid ${active ? '#446688' : '#334455'}`,
+                    borderRadius: 5,
+                    background: active ? 'rgba(40,70,100,0.3)' : 'rgba(5,10,20,0.5)',
+                    color: active ? '#7bb8ff' : '#aabbcc',
+                    fontFamily: 'monospace', fontSize: 10, cursor: 'pointer', textAlign: 'left',
+                  }}
+                >
+                  <IcoShip />
+                  <span style={{ flex: 1 }}>{PRODUCIBLE_DEFS[group.type].name}</span>
+                  <span style={{ color: '#667788', fontSize: 9 }}>{group.capacity}</span>
+                  <span style={{
+                    minWidth: 26, textAlign: 'center', padding: '1px 6px', borderRadius: 999,
+                    border: `1px solid ${active ? '#446688' : '#334455'}`,
+                    color: active ? '#7bb8ff' : '#8899aa', fontSize: 9,
+                  }}>×{group.count}</span>
+                </button>
+              );
             })}
           </div>
         </div>
-      ) : (
-        <div style={{ color: '#cc8844', fontSize: 10 }}>{t('planet_terminal.no_cargo_ships')}</div>
       )}
-      {selectedDonor && selectedShip && (
-        <div style={{ display: 'grid', gap: 6 }}>
-          <select value={selectedDonor.planetId} onChange={(event) => { setDonorPlanetId(event.target.value); setShipId(''); }} style={inputStyle}>
-            {donors.map((donor) => <option key={donor.planetId} value={donor.planetId}>{donor.planetId}</option>)}
-          </select>
-          <select value={selectedShip.id} onChange={(event) => setShipId(event.target.value)} style={inputStyle}>
-            {availableShips.map((ship) => (
-              <option key={ship.id} value={ship.id}>
-                {ship.name} · {PRODUCIBLE_DEFS[ship.type].cargoCapacity}
-              </option>
-            ))}
-          </select>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-            <select value={resource} onChange={(event) => { setResource(event.target.value as CargoResource); setAmount(0); }} style={inputStyle}>
-              <option value="minerals">{t('planet_terminal.resource_minerals')}</option>
-              <option value="volatiles">{t('planet_terminal.resource_volatiles')}</option>
-              <option value="isotopes">{t('planet_terminal.resource_isotopes')}</option>
-              <option value="water">{t('planet_terminal.resource_water')}</option>
-            </select>
-            <input
-              value={amount || ''}
-              min={0}
-              max={maxAmount}
-              type="number"
-              onChange={(event) => setAmount(Number(event.target.value))}
-              placeholder={`${maxAmount}`}
-              style={inputStyle}
-            />
-          </div>
-          <button
-            disabled={maxAmount <= 0 || !onStartCargoShipment}
-            onClick={startShipment}
-            style={{
-              padding: '8px 10px',
-              border: '1px solid #446688',
-              borderRadius: 4,
-              background: maxAmount > 0 ? 'rgba(40,70,100,0.3)' : 'rgba(20,25,35,0.45)',
-              color: maxAmount > 0 ? '#7bb8ff' : '#445566',
-              fontFamily: 'monospace',
-              fontSize: 10,
-              cursor: maxAmount > 0 ? 'pointer' : 'not-allowed',
-            }}
-          >
-            {t('planet_terminal.send_cargo', { amount: amount || maxAmount })}
-          </button>
+
+      {/* ── Resource picker — SVG icon toggles ── */}
+      <div style={{ display: 'grid', gap: 5 }}>
+        <div style={sectionLabel}>{t('planet_terminal.select_resource')}</div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {LX_RES_KEYS.map((key) => {
+            const Icon = LX_RES_ICON[key];
+            const active = resource === key;
+            const stock = Math.floor(selectedDonor?.resources[key] ?? 0);
+            return (
+              <button
+                key={key}
+                type="button"
+                title={`${t(`planet_terminal.resource_${key}`)}: ${stock}`}
+                onClick={() => { setResource(key); setAmount(0); }}
+                style={{
+                  flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '6px 4px',
+                  border: `1px solid ${active ? '#446688' : '#334455'}`,
+                  borderRadius: 5,
+                  background: active ? 'rgba(40,70,100,0.3)' : 'rgba(5,10,20,0.5)',
+                  color: active ? '#7bb8ff' : '#8899aa',
+                  fontFamily: 'monospace', cursor: 'pointer',
+                }}
+              >
+                <Icon />
+                <span style={{ fontSize: 9 }}>{stock}</span>
+              </button>
+            );
+          })}
         </div>
-      )}
+      </div>
+
+      {/* ── Amount + send ── */}
+      <div style={{ display: 'flex', gap: 6, alignItems: 'stretch' }}>
+        <input
+          value={amount || ''}
+          min={0}
+          max={maxAmount}
+          type="number"
+          onChange={(event) => setAmount(Number(event.target.value))}
+          placeholder={`${maxAmount}`}
+          style={{
+            flex: 1, background: 'rgba(5,10,20,0.75)', border: '1px solid #334455', borderRadius: 5,
+            color: '#aabbcc', fontFamily: 'monospace', fontSize: 11, padding: '8px 9px', minWidth: 0,
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => setAmount(maxAmount)}
+          disabled={maxAmount <= 0}
+          title={t('planet_terminal.max_amount', { defaultValue: 'MAX' })}
+          style={{
+            padding: '0 10px', border: '1px solid #334455', borderRadius: 5,
+            background: 'rgba(5,10,20,0.5)', color: maxAmount > 0 ? '#8899aa' : '#445566',
+            fontFamily: 'monospace', fontSize: 9, cursor: maxAmount > 0 ? 'pointer' : 'not-allowed',
+          }}
+        >MAX</button>
+      </div>
+      <button
+        type="button"
+        disabled={!canSend}
+        onClick={startShipment}
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+          padding: '9px 10px', border: `1px solid ${canSend ? '#446688' : '#2a3340'}`, borderRadius: 5,
+          background: canSend ? 'rgba(40,70,100,0.35)' : 'rgba(20,25,35,0.45)',
+          color: canSend ? '#7bb8ff' : '#445566',
+          fontFamily: 'monospace', fontSize: 11, cursor: canSend ? 'pointer' : 'not-allowed',
+        }}
+      >
+        <IcoSend />
+        {t('planet_terminal.send_cargo', { amount: canSend ? sendAmount : maxAmount })}
+      </button>
+
       {activeShipments.length > 0 && (
-        <div style={{ display: 'grid', gap: 4 }}>
+        <div style={{ display: 'grid', gap: 4, borderTop: '1px solid rgba(51,68,85,0.4)', paddingTop: 8 }}>
           {activeShipments.map((shipment) => (
             <div key={shipment.id} style={{ color: '#667788', fontSize: 9 }}>
               {t('planet_terminal.shipment_status', {
@@ -804,9 +981,6 @@ function LogisticsTab({
           ))}
         </div>
       )}
-      <div style={{ color: '#445566', fontSize: 9 }}>
-        {targetPlanetId}
-      </div>
     </div>
   );
 }
@@ -845,6 +1019,9 @@ export function PlanetContextMenu({
   cargoShips = [],
   cargoShipments = [],
   planetResourcesById = {},
+  getDonorResources,
+  getCargoRouteLY,
+  getPlanetLabel,
   onStartCargoShipment,
   missionPhotoSaved = false,
   missionPhotoUrl,
@@ -893,6 +1070,12 @@ export function PlanetContextMenu({
   cargoShips?: Ship[];
   cargoShipments?: CargoShipment[];
   planetResourcesById?: Record<string, { minerals: number; volatiles: number; isotopes: number; water: number }>;
+  /** Robust per-planet resource resolver (handles scoped `${systemId}::${planetId}` keys). */
+  getDonorResources?: (planetId: string) => { minerals: number; volatiles: number; isotopes: number; water: number };
+  /** Light-year distance between two planets' systems (null if unknown, 0 if same system). */
+  getCargoRouteLY?: (fromPlanetId: string, toPlanetId: string) => number | null;
+  /** Human-readable planet name for the logistics picker. */
+  getPlanetLabel?: (planetId: string) => string;
   onStartCargoShipment?: (params: { shipId: string; fromPlanetId: string; toPlanetId: string; resource: CargoResource; amount: number }) => void;
   missionPhotoSaved?: boolean;
   missionPhotoUrl?: string | null;
@@ -1214,6 +1397,9 @@ export function PlanetContextMenu({
                     shipments={cargoShipments}
                     targetPlanetId={planet.id}
                     planetResources={planetResourcesById}
+                    getDonorResources={getDonorResources}
+                    getCargoRouteLY={getCargoRouteLY}
+                    getPlanetLabel={getPlanetLabel}
                     onStartCargoShipment={onStartCargoShipment}
                   />
                 </CollapsibleGroup>
