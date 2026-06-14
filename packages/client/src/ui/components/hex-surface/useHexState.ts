@@ -617,14 +617,37 @@ export function useHexState(
 
         if (Array.isArray(saved) && saved.length > 0) {
           const serverSlots = validateAndMigrate(saved as HexSlotData[]);
-          // Prefer the more-progressed version (higher unlocked count) to avoid
-          // stale server data overwriting freshly unlocked localStorage state.
-          const countUnlocked = (ss: HexSlotData[]) =>
-            ss.filter(s => s.state !== 'locked' && s.state !== 'hidden').length;
-          const serverProgress = countUnlocked(serverSlots);
-          const localProgress = countUnlocked(slotsRef.current);
+          // Prefer the more-progressed version to avoid a stale server snapshot
+          // overwriting freshly-saved localStorage state. Progress is measured
+          // across THREE dimensions, not just unlocked tiles:
+          //   • unlocked — number of freed/empty/built tiles
+          //   • buildings — number of placed structures (spaceport, etc.)
+          //   • levels — sum of building levels (upgrades)
+          // Placing or upgrading a building does NOT change the unlocked count
+          // (an 'empty' tile becomes 'building'), so a unlocked-only metric let a
+          // stale server copy — same unlock count, fewer buildings — silently wipe
+          // a just-built spaceport / production on re-entry (the "exited surface,
+          // everything reverted" bug). The richer score makes local win whenever
+          // it carries more buildings or higher levels.
+          const score = (ss: HexSlotData[]) => {
+            let unlocked = 0, buildings = 0, levels = 0;
+            for (const s of ss) {
+              if (s.state !== 'locked' && s.state !== 'hidden') unlocked++;
+              if (s.state === 'building') { buildings++; levels += s.buildingLevel ?? 1; }
+            }
+            return { unlocked, buildings, levels };
+          };
           if (JSON.stringify(serverSlots) !== JSON.stringify(slotsRef.current)) {
-            if (serverProgress >= localProgress) {
+            const srv = score(serverSlots);
+            const loc = score(slotsRef.current);
+            // Adopt the server copy ONLY when it is at least as advanced in EVERY
+            // dimension. If local leads in any dimension (freshly placed/upgraded
+            // building not yet flushed to the server), keep local untouched.
+            const serverNotBehind =
+              srv.unlocked >= loc.unlocked &&
+              srv.buildings >= loc.buildings &&
+              srv.levels >= loc.levels;
+            if (serverNotBehind) {
               // Server is at least as advanced — use server as truth, but never
               // let a stale server snapshot reset a freshly-harvested respawn
               // timer (otherwise a deposit looks ready again on re-entry).
@@ -633,7 +656,8 @@ export function useHexState(
               // Sync localStorage with server truth
               try { localStorage.setItem(hexSlotsKey, JSON.stringify(reconciled)); } catch { /* ignore */ }
             }
-            // else: local has more progress (e.g., just unlocked, server not saved yet) — keep local
+            // else: local has more progress (just unlocked / built / upgraded,
+            // server not saved yet) — keep local and let the pending save flush.
           }
         } else {
           // No server data — check if localStorage already loaded slots
