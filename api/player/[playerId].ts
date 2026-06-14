@@ -1,14 +1,44 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getPlayer, updatePlayer } from '../../packages/server/src/db.js';
+import { getPlayer, updatePlayer, type PlayerRow } from '../../packages/server/src/db.js';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
 import { RATE_LIMITS } from '../../packages/server/src/rate-limiter.js';
 import { SUPPORTED_LANGUAGES } from '@nebulife/core';
 
-function isGameStateRegression(current: unknown, incoming: unknown): boolean {
-  if (!current || typeof current !== 'object' || !incoming || typeof incoming !== 'object') return false;
-  const saved = current as Record<string, unknown>;
+/**
+ * Guards against a stale client snapshot rolling back progress (the
+ * Explorer-943 incident: a Level-50 row regressed to Level 28 because an older
+ * in-memory snapshot was flushed over the newer DB state).
+ *
+ * The "highest ever reached" floor is computed from BOTH the game_state JSON
+ * snapshot AND the GREATEST-protected `player_xp` / `player_level` columns —
+ * those columns can never regress, so they remain a trustworthy floor even if
+ * the JSON snapshot desynced from them. Any incoming write below that floor is
+ * treated as stale and its game_state is dropped.
+ */
+/** Count researched tech-tree nodes inside a game_state.tech_tree blob. */
+function countResearchedTech(gameState: unknown): number {
+  if (!gameState || typeof gameState !== 'object') return 0;
+  const techTree = (gameState as Record<string, unknown>).tech_tree;
+  if (!techTree || typeof techTree !== 'object') return 0;
+  const researched = (techTree as Record<string, unknown>).researched;
+  if (!researched || typeof researched !== 'object') return 0;
+  return Object.keys(researched as Record<string, unknown>).length;
+}
+
+function isGameStateRegression(current: PlayerRow, incoming: unknown): boolean {
+  if (!incoming || typeof incoming !== 'object') return false;
+  const saved = (current.game_state ?? {}) as Record<string, unknown>;
   const next = incoming as Record<string, unknown>;
-  const savedWasStarted = saved.onboarding_done === true || typeof saved.xp === 'number' || typeof saved.level === 'number';
+
+  const columnXP = typeof current.player_xp === 'number' ? current.player_xp : 0;
+  const columnLevel = typeof current.player_level === 'number' ? current.player_level : 1;
+
+  const savedWasStarted =
+    saved.onboarding_done === true ||
+    typeof saved.xp === 'number' ||
+    typeof saved.level === 'number' ||
+    columnXP > 0 ||
+    columnLevel > 1;
   if (!savedWasStarted) return false;
 
   const nextLooksFresh =
@@ -17,11 +47,26 @@ function isGameStateRegression(current: unknown, incoming: unknown): boolean {
     (typeof next.level !== 'number' || next.level <= 1);
   if (nextLooksFresh) return true;
 
-  const savedXP = typeof saved.xp === 'number' ? saved.xp : 0;
+  // Floor = highest value seen in either the JSON snapshot or the protected
+  // columns. A correct client never writes below its own previously synced max.
+  const savedXP = Math.max(typeof saved.xp === 'number' ? saved.xp : 0, columnXP);
+  const savedLevel = Math.max(typeof saved.level === 'number' ? saved.level : 1, columnLevel);
   const nextXP = typeof next.xp === 'number' ? next.xp : savedXP;
-  const savedLevel = typeof saved.level === 'number' ? saved.level : 1;
   const nextLevel = typeof next.level === 'number' ? next.level : savedLevel;
-  return nextXP < savedXP || nextLevel < savedLevel;
+
+  // 1 XP tolerance so a legitimate equal/idempotent save is never dropped.
+  if (nextXP < savedXP - 1 || nextLevel < savedLevel) return true;
+
+  // Tech tree must never shrink. The researched set is monotonic (nodes are
+  // never un-researched), so a smaller incoming set means the client is
+  // flushing a stale snapshot — which would silently undo progress (and any
+  // manual restore). Only evaluated when the write actually carries a
+  // tech_tree, so partial patches are unaffected.
+  if (next.tech_tree !== undefined && countResearchedTech(next) < countResearchedTech(saved)) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -104,7 +149,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!current) {
           return res.status(404).json({ error: 'Player not found' });
         }
-        if (isGameStateRegression(current.game_state, sanitized.game_state)) {
+        if (isGameStateRegression(current, sanitized.game_state)) {
           delete sanitized.game_state;
           if (Object.keys(sanitized).length === 0) {
             return res.status(409).json({ error: 'Ignored stale game_state regression' });
