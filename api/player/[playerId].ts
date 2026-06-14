@@ -41,7 +41,20 @@ function isGameStateRegression(current: PlayerRow, incoming: unknown): boolean {
     columnLevel > 1;
   if (!savedWasStarted) return false;
 
+  // A partial patch that carries NO identity fields (xp / level /
+  // onboarding_done) is not a "fresh reset" — it just updates other keys
+  // (hex_slots_by_planet, colony_resources, missions, …). The client saves
+  // surface/colony state exactly like this: { hex_slots_by_planet: {...} }.
+  // Judging absence as freshness dropped every such partial write, so a freshly
+  // built structure never reached the DB and reverted on re-entry. Only run the
+  // freshness heuristic when the payload actually intends to set identity.
+  const carriesIdentity =
+    next.onboarding_done !== undefined ||
+    next.xp !== undefined ||
+    next.level !== undefined;
+
   const nextLooksFresh =
+    carriesIdentity &&
     next.onboarding_done !== true &&
     (typeof next.xp !== 'number' || next.xp <= 0) &&
     (typeof next.level !== 'number' || next.level <= 1);
