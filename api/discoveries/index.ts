@@ -1,6 +1,23 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { put } from '@vercel/blob';
 import { getDiscoveries, saveDiscovery, updateDiscoveryPhoto } from '../../packages/server/src/db.js';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
+
+export const config = {
+  maxDuration: 30,
+};
+
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+
+function parseImageDataUrl(dataUrl: string): { buffer: Buffer; mimeType: string; ext: string } | null {
+  const match = dataUrl.match(/^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/);
+  if (!match) return null;
+  const mimeType = match[1];
+  const buffer = Buffer.from(match[2], 'base64');
+  if (buffer.length <= 0 || buffer.length > MAX_IMAGE_BYTES) return null;
+  const ext = mimeType === 'image/jpeg' ? 'jpg' : mimeType === 'image/webp' ? 'webp' : 'png';
+  return { buffer, mimeType, ext };
+}
 
 /**
  * GET  /api/discoveries?playerId=...&category=... (auth required)
@@ -50,10 +67,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const row = await saveDiscovery({ id, playerId, objectType, rarity, galleryCategory, systemId, planetId });
 
-      // If a photo URL (data URL or remote) was provided, save it too
-      if (photoUrl) {
-        await updateDiscoveryPhoto(id, photoUrl);
-        (row as unknown as Record<string, unknown>).photo_url = photoUrl;
+      // If a photo was provided, persist it. Base64 data URLs get uploaded to Blob
+      // storage so the DB only ever stores a short public URL (never the raw image).
+      if (typeof photoUrl === 'string' && photoUrl.length > 0) {
+        let storedUrl = photoUrl;
+        const parsed = parseImageDataUrl(photoUrl);
+        if (parsed) {
+          const blob = await put(
+            `discoveries/${playerId}/${id}-${Date.now()}.${parsed.ext}`,
+            parsed.buffer,
+            { access: 'public', contentType: parsed.mimeType },
+          );
+          storedUrl = blob.url;
+        }
+        await updateDiscoveryPhoto(id, storedUrl);
+        (row as unknown as Record<string, unknown>).photo_url = storedUrl;
       }
 
       return res.status(200).json(row);
