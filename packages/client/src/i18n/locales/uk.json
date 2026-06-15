@@ -1110,6 +1110,8 @@
     "life_intelligent": "розумне"
   },
   "planet_terminal": {
+    "tab_research": "Дослідження",
+    "tab_science": "Характеристики",
     "tab_resources": "Ресурси",
     "tab_logistics": "Логістика",
     "tab_terraform": "Терраформ.",
@@ -1150,10 +1152,12 @@
   "planet_missions": {
     "section": "Дослідницькі місії",
     "reports_group": "Звіти",
+    "research_group": "Дослідження",
     "start": "Старт",
     "reveal_level": "Рівень даних: Tier {{level}}",
     "reveal_level_short": "T{{level}}",
     "no_reports": "Звітів для цієї планети ще немає.",
+    "no_available_missions": "Дослідницькі місії для цієї планети недоступні.",
     "resources_locked": "Ресурси приховані. Потрібен орбітальний зонд (Tier 2).",
     "elements_locked": "Деталі елементів відкриває поверхнева експедиція (Tier 3).",
     "type": {
@@ -2691,12 +2695,36 @@
     "cancel_mission": "Скасувати",
     "no_donors_msg": "Немає колонізованих планет з кораблями",
     "mission_eta": "ETA",
+    "resource_budget": "Повний бюджет",
+    "supply_runs_remaining": "≈{{count}} рейсів T{{tier}} до завершення",
+    "notice": {
+      "final_report_possible": "{{planet}}: терраформування можливе. Орієнтовні ресурси: {{resources}}.",
+      "final_report_impossible": "{{planet}}: терраформування неможливе за поточною класифікацією планети."
+    },
+    "cutscene": {
+      "title": "Терраформування завершено",
+      "eyebrow": "NEBULIFE · ПЛАНЕТАРНА ТРАНСФОРМАЦІЯ",
+      "type_change": "{{before}} → {{after}}",
+      "complete": "Терраформування завершено",
+      "progress": "{{pct}}%",
+      "xp": "+{{xp}} XP",
+      "skip": "натисніть щоб пропустити",
+      "phase": {
+        "magnetosphere": "Магнітосфера запалюється. Поле планети бере зоряний вітер на себе.",
+        "atmosphere": "Атмосфера згущується. Небо народжується над новою поверхнею.",
+        "oceans": "Вода збирається в басейни. Давні низини стають морями.",
+        "biosphere": "Біосфера розгортається. Куполи життя переходять у відкритий світ.",
+        "clouds": "Хмарні системи стабілізуються. Клімат входить у рівновагу.",
+        "complete": "Планета прийняла новий стан. Параметри збережено."
+      }
+    },
     "reason": {
       "genesis_vault_required": "Потребує Ковчег Генезису",
       "tech_required": "Потребує технологію {{tech}}",
       "requires_magnetic_and_atmosphere_50": "Потребує магн. поле та атмосферу ≥50%",
       "requires_atmosphere_50": "Потребує атмосферу ≥50%",
-      "planet_not_terraformable": "Планета не підлягає терраформуванню"
+      "planet_not_terraformable": "Планета не підлягає терраформуванню",
+      "full_research_required": "Потрібно завершити всі доступні дослідження планети: орбітальне сканування, зонд і поверхневу експедицію."
     }
   },
   "hex": {

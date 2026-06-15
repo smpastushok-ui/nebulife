@@ -497,6 +497,9 @@ export const uk = {
   'common.understood':      'ЗРОЗУМIЛО',
   'common.loading':         'Завантаження...',
   'common.back':            'Назад',
+  'common.close':           'Закрити',
+  'planet.action_terraform': 'Терраформування',
+  'terraform.reason.full_research_required': 'Потрібно завершити всі доступні дослідження планети: орбітальне сканування, зонд і поверхневу експедицію.',
   'errors.allSlotsOccupied': 'Усі обсерваторії зайняті',
   'errors.noObservatories': 'Немає обсерваторій',
   'errors.surfaceChaosTitle': 'Планета в хаосі',
@@ -670,6 +673,7 @@ export const uk = {
   // Planet exploration missions
   'planet_terminal.free_ships_short':       '{count} кораб.',
   'planet_missions.reports_group':          'Звіти',
+  'planet_missions.research_group':         'Дослідження',
   'planet_missions.reveal_level_short':     'T{level}',
   'planet_missions.no_reports':             'Звітів для цієї планети ще немає.',
   'planet_missions.type.drone_recon':        'Розвідка дроном',

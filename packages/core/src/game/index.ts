@@ -249,6 +249,7 @@ export {
   isTerraformable,
   getInitialTerraformState,
   computeParamRequirement,
+  supplyRunsRemaining,
   applyDelivery,
   getOverallProgress,
   canStartParam,

@@ -56,6 +56,7 @@ interface PlanetGlobeViewProps {
   star: Star;
   system: StarSystem;
   mode: 'home' | 'planet-view';
+  showOrbitalProbe?: boolean;
   onDoubleClick?: () => void;
   textureUrl?: string | null;
   onSceneLoaded?: () => void;
@@ -1136,6 +1137,41 @@ interface ShipState {
   speed: number; // progress per ms
 }
 
+interface ProbeOrbitData {
+  group: THREE.Group;
+  angle: number;
+  orbitRadius: number;
+  angularSpeed: number;
+}
+
+function createOrbitalProbe(scene: THREE.Scene, planet: Planet): ProbeOrbitData {
+  const group = new THREE.Group();
+  const bodyMat = new THREE.MeshBasicMaterial({ color: 0x334455 });
+  const panelMat = new THREE.MeshBasicMaterial({ color: 0x225577 });
+  const glowMat = new THREE.MeshBasicMaterial({ color: 0x44ffcc });
+
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.028, 0.11), bodyMat);
+  const leftPanel = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.004, 0.035), panelMat);
+  const rightPanel = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.004, 0.035), panelMat);
+  leftPanel.position.x = -0.08;
+  rightPanel.position.x = 0.08;
+  const sensor = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 8), glowMat);
+  sensor.position.z = 0.065;
+
+  group.add(body, leftPanel, rightPanel, sensor);
+  const light = new THREE.PointLight(0x44ffcc, 0.35, 0.8);
+  group.add(light);
+  scene.add(group);
+
+  const seed = Math.abs(planet.seed ?? 1);
+  return {
+    group,
+    angle: (seed % 628) / 100,
+    orbitRadius: 2.0,
+    angularSpeed: 0.0015,
+  };
+}
+
 // Cached GLB for the evacuation ship. Loaded once on first PlanetGlobeView
 // mount; subsequent ships clone it. Falls back to the procedural cone if
 // the file is missing / still loading.
@@ -1449,7 +1485,7 @@ function spawnShootingStar(scene: THREE.Scene): ShootingStar {
 // ---------------------------------------------------------------------------
 
 const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
-  ({ planet, star, system, mode, onDoubleClick, textureUrl, onSceneLoaded }, ref) => {
+  ({ planet, star, system, mode, showOrbitalProbe = false, onDoubleClick, textureUrl, onSceneLoaded }, ref) => {
     const { t } = useTranslation();
     const containerRef = useRef<HTMLDivElement>(null);
     const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -1728,6 +1764,9 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       const ship = createShipState(scene);
       shipRef.current = ship;
 
+      // 10. Orbital science probe after orbital-probe research.
+      const probeOrbit = showOrbitalProbe ? createOrbitalProbe(scene, planet) : null;
+
       // --- Cosmic events (shooting stars on all scenes) ---
       let shootingStars: ShootingStar[] = [];
       let nextShootingStarTime = 3 + Math.random() * 7; // 3-10s for first
@@ -1876,6 +1915,15 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
           const depth = mz / m.orbitRadius;
           m.mesh.scale.setScalar(0.85 + depth * 0.15);
           m.mesh.renderOrder = mz > 0 ? 2 : -1;
+        }
+
+        if (probeOrbit) {
+          probeOrbit.angle += probeOrbit.angularSpeed * deltaMs;
+          const x = Math.cos(probeOrbit.angle) * probeOrbit.orbitRadius;
+          const z = Math.sin(probeOrbit.angle) * probeOrbit.orbitRadius;
+          probeOrbit.group.position.set(x, 0.05 * Math.sin(probeOrbit.angle * 2), z);
+          probeOrbit.group.rotation.y = -probeOrbit.angle + Math.PI / 2;
+          probeOrbit.group.renderOrder = z > 0 ? 3 : -2;
         }
 
         // Scanning overlay
@@ -2036,7 +2084,7 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
         cancelAnimationFrame(raf1);
         teardown?.();
       };
-    }, [planet.id, star.id, validatedTextureUrl, waitingForSkinTexture]); // Re-create scene when planet/star/skin changes
+    }, [planet.id, planet.type, planet.habitability.overall, star.id, validatedTextureUrl, waitingForSkinTexture]); // Re-create scene when planet/star/skin/promoted visuals change
 
     const showSkinLoadingMask = waitingForSkinTexture;
 

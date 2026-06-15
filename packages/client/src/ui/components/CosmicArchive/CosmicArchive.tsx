@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { StarSystem, CatalogEntry, Discovery, TechTreeState, TechBranch, Planet, PlacedBuilding, Ship, CargoShipment } from '@nebulife/core';
+import type { StarSystem, CatalogEntry, Discovery, TechTreeState, TechBranch, Planet, PlacedBuilding, Ship, CargoShipment, PlanetMission, PlanetMissionType, ProducibleType } from '@nebulife/core';
 import type { PlanetTerraformState, PlanetColonyState, TerraformParamId } from '@nebulife/core';
 import type { ColonyResources } from '../Terraform/MissionDispatchModal.js';
 import { PlaceholderTab } from './PlaceholderTab';
@@ -180,6 +180,18 @@ export interface CosmicArchiveProps {
   planetRevealLevels?: Record<string, import('@nebulife/core').PlanetRevealLevel>;
   /** Mission reports keyed by planet ID. */
   planetReports?: Record<string, import('@nebulife/core').PlanetReportSummary>;
+  activeMissionForPlanet?: (planetId: string) => PlanetMission | null;
+  planetMissionClock?: number;
+  missionResources?: { researchData: number; minerals: number; volatiles: number; isotopes: number; water: number };
+  missionResearchDataCost?: (system: StarSystem) => number;
+  payloadInventory?: Partial<Record<ProducibleType, number>>;
+  carrierInventory?: Partial<Record<ProducibleType, number>>;
+  onStartPlanetMission?: (system: StarSystem, planet: Planet, type: PlanetMissionType) => void;
+  onViewPlanetReport?: (planet: Planet, report: import('@nebulife/core').PlanetReportSummary) => void;
+  missionPhotoSaved?: (system: StarSystem, planet: Planet, report: import('@nebulife/core').PlanetReportSummary) => boolean;
+  missionPhotoUrl?: (system: StarSystem, planet: Planet, report: import('@nebulife/core').PlanetReportSummary) => string | null;
+  onViewMissionPhoto?: (planet: Planet, report: import('@nebulife/core').PlanetReportSummary, photoUrl: string) => void;
+  explorationMissionsDisabled?: (system: StarSystem, planet: Planet) => boolean;
   /** Colony state per planet — for population + building count display. */
   colonyStateByPlanet?: Record<string, PlanetColonyState>;
   /** Navigate directly to a colony planet's surface (closes archive). */
@@ -204,6 +216,11 @@ export interface CosmicArchiveProps {
   cargoShips?: Ship[];
   /** Active cargo shipments for Terminal -> Planets logistics tab. */
   cargoShipments?: CargoShipment[];
+  planetResourcesById?: Record<string, { minerals: number; volatiles: number; isotopes: number; water: number }>;
+  getDonorResources?: (planetId: string) => { minerals: number; volatiles: number; isotopes: number; water: number };
+  getCargoRouteLY?: (fromPlanetId: string, toPlanetId: string) => number | null;
+  getPlanetLabel?: (planetId: string) => string;
+  onStartCargoShipment?: (params: { shipId: string; fromPlanetId: string; toPlanetId: string; resource: 'minerals' | 'volatiles' | 'isotopes' | 'water'; amount: number }) => void;
   planetSkinStatuses?: Record<string, { system?: PlanetSkinStatus; exosphere?: PlanetSkinStatus }>;
   onGeneratePlanetSkin?: (system: StarSystem, planet: Planet, kind: PlanetSkinKind) => void;
   tutorialResearchTargetCount?: number;
@@ -354,6 +371,18 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   terraformStates,
   planetRevealLevels,
   planetReports,
+  activeMissionForPlanet,
+  planetMissionClock,
+  missionResources,
+  missionResearchDataCost,
+  payloadInventory,
+  carrierInventory,
+  onStartPlanetMission,
+  onViewPlanetReport,
+  missionPhotoSaved,
+  missionPhotoUrl,
+  onViewMissionPhoto,
+  explorationMissionsDisabled,
   colonyStateByPlanet,
   onOpenColonySurface,
   onOpenColonyCenter,
@@ -365,6 +394,11 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   onRenamePlanet,
   cargoShips,
   cargoShipments,
+  planetResourcesById,
+  getDonorResources,
+  getCargoRouteLY,
+  getPlanetLabel,
+  onStartCargoShipment,
   planetSkinStatuses,
   onGeneratePlanetSkin,
   tutorialResearchTargetCount,
@@ -640,6 +674,18 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           terraformStates={terraformStates}
           planetRevealLevels={planetRevealLevels}
           planetReports={planetReports}
+          activeMissionForPlanet={activeMissionForPlanet}
+          planetMissionClock={planetMissionClock}
+          missionResources={missionResources}
+          missionResearchDataCost={missionResearchDataCost}
+          payloadInventory={payloadInventory}
+          carrierInventory={carrierInventory}
+          onStartMission={onStartPlanetMission}
+          onViewReport={onViewPlanetReport}
+          missionPhotoSaved={missionPhotoSaved}
+          missionPhotoUrl={missionPhotoUrl}
+          onViewMissionPhoto={onViewMissionPhoto}
+          explorationMissionsDisabled={explorationMissionsDisabled}
           colonyStateByPlanet={colonyStateByPlanet}
           getPlanetResources={getPlanetResources}
           planetResourceStocks={planetResourceStocks}
@@ -653,6 +699,11 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           onRenamePlanet={onRenamePlanet}
           cargoShips={cargoShips}
           cargoShipments={cargoShipments}
+          planetResourcesById={planetResourcesById}
+          getDonorResources={getDonorResources}
+          getCargoRouteLY={getCargoRouteLY}
+          getPlanetLabel={getPlanetLabel}
+          onStartCargoShipment={onStartCargoShipment}
           planetSkinStatuses={planetSkinStatuses}
           quarks={quarks}
           onGeneratePlanetSkin={onGeneratePlanetSkin}
@@ -705,6 +756,18 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           terraformStates={terraformStates}
           planetRevealLevels={planetRevealLevels}
           planetReports={planetReports}
+          activeMissionForPlanet={activeMissionForPlanet}
+          planetMissionClock={planetMissionClock}
+          missionResources={missionResources}
+          missionResearchDataCost={missionResearchDataCost}
+          payloadInventory={payloadInventory}
+          carrierInventory={carrierInventory}
+          onStartMission={onStartPlanetMission}
+          onViewReport={onViewPlanetReport}
+          missionPhotoSaved={missionPhotoSaved}
+          missionPhotoUrl={missionPhotoUrl}
+          onViewMissionPhoto={onViewMissionPhoto}
+          explorationMissionsDisabled={explorationMissionsDisabled}
           colonyStateByPlanet={colonyStateByPlanet}
           getPlanetResources={getPlanetResources}
           planetResourceStocks={planetResourceStocks}
@@ -719,6 +782,11 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           onRenamePlanet={onRenamePlanet}
           cargoShips={cargoShips}
           cargoShipments={cargoShipments}
+          planetResourcesById={planetResourcesById}
+          getDonorResources={getDonorResources}
+          getCargoRouteLY={getCargoRouteLY}
+          getPlanetLabel={getPlanetLabel}
+          onStartCargoShipment={onStartCargoShipment}
           planetSkinStatuses={planetSkinStatuses}
           quarks={quarks}
           onGeneratePlanetSkin={onGeneratePlanetSkin}

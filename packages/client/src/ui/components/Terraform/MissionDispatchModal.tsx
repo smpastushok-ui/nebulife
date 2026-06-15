@@ -10,6 +10,7 @@ import {
   flightHoursLY,
   repairCost,
   computeParamRequirement,
+  supplyRunsRemaining,
   PRODUCIBLE_DEFS,
 } from '@nebulife/core';
 import type { TerraformParamId, Mission, ShipTier } from '@nebulife/core';
@@ -137,6 +138,24 @@ export function MissionDispatchModal({
     const cost = computeParamRequirement(targetPlanet, paramId, currentProgress);
     return (cost as Record<string, number | undefined>)[resource] ?? 0;
   }, [targetPlanet, paramId, currentProgress, resource]);
+  const fullRequirement = useMemo(
+    () => computeParamRequirement(targetPlanet, paramId, currentProgress),
+    [targetPlanet, paramId, currentProgress],
+  );
+  const resourceBudgetText = useMemo(
+    () => (['minerals', 'volatiles', 'isotopes', 'water'] as const)
+      .map((key) => {
+        const amount = fullRequirement[key] ?? 0;
+        return amount > 0 ? `${amount.toLocaleString()} ${t(`terraform.resource.${key}`)}` : null;
+      })
+      .filter(Boolean)
+      .join(' · '),
+    [fullRequirement, t],
+  );
+  const runsRemaining = useMemo(
+    () => supplyRunsRemaining(targetPlanet, paramId, currentProgress, tier),
+    [targetPlanet, paramId, currentProgress, tier],
+  );
 
   const maxAmount = Math.floor(Math.min(maxCargo, available, requirement > 0 ? requirement : maxCargo));
   const [amount, setAmount] = useState<number>(maxAmount);
@@ -413,6 +432,25 @@ export function MissionDispatchModal({
             </div>
           )}
         </div>
+
+        {resourceBudgetText && (
+          <div style={{
+            border: '1px solid rgba(68,136,170,0.28)',
+            background: 'rgba(8,16,28,0.72)',
+            borderRadius: 4,
+            padding: '7px 9px',
+            fontSize: 9,
+            color: '#8899aa',
+            lineHeight: 1.5,
+          }}>
+            <div style={{ color: '#7bb8ff' }}>
+              {t('terraform.resource_budget')}: {resourceBudgetText}
+            </div>
+            <div>
+              {t('terraform.supply_runs_remaining', { count: runsRemaining, tier })}
+            </div>
+          </div>
+        )}
 
         {/* Stats */}
         <div style={{

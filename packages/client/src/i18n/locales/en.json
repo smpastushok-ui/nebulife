@@ -1112,6 +1112,8 @@
     "life_intelligent": "intelligent"
   },
   "planet_terminal": {
+    "tab_research": "Research",
+    "tab_science": "Characteristics",
     "tab_resources": "Resources",
     "tab_logistics": "Logistics",
     "tab_terraform": "Terraform",
@@ -1152,10 +1154,12 @@
   "planet_missions": {
     "section": "Research Missions",
     "reports_group": "Reports",
+    "research_group": "Research",
     "start": "Start",
     "reveal_level": "Data level: Tier {{level}}",
     "reveal_level_short": "T{{level}}",
     "no_reports": "No reports for this planet yet.",
+    "no_available_missions": "Research missions are unavailable for this planet.",
     "resources_locked": "Resources are hidden. Requires an orbital probe (Tier 2).",
     "elements_locked": "Element details unlock after a surface expedition (Tier 3).",
     "type": {
@@ -2690,12 +2694,36 @@
     "cancel_mission": "Cancel",
     "no_donors_msg": "No colonies with ships",
     "mission_eta": "ETA",
+    "resource_budget": "Full budget",
+    "supply_runs_remaining": "≈{{count}} T{{tier}} supply runs remaining",
+    "notice": {
+      "final_report_possible": "{{planet}}: terraforming is possible. Estimated resources: {{resources}}.",
+      "final_report_impossible": "{{planet}}: terraforming is impossible under the current planet classification."
+    },
+    "cutscene": {
+      "title": "Terraforming complete",
+      "eyebrow": "NEBULIFE · PLANETARY TRANSFORMATION",
+      "type_change": "{{before}} → {{after}}",
+      "complete": "Terraforming complete",
+      "progress": "{{pct}}%",
+      "xp": "+{{xp}} XP",
+      "skip": "click to skip",
+      "phase": {
+        "magnetosphere": "The magnetosphere ignites. The planet begins to hold back the stellar wind.",
+        "atmosphere": "The atmosphere thickens. A sky forms above the altered surface.",
+        "oceans": "Water gathers in basins. Ancient lowlands become seas.",
+        "biosphere": "The biosphere spreads. Life moves from domes into the open world.",
+        "clouds": "Cloud systems stabilize. Climate settles into balance.",
+        "complete": "The planet has accepted its new state. Parameters saved."
+      }
+    },
     "reason": {
       "genesis_vault_required": "Requires Genesis Vault",
       "tech_required": "Requires tech {{tech}}",
       "requires_magnetic_and_atmosphere_50": "Requires magnetic field & atmosphere ≥50%",
       "requires_atmosphere_50": "Requires atmosphere ≥50%",
-      "planet_not_terraformable": "Planet cannot be terraformed"
+      "planet_not_terraformable": "Planet cannot be terraformed",
+      "full_research_required": "Complete all available planet research first: orbital scan, probe, and surface expedition."
     }
   },
   "hex": {

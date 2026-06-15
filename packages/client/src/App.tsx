@@ -115,6 +115,7 @@ import {
   completePlanetMission,
   getPlanetMissionProgress,
   isSolidPlanetForLanding,
+  isTerraformable,
   generateStarSystem,
   getRequiredMissionCarrier,
   COSMIC_CATALOG,
@@ -129,6 +130,7 @@ import type { PlanetTerraformState, Mission, TerraformParamId, ShipTier as TfShi
 import type { PlanetMission, PlanetMissionType, PlanetReportSummary, PlanetRevealLevel } from '@nebulife/core';
 import {
   getInitialTerraformState,
+  computeParamRequirement,
   applyDelivery,
   applyTerraformCompletionToPlanet,
   getOverallProgress,
@@ -145,6 +147,7 @@ import {
 } from '@nebulife/core';
 import { MissionTracker } from './ui/components/Terraform/MissionTracker.js';
 import { TerraformPanel } from './ui/components/Terraform/TerraformPanel.js';
+import { TerraformCutscene, type TerraformCompletionPayload } from './ui/components/Terraform/TerraformCutscene.js';
 import { SystemResearchOverlay } from './ui/components/SystemResearchOverlay.js';
 import { ScientificReport } from './ui/components/ScientificReport.js';
 import { MissionReportModal } from './ui/components/PlanetMission/MissionReportModal.js';
@@ -1608,8 +1611,8 @@ function AppInner() {
     catch { /* ignore quota */ }
   }, [planetOverrides]);
 
-  /** Planet that just completed terraforming — Phase 7D will render the completion cutscene. */
-  const [pendingTerraformCompletion, setPendingTerraformCompletion] = useState<Planet | null>(null);
+  /** Planet that just completed terraforming — rendered as a cinematic exosphere transformation. */
+  const [pendingTerraformCompletion, setPendingTerraformCompletion] = useState<TerraformCompletionPayload | null>(null);
 
   // ── Per-planet resource helpers (Phase 7A) ────────────────────────────
 
@@ -2529,6 +2532,11 @@ function AppInner() {
           sys.planets[i] = {
             ...sys.planets[i],
             type: override.type,
+            ...(override.surfaceTempK !== undefined ? { surfaceTempK: override.surfaceTempK } : {}),
+            ...(override.albedo !== undefined ? { albedo: override.albedo } : {}),
+            ...(override.atmosphere !== undefined ? { atmosphere: override.atmosphere } : {}),
+            ...(override.hydrosphere !== undefined ? { hydrosphere: override.hydrosphere } : {}),
+            ...(override.magneticField !== undefined ? { magneticField: override.magneticField } : {}),
             terraformDifficulty: override.terraformDifficulty,
             habitability: override.habitability,
             // Apply custom name if player renamed the planet
@@ -3078,7 +3086,7 @@ function AppInner() {
       // Collect at most one planet promotion per tick — queue for post-map state updates.
       // Use a wrapper array (not let+null) so TS control-flow analysis doesn't narrow to `never`
       // when the assignment only happens inside a map() callback.
-      const pendingPromotions: Array<{ promotedPlanet: Planet; override: PlanetOverride }> = [];
+      const pendingPromotions: Array<{ beforePlanet: Planet; promotedPlanet: Planet; star: Star; override: PlanetOverride }> = [];
 
       const nextFleet = currentFleet.map((mission) => {
         if (mission.phase === 'idle') return mission;
@@ -3133,6 +3141,11 @@ function AppInner() {
                     const override: PlanetOverride = {
                       planetId: promotedPlanet.id,
                       type: promotedPlanet.type,
+                      surfaceTempK: promotedPlanet.surfaceTempK,
+                      albedo: promotedPlanet.albedo,
+                      atmosphere: promotedPlanet.atmosphere,
+                      hydrosphere: promotedPlanet.hydrosphere,
+                      magneticField: promotedPlanet.magneticField,
                       habitability: promotedPlanet.habitability,
                       terraformDifficulty: promotedPlanet.terraformDifficulty,
                       promotedAt: completionTime,
@@ -3144,7 +3157,7 @@ function AppInner() {
                       sys.planets[planetIdx] = promotedPlanet;
                     }
 
-                    pendingPromotions.push({ promotedPlanet, override });
+                    pendingPromotions.push({ beforePlanet: planet, promotedPlanet, star: sys.star, override });
                   }
                   break;
                 }
@@ -3229,7 +3242,11 @@ function AppInner() {
         const promotedSystem = engineRef.current?.getAllSystems().find((sys) => sys.planets.some((p) => p.id === promotedId));
         const promotedKey = promotedSystem ? planetObjectKey(promotedSystem.id, promotedId) : promotedId;
         setPlanetOverrides((prev) => ({ ...prev, [promotedKey]: promotedOverride }));
-        setPendingTerraformCompletion(promotedPlanet);
+        setPendingTerraformCompletion({
+          before: promo.beforePlanet,
+          after: promotedPlanet,
+          star: promo.star,
+        });
         awardXP(XP_REWARDS.TERRAFORM_COMPLETED, 'terraform_completed');
       }
     }, 5000);
@@ -3512,8 +3529,8 @@ function AppInner() {
     return carriers;
   }, []);
 
-  const handleStartPlanetMission = useCallback((planet: Planet, type: PlanetMissionType): void => {
-    const system = state.selectedSystem;
+  const handleStartPlanetMission = useCallback((planet: Planet, type: PlanetMissionType, systemOverride?: StarSystem): void => {
+    const system = systemOverride ?? state.selectedSystem;
     if (!system) return;
 
     const revealLevel = getEffectivePlanetRevealLevel(planet, system);
@@ -3638,6 +3655,18 @@ function AppInner() {
     t,
     totalResources,
   ]);
+
+  const handleStartPlanetMissionFromArchive = useCallback((system: StarSystem, planet: Planet, type: PlanetMissionType): void => {
+    setShowCosmicArchive(false);
+    setState((prev) => ({
+      ...prev,
+      scene: 'system',
+      selectedSystem: system,
+      selectedPlanet: planet,
+      showPlanetMenu: false,
+    }));
+    handleStartPlanetMission(planet, type, system);
+  }, [handleStartPlanetMission]);
 
   const getExplorationPayloadCost = useCallback((type: ProducibleType): { minerals: number; volatiles: number; isotopes: number; water: number } => {
     const cost = { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
@@ -3932,6 +3961,47 @@ function AppInner() {
     totalResources,
   ]);
 
+  const buildTerraformAssessment = useCallback((planet: Planet): {
+    canTerraform: boolean;
+    summary: string;
+    logText: string;
+    resourceText: string;
+  } => {
+    const isEn = lang === 'en';
+    if (!isTerraformable(planet)) {
+      const summary = isEn
+        ? 'Terraforming is not available: this planet has no stable solid surface for biosphere engineering.'
+        : 'Терраформування недоступне: планета не має стабільної твердої поверхні для інженерії біосфери.';
+      return { canTerraform: false, summary, logText: summary, resourceText: '' };
+    }
+
+    const initialState = getInitialTerraformState(planet);
+    const totals = { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
+    const params: TerraformParamId[] = ['magneticField', 'atmosphere', 'ozone', 'temperature', 'pressure', 'water'];
+    for (const paramId of params) {
+      const cost = computeParamRequirement(planet, paramId, initialState.params[paramId].progress);
+      totals.minerals += cost.minerals ?? 0;
+      totals.volatiles += cost.volatiles ?? 0;
+      totals.isotopes += cost.isotopes ?? 0;
+      totals.water += cost.water ?? 0;
+    }
+    const resourceText = [
+      totals.minerals > 0 ? `${isEn ? 'minerals' : 'мінерали'} ${Math.ceil(totals.minerals)}` : null,
+      totals.volatiles > 0 ? `${isEn ? 'volatiles' : 'леткі'} ${Math.ceil(totals.volatiles)}` : null,
+      totals.isotopes > 0 ? `${isEn ? 'isotopes' : 'ізотопи'} ${Math.ceil(totals.isotopes)}` : null,
+      totals.water > 0 ? `${isEn ? 'water' : 'вода'} ${Math.ceil(totals.water)}` : null,
+    ].filter(Boolean).join(', ');
+    const summary = isEn
+      ? `Terraforming is possible after meeting operational gates. Estimated full-cycle resource budget: ${resourceText || 'minimal'}.`
+      : `Терраформування можливе після виконання операційних умов. Орієнтовний повний ресурсний бюджет: ${resourceText || 'мінімальний'}.`;
+    return {
+      canTerraform: true,
+      summary,
+      logText: summary,
+      resourceText,
+    };
+  }, [lang]);
+
   const buildPlanetMissionReportText = useCallback((planet: Planet, report: PlanetReportSummary): string => {
     const isEn = lang === 'en';
     const typeLabel: Record<PlanetMissionType, string> = isEn
@@ -4013,13 +4083,16 @@ function AppInner() {
       lines.push(isEn
         ? `Terrain interpretation: ${planet.hasLife ? 'biosignatures must be preserved during landing-site selection' : 'priority zones are stable terrain, accessible deposits, and low thermal stress'}.`
         : `Інтерпретація рельєфу: ${planet.hasLife ? 'біосигнатури треба зберегти під час вибору місця посадки' : 'пріоритетні зони — стабільний рельєф, доступні поклади та низький тепловий стрес'}.`);
+      const assessment = buildTerraformAssessment(planet);
+      lines.push('', isEn ? 'TERRAFORMING ASSESSMENT' : 'ОЦІНКА ТЕРРАФОРМУВАННЯ');
+      lines.push(assessment.summary);
     }
 
     lines.push('', isEn
       ? 'Recommendation: use this data for the next mission tier or colonization planning.'
       : 'Рекомендація: використати ці дані для наступного рівня місії або планування колонізації.');
     return lines.join('\n');
-  }, [lang]);
+  }, [buildTerraformAssessment, lang]);
 
   const completeReadyExplorationProduction = useCallback((now: number): void => {
     const queue = explorationProductionQueueRef.current;
@@ -4147,7 +4220,26 @@ function AppInner() {
             read: false,
           };
         });
-        setSystemNotifs((prev) => [...prev, ...missionNotifs]);
+        const terraformNotifs = reportsToAdd.flatMap((report) => {
+          if (report.revealLevel < 3) return [];
+          const system = allSystems.find((entry) => entry.id === report.systemId);
+          const planet = system?.planets.find((entry) => entry.id === report.planetId);
+          if (!planet) return [];
+          const assessment = buildTerraformAssessment(planet);
+          return [{
+            id: `notif-tf-${nowTs}-${report.planetId}-${Math.random().toString(36).slice(2, 6)}`,
+            text: assessment.canTerraform
+              ? i18n.t('terraform.notice.final_report_possible', { planet: planet.name, resources: assessment.resourceText || '—' })
+              : i18n.t('terraform.notice.final_report_impossible', { planet: planet.name }),
+            planetName: planet.name,
+            systemId: report.systemId,
+            planetId: report.planetId,
+            timestamp: nowTs + 50,
+            read: false,
+            assessmentText: assessment.logText,
+          }];
+        });
+        setSystemNotifs((prev) => [...prev, ...missionNotifs, ...terraformNotifs.map(({ assessmentText, ...notif }) => notif)]);
         setLogEntries((prev) => [
           ...prev,
           ...missionNotifs.map((notif, index) => ({
@@ -4159,6 +4251,16 @@ function AppInner() {
             systemId: notif.systemId,
             planetId: notif.planetId,
             objectType: 'planet_mission_report',
+          })),
+          ...terraformNotifs.map((notif, index) => ({
+            id: `log-tf-${nowTs}-${notif.planetId}-${index}`,
+            category: 'science' as const,
+            text: notif.assessmentText,
+            timestamp: nowTs + 100 + index,
+            planetName: notif.planetName,
+            systemId: notif.systemId,
+            planetId: notif.planetId,
+            objectType: 'terraform_assessment',
           })),
         ]);
         scheduleSyncToServer();
@@ -4186,7 +4288,7 @@ function AppInner() {
     }, 1000);
 
     return () => window.clearInterval(id);
-  }, [planetMissions, planetRevealLevels, scheduleSyncToServer, t]);
+  }, [buildTerraformAssessment, i18n, planetMissions, planetRevealLevels, scheduleSyncToServer, t]);
 
   useEffect(() => {
     syncSystemPlanetMissionVisuals(planetMissions, planetMissionClock);
@@ -4204,12 +4306,14 @@ function AppInner() {
       const revealLevel = planetRevealLevels[planetKey] ?? planetRevealLevels[planet.id] ?? 0;
       const report = planetReports[planetKey] ?? planetReports[planet.id];
       const colonyStateForPlanet = colonyState?.planetId === planet.id ? colonyState : undefined;
+      const tfState = terraformStates[planetKey] ?? terraformStates[planet.id];
       return {
         planetId: planet.id,
         orbit: revealLevel >= 2 || report?.missionType === 'orbital_probe' || report?.missionType === 'orbital_scan',
         atmosphere: report?.missionType === 'deep_atmosphere_probe' || (revealLevel >= 2 && Boolean(planet.atmosphere)),
         surface: revealLevel >= 3 || report?.missionType === 'surface_landing',
-        terraformed: Boolean((terraformStates[planetKey] ?? terraformStates[planet.id])?.completedAt),
+        terraformed: Boolean(tfState?.completedAt),
+        terraformInProgress: Boolean(tfState && getOverallProgress(tfState) > 0 && !tfState.completedAt),
         colony: planet.id === homeInfo?.planet.id || colonyStateForPlanet?.buildings?.some((building) => building.type === 'colony_hub'),
         life: Boolean(planet.hasLife),
         settled: (colonyStateForPlanet?.population.current ?? 0) > 0,
@@ -11505,6 +11609,63 @@ function AppInner() {
         const tfPlanet = showTerraformPlanet;
         const allSystems = engineRef.current?.getAllSystems?.() ?? [];
         const targetSys = allSystems.find((s) => s.planets.some((p) => p.id === tfPlanet.id));
+        const revealLevel = getEffectivePlanetRevealLevel(tfPlanet, targetSys);
+        if (revealLevel < 3) {
+          return (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                zIndex: 11500,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'rgba(0,0,0,0.68)',
+                fontFamily: 'monospace',
+                padding: 16,
+              }}
+              onClick={() => setShowTerraformPlanet(null)}
+            >
+              <div
+                style={{
+                  width: 360,
+                  maxWidth: '94vw',
+                  background: 'rgba(10,15,25,0.98)',
+                  border: '1px solid #334455',
+                  borderRadius: 6,
+                  padding: 18,
+                  color: '#8899aa',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.75)',
+                }}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div style={{ color: '#ff8844', fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
+                  {t('planet.action_terraform')}
+                </div>
+                <div style={{ fontSize: 11, lineHeight: 1.6 }}>
+                  {t('terraform.reason.full_research_required')}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowTerraformPlanet(null)}
+                  style={{
+                    marginTop: 14,
+                    fontFamily: 'monospace',
+                    fontSize: 10,
+                    padding: '6px 12px',
+                    borderRadius: 3,
+                    border: '1px solid #334455',
+                    background: 'rgba(40,50,70,0.8)',
+                    color: '#aabbcc',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t('common.close')}
+                </button>
+              </div>
+            </div>
+          );
+        }
         const tfState = getPlanetScopedValue(terraformStates, targetSys?.id, tfPlanet.id) ?? getInitialTerraformState(tfPlanet);
         const hasGenVault = colonyState?.buildings?.some((b) => b.type === 'genesis_vault') ?? false;
         const donors = getColonyPlanets();
@@ -11554,6 +11715,13 @@ function AppInner() {
           />
         );
       })()}
+      {pendingTerraformCompletion && (
+        <TerraformCutscene
+          payload={pendingTerraformCompletion}
+          xpReward={XP_REWARDS.TERRAFORM_COMPLETED}
+          onComplete={() => setPendingTerraformCompletion(null)}
+        />
+      )}
       {completedModal && (
         <ResearchCompleteModal
           system={completedModal.system}
@@ -11747,6 +11915,12 @@ function AppInner() {
           star={state.scene === 'planet-view' && state.selectedSystem ? state.selectedSystem.star : homeInfo.system.star}
           system={state.scene === 'planet-view' && state.selectedSystem ? state.selectedSystem : homeInfo.system}
           mode={state.scene === 'home-intro' ? 'home' : 'planet-view'}
+          showOrbitalProbe={(() => {
+            const p = state.scene === 'planet-view' && state.selectedPlanet ? state.selectedPlanet : homeInfo.planet;
+            const sys = state.scene === 'planet-view' && state.selectedSystem ? state.selectedSystem : homeInfo.system;
+            const report = getPlanetScopedValue(planetReports, sys.id, p.id);
+            return report?.missionType === 'orbital_probe';
+          })()}
           textureUrl={(() => {
             const p = state.scene === 'planet-view' && state.selectedPlanet ? state.selectedPlanet : homeInfo.planet;
             const sys = state.scene === 'planet-view' && state.selectedSystem ? state.selectedSystem : homeInfo.system;
@@ -12379,6 +12553,53 @@ function AppInner() {
           terraformStates={terraformStates}
           planetRevealLevels={planetRevealLevels}
           planetReports={planetReports}
+          activeMissionForPlanet={getActivePlanetMission}
+          planetMissionClock={planetMissionClock}
+          missionResources={{ researchData: Math.floor(researchData), ...totalResources() }}
+          missionResearchDataCost={getPlanetMissionResearchDataCost}
+          payloadInventory={explorationPayloads}
+          carrierInventory={getAvailableMissionCarriers(surfaceTarget?.planet.id ?? homeInfo?.planet.id ?? colonyState?.planetId ?? '')}
+          onStartPlanetMission={handleStartPlanetMissionFromArchive}
+          onViewPlanetReport={(planet, report) => {
+            markPlanetMissionReportViewed(report);
+            setPlanetReportTarget({ planet, report });
+            setShowCosmicArchive(false);
+          }}
+          missionPhotoSaved={(_system, planet, report) => {
+            const key = getMissionPhotoKey(planet.id, report);
+            const alphaKey = getMissionAlphaPhotoKey(report);
+            const photo = systemPhotos.get(key);
+            const alphaPhoto = systemPhotos.get(alphaKey);
+            return Boolean(
+              savedMissionPhotoKeys[key]
+                || (photo?.status === 'succeed' && photo.photoUrl)
+                || (alphaPhoto?.status === 'succeed' && alphaPhoto.photoUrl),
+            );
+          }}
+          missionPhotoUrl={(_system, planet, report) => {
+            const key = getMissionPhotoKey(planet.id, report);
+            const alphaKey = getMissionAlphaPhotoKey(report);
+            const photo = systemPhotos.get(key);
+            const alphaPhoto = systemPhotos.get(alphaKey);
+            return alphaPhoto?.status === 'succeed' && alphaPhoto.photoUrl
+              ? alphaPhoto.photoUrl
+              : photo?.status === 'succeed'
+                ? photo.photoUrl
+                : null;
+          }}
+          onViewMissionPhoto={(planet, report, photoUrl) => {
+            const proceduralKey = getMissionPhotoKey(planet.id, report);
+            const alphaKey = getMissionAlphaPhotoKey(report);
+            const alphaPhoto = systemPhotos.get(alphaKey);
+            const key = alphaPhoto?.status === 'succeed' && alphaPhoto.photoUrl ? alphaKey : proceduralKey;
+            setMissionPhotoViewer({ planetName: planet.name, photoUrl, photoKey: key, systemId: report.systemId, planetId: planet.id });
+            setShowCosmicArchive(false);
+          }}
+          explorationMissionsDisabled={(_system, planet) => Boolean(
+            planet.isHomePlanet
+              || planet.id === homeInfo?.planet.id
+              || planet.id === colonyState?.planetId,
+          )}
           colonyStateByPlanet={colonyState ? { [colonyState.planetId]: colonyState } : undefined}
           getPlanetResources={getResources}
           planetResourceStocks={planetResourceStocks}
@@ -12389,6 +12610,11 @@ function AppInner() {
             return (ship.type === 'terraform_freighter' || def.requiresBuilding === 'spaceport') && def.cargoCapacity > 0;
           })}
           cargoShipments={shipFleet.cargoShipments ?? []}
+          planetResourcesById={colonyResourcesByPlanet}
+          getDonorResources={getDonorResources}
+          getCargoRouteLY={getCargoRouteLY}
+          getPlanetLabel={getPlanetLabel}
+          onStartCargoShipment={handleStartCargoShipment}
           planetSkinStatuses={(() => {
             const statuses: Record<string, { system?: 'generating' | 'pending' | 'processing' | 'succeed' | 'failed'; exosphere?: 'generating' | 'pending' | 'processing' | 'succeed' | 'failed' }> = {};
             for (const skin of planetSkins.values()) {
@@ -12427,11 +12653,29 @@ function AppInner() {
             const promotedPlanet = applyTerraformCompletionToPlanet(planet, tfState);
             if (promotedPlanet) {
               const completionTime = Date.now();
+              const override: PlanetOverride = {
+                planetId: promotedPlanet.id,
+                type: promotedPlanet.type,
+                surfaceTempK: promotedPlanet.surfaceTempK,
+                albedo: promotedPlanet.albedo,
+                atmosphere: promotedPlanet.atmosphere,
+                hydrosphere: promotedPlanet.hydrosphere,
+                magneticField: promotedPlanet.magneticField,
+                habitability: promotedPlanet.habitability,
+                terraformDifficulty: promotedPlanet.terraformDifficulty,
+                promotedAt: completionTime,
+              };
+              const planetIdx = sys.planets.findIndex((p) => p.id === promotedPlanet.id);
+              if (planetIdx >= 0) {
+                sys.planets[planetIdx] = promotedPlanet;
+              }
               setTerraformStates((prev) => ({
                 ...prev,
                 [planetKey]: { ...tfState, completedAt: completionTime },
               }));
-              setPendingTerraformCompletion(promotedPlanet);
+              setPlanetOverrides((prev) => ({ ...prev, [planetKey]: override }));
+              setPendingTerraformCompletion({ before: planet, after: promotedPlanet, star: sys.star });
+              awardXP(XP_REWARDS.TERRAFORM_COMPLETED, 'terraform_completed');
             }
           }}
           onOpenColonySurface={(planet) => {

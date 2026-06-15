@@ -39,10 +39,10 @@ function QuarkIcon() {
 const MENU_WIDTH = 300;
 const MENU_HEIGHT_APPROX = 360;
 
-type TabId = 'actions' | 'characteristics' | 'resources' | 'alpha';
+type TabId = 'actions' | 'logistics' | 'characteristics' | 'terraform' | 'resources' | 'alpha';
 type PlanetPhotoKind = 'exosphere' | 'biosphere' | 'aerial';
 type PlanetSkinKind = 'system' | 'exosphere';
-type CargoResource = 'minerals' | 'volatiles' | 'isotopes' | 'water';
+export type CargoResource = 'minerals' | 'volatiles' | 'isotopes' | 'water';
 
 function getPhotoCost(photoKind: PlanetPhotoKind): number {
   return photoKind === 'exosphere' ? 25 : 50;
@@ -263,7 +263,9 @@ function TabBar({
   const { t } = useTranslation();
   const tabs: { id: TabId; label: string; color?: string }[] = [
     { id: 'actions', label: t('planet.tab_actions') },
+    { id: 'logistics', label: t('planet_terminal.tab_logistics') },
     { id: 'characteristics', label: t('planet.characteristics') },
+    { id: 'terraform', label: t('planet_terminal.tab_terraform') },
     { id: 'resources', label: t('planet_terminal.tab_resources') },
     { id: 'alpha', label: `\u29B3 ${t('planet.tab_premium')}`, color: '#886622' },
   ];
@@ -730,7 +732,7 @@ const LX_RES_ICON: Record<CargoResource, () => React.ReactElement> = {
   water: IcoWater,
 };
 
-function LogisticsTab({
+export function LogisticsTab({
   ships,
   shipments = [],
   targetPlanetId,
@@ -1087,7 +1089,6 @@ export function PlanetContextMenu({
   const [activeTab, setActiveTab] = useState<TabId>('actions');
   const [expandedGroup, setExpandedGroup] = useState<ResourceGroup | null>(null);
   const [reportsOpen, setReportsOpen] = useState(Boolean(reportSummary));
-  const [logisticsOpen, setLogisticsOpen] = useState(false);
   // Delay backdrop + menu items activation to prevent the touch "click" event
   // (fired ~100ms after the pointerdown that opened the menu) from immediately
   // closing the menu or triggering navigation on mobile.
@@ -1127,22 +1128,30 @@ export function PlanetContextMenu({
     const top = Math.max(MARGIN, Math.min(idealTop, maxTop));
 
     setMenuPos({ left, top });
-  }, [activeTab, expandedGroup, reportsOpen, logisticsOpen, screenPosition, isDesktop]);
+  }, [activeTab, expandedGroup, reportsOpen, screenPosition, isDesktop]);
 
   const isSurfacePlanet = planet.type === 'rocky' || planet.type === 'terrestrial' || planet.type === 'dwarf';
   const isSystemAccessible = systemResearchProgress >= 100;
   const unlockedTabs = useMemo(() => {
     const tabs = new Set<TabId>(['actions', 'alpha']);
     if (isSystemAccessible) {
+      tabs.add('logistics');
       tabs.add('characteristics');
+      if (isTerraformable(planet)) tabs.add('terraform');
       tabs.add('resources');
     }
     return tabs;
-  }, [isSystemAccessible]);
+  }, [isSystemAccessible, planet]);
   const setGuardedTab = (tab: TabId) => {
     setActiveTab(unlockedTabs.has(tab) ? tab : 'actions');
   };
-  const canLaunchTerraform = isTerraformable(planet) && Boolean(hasGenesisVault) && playerLevel >= 48;
+  const hasFullPlanetResearch = revealLevel >= 3;
+  const canLaunchTerraform = isTerraformable(planet) && hasFullPlanetResearch && Boolean(hasGenesisVault) && playerLevel >= 48;
+  const terraformDisabledReason = !hasFullPlanetResearch
+    ? t('terraform.reason.full_research_required')
+    : playerLevel < 48
+      ? 'L48'
+      : t('terraform.reason.genesis_vault_required');
   const activeMissionProgress = activeMission ? getPlanetMissionProgress(activeMission, planetMissionClock) : null;
   const hasDroneReport = reportSummary?.missionType === 'drone_recon' || reportSummary?.missionType === 'surface_landing';
   const availableMissionTypes: PlanetMissionType[] = [
@@ -1288,7 +1297,7 @@ export function PlanetContextMenu({
               )}
               {isSystemAccessible && (
                 <CollapsibleGroup
-                  title={t('planet_missions.reports_group')}
+                  title={t('planet_missions.research_group')}
                   open={reportsOpen}
                   onToggle={() => setReportsOpen((value) => !value)}
                   right={reportSummary ? `T${reportSummary.revealLevel}` : t('planet_missions.reveal_level_short', { level: revealLevel })}
@@ -1362,47 +1371,45 @@ export function PlanetContextMenu({
                   </div>
                 </CollapsibleGroup>
               )}
+            </>
+          )}
 
-              {/* ── Terraforming action (conditional) ── */}
-              {isSystemAccessible && isTerraformable(planet) && (
-                <>
-                  <div style={{ height: 1, background: 'rgba(50,65,85,0.4)', margin: '4px 0' }} />
-                  {canLaunchTerraform && onShowTerraform ? (
-                    <MenuItem
-                      icon="*"
-                      label={t('planet.action_terraform')}
-                      onClick={() => { onShowTerraform(planet); onClose(); }}
-                      color="#88cc88"
-                    />
-                  ) : (
-                    <MenuItem
-                      icon="*"
-                      label={t('planet.action_terraform')}
-                      disabled
-                      title={t('terraform.reason.genesis_vault_required')}
-                      right={playerLevel < 48 ? 'L48' : t('terraform.reason.genesis_vault_required')}
-                    />
-                  )}
-                </>
-              )}
-              {isSystemAccessible && (
-                <CollapsibleGroup
-                  title={t('planet_terminal.tab_logistics')}
-                  open={logisticsOpen}
-                  onToggle={() => setLogisticsOpen((value) => !value)}
-                  right={t('planet_terminal.free_ships_short', { count: cargoShips.filter((ship) => ship.status === 'docked' && !ship.assignmentId).length })}
-                >
-                  <LogisticsTab
-                    ships={cargoShips}
-                    shipments={cargoShipments}
-                    targetPlanetId={planet.id}
-                    planetResources={planetResourcesById}
-                    getDonorResources={getDonorResources}
-                    getCargoRouteLY={getCargoRouteLY}
-                    getPlanetLabel={getPlanetLabel}
-                    onStartCargoShipment={onStartCargoShipment}
+          {activeTab === 'logistics' && (
+            <LogisticsTab
+              ships={cargoShips}
+              shipments={cargoShipments}
+              targetPlanetId={planet.id}
+              planetResources={planetResourcesById}
+              getDonorResources={getDonorResources}
+              getCargoRouteLY={getCargoRouteLY}
+              getPlanetLabel={getPlanetLabel}
+              onStartCargoShipment={onStartCargoShipment}
+            />
+          )}
+
+          {activeTab === 'terraform' && (
+            <>
+              {isTerraformable(planet) ? (
+                canLaunchTerraform && onShowTerraform ? (
+                  <MenuItem
+                    icon="*"
+                    label={t('planet.action_terraform')}
+                    onClick={() => { onShowTerraform(planet); onClose(); }}
+                    color="#88cc88"
                   />
-                </CollapsibleGroup>
+                ) : (
+                  <MenuItem
+                    icon="*"
+                    label={t('planet.action_terraform')}
+                    disabled
+                    title={terraformDisabledReason}
+                    right={terraformDisabledReason}
+                  />
+                )
+              ) : (
+                <div style={{ padding: '10px 14px', color: '#667788', fontSize: 10 }}>
+                  {t('planet_terminal.terraform_requirements_visible')}
+                </div>
               )}
             </>
           )}

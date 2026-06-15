@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { StarSystem, Planet, PlanetResourceStocks, Ship, CargoShipment, PlanetReportSummary, PlanetRevealLevel, PlanetColonyState } from '@nebulife/core';
+import type { StarSystem, Planet, PlanetResourceStocks, Ship, CargoShipment, PlanetReportSummary, PlanetRevealLevel, PlanetColonyState, PlanetMission, PlanetMissionType, ProducibleType } from '@nebulife/core';
 import type { PlanetTerraformState, TerraformParamId, TechTreeState } from '@nebulife/core';
 import {
   isTerraformable,
@@ -10,11 +10,17 @@ import {
   computeParamRequirement,
   tierForBuildings,
   generatePlanetStocks,
-  PRODUCIBLE_DEFS,
+  canStartPlanetMission,
+  computePlanetMissionCost,
+  getPlanetMissionProgress,
+  getTargetRevealLevel,
+  isSolidPlanetForLanding,
 } from '@nebulife/core';
 import type { ColonyResources } from '../Terraform/MissionDispatchModal.js';
 import type { PlacedBuilding } from '@nebulife/core';
 import { ResourceIcon, RESOURCE_COLORS } from '../ResourceIcon.js';
+import { LogisticsTab } from '../PlanetContextMenu.js';
+import type { CargoResource } from '../PlanetContextMenu.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -45,6 +51,18 @@ interface PlanetsCatalogV2Props {
   terraformStates?: Record<string, PlanetTerraformState>;
   planetRevealLevels?: Record<string, PlanetRevealLevel>;
   planetReports?: Record<string, PlanetReportSummary>;
+  activeMissionForPlanet?: (planetId: string) => PlanetMission | null;
+  planetMissionClock?: number;
+  missionResources?: { researchData: number; minerals: number; volatiles: number; isotopes: number; water: number };
+  missionResearchDataCost?: (system: StarSystem) => number;
+  payloadInventory?: Partial<Record<ProducibleType, number>>;
+  carrierInventory?: Partial<Record<ProducibleType, number>>;
+  onStartMission?: (system: StarSystem, planet: Planet, type: PlanetMissionType) => void;
+  onViewReport?: (planet: Planet, report: PlanetReportSummary) => void;
+  missionPhotoSaved?: (system: StarSystem, planet: Planet, report: PlanetReportSummary) => boolean;
+  missionPhotoUrl?: (system: StarSystem, planet: Planet, report: PlanetReportSummary) => string | null;
+  onViewMissionPhoto?: (planet: Planet, report: PlanetReportSummary, photoUrl: string) => void;
+  explorationMissionsDisabled?: (system: StarSystem, planet: Planet) => boolean;
   colonyStateByPlanet?: Record<string, PlanetColonyState>;
   /** Optional surface navigation callback — opens surface for a planet. */
   onOpenSurface?: (system: StarSystem, planetId: string) => void;
@@ -75,6 +93,11 @@ interface PlanetsCatalogV2Props {
   cargoShips?: Ship[];
   /** Active cargo shipments for Terminal -> Planets logistics tab. */
   cargoShipments?: CargoShipment[];
+  planetResourcesById?: Record<string, { minerals: number; volatiles: number; isotopes: number; water: number }>;
+  getDonorResources?: (planetId: string) => { minerals: number; volatiles: number; isotopes: number; water: number };
+  getCargoRouteLY?: (fromPlanetId: string, toPlanetId: string) => number | null;
+  getPlanetLabel?: (planetId: string) => string;
+  onStartCargoShipment?: (params: { shipId: string; fromPlanetId: string; toPlanetId: string; resource: CargoResource; amount: number }) => void;
   planetSkinStatuses?: Record<string, { system?: PlanetSkinStatus; exosphere?: PlanetSkinStatus }>;
   quarks?: number;
   onGeneratePlanetSkin?: (system: StarSystem, planet: Planet, kind: PlanetSkinKind) => void;
@@ -409,6 +432,56 @@ function CargoShipIcon({ color = '#7bb8ff' }: { color?: string }) {
 }
 
 // Resource icons are now provided by shared ResourceIcon component (../ResourceIcon)
+
+function formatMissionTime(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+}
+
+function ArchiveActionButton({
+  label,
+  onClick,
+  color = '#8899aa',
+  disabled = false,
+  title,
+  right,
+}: {
+  label: React.ReactNode;
+  onClick?: () => void;
+  color?: string;
+  disabled?: boolean;
+  title?: string;
+  right?: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={disabled ? undefined : onClick}
+      title={title}
+      disabled={disabled}
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: 8,
+        padding: '9px 12px',
+        background: disabled ? 'rgba(20,25,35,0.35)' : 'rgba(40,70,100,0.22)',
+        border: `1px solid ${disabled ? '#334455' : '#446688'}`,
+        borderRadius: 4,
+        color: disabled ? '#445566' : color,
+        fontFamily: 'monospace',
+        fontSize: 11,
+        cursor: disabled ? 'help' : 'pointer',
+        textAlign: 'left',
+      }}
+    >
+      <span>{label}</span>
+      {right && <span style={{ color: disabled ? '#334455' : '#667788', fontSize: 9 }}>{right}</span>}
+    </button>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // PlanetCard — single grid cell (frameless, circle only)
@@ -1100,6 +1173,7 @@ function TerraformParamDetailRow({
   donorPlanets: Planet[];
   techTreeState: TechTreeState | undefined;
   shipTier: number;
+  colonyBuildings?: PlacedBuilding[];
   getPlanetResources?: (planetId: string) => ColonyResources;
   onSendTerraformDelivery?: (targetPlanet: Planet, paramId: TerraformParamId) => void;
 }) {
@@ -1394,6 +1468,7 @@ interface ExpandedDetailPanelProps {
   donorPlanets: Planet[];
   techTreeState: TechTreeState | undefined;
   shipTier: number;
+  colonyBuildings?: PlacedBuilding[];
   getPlanetResources?: (planetId: string) => ColonyResources;
   onSendTerraformDelivery?: (targetPlanet: Planet, paramId: TerraformParamId) => void;
   onCompleteTerraform?: (planet: Planet) => void;
@@ -1407,10 +1482,29 @@ interface ExpandedDetailPanelProps {
   onViewPlanet?: (system: StarSystem, planetId: string) => void;
   /** Optional surface navigation callback. */
   onOpenSurface?: (system: StarSystem, planetId: string) => void;
+  revealLevel?: PlanetRevealLevel;
+  activeMission?: PlanetMission | null;
+  planetMissionClock?: number;
+  missionResources?: { researchData: number; minerals: number; volatiles: number; isotopes: number; water: number };
+  missionResearchDataCost?: number;
+  payloadInventory?: Partial<Record<ProducibleType, number>>;
+  carrierInventory?: Partial<Record<ProducibleType, number>>;
+  onStartMission?: (system: StarSystem, planet: Planet, type: PlanetMissionType) => void;
+  reportSummary?: PlanetReportSummary;
+  onViewReport?: (planet: Planet, report: PlanetReportSummary) => void;
+  missionPhotoSaved?: boolean;
+  missionPhotoUrl?: string | null;
+  onViewMissionPhoto?: (planet: Planet, report: PlanetReportSummary, photoUrl: string) => void;
+  explorationMissionsDisabled?: boolean;
   /** Reusable cargo ships for the logistics tab. */
   cargoShips?: Ship[];
   /** Active cargo shipments for the logistics tab. */
   cargoShipments?: CargoShipment[];
+  planetResourcesById?: Record<string, { minerals: number; volatiles: number; isotopes: number; water: number }>;
+  getDonorResources?: (planetId: string) => { minerals: number; volatiles: number; isotopes: number; water: number };
+  getCargoRouteLY?: (fromPlanetId: string, toPlanetId: string) => number | null;
+  getPlanetLabel?: (planetId: string) => string;
+  onStartCargoShipment?: (params: { shipId: string; fromPlanetId: string; toPlanetId: string; resource: CargoResource; amount: number }) => void;
   planetSkinStatus?: { system?: PlanetSkinStatus; exosphere?: PlanetSkinStatus };
   quarks?: number;
   onGeneratePlanetSkin?: (system: StarSystem, planet: Planet, kind: PlanetSkinKind) => void;
@@ -1428,6 +1522,7 @@ function ExpandedDetailPanel({
   donorPlanets,
   techTreeState,
   shipTier,
+  colonyBuildings = [],
   getPlanetResources,
   onSendTerraformDelivery,
   onCompleteTerraform,
@@ -1436,8 +1531,27 @@ function ExpandedDetailPanel({
   isFavorite = false,
   onViewPlanet,
   onOpenSurface,
+  revealLevel = 0,
+  activeMission = null,
+  planetMissionClock = Date.now(),
+  missionResources,
+  missionResearchDataCost = 1,
+  payloadInventory = {},
+  carrierInventory = {},
+  onStartMission,
+  reportSummary,
+  onViewReport,
+  missionPhotoSaved = false,
+  missionPhotoUrl,
+  onViewMissionPhoto,
+  explorationMissionsDisabled = false,
   cargoShips = [],
   cargoShipments = [],
+  planetResourcesById,
+  getDonorResources,
+  getCargoRouteLY,
+  getPlanetLabel,
+  onStartCargoShipment,
   planetSkinStatus,
   quarks = 0,
   onGeneratePlanetSkin,
@@ -1500,9 +1614,53 @@ function ExpandedDetailPanel({
   // Small planet circle color for the header
   const planetColor = getPlanetBodyColor(planet);
   const isSurfacePlanet = planet.type === 'rocky' || planet.type === 'terrestrial' || planet.type === 'dwarf';
-  const availableCargoShips = cargoShips.filter((ship) => ship.status === 'docked' && !ship.assignmentId);
-  const localCargoShips = availableCargoShips.filter((ship) => ship.currentPlanetId === planet.id);
-  const relatedShipments = cargoShipments.filter((shipment) => shipment.fromPlanetId === planet.id || shipment.toPlanetId === planet.id);
+  const hasDroneReport = reportSummary?.missionType === 'drone_recon' || reportSummary?.missionType === 'surface_landing';
+  const activeMissionProgress = activeMission ? getPlanetMissionProgress(activeMission, planetMissionClock) : null;
+  const availableMissionTypes: PlanetMissionType[] = [
+    'orbital_scan',
+    'orbital_probe',
+    ...(isSolidPlanetForLanding(planet) && revealLevel >= 2 && revealLevel < 3 && !hasDroneReport ? ['drone_recon' as PlanetMissionType] : []),
+    isSolidPlanetForLanding(planet) ? 'surface_landing' : 'deep_atmosphere_probe',
+  ];
+  const missionTypes: PlanetMissionType[] = explorationMissionsDisabled
+    ? []
+    : availableMissionTypes.filter((type) => type === 'drone_recon' || getTargetRevealLevel(type) > revealLevel);
+  const unavailableSurfaceType: PlanetMissionType | null = (
+    !explorationMissionsDisabled
+    && !isSolidPlanetForLanding(planet)
+    && revealLevel < getTargetRevealLevel('surface_landing')
+  ) ? 'surface_landing' : null;
+  const getMissionDisabledReason = (type: PlanetMissionType): string | undefined => {
+    if (!missionResources) return t('planet_missions.reason.unknown');
+    const check = canStartPlanetMission({
+      type,
+      planet,
+      revealLevel,
+      activeMissions: activeMission ? [activeMission] : [],
+      buildings: colonyBuildings,
+      resources: missionResources,
+      payloadInventory,
+      carrierInventory,
+      researchDataCost: missionResearchDataCost,
+    });
+    if (check.canStart) return undefined;
+    if (check.reason === 'building_required' && check.requiredBuilding) {
+      return t('planet_missions.reason.building_required_named', { building: t(`planet_missions.building.${check.requiredBuilding}`) });
+    }
+    if (check.reason === 'resources_required' && check.missingResources) {
+      const missing = Object.entries(check.missingResources)
+        .map(([resource, amount]) => `${resource} ${Math.ceil(Number(amount ?? 0))}`)
+        .join(', ');
+      return t('planet_missions.reason.resources_required_named', { resources: missing });
+    }
+    if (check.reason === 'payload_required' && check.requiredPayload) {
+      return t('planet_missions.reason.payload_required_named', { payload: t(`planet_missions.payload.${check.requiredPayload}`) });
+    }
+    if (check.reason === 'carrier_required' && check.requiredCarrier) {
+      return t('planet_missions.reason.carrier_required_named', { carrier: t(`planet_missions.payload.${check.requiredCarrier}`) });
+    }
+    return t(`planet_missions.reason.${check.reason ?? 'unknown'}`);
+  };
   const statusItems = [
     { label: t('planet_terminal.badge_atmosphere'), active: Boolean(planet.atmosphere) },
     { label: t('planet_terminal.badge_surface'), active: isSurfacePlanet },
@@ -1519,10 +1677,10 @@ function ExpandedDetailPanel({
   const canAffordExosphereSkin = quarks >= 50;
   const terminalTabs: Array<{ id: TerminalPlanetTab; label: string }> = [
     { id: 'research', label: t('planet_terminal.tab_research', { defaultValue: t('planet.tab_actions') }) },
-    { id: 'science', label: t('planet_terminal.tab_science', { defaultValue: t('planet.characteristics') }) },
-    { id: 'resources', label: t('planet_terminal.tab_resources') },
     { id: 'logistics', label: t('planet_terminal.tab_logistics') },
+    { id: 'science', label: t('planet_terminal.tab_science', { defaultValue: t('planet.characteristics') }) },
     { id: 'terraform', label: t('planet_terminal.tab_terraform') },
+    { id: 'resources', label: t('planet_terminal.tab_resources') },
     { id: 'status', label: t('planet_terminal.tab_status') },
   ];
 
@@ -1727,19 +1885,95 @@ function ExpandedDetailPanel({
       <div style={{ padding: '10px 12px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         {activeTab === 'research' && (
           <div style={{ display: 'grid', gap: 8 }}>
-            <button
+            <ArchiveActionButton
+              label={t('archive.planet_menu_view')}
               onClick={() => { onViewPlanet?.(system, planet.id); onClose(); }}
-              style={{ padding: '9px 12px', background: 'rgba(40,70,100,0.28)', border: '1px solid #446688', borderRadius: 4, color: '#7bb8ff', fontFamily: 'monospace', fontSize: 11, cursor: 'pointer', textAlign: 'left' }}
-            >
-              {t('archive.planet_menu_view')}
-            </button>
+              color="#7bb8ff"
+            />
+            {onToggleFavorite && (
+              <ArchiveActionButton
+                label={isFavorite ? t('context.actions.unfavorite') : t('context.actions.favorite')}
+                onClick={() => onToggleFavorite(planet.id)}
+                color={isFavorite ? '#7bb8ff' : '#8899aa'}
+              />
+            )}
             {onOpenSurface && isSurfacePlanet && (
-              <button
+              <ArchiveActionButton
+                label={t('nav.surface_btn')}
                 onClick={() => { onOpenSurface(system, planet.id); onClose(); }}
-                style={{ padding: '9px 12px', background: 'rgba(20,40,35,0.45)', border: '1px solid #446644', borderRadius: 4, color: '#88ccaa', fontFamily: 'monospace', fontSize: 11, cursor: 'pointer', textAlign: 'left' }}
-              >
-                {t('nav.surface_btn')}
-              </button>
+                color="#88ccaa"
+              />
+            )}
+            <div style={{ borderTop: '1px solid rgba(50,65,85,0.35)', paddingTop: 8, marginTop: 2 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#7bb8ff', fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>
+                <span>{t('planet_missions.research_group')}</span>
+                <span style={{ color: '#667788' }}>{reportSummary ? `T${reportSummary.revealLevel}` : t('planet_missions.reveal_level_short', { level: revealLevel })}</span>
+              </div>
+              <div style={{ color: '#667788', fontSize: 9, marginBottom: 6 }}>
+                {t('planet_missions.reveal_level', { level: revealLevel })}
+              </div>
+              {reportSummary && onViewReport ? (
+                <>
+                  <ArchiveActionButton
+                    label={t('planet_missions.view_report')}
+                    onClick={() => onViewReport(planet, reportSummary)}
+                    color="#ddaa44"
+                    right={`T${reportSummary.revealLevel}`}
+                  />
+                  {missionPhotoSaved && missionPhotoUrl && onViewMissionPhoto && (
+                    <ArchiveActionButton
+                      label={t('mission_report.view_saved_photo')}
+                      onClick={() => onViewMissionPhoto(planet, reportSummary, missionPhotoUrl)}
+                      color="#88ccaa"
+                    />
+                  )}
+                </>
+              ) : (
+                <div style={{ color: '#445566', fontSize: 10, marginBottom: 6 }}>
+                  {t('planet_missions.no_reports')}
+                </div>
+              )}
+              {!explorationMissionsDisabled && missionTypes.map((type) => {
+                const disabledReason = getMissionDisabledReason(type);
+                const payload = computePlanetMissionCost(type, planet, missionResearchDataCost).payload;
+                const payloadCount = payload ? (payloadInventory[payload] ?? 0) : 0;
+                const activeTypeProgress = activeMission?.type === type ? activeMissionProgress : null;
+                return (
+                  <div key={type} style={{ display: 'grid', gap: 5, marginTop: 6 }}>
+                    <ArchiveActionButton
+                      label={t(`planet_missions.type.${type}`)}
+                      onClick={() => onStartMission?.(system, planet, type)}
+                      disabled={Boolean(disabledReason) || !onStartMission}
+                      title={disabledReason}
+                      right={disabledReason ? (payload ? `${payloadCount}` : undefined) : t('planet_missions.start')}
+                    />
+                    {activeTypeProgress && (
+                      <div style={{ color: '#7bb8ff', fontSize: 10 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                          <span>{t(`planet_missions.phase.${activeTypeProgress.phase}`)}</span>
+                          <span>{Math.round(activeTypeProgress.overallProgress * 100)}% · {formatMissionTime(activeTypeProgress.remainingMs)}</span>
+                        </div>
+                        <div style={{ height: 4, borderRadius: 2, background: 'rgba(40,55,70,0.7)', overflow: 'hidden' }}>
+                          <div style={{ width: `${Math.round(activeTypeProgress.overallProgress * 100)}%`, height: '100%', background: '#4488aa' }} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {unavailableSurfaceType && (
+                <div style={{ marginTop: 6 }}>
+                  <ArchiveActionButton
+                    label={t('planet_missions.type.surface_landing')}
+                    disabled
+                    title={getMissionDisabledReason(unavailableSurfaceType)}
+                    right={t('planet_missions.reason.surface_unavailable')}
+                  />
+                </div>
+              )}
+            </div>
+            {explorationMissionsDisabled && (
+              <div style={{ color: '#445566', fontSize: 10 }}>{t('planet_missions.no_available_missions')}</div>
             )}
           </div>
         )}
@@ -1777,28 +2011,16 @@ function ExpandedDetailPanel({
         )}
 
         {activeTab === 'logistics' && (
-          <div style={{ display: 'grid', gap: 8, fontSize: 10 }}>
-            <div style={{ color: '#8899aa' }}>{t('planet_terminal.logistics_desc')}</div>
-            <div style={{ color: '#7bb8ff' }}>{t('planet_terminal.free_ships', { count: availableCargoShips.length })}</div>
-            <div style={{ color: localCargoShips.length > 0 ? '#88ccaa' : '#667788' }}>
-              {t('planet_terminal.available_cargo', { count: localCargoShips.length })}
-            </div>
-            {availableCargoShips.slice(0, 4).map((ship) => (
-              <div key={ship.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, color: '#667788', borderBottom: '1px solid rgba(51,68,85,0.22)', paddingBottom: 4 }}>
-                <span>{ship.name}</span>
-                <span>{PRODUCIBLE_DEFS[ship.type].cargoCapacity}</span>
-              </div>
-            ))}
-            {relatedShipments.map((shipment) => (
-              <div key={shipment.id} style={{ color: '#cc8844' }}>
-                {t('planet_terminal.shipment_status', {
-                  resource: t(`planet_terminal.resource_${shipment.resource}`),
-                  amount: shipment.amount,
-                  status: t(`planet_terminal.shipment_${shipment.status}`),
-                })}
-              </div>
-            ))}
-          </div>
+          <LogisticsTab
+            ships={cargoShips}
+            shipments={cargoShipments}
+            targetPlanetId={planet.id}
+            planetResources={planetResourcesById}
+            getDonorResources={getDonorResources}
+            getCargoRouteLY={getCargoRouteLY}
+            getPlanetLabel={getPlanetLabel}
+            onStartCargoShipment={onStartCargoShipment}
+          />
         )}
 
         {activeTab === 'terraform' && (
@@ -1867,6 +2089,18 @@ export function PlanetsCatalogV2({
   planetRevealLevels,
   planetReports,
   colonyStateByPlanet,
+  activeMissionForPlanet,
+  planetMissionClock,
+  missionResources,
+  missionResearchDataCost,
+  payloadInventory,
+  carrierInventory,
+  onStartMission,
+  onViewReport,
+  missionPhotoSaved,
+  missionPhotoUrl,
+  onViewMissionPhoto,
+  explorationMissionsDisabled,
   onOpenSurface,
   onToggleFavorite,
   favoritePlanetIds,
@@ -1880,6 +2114,11 @@ export function PlanetsCatalogV2({
   onRenamePlanet,
   cargoShips = [],
   cargoShipments = [],
+  planetResourcesById,
+  getDonorResources,
+  getCargoRouteLY,
+  getPlanetLabel,
+  onStartCargoShipment,
   planetSkinStatuses,
   quarks = 0,
   onGeneratePlanetSkin,
@@ -2067,7 +2306,10 @@ export function PlanetsCatalogV2({
         }}
       >
         {visiblePairs.map(({ system, planet }) => {
-          const tfState = terraformStates?.[planet.id];
+          const planetKey = `${system.id}::${planet.id}`;
+          const tfState = terraformStates?.[planetKey] ?? terraformStates?.[planet.id];
+          const reportSummary = planetReports?.[planetKey] ?? planetReports?.[planet.id];
+          const revealLevel = planetRevealLevels?.[planetKey] ?? planetRevealLevels?.[planet.id] ?? 0;
           const filterStat = getFilterStatLabel(planet, selectedFilter, tfState, t as (key: string) => string, planetResourceStocks, colonyPlanetIds);
           const distLY = colonySystemIds.length > 0
             ? (systemDistances.get(system.id) ?? null)
@@ -2078,8 +2320,8 @@ export function PlanetsCatalogV2({
           const isSurfacePlanet = planet.type === 'rocky' || planet.type === 'terrestrial' || planet.type === 'dwarf';
           const canGoToSurface = isSurfacePlanet && !!onOpenSurface;
           const statusIcons = getPlanetStatusIcons(planet, t, {
-            revealLevel: planetRevealLevels?.[planet.id],
-            report: planetReports?.[planet.id],
+            revealLevel,
+            report: reportSummary,
             terraformState: tfState,
             hasColony: colonyPlanetIds.has(planet.id),
             colonyState: colonyStateByPlanet?.[planet.id],
@@ -2136,6 +2378,7 @@ export function PlanetsCatalogV2({
                   donorPlanets={donorPlanets}
                   techTreeState={techTreeState}
                   shipTier={shipTier}
+                  colonyBuildings={colonyBuildings}
                   getPlanetResources={getPlanetResources}
                   onSendTerraformDelivery={onSendTerraformDelivery}
                   onCompleteTerraform={onCompleteTerraform}
@@ -2144,8 +2387,27 @@ export function PlanetsCatalogV2({
                   isFavorite={isFavorite}
                   onViewPlanet={onViewPlanet}
                   onOpenSurface={onOpenSurface}
+                  revealLevel={revealLevel}
+                  activeMission={activeMissionForPlanet?.(planet.id) ?? null}
+                  planetMissionClock={planetMissionClock}
+                  missionResources={missionResources}
+                  missionResearchDataCost={missionResearchDataCost?.(system) ?? 1}
+                  payloadInventory={payloadInventory}
+                  carrierInventory={carrierInventory}
+                  onStartMission={onStartMission}
+                  reportSummary={reportSummary}
+                  onViewReport={onViewReport}
+                  missionPhotoSaved={reportSummary ? Boolean(missionPhotoSaved?.(system, planet, reportSummary)) : false}
+                  missionPhotoUrl={reportSummary ? missionPhotoUrl?.(system, planet, reportSummary) ?? null : null}
+                  onViewMissionPhoto={onViewMissionPhoto}
+                  explorationMissionsDisabled={explorationMissionsDisabled?.(system, planet) ?? false}
                   cargoShips={cargoShips}
                   cargoShipments={cargoShipments}
+                  planetResourcesById={planetResourcesById}
+                  getDonorResources={getDonorResources}
+                  getCargoRouteLY={getCargoRouteLY}
+                  getPlanetLabel={getPlanetLabel}
+                  onStartCargoShipment={onStartCargoShipment}
                   planetSkinStatus={planetSkinStatuses?.[planet.id]}
                   quarks={quarks}
                   onGeneratePlanetSkin={onGeneratePlanetSkin}

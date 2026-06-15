@@ -12,7 +12,7 @@
 //    we use a log-based mapping so extreme pressures compress into 0..100.
 
 import type { Planet } from '../types/planet.js';
-import type { TerraformParamId, TerraformParamState, PlanetTerraformState, ResourceCost } from '../types/terraform.js';
+import type { TerraformParamId, TerraformParamState, PlanetTerraformState, ResourceCost, ShipTier } from '../types/terraform.js';
 import type { TechTreeState } from './tech-tree.js';
 import {
   TF_BASE_COSTS,
@@ -20,6 +20,7 @@ import {
   TF_SIZE_MULT,
   planetSizeBucket,
 } from '../constants/terraform.js';
+import { tierMaxCargo } from './fleet-rules.js';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -134,6 +135,18 @@ export function computeParamRequirement(
   if (baseCost.water)     result.water     = Math.ceil(baseCost.water     * scale);
 
   return result;
+}
+
+/** Estimate how many full cargo runs of the selected tier remain for a parameter. */
+export function supplyRunsRemaining(
+  planet: Planet,
+  paramId: TerraformParamId,
+  currentProgress: number,
+  tier: ShipTier,
+): number {
+  const requirement = computeParamRequirement(planet, paramId, currentProgress);
+  const total = Object.values(requirement).reduce((sum, value) => sum + (value ?? 0), 0);
+  return Math.max(0, Math.ceil(total / tierMaxCargo(tier)));
 }
 
 /**
@@ -288,10 +301,41 @@ export function applyTerraformCompletionToPlanet(
 
   // Rocky promotes to terrestrial; dwarf and terrestrial keep their type.
   const newType: Planet['type'] = planet.type === 'rocky' ? 'terrestrial' : planet.type;
+  const targetPressureAtm = round4(clamp(0.35 + pressureProgressToAtm(p.pressure.progress), 0.35, 1.25));
+  const targetWaterCoverage = round4(clamp(0.18 + water * 0.52, 0.12, 0.7));
+  const targetIceCaps = round4(clamp(0.18 - temperature * 0.14, 0.03, 0.18));
+  const targetSurfaceTempK = Math.round(clamp(
+    planet.surfaceTempK + (288 - planet.surfaceTempK) * clamp(p.temperature.progress / 100, 0, 1),
+    260,
+    305,
+  ));
 
   return {
     ...planet,
     type: newType,
+    surfaceTempK: targetSurfaceTempK,
+    albedo: round4(clamp(planet.albedo * 0.55 + 0.3 * 0.45, 0.18, 0.42)),
+    atmosphere: {
+      surfacePressureAtm: targetPressureAtm,
+      composition: {
+        N2: 0.76,
+        O2: 0.21,
+        CO2: 0.01,
+        H2O: 0.02,
+      },
+      greenhouse: round4(clamp(0.2 + atmosphere * 0.28, 0.2, 0.45)),
+      hasOzone: p.ozone.progress >= 60,
+    },
+    hydrosphere: {
+      waterCoverageFraction: targetWaterCoverage,
+      oceanDepthKm: round4(clamp(1.2 + water * 3.1, 0.8, 5.2)),
+      iceCapFraction: targetIceCaps,
+      hasSubsurfaceOcean: planet.hydrosphere?.hasSubsurfaceOcean ?? false,
+    },
+    magneticField: {
+      strengthT: round8(5e-5 * clamp(0.25 + magneticField * 0.95, 0.25, 1.2)),
+      hasMagnetosphere: true,
+    },
     terraformDifficulty: 0,
     habitability: {
       ...base,
@@ -305,4 +349,9 @@ export function applyTerraformCompletionToPlanet(
   };
 }
 
+function pressureProgressToAtm(progress: number): number {
+  return clamp(progress / 100, 0, 1) * 0.65;
+}
+
 function round4(n: number): number { return Math.round(n * 10000) / 10000; }
+function round8(n: number): number { return Math.round(n * 100000000) / 100000000; }

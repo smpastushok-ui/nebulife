@@ -83,6 +83,24 @@ export interface ResourceCost {
 export interface PlanetOverride {
   planetId: string;
   type: 'rocky' | 'terrestrial' | 'dwarf' | 'gas-giant' | 'ice-giant';
+  surfaceTempK?: number;
+  albedo?: number;
+  atmosphere?: {
+    surfacePressureAtm: number;
+    composition: Record<string, number>;
+    greenhouse: number;
+    hasOzone: boolean;
+  } | null;
+  hydrosphere?: {
+    waterCoverageFraction: number;
+    oceanDepthKm: number;
+    iceCapFraction: number;
+    hasSubsurfaceOcean: boolean;
+  } | null;
+  magneticField?: {
+    strengthT: number;
+    hasMagnetosphere: boolean;
+  };
   habitability: {
     temperature: number;
     atmosphere: number;

@@ -175,6 +175,7 @@ export interface PlanetStatusVisual {
   atmosphere?: boolean;
   surface?: boolean;
   terraformed?: boolean;
+  terraformInProgress?: boolean;
   colony?: boolean;
   life?: boolean;
   settled?: boolean;
@@ -1035,12 +1036,36 @@ export class SystemScene {
         status.life && { key: 'L', color: 0x66dd99 },
         status.settled && { key: 'P', color: 0xd7e8f4 },
       ].filter(Boolean) as Array<{ key: string; color: number }>;
-      if (items.length === 0) continue;
+      if (items.length === 0 && !status.terraformInProgress) continue;
 
       const group = new Container();
       group.label = 'planet-status-icons';
       group.zIndex = 10050;
       const orbitR = getPlanetSize(node.planet) + 13;
+      if (status.terraformInProgress) {
+        const terraformIcon = new Container();
+        terraformIcon.label = 'planet-terraform-icon';
+        const g = new Graphics();
+        g.circle(0, 0, 5.8);
+        g.fill({ color: 0x020510, alpha: 0.86 });
+        g.circle(0, 0, 5.8);
+        g.stroke({ color: 0x44ff88, width: 1.2, alpha: 0.95 });
+        g.moveTo(0, 2.4);
+        g.lineTo(0, -1.2);
+        g.stroke({ color: 0x44ff88, width: 1.2, alpha: 0.95 });
+        g.moveTo(0, -1.2);
+        g.bezierCurveTo(-3.3, -4.2, -5.2, -1.2, -1.0, 0.4);
+        g.lineTo(0, -1.2);
+        g.fill({ color: 0x44ff88, alpha: 0.72 });
+        g.moveTo(0, -1.2);
+        g.bezierCurveTo(3.3, -4.2, 5.2, -1.2, 1.0, 0.4);
+        g.lineTo(0, -1.2);
+        g.fill({ color: 0x88ff66, alpha: 0.72 });
+        terraformIcon.addChild(g);
+        terraformIcon.x = 0;
+        terraformIcon.y = -orbitR;
+        group.addChild(terraformIcon);
+      }
       items.forEach((item, index) => {
         const angle = (-Math.PI / 2) + (index / items.length) * Math.PI * 2;
         const badge = new Container();
@@ -1159,6 +1184,15 @@ export class SystemScene {
         visual.container.scale.set(1);
       }
       this.drawMissionVisual(planetNode, visual);
+    }
+    for (const [, node] of this.planetNodes) {
+      const group = node.container.getChildByLabel('planet-status-icons');
+      if (!(group instanceof Container)) continue;
+      const icon = group.getChildByLabel('planet-terraform-icon');
+      if (!icon) continue;
+      const pulse = Math.sin(this.time * 0.004);
+      icon.alpha = 0.75 + pulse * 0.2;
+      icon.scale.set(1 + pulse * 0.06);
     }
   }
 

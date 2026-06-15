@@ -7,7 +7,9 @@ import { useTranslation } from 'react-i18next';
 import type { Planet, Ship } from '@nebulife/core';
 import {
   canStartParam,
+  computeParamRequirement,
   getOverallProgress,
+  supplyRunsRemaining,
 } from '@nebulife/core';
 import type {
   PlanetTerraformState,
@@ -121,6 +123,7 @@ interface ParamRowProps {
   hasGenesisVault: boolean;
   techState: TechTreeState;
   donorPlanets: Planet[];
+  shipTier: ShipTier;
   activeMission: Mission | undefined;
   onDispatch: (paramId: TerraformParamId) => void;
   onCancelMission: (missionId: string) => void;
@@ -133,6 +136,7 @@ function ParamRow({
   hasGenesisVault,
   techState,
   donorPlanets,
+  shipTier,
   activeMission,
   onDispatch,
   onCancelMission,
@@ -161,6 +165,15 @@ function ParamRow({
   }
 
   const canDispatch = gate.allowed && hasDonors && !activeMission;
+  const requirement = computeParamRequirement(planet, paramId, paramState.progress);
+  const resourceBudget = (['minerals', 'volatiles', 'isotopes', 'water'] as const)
+    .map((key) => {
+      const amount = requirement[key] ?? 0;
+      return amount > 0 ? `${amount.toLocaleString()} ${t(`terraform.resource.${key}`)}` : null;
+    })
+    .filter(Boolean)
+    .join(' · ');
+  const runsRemaining = supplyRunsRemaining(planet, paramId, paramState.progress, shipTier);
 
   const missionPhaseProgress = (() => {
     if (!activeMission) return null;
@@ -334,6 +347,16 @@ function ParamRow({
             {t('terraform.param_full.' + paramId, { defaultValue: t(`terraform.param.${paramId}`) })}
             {': '}{pct}% / 100%
           </div>
+          {resourceBudget && (
+            <div style={{ color: '#8899aa' }}>
+              {t('terraform.resource_budget')}: {resourceBudget}
+            </div>
+          )}
+          {runsRemaining > 0 && (
+            <div style={{ color: '#7bb8ff' }}>
+              {t('terraform.supply_runs_remaining', { count: runsRemaining, tier: shipTier })}
+            </div>
+          )}
           {paramState.lastDeliveryAt && (
             <div style={{ color: '#556677' }}>
               {t('terraform.phase.idle')}: {new Date(paramState.lastDeliveryAt).toLocaleTimeString()}
@@ -552,6 +575,7 @@ export function TerraformPanel({
                 hasGenesisVault={hasGenesisVault}
                 techState={techState}
                 donorPlanets={donorPlanets}
+                shipTier={effectiveTier}
                 activeMission={activeMissionByParam[paramId]}
                 onDispatch={handleDispatchRequest}
                 onCancelMission={onCancelMission}

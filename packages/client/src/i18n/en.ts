@@ -499,6 +499,9 @@ export const en: Record<TranslationKey, string> = {
   'common.understood':      'UNDERSTOOD',
   'common.loading':         'Loading...',
   'common.back':            'Back',
+  'common.close':           'Close',
+  'planet.action_terraform': 'Terraforming',
+  'terraform.reason.full_research_required': 'Complete all available planet research first: orbital scan, probe, and surface expedition.',
   'errors.allSlotsOccupied': 'All observatories occupied',
   'errors.noObservatories': 'No observatories',
   'errors.surfaceChaosTitle': 'Planet in Chaos',
@@ -672,6 +675,7 @@ export const en: Record<TranslationKey, string> = {
   // Planet exploration missions
   'planet_terminal.free_ships_short':       '{count} ships',
   'planet_missions.reports_group':          'Reports',
+  'planet_missions.research_group':         'Research',
   'planet_missions.reveal_level_short':     'T{level}',
   'planet_missions.no_reports':             'No reports for this planet yet.',
   'planet_missions.type.drone_recon':        'Drone Recon',
