@@ -3,6 +3,7 @@
 // ---------------------------------------------------------------------------
 
 import React, { useState, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { Planet, Ship } from '@nebulife/core';
 import {
@@ -52,6 +53,11 @@ export interface TerraformPanelProps {
   ) => void;
   onCancelMission: (missionId: string) => void;
   onClose: () => void;
+  /**
+   * When true, renders inline (no fixed overlay/backdrop, no header/close)
+   * so the panel can live directly inside the planet "Terraforming" tab.
+   */
+  embedded?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -393,6 +399,7 @@ export function TerraformPanel({
   onStartParam,
   onCancelMission,
   onClose,
+  embedded = false,
 }: TerraformPanelProps): React.ReactElement {
   const { t } = useTranslation();
 
@@ -509,6 +516,99 @@ export function TerraformPanel({
   const overallBarBg = 'rgba(30,40,60,0.7)';
   const overallBarColor_ = overallBarColor(overallPct);
 
+  // Shared inner content (overall progress + param rows), used by both the
+  // standalone overlay and the embedded (in-tab) variant.
+  const innerContent = (
+    <>
+      {/* Overall progress */}
+      <div style={{ padding: embedded ? '4px 14px 8px' : '12px 16px 8px' }}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 6,
+        }}>
+          <span style={{ fontSize: 9, color: '#8899aa', letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>
+            {t('terraform.overall_progress')}
+          </span>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <span style={{
+              fontSize: 13,
+              fontWeight: 'bold',
+              color: overallBarColor_,
+            }}>
+              {overallPct}%
+            </span>
+            <span style={{ fontSize: 9, color: '#445566' }}>
+              {t('terraform.target_label')}
+            </span>
+          </div>
+        </div>
+        <div style={{
+          height: 8,
+          background: overallBarBg,
+          borderRadius: 4,
+          overflow: 'hidden',
+        }}>
+          <div style={{
+            width: `${overallPct}%`,
+            height: '100%',
+            background: overallBarColor_,
+            borderRadius: 4,
+            transition: 'width 0.4s ease',
+          }} />
+        </div>
+      </div>
+
+      {/* Param list */}
+      {!embedded && <div style={sectionLabelStyle}>{/* spacer */}</div>}
+      <div style={embedded ? { padding: '0 14px' } : bodyStyle}>
+        {PARAM_ORDER.map((paramId) => (
+          <ParamRow
+            key={paramId}
+            paramId={paramId}
+            planet={planet}
+            terraformState={terraformState}
+            hasGenesisVault={hasGenesisVault}
+            techState={techState}
+            donorPlanets={donorPlanets}
+            shipTier={effectiveTier}
+            activeMission={activeMissionByParam[paramId]}
+            onDispatch={handleDispatchRequest}
+            onCancelMission={onCancelMission}
+          />
+        ))}
+      </div>
+    </>
+  );
+
+  const dispatchModalNode = dispatchTarget && (
+    <MissionDispatchModal
+      targetPlanet={planet}
+      paramId={dispatchTarget.paramId}
+      donorPlanets={donorPlanets}
+      getResources={getResources}
+      tier={effectiveTier}
+      availableShips={availableShips}
+      distanceLY={distanceLYForDonor}
+      currentProgress={terraformState.params[dispatchTarget.paramId].progress}
+      onDispatch={handleModalDispatch}
+      onClose={() => setDispatchTarget(null)}
+    />
+  );
+
+  // Embedded variant — renders directly inside the planet "Terraforming" tab.
+  // The dispatch modal is portaled to <body> so it escapes the menu's
+  // stacking context and is never clipped/covered by surrounding UI.
+  if (embedded) {
+    return (
+      <div style={{ fontFamily: 'monospace', paddingBottom: 10 }}>
+        {innerContent}
+        {dispatchModalNode && createPortal(dispatchModalNode, document.body)}
+      </div>
+    );
+  }
+
   return (
     <>
       {/* Backdrop */}
@@ -523,65 +623,7 @@ export function TerraformPanel({
             <button style={closeBtnStyle} onClick={onClose}>X</button>
           </div>
 
-          {/* Overall progress */}
-          <div style={{ padding: '12px 16px 8px' }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 6,
-            }}>
-              <span style={{ fontSize: 9, color: '#8899aa', letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>
-                {t('terraform.overall_progress')}
-              </span>
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                <span style={{
-                  fontSize: 13,
-                  fontWeight: 'bold',
-                  color: overallBarColor_,
-                }}>
-                  {overallPct}%
-                </span>
-                <span style={{ fontSize: 9, color: '#445566' }}>
-                  {t('terraform.target_label')}
-                </span>
-              </div>
-            </div>
-            <div style={{
-              height: 8,
-              background: overallBarBg,
-              borderRadius: 4,
-              overflow: 'hidden',
-            }}>
-              <div style={{
-                width: `${overallPct}%`,
-                height: '100%',
-                background: overallBarColor_,
-                borderRadius: 4,
-                transition: 'width 0.4s ease',
-              }} />
-            </div>
-          </div>
-
-          {/* Param list */}
-          <div style={sectionLabelStyle}>{/* spacer */}</div>
-          <div style={bodyStyle}>
-            {PARAM_ORDER.map((paramId) => (
-              <ParamRow
-                key={paramId}
-                paramId={paramId}
-                planet={planet}
-                terraformState={terraformState}
-                hasGenesisVault={hasGenesisVault}
-                techState={techState}
-                donorPlanets={donorPlanets}
-                shipTier={effectiveTier}
-                activeMission={activeMissionByParam[paramId]}
-                onDispatch={handleDispatchRequest}
-                onCancelMission={onCancelMission}
-              />
-            ))}
-          </div>
+          {innerContent}
 
           {/* Bottom padding */}
           <div style={{ height: 12 }} />
@@ -589,20 +631,7 @@ export function TerraformPanel({
       </div>
 
       {/* Dispatch modal */}
-      {dispatchTarget && (
-        <MissionDispatchModal
-          targetPlanet={planet}
-          paramId={dispatchTarget.paramId}
-          donorPlanets={donorPlanets}
-          getResources={getResources}
-          tier={effectiveTier}
-          availableShips={availableShips}
-          distanceLY={distanceLYForDonor}
-          currentProgress={terraformState.params[dispatchTarget.paramId].progress}
-          onDispatch={handleModalDispatch}
-          onClose={() => setDispatchTarget(null)}
-        />
-      )}
+      {dispatchModalNode}
     </>
   );
 }

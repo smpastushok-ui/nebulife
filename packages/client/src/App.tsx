@@ -47,7 +47,7 @@ import type {
   Planet, Star, StarSystem, ResearchState, SystemResearchState, Discovery, CatalogEntry,
 } from '@nebulife/core';
 import { getCatalogEntry, getCatalogName, BUILDING_DEFS } from '@nebulife/core';
-import { rollLifeformFind, rollLifeformHarvestFind, isLifeformTriggerBuilding, rollIngredientDrop, buildLifeformPlanetContext, simpleLifeformPhoto, simpleLifeformVideo, simpleLifeformName, simpleKeyFromAssetUrl, pickUnseenSimpleLifeform, LIFEFORM_FIND_COOLDOWN_MS } from '@nebulife/core';
+import { rollLifeformFind, rollLifeformHarvestFind, isLifeformTriggerBuilding, rollIngredientDrop, rollLifeSparkDrop, buildLifeformPlanetContext, simpleLifeformPhoto, simpleLifeformVideo, simpleLifeformName, simpleKeyFromAssetUrl, pickUnseenSimpleLifeform, LIFEFORM_FIND_COOLDOWN_MS } from '@nebulife/core';
 import {
   getCometSchedule,
   COMET_CATALOG_TYPE,
@@ -62,7 +62,7 @@ import type { CometSchedule, DailyDirectiveState, DirectiveMetric } from '@nebul
 import { OperationsHub, EventCountdownChip, SIGNAL_REWARD_XP, SIGNAL_REWARD_RESEARCH, type OpsTab } from './ui/components/OperationsHub/index.js';
 import { claimDirectivesReward, getDirectiveStreakInfo, claimCometReward } from './api/retention-api.js';
 import type { LifeformPlanetContext } from '@nebulife/core';
-import type { DiscoveryRarity, LifeformIngredientId } from '@nebulife/core';
+import type { DiscoveryRarity, LifeformIngredientId, LifeSparkType } from '@nebulife/core';
 import { checkPremiumStatus, initIAP, redeemPremiumCode } from './api/iap-service.js';
 import { saveMediaToGallery } from './utils/media-saver.js';
 import { getPlayerAliases, setAlias } from './api/alias-api.js';
@@ -246,6 +246,7 @@ import { ChatWidget } from './ui/components/ChatWidget.js';
 import type { SystemNotif } from './ui/components/ChatWidget.js';
 import { getMessages as getChatMessages } from './api/messages-api.js';
 import { DigestModal } from './ui/components/DigestModal.js';
+import { EntryDigestPopup } from './ui/components/EntryDigestPopup.js';
 import { CosmicArchive } from './ui/components/CosmicArchive/CosmicArchive.js';
 import { AcademyDashboard } from './ui/components/Academy/AcademyDashboard.js';
 import type { AcademyTab } from './ui/components/Academy/AcademyDashboard.js';
@@ -499,6 +500,7 @@ interface SyncedGameState {
   hex_slots_by_planet?: Record<string, unknown[]>;
   chemical_inventory: Record<string, number>;
   life_ingredients?: Record<string, number>;
+  life_sparks?: Record<string, number>;
   // Game phase
   exodus_phase: boolean;
   destroyed_planets: Array<{ planetId: string; systemId: string; orbitAU: number }>;
@@ -949,6 +951,18 @@ function AppInner() {
       localStorage.setItem('nebulife_research_state', JSON.stringify(researchState));
     } catch { /* ignore quota errors */ }
   }, [researchState]);
+
+  // Dedup guard shared between the 500ms research timer and the one-shot
+  // offline catch-up below. Keyed by `${slotIndex}:${startedAt}` so a session
+  // is processed (XP + discovery + completion modal) exactly once, regardless of
+  // which path observes it first. Starting a new session yields a new startedAt
+  // → new key, so this never blocks legitimate re-research.
+  const processedSessionsRef = useRef<Set<string>>(new Set());
+  // Ensures the offline catch-up reconciliation runs only once per app load.
+  const offlineCatchupDoneRef = useRef(false);
+  // Discovery ids already catalogued to the server `discoveries` table on find,
+  // so Collections shows them even before (or without) an AI photo is generated.
+  const cataloguedDiscoveryIdsRef = useRef<Set<string>>(new Set());
 
   // --- Global SpaceAmbient (plays everywhere except surface + terminal) ---
   // User-controllable via PlayerPage settings toggle. Persisted in
@@ -1471,6 +1485,22 @@ function AppInner() {
     catch { /* ignore */ }
   }, [lifeIngredients]);
 
+  // ── Genesis Sparks of Life (rare seeded drops from extraction/separation) ─
+  const [lifeSparks, setLifeSparks] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_life_sparks');
+      if (saved) return JSON.parse(saved);
+    } catch { /* ignore */ }
+    return {};
+  });
+  const lifeSparkHarvestCounter = useRef(0);
+  const lifeSparkRefineryCounter = useRef(0);
+
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_life_sparks', JSON.stringify(lifeSparks)); }
+    catch { /* ignore */ }
+  }, [lifeSparks]);
+
   // ── Terraforming state ───────────────────────────────────────────────────
   /** Terraform progress per planet, keyed by planetId. Persisted to localStorage. */
   const [terraformStates, setTerraformStates] = useState<Record<string, PlanetTerraformState>>(() => {
@@ -1648,9 +1678,21 @@ function AppInner() {
   const addResources = useCallback((planetId: string, delta: Partial<{ minerals: number; volatiles: number; isotopes: number; water: number }>) => {
     setColonyResourcesByPlanet(prev => {
       const scopedKey = getPlanetKeyForId(planetId);
-      const cur = prev[scopedKey] ?? prev[planetId] ?? { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
+      const scoped = prev[scopedKey];
+      const bare = scopedKey !== planetId ? prev[planetId] : undefined;
+      // Merge any scoped + stale bare-id duplicate FIRST (mirrors the key
+      // consolidation effect) so the debit applies to the true total and we
+      // never lose the bare amount.
+      const cur = scoped && bare
+        ? {
+            minerals:  scoped.minerals  + bare.minerals,
+            volatiles: scoped.volatiles + bare.volatiles,
+            isotopes:  scoped.isotopes  + bare.isotopes,
+            water:     scoped.water     + bare.water,
+          }
+        : scoped ?? bare ?? { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
       const capacity = getStorageCapacityForPlanet(planetId);
-      return {
+      const next = {
         ...prev,
         [scopedKey]: {
           minerals:  Math.min(capacity, Math.max(0, cur.minerals  + (delta.minerals  ?? 0))),
@@ -1659,6 +1701,15 @@ function AppInner() {
           water:     Math.min(capacity, Math.max(0, cur.water     + (delta.water     ?? 0))),
         },
       };
+      // Drop the stale bare-id duplicate after folding it in. Otherwise the
+      // key-consolidation effect later *sums* both entries — adding the old
+      // (pre-debit) amount back and silently reversing debits (terraform
+      // dispatch resource leak: the top HUD never decreased after sending a
+      // freighter from a colony).
+      if (bare) {
+        delete next[planetId];
+      }
+      return next;
     });
   }, [getPlanetKeyForId, getStorageCapacityForPlanet]);
 
@@ -1759,6 +1810,14 @@ function AppInner() {
       return next;
     });
   }, []);
+
+  const grantLifeSpark = useCallback((spark: LifeSparkType, source: 'harvest' | 'refinery') => {
+    setLifeSparks(prev => ({ ...prev, [spark]: (prev[spark] ?? 0) + 1 }));
+    const sparkName = i18n.t(`lifeform.spark_${spark}`, { defaultValue: spark });
+    setToastMessage(i18n.t('lifeform.spark_found', { name: sparkName, defaultValue: 'Spark of Life secured' }));
+    setTimeout(() => setToastMessage(null), 3000);
+    void trackEvent('lifeform_spark_found', { spark, source });
+  }, [i18n]);
 
   // ── Exodus phase flag ──────────────────────────────────────────────────
   const [isExodusPhase, setIsExodusPhase] = useState<boolean>(() => {
@@ -1959,6 +2018,13 @@ function AppInner() {
       const ingredient = actualAmount > 0
         ? rollIngredientDrop(lfPlanet?.seed ?? 0, objectType, lifeIngredientHarvestCounter.current, playerLevel)
         : null;
+      if (actualAmount > 0 && lfPlanet) {
+        lifeSparkHarvestCounter.current += 1;
+        const sparkRoll = rollLifeSparkDrop(lfPlanet.seed ?? 0, 'harvest', lifeSparkHarvestCounter.current, playerLevel);
+        if (sparkRoll.dropped && sparkRoll.spark) {
+          grantLifeSpark(sparkRoll.spark, 'harvest');
+        }
+      }
       if (ingredient) {
         setLifeIngredients(prev => ({ ...prev, [ingredient]: (prev[ingredient] ?? 0) + 1 }));
         const ingName = i18n.t(`lifeform.ingredient_${ingredient}`, { defaultValue: ingredient });
@@ -1971,7 +2037,7 @@ function AppInner() {
       addResources(planetId, { [key]: actualAmount });
     }
     return { actualAmount, depleted };
-  }, [addResources, awardXP, bumpDirective, getPlanetKeyForId, getResources, getStorageCapacityForPlanet, playerLevel, t]);
+  }, [addResources, awardXP, bumpDirective, getPlanetKeyForId, getResources, getStorageCapacityForPlanet, grantLifeSpark, playerLevel, t]);
 
   /** Handle fly-to-HUD animation for harvested resource. */
   const handleHarvestFx = useCallback((type: SurfaceObjectType, sx: number, sy: number) => {
@@ -2708,6 +2774,7 @@ function AppInner() {
   // (research start or hex unlock) — not automatically on page load
 
   const [showPlayerPage, setShowPlayerPage] = useState(false);
+  const [showMissionsPanel, setShowMissionsPanel] = useState(false);
   const [showChaosModal, setShowChaosModal] = useState(false);
   const [showCosmicArchive, setShowCosmicArchive] = useState(false);
   // Terraform panel — full-screen overlay for a specific planet
@@ -3034,6 +3101,14 @@ function AppInner() {
             }
             return next;
           });
+          lifeSparkRefineryCounter.current += 1;
+          const refinerySource = Object.keys(result.elementsProduced).some((el) => ['U', 'Th', 'Ra', 'Pu'].includes(el))
+            ? 'centrifuge'
+            : 'separator';
+          const sparkRoll = rollLifeSparkDrop(planetCtx.planet.seed ?? 0, refinerySource, lifeSparkRefineryCounter.current, playerLevelRef.current ?? 1);
+          if (sparkRoll.dropped && sparkRoll.spark) {
+            grantLifeSpark(sparkRoll.spark, 'refinery');
+          }
         }
         // Mirror the tick's net resource production into the per-planet store
         // so passive building output (mine, water_extractor, atmo_extractor,
@@ -4841,6 +4916,8 @@ function AppInner() {
   const [digestModalWeekDate, setDigestModalWeekDate] = useState('');
   const [lastDigestSeen, setLastDigestSeen] = useState<string | null>(null);
   const [latestDigestWeekDate, setLatestDigestWeekDate] = useState<string | null>(null);
+  const [showDigestEntryPopup, setShowDigestEntryPopup] = useState(false);
+  const digestEntryShownRef = useRef(false);
   const [isPremiumActive, setIsPremiumActive] = useState(() => localStorage.getItem('nebulife_premium') === '1');
   const [premiumExpiresAt, setPremiumExpiresAt] = useState<string | null>(null);
   const [premiumProductId, setPremiumProductId] = useState<string | null>(null);
@@ -4989,6 +5066,7 @@ function AppInner() {
       'nebulife_chat_last_read_global',
       'nebulife_chat_last_read_system',
       'nebulife_last_digest_seen',
+      'nebulife_digest_entry_dismissed',
       // Terraforming
       'nebulife_terraform_states',
       'nebulife_fleet',
@@ -5383,12 +5461,43 @@ function AppInner() {
       setLifeIngredients(mergedLI);
       try { localStorage.setItem('nebulife_life_ingredients', JSON.stringify(mergedLI)); } catch { /* ignore */ }
     }
+    if (gs.life_sparks && typeof gs.life_sparks === 'object') {
+      const localLS = (() => { try { return JSON.parse(localStorage.getItem('nebulife_life_sparks') ?? 'null'); } catch { return null; } })();
+      const mergedLS: Record<string, number> = {};
+      for (const key of new Set([...Object.keys(gs.life_sparks as Record<string, number>), ...Object.keys(localLS ?? {})])) {
+        mergedLS[key] = Math.max((gs.life_sparks as Record<string, number>)[key] ?? 0, localLS?.[key] ?? 0);
+      }
+      setLifeSparks(mergedLS);
+      try { localStorage.setItem('nebulife_life_sparks', JSON.stringify(mergedLS)); } catch { /* ignore */ }
+    }
+    // Overlay the freshest harvest cooldown (lastHarvestedAt) per slot id onto the
+    // server snapshot. Without this, the length-only "server is ahead" heuristic
+    // below would clobber a just-harvested local slot (same array length, no
+    // timestamp), making resource tiles look ready again after a restart — i.e.
+    // XP persisted but the 10-min cooldown reset, enabling repeat XP farming.
+    const mergeHexHarvestTimers = (serverSlots: unknown[], localSlots: unknown[]): unknown[] => {
+      if (!Array.isArray(localSlots) || localSlots.length === 0) return serverSlots;
+      const localById = new Map<string, { lastHarvestedAt?: number }>();
+      for (const s of localSlots) {
+        if (s && typeof s === 'object' && typeof (s as { id?: unknown }).id === 'string') {
+          localById.set((s as { id: string }).id, s as { lastHarvestedAt?: number });
+        }
+      }
+      return serverSlots.map((s) => {
+        if (!s || typeof s !== 'object' || typeof (s as { id?: unknown }).id !== 'string') return s;
+        const srv = s as { id: string; lastHarvestedAt?: number };
+        const loc = localById.get(srv.id);
+        const newest = Math.max(srv.lastHarvestedAt ?? 0, loc?.lastHarvestedAt ?? 0);
+        return newest > (srv.lastHarvestedAt ?? 0) ? { ...srv, lastHarvestedAt: newest } : s;
+      });
+    };
+
     if (Array.isArray(gs.hex_slots) && gs.hex_slots.length > 0) {
       try {
         const localRaw = localStorage.getItem('nebulife_hex_slots');
         const localSlots = localRaw ? JSON.parse(localRaw) as unknown[] : [];
         if (!Array.isArray(localSlots) || gs.hex_slots.length >= localSlots.length) {
-          localStorage.setItem('nebulife_hex_slots', JSON.stringify(gs.hex_slots));
+          localStorage.setItem('nebulife_hex_slots', JSON.stringify(mergeHexHarvestTimers(gs.hex_slots, localSlots)));
         }
       } catch {
         try { localStorage.setItem('nebulife_hex_slots', JSON.stringify(gs.hex_slots)); } catch { /* ignore */ }
@@ -5401,7 +5510,7 @@ function AppInner() {
           const localRaw = localStorage.getItem(key);
           const localSlots = localRaw ? JSON.parse(localRaw) as unknown[] : [];
           if (!Array.isArray(localSlots) || slots.length >= localSlots.length) {
-            localStorage.setItem(key, JSON.stringify(slots));
+            localStorage.setItem(key, JSON.stringify(mergeHexHarvestTimers(slots, localSlots)));
           }
         } catch {
           try { localStorage.setItem(key, JSON.stringify(slots)); } catch { /* ignore */ }
@@ -6244,6 +6353,21 @@ function AppInner() {
               continue;
             }
             const elapsed = now - liveSlot.startedAt;
+            const sessionKey = `${slot.slotIndex}:${slot.startedAt}`;
+
+            // Already handled by the offline catch-up — just clear the slot.
+            if (processedSessionsRef.current.has(sessionKey)) {
+              current = {
+                ...current,
+                slots: current.slots.map((s) =>
+                  s.slotIndex === slot.slotIndex && s.startedAt === slot.startedAt
+                    ? { ...s, systemId: null, startedAt: null }
+                    : s,
+                ),
+              };
+              changed = true;
+              continue;
+            }
 
             // Self-heal: detect slots stuck far beyond expected duration
             if (elapsed > MAX_STUCK_DURATION) {
@@ -6255,6 +6379,7 @@ function AppInner() {
                 const result = completeResearchSession(current, slot.slotIndex, stuckSystem, playerStats.totalCompletedSessions, playerStats.totalDiscoveries, playerStats.lastDiscoverySession);
                 current = result.state;
                 changed = true;
+                processedSessionsRef.current.add(sessionKey);
 
                 // Keep self-healed completions behaviorally identical to normal
                 // timer completions. Previously these only updated the galaxy
@@ -6318,6 +6443,7 @@ function AppInner() {
                 const result = completeResearchSession(current, slot.slotIndex, system, playerStats.totalCompletedSessions, playerStats.totalDiscoveries, playerStats.lastDiscoverySession);
                 current = result.state;
                 changed = true;
+                processedSessionsRef.current.add(sessionKey);
 
                 // Track player stats
                 setPlayerStats((ps) => ({
@@ -6422,10 +6548,164 @@ function AppInner() {
     return () => clearInterval(interval);
   }, [syncNowToServer]);
 
+  // ── Offline research catch-up ─────────────────────────────────────────
+  // Observatory research that finished while the device was offline must not be
+  // silently dropped. On the first valid entry (after server hydration + engine
+  // ready + onboarding done) we reconcile every slot whose session already
+  // elapsed, then enqueue its discovery + completion report so the existing
+  // queues present them one-by-one — the "welcome back, here's what happened"
+  // moment. The dedup guard (processedSessionsRef) keeps this in lockstep with
+  // the 500ms timer so nothing is double-counted.
+  useEffect(() => {
+    if (offlineCatchupDoneRef.current) return;
+    if (!serverHydrated) return;
+    if (needsOnboarding || needsCallsign) return;
+    const engine = engineRef.current;
+    if (!engine) return;
+    if (researchState.slots.length === 0) return;
+
+    const speedMult = getEffectValue(techTreeStateRef.current, 'research_speed_mult', 1.0);
+    const effectiveDuration = Math.round(RESEARCH_DURATION_MS * speedMult);
+    const now = Date.now();
+
+    const overdue = researchState.slots.filter(
+      (s) => s.systemId && s.startedAt && (now - s.startedAt) >= effectiveDuration,
+    );
+
+    // Mark done regardless — engine + hydration are ready, so there is nothing
+    // more to reconcile on subsequent renders (the timer handles live sessions).
+    offlineCatchupDoneRef.current = true;
+    if (overdue.length === 0) return;
+
+    let current = researchState;
+    const discoveries: Array<{ discovery: Discovery; system: StarSystem }> = [];
+    const completions: Array<{ system: StarSystem; research: SystemResearchState }> = [];
+    let xpTotal = 0;
+    let processedAny = false;
+    let completedSessions = playerStats.totalCompletedSessions;
+    let totalDiscoveries = playerStats.totalDiscoveries;
+    let lastDiscoverySession = playerStats.lastDiscoverySession;
+
+    for (const slot of overdue) {
+      const sessionKey = `${slot.slotIndex}:${slot.startedAt}`;
+      if (processedSessionsRef.current.has(sessionKey)) continue;
+      const system = engine.getAllSystems().find((s) => s.id === slot.systemId);
+      if (!system) continue;
+      processedSessionsRef.current.add(sessionKey);
+      processedAny = true;
+
+      const result = completeResearchSession(
+        current, slot.slotIndex, system,
+        completedSessions, totalDiscoveries, lastDiscoverySession,
+      );
+      current = result.state;
+      completedSessions += 1;
+      xpTotal += SESSION_XP;
+
+      if (result.discovery) {
+        totalDiscoveries += 1;
+        lastDiscoverySession = completedSessions;
+        discoveries.push({ discovery: result.discovery, system });
+        const rarityBonus = XP_REWARDS.DISCOVERY_RARITY_BONUS[result.discovery.rarity] ?? 0;
+        xpTotal += XP_REWARDS.DISCOVERY_BASE + rarityBonus;
+        const discEntry = getCatalogEntry(result.discovery.type) as CatalogEntry | undefined;
+        const discName = discEntry ? getCatalogName(discEntry, i18n.language) : result.discovery.type;
+        addLogEntry('science',
+          t('app.log.observatory_signal').replace('{name}', discName).replace('{system}', system.name),
+          { systemId: system.id, objectType: result.discovery.type, discoveryRef: result.discovery },
+        );
+      }
+
+      if (result.isNowComplete) {
+        const research = current.systems[system.id];
+        if (research) {
+          completions.push({ system, research });
+          xpTotal += getSystemResearchCompletionXP(system) ?? XP_REWARDS.RESEARCH_COMPLETE;
+          addLogEntry('science',
+            t('app.log.system_researched').replace('{system}', system.name),
+            { systemId: system.id, objectType: 'system_research' },
+          );
+        }
+      }
+
+      engine.updateSystemResearchVisual(slot.systemId!, current);
+      bumpDirectiveRef.current('research_sessions');
+    }
+
+    // Always commit when any session was processed — completeResearchSession
+    // applies progress gain even when no discovery/completion was rolled, and
+    // the slots have been cleared. Skipping the commit here would lose that
+    // progress (the timer would just clear the now-flagged slot).
+    if (!processedAny) return;
+
+    setResearchState(current);
+    engine.setResearchState(current);
+    setPlayerStats({ totalCompletedSessions: completedSessions, totalDiscoveries, lastDiscoverySession });
+    if (discoveries.length > 0) setDiscoveryQueue((q) => [...q, ...discoveries]);
+    if (completions.length > 0) setCompletedModalQueue((q) => [...q, ...completions]);
+    if (xpTotal > 0) awardXP(xpTotal, 'research_session');
+    syncNowToServer();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serverHydrated, needsOnboarding, needsCallsign, researchState]);
+
   // Sync research state to engine when it changes
   useEffect(() => {
     engineRef.current?.setResearchState(researchState);
   }, [researchState]);
+
+  // ── Auto-catalogue found discoveries ──────────────────────────────────
+  // A discovery is "discovered" the moment it is found — it must appear in
+  // Collections (Cosmos) even if the player never generates/saves an AI photo.
+  // Previously a row was only written to the `discoveries` table when the player
+  // explicitly hit "Add to collection" (or ran Quantum Focus), so skipped/closed
+  // finds never showed up. We now persist a photo-less stub on find (covering
+  // research, observatory and offline-catch-up paths via the shared queue); the
+  // existing save flow still attaches the image later (upsert by id).
+  useEffect(() => {
+    if (discoveryQueue.length === 0) return;
+    const pid = playerId.current;
+    if (!pid) return;
+    for (const { discovery: disc } of discoveryQueue) {
+      if (!disc?.id || cataloguedDiscoveryIdsRef.current.has(disc.id)) continue;
+      cataloguedDiscoveryIdsRef.current.add(disc.id);
+
+      // Local overlay so Collections reflects it immediately (without clobbering
+      // an entry that already carries a photo).
+      setGalleryMap((prev) => {
+        const existing = prev.get(disc.type);
+        if (existing && existing.photo_url) return prev;
+        const next = new Map(prev);
+        next.set(disc.type, {
+          id: disc.id,
+          player_id: pid,
+          object_type: disc.type,
+          rarity: disc.rarity,
+          gallery_category: disc.galleryCategory,
+          system_id: disc.systemId,
+          planet_id: disc.planetId ?? null,
+          photo_url: null,
+          prompt_used: null,
+          scientific_report: null,
+          discovered_at: new Date().toISOString(),
+        });
+        return next;
+      });
+
+      // Persist the stub (no photo) — attaches to the same row later on save.
+      saveDiscoveryToServer({
+        id: disc.id,
+        playerId: pid,
+        objectType: disc.type,
+        rarity: disc.rarity,
+        galleryCategory: disc.galleryCategory,
+        systemId: disc.systemId,
+        planetId: disc.planetId ?? null,
+      }).catch(() => {
+        // Offline / transient failure — allow a retry on the next queue change.
+        cataloguedDiscoveryIdsRef.current.delete(disc.id);
+      });
+    }
+  }, [discoveryQueue]);
 
   // Arena defer queue — if arena is active when a popup fires, push the
   // callback here instead; drains 1.5 s apart after the arena closes.
@@ -9397,6 +9677,36 @@ function AppInner() {
       .catch(() => {});
   }, []);
 
+  // ── Entry digest popup ────────────────────────────────────────────────
+  // Surface an inviting "welcome back" card once per unseen digest, but only
+  // after the offline research reports have been presented (so it never fights
+  // the discovery/completion queues) and never during onboarding/cinematics.
+  useEffect(() => {
+    if (digestEntryShownRef.current) return;
+    if (!serverHydrated || needsOnboarding || needsCallsign) return;
+    if (cinematicActive || cinematicVideoPlaying) return;
+    if (!latestDigestWeekDate) return;
+    if (lastDigestSeen != null && latestDigestWeekDate === lastDigestSeen) return;
+    // One entry popup per digest, even across reloads (separate from chat badge).
+    try {
+      if (localStorage.getItem('nebulife_digest_entry_dismissed') === latestDigestWeekDate) {
+        digestEntryShownRef.current = true;
+        return;
+      }
+    } catch { /* ignore */ }
+    // Wait until research reports / discoveries finish presenting.
+    if (pendingDiscovery || completedModal
+      || discoveryQueue.length > 0 || completedModalQueue.length > 0) return;
+
+    digestEntryShownRef.current = true;
+    const id = window.setTimeout(() => setShowDigestEntryPopup(true), 650);
+    return () => window.clearTimeout(id);
+  }, [
+    serverHydrated, needsOnboarding, needsCallsign, cinematicActive, cinematicVideoPlaying,
+    latestDigestWeekDate, lastDigestSeen, pendingDiscovery, completedModal,
+    discoveryQueue.length, completedModalQueue.length,
+  ]);
+
   // ── Award XP & level-up detection (assign to ref for stable callbacks) ──
   awardXPRef.current = (amount: number, _reason: string) => {
     setPlayerXP((prevXP) => {
@@ -9587,6 +9897,7 @@ function AppInner() {
       hex_slots_by_planet: hexSlotsByPlanet,
       chemical_inventory: chemicalInventory,
       life_ingredients: lifeIngredients,
+      life_sparks: lifeSparks,
       exodus_phase: isExodusPhase,
       destroyed_planets: destroyedPlanets,
       onboarding_done: localStorage.getItem('nebulife_onboarding_done') === '1',
@@ -10984,6 +11295,10 @@ function AppInner() {
           onOpenPlayerPage={() => setShowPlayerPage(true)}
           navigationDisabled={false}
           highlightAuth={guestNeedsLink}
+          missionStatus={fleet.length > 0
+            ? { activeCount: fleet.filter((m) => m.phase !== 'idle').length, total: Math.max(1, fleet.length) }
+            : null}
+          onMissionsClick={() => setShowMissionsPanel((v) => !v)}
         />
       )}
 
@@ -11479,6 +11794,67 @@ function AppInner() {
           }
           hasGenesisVault={colonyState?.buildings?.some((b) => b.type === 'genesis_vault') ?? false}
           onShowTerraform={onShowTerraform}
+          targetHasLandingPad={(() => {
+            const sel = state.selectedPlanet;
+            if (!sel) return false;
+            const buildings = (colonyState?.planetId === sel.id && (colonyState?.buildings?.length ?? 0) > 0)
+              ? colonyState!.buildings
+              : readHexSlotBuildingsFromStorage(playerId.current, [], state.selectedSystem?.id, sel.id);
+            return buildings.some((b) => (b.type === 'landing_pad' || b.type === 'spaceport') && !b.shutdown);
+          })()}
+          terraformPanelContent={(() => {
+            const tfPlanet = state.selectedPlanet;
+            if (!isTerraformable(tfPlanet)) return null;
+            const allSystems = engineRef.current?.getAllSystems?.() ?? [];
+            const targetSys = state.selectedSystem
+              ?? allSystems.find((s) => s.planets.some((p) => p.id === tfPlanet.id));
+            const tfState = getPlanetScopedValue(terraformStates, targetSys?.id, tfPlanet.id)
+              ?? getInitialTerraformState(tfPlanet);
+            const hasGenVault = colonyState?.buildings?.some((b) => b.type === 'genesis_vault') ?? false;
+            const donors = getColonyPlanets();
+            const donorDistMap = new Map<string, number>();
+            if (targetSys) {
+              for (const donor of donors) {
+                const donorSys = allSystems.find((s) => s.planets.some((p) => p.id === donor.id));
+                if (donorSys) donorDistMap.set(donor.id, systemDistanceLY(targetSys, donorSys));
+              }
+            }
+            const buildings = colonyState?.buildings ?? [];
+            const tfTier = tierForBuildings(buildings, techTreeStateRef.current.researched);
+            const activeMissionByParam: Partial<Record<TerraformParamId, Mission>> = {};
+            for (const m of fleet) {
+              if (m.targetPlanetId === tfPlanet.id && m.phase !== 'idle') {
+                activeMissionByParam[m.paramId] = m;
+              }
+            }
+            const availableTerraformShips = shipFleet.ships.filter((ship) => {
+              const def = PRODUCIBLE_DEFS[ship.type];
+              return (ship.type === 'terraform_freighter' || def.requiresBuilding === 'spaceport')
+                && def.cargoCapacity > 0
+                && ship.status === 'docked'
+                && !ship.assignmentId;
+            });
+            return (
+              <TerraformPanel
+                embedded
+                planet={tfPlanet}
+                terraformState={tfState}
+                hasGenesisVault={hasGenVault}
+                techState={techTreeStateRef.current}
+                donorPlanets={donors}
+                donorDistances={donorDistMap}
+                getResources={getResources}
+                shipTier={tfTier}
+                availableShips={availableTerraformShips}
+                activeMissionByParam={activeMissionByParam}
+                onStartParam={(paramId, donorPlanetId, resource, amount, tier, flightHours, repairCostMinerals, shipId) => {
+                  onStartTerraformParam(tfPlanet.id, paramId, donorPlanetId, resource, amount, tier, flightHours, repairCostMinerals, shipId, targetSys?.id);
+                }}
+                onCancelMission={onCancelMission}
+                onClose={() => {}}
+              />
+            );
+          })()}
           revealLevel={getEffectivePlanetRevealLevel(state.selectedPlanet, state.selectedSystem)}
           activeMission={getActivePlanetMission(state.selectedPlanet.id)}
           planetMissionClock={planetMissionClock}
@@ -11813,15 +12189,21 @@ function AppInner() {
           playerId={playerId.current}
           quarks={quarks}
           ingredients={lifeIngredients}
+          elements={chemicalInventory}
+          sparks={lifeSparks}
           systemId={surfaceTarget?.system.id}
           planetId={surfaceTarget?.planet.id}
+          planetSeed={surfaceTarget?.planet.seed ?? homeInfo?.planet.seed ?? 0}
+          planetRevealLevel={surfaceTarget?.planet.id ? (planetRevealLevels[surfaceTarget.planet.id] ?? 1) : 3}
           onQuarksChange={setQuarks}
           onIngredientsChange={setLifeIngredients}
+          onElementsChange={setChemicalInventory}
+          onSparksChange={setLifeSparks}
           onCreated={(lf) => {
             setLifeforms((prev) => new Map(prev).set(lf.id, lf));
             setShowGenesisLab(false);
             setActiveLifeformBundle(
-              lf.rarity === 'common'
+              lf.is_bundle && lf.photo_url
                 ? { photo: lf.photo_url ?? '/lifeforms/common/photo.webp', video: lf.video_url ?? undefined }
                 : null,
             );
@@ -12933,6 +13315,25 @@ function AppInner() {
         />
       )}
 
+      {/* Entry "welcome back" digest popup */}
+      {showDigestEntryPopup && (
+        <EntryDigestPopup
+          onOpen={() => {
+            setShowDigestEntryPopup(false);
+            try {
+              if (latestDigestWeekDate) localStorage.setItem('nebulife_digest_entry_dismissed', latestDigestWeekDate);
+            } catch { /* ignore */ }
+            window.dispatchEvent(new CustomEvent('nebulife:open-digest'));
+          }}
+          onLater={() => {
+            setShowDigestEntryPopup(false);
+            try {
+              if (latestDigestWeekDate) localStorage.setItem('nebulife_digest_entry_dismissed', latestDigestWeekDate);
+            } catch { /* ignore */ }
+          }}
+        />
+      )}
+
       {/* Quark accrual toast queue (singleton renderer; enqueueQuarkToast from anywhere) */}
       {!arenaPopupGate && <QuarkToastRenderer />}
 
@@ -13087,11 +13488,12 @@ function AppInner() {
         />
       )}
 
-      {/* Mission Tracker HUD chip — visible when there are terraform missions */}
-      {!authLoading && !needsOnboarding && !needsCallsign && !showArena && !showRaid && !showHangar && fleet.length > 0 && (
+      {/* Mission panel — opened from the CommandBar mission button */}
+      {!authLoading && !needsOnboarding && !needsCallsign && !showArena && !showRaid && !showHangar && (
         <MissionTracker
           missions={fleet}
-          fleetCapacity={Math.max(1, fleet.length)}
+          open={showMissionsPanel}
+          onClose={() => setShowMissionsPanel(false)}
           getPlanetName={(planetId) => {
             const engine = engineRef.current;
             if (!engine) return planetId;

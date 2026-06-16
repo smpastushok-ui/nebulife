@@ -82,7 +82,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (lifeform.player_id !== playerId) {
       return res.status(403).json({ error: 'Forbidden: lifeform owner mismatch' });
     }
-    if (lifeform.rarity === 'common') {
+    if (lifeform.rarity === 'common' && lifeform.is_bundle) {
       return res.status(400).json({ error: 'Common lifeforms use bundled assets — no generation needed' });
     }
     if (lifeform.photo_status === 'succeed' && lifeform.photo_url) {
@@ -118,11 +118,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       quarksRemaining = player.quarks;
     }
 
+    let genomeHint: string | undefined;
+    try {
+      const metadata = lifeform.prompt_used ? JSON.parse(lifeform.prompt_used) as { source?: string; genome?: { promptHint?: string; traits?: string[]; complexity?: string } } : null;
+      if (metadata?.source === 'genesis_ark' && metadata.genome) {
+        genomeHint = [
+          metadata.genome.promptHint,
+          metadata.genome.complexity ? `complexity ${metadata.genome.complexity}` : '',
+          Array.isArray(metadata.genome.traits) ? `traits ${metadata.genome.traits.join(', ')}` : '',
+        ].filter(Boolean).join('; ');
+      }
+    } catch { /* ignore malformed legacy prompt metadata */ }
+
     // 2. Gemini 3.5 Flash creative brief (deterministic fallback on failure).
     const brief = await generateLifeformBrief({
       rarity: lifeform.rarity,
       planetHint: typeof planetHint === 'string' ? planetHint : undefined,
       mediumClause: typeof planetMedium === 'string' ? planetMedium : undefined,
+      genomeHint,
       seed: seedFromId(lifeformId),
     });
 
@@ -140,6 +153,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       video: brief.videoPrompt,
       sound: brief.soundPrompt,
       species: brief.speciesName,
+      genomeHint,
     });
     await updateLifeformPhoto(lifeformId, {
       photo_status: 'succeed',

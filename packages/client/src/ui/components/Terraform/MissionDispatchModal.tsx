@@ -13,7 +13,7 @@ import {
   supplyRunsRemaining,
   PRODUCIBLE_DEFS,
 } from '@nebulife/core';
-import type { TerraformParamId, Mission, ShipTier } from '@nebulife/core';
+import type { TerraformParamId, Mission, ShipTier, ProducibleType } from '@nebulife/core';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -120,17 +120,41 @@ export function MissionDispatchModal({
     () => availableShips.filter((ship) => ship.currentPlanetId === selectedDonorId && ship.status === 'docked' && !ship.assignmentId),
     [availableShips, selectedDonorId],
   );
-  const [selectedShipId, setSelectedShipId] = useState<string>(donorShips[0]?.id ?? '');
 
-  useEffect(() => {
-    setSelectedShipId((prev) => donorShips.some((ship) => ship.id === prev) ? prev : (donorShips[0]?.id ?? ''));
+  // Group free docked ships by type — the picker lists distinct ship types with
+  // the number of free units, not every individual ship.
+  const donorShipGroups = useMemo(() => {
+    const map = new Map<ProducibleType, Ship[]>();
+    for (const ship of donorShips) {
+      const arr = map.get(ship.type) ?? [];
+      arr.push(ship);
+      map.set(ship.type, arr);
+    }
+    return [...map.entries()]
+      .map(([type, ships]) => ({
+        type,
+        ships,
+        count: ships.length,
+        capacity: PRODUCIBLE_DEFS[type].cargoCapacity,
+      }))
+      .sort((a, b) => a.capacity - b.capacity);
   }, [donorShips]);
+
+  const [selectedShipType, setSelectedShipType] = useState<ProducibleType | ''>(donorShipGroups[0]?.type ?? '');
+  useEffect(() => {
+    setSelectedShipType((prev) =>
+      prev && donorShipGroups.some((g) => g.type === prev) ? prev : (donorShipGroups[0]?.type ?? ''),
+    );
+  }, [donorShipGroups]);
+
+  const selectedGroup = donorShipGroups.find((g) => g.type === selectedShipType) ?? null;
+  const selectedShip = selectedGroup?.ships[0] ?? null;
+  const selectedShipId = selectedShip?.id ?? '';
 
   const resource = primaryResourceForParam(paramId);
   // Look up the selected donor's own resource balance (Phase 7B per-planet).
   const donorResources = getResources(selectedDonorId);
   const available = donorResources[resource] ?? 0;
-  const selectedShip = donorShips.find((ship) => ship.id === selectedShipId) ?? null;
   const maxCargo = selectedShip ? PRODUCIBLE_DEFS[selectedShip.type].cargoCapacity : tierMaxCargo(tier);
 
   // Requirement to complete param from current progress
@@ -363,12 +387,12 @@ export function MissionDispatchModal({
         {/* Ship select */}
         <div>
           <div style={labelStyle}>{t('terraform.ship_label')}</div>
-          {donorShips.length === 0 ? (
+          {donorShipGroups.length === 0 ? (
             <div style={{ ...valueStyle, color: '#cc8844' }}>{t('terraform.no_free_ships')}</div>
           ) : (
             <select
-              value={selectedShipId}
-              onChange={(e) => setSelectedShipId(e.target.value)}
+              value={selectedShipType}
+              onChange={(e) => setSelectedShipType(e.target.value as ProducibleType)}
               style={{
                 fontFamily: 'monospace',
                 background: 'rgba(5,10,20,0.9)',
@@ -380,11 +404,13 @@ export function MissionDispatchModal({
                 width: '100%',
               }}
             >
-              {donorShips.map((ship) => {
-                const def = PRODUCIBLE_DEFS[ship.type];
+              {donorShipGroups.map((group) => {
+                const typeName = t(`planet_missions.payload.${group.type}`, {
+                  defaultValue: PRODUCIBLE_DEFS[group.type].name,
+                });
                 return (
-                  <option key={ship.id} value={ship.id}>
-                    {ship.name} - {def.cargoCapacity} cargo
+                  <option key={group.type} value={group.type}>
+                    {typeName} — {group.capacity} cargo · {t('terraform.ships_free', { count: group.count })}
                   </option>
                 );
               })}

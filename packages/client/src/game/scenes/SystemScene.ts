@@ -1043,6 +1043,8 @@ export class SystemScene {
       group.zIndex = 10050;
       const orbitR = getPlanetSize(node.planet) + 13;
       if (status.terraformInProgress) {
+        // Animated energy aura around the globe (rotated/pulsed per-frame).
+        group.addChild(this.createTerraformAura(getPlanetSize(node.planet)));
         const terraformIcon = new Container();
         terraformIcon.label = 'planet-terraform-icon';
         const g = new Graphics();
@@ -1105,6 +1107,63 @@ export class SystemScene {
     for (const child of container.children) {
       if (hideNames.has(child.label ?? '')) child.visible = false;
     }
+  }
+
+  /**
+   * Terraforming-in-progress aura: thin orbiting arc-rings around the globe plus
+   * short "lightning" filaments near the surface. Geometry is drawn once; the
+   * per-frame loop only rotates the ring sub-containers and pulses alpha, so it
+   * stays at 60fps and reads clearly on low-end devices (≥1px additive strokes).
+   */
+  private createTerraformAura(size: number): Container {
+    const aura = new Container();
+    aura.label = 'planet-terraform-aura';
+    aura.eventMode = 'none';
+    aura.zIndex = 10040;
+
+    const r1 = size + 4;
+    const r2 = size + 9;
+
+    // Clockwise ring — two opposing arcs so the rotation is visible.
+    const ringCW = new Container();
+    ringCW.label = 'tf-ring-cw';
+    const g1 = new Graphics();
+    g1.arc(0, 0, r1, 0, Math.PI * 0.78);
+    g1.stroke({ width: 1.5, color: 0x44ff88, alpha: 0.62, cap: 'round' });
+    g1.arc(0, 0, r1, Math.PI, Math.PI * 1.78);
+    g1.stroke({ width: 1.5, color: 0x44ff88, alpha: 0.62, cap: 'round' });
+    g1.blendMode = 'add';
+    ringCW.addChild(g1);
+
+    // Counter-clockwise ring — single wider arc, lighter green.
+    const ringCCW = new Container();
+    ringCCW.label = 'tf-ring-ccw';
+    const g2 = new Graphics();
+    g2.arc(0, 0, r2, Math.PI * 0.25, Math.PI * 1.15);
+    g2.stroke({ width: 1.1, color: 0x88ff66, alpha: 0.48, cap: 'round' });
+    g2.blendMode = 'add';
+    ringCCW.addChild(g2);
+
+    // Lightning filaments hugging the surface — flicker per-frame.
+    const bolts = new Graphics();
+    bolts.label = 'tf-bolts';
+    const boltCount = 3;
+    for (let i = 0; i < boltCount; i++) {
+      const a = (i / boltCount) * Math.PI * 2;
+      const baseR = size + 1;
+      bolts.moveTo(Math.cos(a) * baseR, Math.sin(a) * baseR);
+      const segs = 3;
+      for (let s = 1; s <= segs; s++) {
+        const rr = baseR + (s / segs) * 5.5;
+        const aa = a + (s % 2 === 0 ? 0.2 : -0.2);
+        bolts.lineTo(Math.cos(aa) * rr, Math.sin(aa) * rr);
+      }
+    }
+    bolts.stroke({ width: 1, color: 0xaaffaa, alpha: 0.5, cap: 'round', join: 'round' });
+    bolts.blendMode = 'add';
+
+    aura.addChild(ringCW, ringCCW, bolts);
+    return aura;
   }
 
   private createPlanetHalo(radius: number, planet: Planet): Container {
@@ -1188,6 +1247,16 @@ export class SystemScene {
     for (const [, node] of this.planetNodes) {
       const group = node.container.getChildByLabel('planet-status-icons');
       if (!(group instanceof Container)) continue;
+      const aura = group.getChildByLabel('planet-terraform-aura');
+      if (aura instanceof Container) {
+        const cw = aura.getChildByLabel('tf-ring-cw');
+        const ccw = aura.getChildByLabel('tf-ring-ccw');
+        const bolts = aura.getChildByLabel('tf-bolts');
+        if (cw) cw.rotation = this.time * 0.0012;
+        if (ccw) ccw.rotation = -this.time * 0.0019;
+        aura.alpha = 0.7 + Math.sin(this.time * 0.005) * 0.3;
+        if (bolts) bolts.alpha = 0.3 + Math.abs(Math.sin(this.time * 0.012)) * 0.6;
+      }
       const icon = group.getChildByLabel('planet-terraform-icon');
       if (!icon) continue;
       const pulse = Math.sin(this.time * 0.004);

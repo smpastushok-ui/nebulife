@@ -575,6 +575,8 @@ export async function generateLifeformBrief(opts: {
   planetHint?: string;
   /** Living-medium clause for the still (e.g. "resting on dry regolith"). */
   mediumClause?: string;
+  /** Optional deterministic genome/trait hint from Genesis Ark synthesis. */
+  genomeHint?: string;
   seed?: number;
 }): Promise<LifeformBriefResult> {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -615,6 +617,7 @@ ${isMicro
 ${opts.planetHint
   ? `- It is native to this world; treat these planetary facts as BINDING biological constraints (honor water/no-water, temperature, atmosphere, and crust colour/structure): ${opts.planetHint}.`
   : `- Native to a dark, mineral-rich ${isMicro ? 'aquatic micro-environment' : 'alien environment'}.`}
+${opts.genomeHint ? `- Genesis Ark genome traits are BINDING: ${opts.genomeHint}.` : ''}
 - Aesthetic: dark cosmos, muted desaturated palette with cold accents and dim amber, soft bioluminescence, awe-inspiring.
 - NEVER mention cameras, AI, neural nets, text, faces, humans, or cartoons.
 - "sound" must be AMBIENT only: no voice, no narration, no lyrics.
@@ -650,9 +653,10 @@ Respond with ONLY pure JSON (no markdown):
 }
 
 function finalize(brief: LifeformBrief, scale: LifeformScale, mediumClause?: string): LifeformBriefResult {
+  const basePhoto = buildPhotoPromptFromAppearance(brief.appearance, mediumClause, scale);
   return {
     ...brief,
-    photoPrompt: buildPhotoPromptFromAppearance(brief.appearance, mediumClause, scale),
+    photoPrompt: `${basePhoto}. Photorealistic xenobiology specimen in its natural planetary environment, full appropriate background, in-situ lighting, no transparent background, no isolated cutout, no white studio backdrop.`,
     videoPrompt: buildVideoPromptFromAction(brief.action, scale),
     soundPrompt: buildSoundPrompt(brief.sound),
   };

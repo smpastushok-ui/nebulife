@@ -381,6 +381,228 @@ export function pickUnseenSimpleLifeform(
 }
 
 // ---------------------------------------------------------------------------
+// Genesis Ark — Spark of Life + element-driven procedural genome
+// ---------------------------------------------------------------------------
+
+export type LifeSparkType = 'primordial' | 'adaptive' | 'neural' | 'stellar';
+export type LifeComplexityTier = 'microbial' | 'flora' | 'fauna' | 'exotic';
+
+export const LIFE_SPARK_TYPES: LifeSparkType[] = ['primordial', 'adaptive', 'neural', 'stellar'];
+
+export type LifeSparkInventory = Partial<Record<LifeSparkType, number>>;
+export type ElementInventory = Record<string, number>;
+
+export interface SparkDropRoll {
+  dropped: boolean;
+  spark: LifeSparkType | null;
+}
+
+export interface GenesisSparkRecipe {
+  sparks: Partial<Record<LifeSparkType, number>>;
+  minPlanetRevealLevel: number;
+  durationMinutes: number;
+}
+
+export const GENESIS_COMPLEXITY_RECIPE: Record<LifeComplexityTier, GenesisSparkRecipe> = {
+  microbial: {
+    sparks: { primordial: 1 },
+    minPlanetRevealLevel: 3,
+    durationMinutes: 40,
+  },
+  flora: {
+    sparks: { primordial: 1, adaptive: 1 },
+    minPlanetRevealLevel: 3,
+    durationMinutes: 120,
+  },
+  fauna: {
+    sparks: { primordial: 1, adaptive: 2, neural: 1 },
+    minPlanetRevealLevel: 3,
+    durationMinutes: 360,
+  },
+  exotic: {
+    sparks: { primordial: 1, adaptive: 2, neural: 2, stellar: 1 },
+    minPlanetRevealLevel: 3,
+    durationMinutes: 720,
+  },
+};
+
+export interface GenesisElementInput {
+  elements: ElementInventory;
+  sparks: LifeSparkInventory;
+  complexity: LifeComplexityTier;
+  planetSeed: number;
+  labLevel?: number;
+  vaultLevel?: number;
+}
+
+export interface GenesisGenome {
+  seed: number;
+  complexity: LifeComplexityTier;
+  rarity: DiscoveryRarity;
+  speciesName: string;
+  successChance: number;
+  durationMinutes: number;
+  traits: string[];
+  axes: {
+    carbonBase: number;
+    silicateShell: number;
+    metallicConductivity: number;
+    radiotrophicCore: number;
+    nobleGasBuoyancy: number;
+    halogenDefense: number;
+  };
+  visual: {
+    bodyPlan: 'colony' | 'frond' | 'symbiote' | 'crystalline';
+    primaryColor: string;
+    accentColor: string;
+    glowColor: string;
+    nodes: number;
+    tendrils: number;
+    plates: number;
+  };
+  promptHint: string;
+}
+
+const AXIS_ELEMENTS = {
+  carbonBase: ['C', 'H', 'O', 'N', 'P', 'S'],
+  silicateShell: ['Si', 'Mg', 'Ca', 'Al'],
+  metallicConductivity: ['Fe', 'Cu', 'Ni', 'Ti'],
+  radiotrophicCore: ['U', 'Th', 'Ra', 'Pu'],
+  nobleGasBuoyancy: ['He', 'Ar', 'Ne', 'Kr', 'Xe'],
+  halogenDefense: ['Cl', 'F', 'Se'],
+} as const;
+
+function axisScore(elements: ElementInventory, symbols: readonly string[]): number {
+  const raw = symbols.reduce((sum, symbol) => sum + Math.max(0, elements[symbol] ?? 0), 0);
+  return Math.min(1, Math.log1p(raw) / Math.log1p(28));
+}
+
+function hasSparkInventory(inventory: LifeSparkInventory, recipe: GenesisSparkRecipe): boolean {
+  return Object.entries(recipe.sparks).every(([spark, needed]) => (inventory[spark as LifeSparkType] ?? 0) >= (needed ?? 0));
+}
+
+export function canSynthesizeComplexity(
+  sparks: LifeSparkInventory,
+  complexity: LifeComplexityTier,
+  planetRevealLevel: number,
+): boolean {
+  const recipe = GENESIS_COMPLEXITY_RECIPE[complexity];
+  return planetRevealLevel >= recipe.minPlanetRevealLevel && hasSparkInventory(sparks, recipe);
+}
+
+export function rollLifeSparkDrop(
+  seed: number,
+  source: 'harvest' | 'separator' | 'fractionator' | 'centrifuge' | 'deep_drill',
+  count: number,
+  playerLevel: number,
+): SparkDropRoll {
+  if (playerLevel < GENESIS_INGREDIENT_MIN_LEVEL) return { dropped: false, spark: null };
+
+  const baseChance: Record<typeof source, number> = {
+    harvest: 0.012,
+    separator: 0.006,
+    fractionator: 0.007,
+    centrifuge: 0.009,
+    deep_drill: 0.014,
+  };
+  const mixed = (Math.floor(seed) ^ hashString(`spark:${source}`) ^ (count * 2654435761)) >>> 0;
+  const rng = new SeededRNG(mixed);
+  if (rng.next() > baseChance[source]) return { dropped: false, spark: null };
+
+  const roll = rng.next();
+  if (source === 'centrifuge' || source === 'deep_drill') {
+    if (roll > 0.985) return { dropped: true, spark: 'stellar' };
+    if (roll > 0.82) return { dropped: true, spark: 'neural' };
+    if (roll > 0.42) return { dropped: true, spark: 'adaptive' };
+    return { dropped: true, spark: 'primordial' };
+  }
+  if (roll > 0.93) return { dropped: true, spark: 'neural' };
+  if (roll > 0.55) return { dropped: true, spark: 'adaptive' };
+  return { dropped: true, spark: 'primordial' };
+}
+
+export function synthesizeGenesisGenome(input: GenesisElementInput): GenesisGenome {
+  const seed = (
+    Math.floor(input.planetSeed)
+    ^ hashString(input.complexity)
+    ^ Object.entries(input.elements).reduce((acc, [el, amount]) => acc ^ hashString(`${el}:${Math.floor(amount)}`), 0)
+  ) >>> 0;
+  const rng = new SeededRNG(seed);
+  const axes = {
+    carbonBase: axisScore(input.elements, AXIS_ELEMENTS.carbonBase),
+    silicateShell: axisScore(input.elements, AXIS_ELEMENTS.silicateShell),
+    metallicConductivity: axisScore(input.elements, AXIS_ELEMENTS.metallicConductivity),
+    radiotrophicCore: axisScore(input.elements, AXIS_ELEMENTS.radiotrophicCore),
+    nobleGasBuoyancy: axisScore(input.elements, AXIS_ELEMENTS.nobleGasBuoyancy),
+    halogenDefense: axisScore(input.elements, AXIS_ELEMENTS.halogenDefense),
+  };
+  const axisValues = Object.values(axes);
+  const diversity = axisValues.filter((v) => v > 0.22).length;
+  const exoticity = axes.radiotrophicCore * 0.35 + axes.nobleGasBuoyancy * 0.24 + axes.halogenDefense * 0.18 + diversity * 0.06;
+  const complexityBonus = { microbial: 0, flora: 0.08, fauna: 0.18, exotic: 0.32 }[input.complexity];
+  const rarityScore = Math.min(1, exoticity + complexityBonus + rng.next() * 0.08);
+  const rarity: DiscoveryRarity = rarityScore > 0.82
+    ? 'legendary'
+    : rarityScore > 0.62
+      ? 'epic'
+      : rarityScore > 0.42
+        ? 'rare'
+        : rarityScore > 0.22
+          ? 'uncommon'
+          : 'common';
+  const stability = Math.min(1, axes.carbonBase * 0.38 + axes.silicateShell * 0.14 + axes.metallicConductivity * 0.14 + (input.labLevel ?? 1) * 0.06 + (input.vaultLevel ?? 1) * 0.06);
+  const instability = axes.radiotrophicCore * 0.18 + axes.halogenDefense * 0.12 + complexityBonus * 0.35;
+  const successChance = Math.max(0.18, Math.min(0.94, 0.48 + stability - instability));
+
+  const traits: string[] = [];
+  if (axes.carbonBase > 0.18) traits.push('carbon matrix');
+  if (axes.carbonBase > 0.42) traits.push('sulfur-phosphorus metabolism');
+  if (axes.silicateShell > 0.18) traits.push('silicate membrane');
+  if (axes.silicateShell > 0.48) traits.push('crystalline shell plates');
+  if (axes.metallicConductivity > 0.18) traits.push('iron-copper sensor nodes');
+  if (axes.metallicConductivity > 0.48) traits.push('bioelectric neural arcs');
+  if (axes.radiotrophicCore > 0.12) traits.push('radiotrophic core');
+  if (axes.nobleGasBuoyancy > 0.12) traits.push('gas buoyancy chambers');
+  if (axes.halogenDefense > 0.12) traits.push('halogen defense chemistry');
+  if (traits.length === 0) traits.push('minimal protocell');
+
+  const bodyPlan: GenesisGenome['visual']['bodyPlan'] = input.complexity === 'microbial'
+    ? 'colony'
+    : input.complexity === 'flora'
+      ? 'frond'
+      : input.complexity === 'fauna'
+        ? 'symbiote'
+        : 'crystalline';
+  const primaryColor = axes.silicateShell > axes.carbonBase ? '#4488aa' : '#223344';
+  const accentColor = axes.metallicConductivity > 0.2 ? '#44ffcc' : '#44ff88';
+  const glowColor = axes.radiotrophicCore > 0.15 ? '#88ff66' : '#44ff88';
+  const prefix = axes.silicateShell > 0.3 ? 'Silica' : axes.metallicConductivity > 0.3 ? 'Ferri' : axes.nobleGasBuoyancy > 0.2 ? 'Aero' : 'Proto';
+  const suffix = input.complexity === 'microbial' ? 'thrix' : input.complexity === 'flora' ? 'flora' : input.complexity === 'fauna' ? 'nerva' : 'lith';
+  const speciesName = `${prefix}${suffix} ${rarity === 'legendary' ? 'Aster' : rarity === 'epic' ? 'Vitae' : 'Primordia'}`;
+
+  return {
+    seed,
+    complexity: input.complexity,
+    rarity,
+    speciesName,
+    successChance,
+    durationMinutes: GENESIS_COMPLEXITY_RECIPE[input.complexity].durationMinutes,
+    traits,
+    axes,
+    visual: {
+      bodyPlan,
+      primaryColor,
+      accentColor,
+      glowColor,
+      nodes: Math.max(3, Math.round(4 + axes.metallicConductivity * 10 + diversity)),
+      tendrils: Math.max(4, Math.round(6 + axes.carbonBase * 8 + axes.nobleGasBuoyancy * 6)),
+      plates: Math.round(axes.silicateShell * 10),
+    },
+    promptHint: `${speciesName}: ${input.complexity} ${rarity} lifeform with ${traits.join(', ')}`,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Planet-aware biology context — feeds the paid Alpha-photo/video prompts so a
 // discovered organism is biologically coherent with its world: no liquid water
 // → it is NOT aquatic; crust composition drives colour & structure; atmosphere

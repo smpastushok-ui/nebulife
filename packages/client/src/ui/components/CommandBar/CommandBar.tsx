@@ -4,6 +4,7 @@ import { barStyle, dockStyle, KEYFRAMES_CSS } from './styles.js';
 import { NavigationMenu } from './NavigationMenu.js';
 import { SceneTools } from './SceneTools.js';
 import { PlayerPanel } from './PlayerPanel.js';
+import { MissionButton } from './MissionButton.js';
 
 /** Unique ID so we only inject the <style> tag once. */
 const STYLE_ID = 'cmdbar-keyframes';
@@ -19,6 +20,8 @@ export function CommandBar({
   onOpenPlayerPage,
   navigationDisabled,
   highlightAuth,
+  missionStatus,
+  onMissionsClick,
 }: CommandBarProps) {
   const injected = useRef(false);
 
@@ -52,6 +55,14 @@ export function CommandBar({
           groups={toolGroups}
           scene={scene}
         />
+
+        {missionStatus && onMissionsClick && (
+          <MissionButton
+            activeCount={missionStatus.activeCount}
+            total={missionStatus.total}
+            onClick={onMissionsClick}
+          />
+        )}
 
         <PlayerPanel
           playerName={playerName}

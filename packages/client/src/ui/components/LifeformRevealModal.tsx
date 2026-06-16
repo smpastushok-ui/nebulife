@@ -85,7 +85,7 @@ export function LifeformRevealModal({
   const [record, setRecord] = useState<LifeformRecord>(initial);
   const rarity = record.rarity as DiscoveryRarity;
   const accent = RARITY_COLORS[rarity] ?? '#44ff88';
-  const isCommon = record.rarity === 'common' || record.is_bundle;
+  const isCommon = record.is_bundle;
   const photoCost = LIFEFORM_PHOTO_COST[rarity] ?? 0;
   const videoCost = LIFEFORM_VIDEO_COST[rarity] ?? 0;
 

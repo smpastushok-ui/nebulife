@@ -5,7 +5,7 @@
 // photo generate/status, video generate/status).
 // ---------------------------------------------------------------------------
 
-import type { DiscoveryRarity } from '@nebulife/core';
+import type { DiscoveryRarity, GenesisGenome, LifeComplexityTier, LifeSparkInventory } from '@nebulife/core';
 
 import { authFetch } from '../auth/api-client.js';
 
@@ -76,8 +76,16 @@ export async function reportLifeformFound(
 export async function createLifeform(
   playerId: string,
   rarity: DiscoveryRarity,
-  opts?: { systemId?: string; planetId?: string },
-): Promise<{ lifeform: LifeformRecord; quarksRemaining: number | null }> {
+  opts?: {
+    systemId?: string;
+    planetId?: string;
+    complexity?: LifeComplexityTier;
+    planetSeed?: number;
+    elements?: Record<string, number>;
+    sparks?: LifeSparkInventory;
+    genome?: GenesisGenome;
+  },
+): Promise<{ lifeform: LifeformRecord | null; quarksRemaining: number | null; synthesisFailed?: boolean }> {
   const res = await authFetch(`${API_BASE}/lifeform/create`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -86,6 +94,11 @@ export async function createLifeform(
       rarity,
       ...(opts?.systemId ? { systemId: opts.systemId } : {}),
       ...(opts?.planetId ? { planetId: opts.planetId } : {}),
+      ...(opts?.complexity ? { complexity: opts.complexity } : {}),
+      ...(Number.isFinite(opts?.planetSeed) ? { planetSeed: opts?.planetSeed } : {}),
+      ...(opts?.elements ? { elements: opts.elements } : {}),
+      ...(opts?.sparks ? { sparks: opts.sparks } : {}),
+      ...(opts?.genome ? { genome: opts.genome } : {}),
     }),
   });
   if (!res.ok) {

@@ -66,6 +66,11 @@ export {
   GENESIS_INGREDIENT_MIN_LEVEL,
   isRareIngredient,
   rollIngredientDrop,
+  LIFE_SPARK_TYPES,
+  GENESIS_COMPLEXITY_RECIPE,
+  canSynthesizeComplexity,
+  rollLifeSparkDrop,
+  synthesizeGenesisGenome,
   LIFEFORM_CREATE_RECIPE,
   canCreateLifeform,
   buildLifeformPlanetContext,
@@ -80,7 +85,22 @@ export {
   simpleKeyFromAssetUrl,
   pickUnseenSimpleLifeform,
 } from './lifeform.js';
-export type { LifeformSource, LifeformMediaStatus, LifeformFindRoll, LifeformIngredientId, LifeformCreateRecipe, LifeformPlanetContext, SimpleLifeform } from './lifeform.js';
+export type {
+  LifeformSource,
+  LifeformMediaStatus,
+  LifeformFindRoll,
+  LifeformIngredientId,
+  LifeformCreateRecipe,
+  LifeSparkType,
+  LifeSparkInventory,
+  LifeComplexityTier,
+  SparkDropRoll,
+  GenesisSparkRecipe,
+  GenesisElementInput,
+  GenesisGenome,
+  LifeformPlanetContext,
+  SimpleLifeform,
+} from './lifeform.js';
 
 // Cosmic catalog
 export {

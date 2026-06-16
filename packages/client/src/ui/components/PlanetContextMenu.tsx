@@ -15,6 +15,7 @@ const GROUP_T_KEY: Record<ResourceGroup, string> = {
 };
 import { derivePlanetVisuals } from '../../game/rendering/PlanetVisuals.js';
 import { PremiumHelpButton } from './PremiumHelp.js';
+import { ResourceIcon, RESOURCE_COLORS } from './ResourceIcon.js';
 
 // ---------------------------------------------------------------------------
 // QuarkIcon — inline SVG quark currency symbol
@@ -668,54 +669,6 @@ function StatusChip({ label, active }: { label: string; active: boolean }) {
 
 // ── Logistics SVG icon set (procedural, monospace-friendly, stroke=currentColor) ──
 const LX_ICON = 15;
-function IcoPlanet() {
-  return (
-    <svg width={LX_ICON} height={LX_ICON} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
-      <circle cx="12" cy="12" r="6.2" />
-      <ellipse cx="12" cy="12" rx="11" ry="4.3" transform="rotate(-22 12 12)" />
-    </svg>
-  );
-}
-function IcoShip() {
-  return (
-    <svg width={LX_ICON} height={LX_ICON} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinejoin="round">
-      <path d="M4 9 L14 9 L20 12 L14 15 L4 15 Z" />
-      <path d="M7 15 L7 19 M11 15 L11 19" />
-    </svg>
-  );
-}
-function IcoMinerals() {
-  return (
-    <svg width={LX_ICON} height={LX_ICON} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinejoin="round">
-      <path d="M12 3 L20 9 L12 21 L4 9 Z" />
-      <path d="M4 9 H20 M12 3 L9 9 L12 21 M12 3 L15 9 L12 21" />
-    </svg>
-  );
-}
-function IcoVolatiles() {
-  return (
-    <svg width={LX_ICON} height={LX_ICON} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round">
-      <path d="M6 14 q-2 -4 2 -5 q0 -4 4 -4 q5 0 5 5 q3 0 3 3 q0 3 -3 3 H8 q-3 0 -2 -2Z" />
-    </svg>
-  );
-}
-function IcoIsotopes() {
-  return (
-    <svg width={LX_ICON} height={LX_ICON} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
-      <circle cx="12" cy="12" r="1.8" />
-      <ellipse cx="12" cy="12" rx="9" ry="3.6" />
-      <ellipse cx="12" cy="12" rx="9" ry="3.6" transform="rotate(60 12 12)" />
-      <ellipse cx="12" cy="12" rx="9" ry="3.6" transform="rotate(120 12 12)" />
-    </svg>
-  );
-}
-function IcoWater() {
-  return (
-    <svg width={LX_ICON} height={LX_ICON} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinejoin="round">
-      <path d="M12 3 C12 3 5 11 5 15 a7 7 0 0 0 14 0 C19 11 12 3 12 3Z" />
-    </svg>
-  );
-}
 function IcoSend() {
   return (
     <svg width={LX_ICON} height={LX_ICON} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinejoin="round" strokeLinecap="round">
@@ -724,19 +677,32 @@ function IcoSend() {
   );
 }
 
+function CargoShipIcon({ type, capacity, active }: { type: Ship['type']; capacity: number; active: boolean }) {
+  const size = capacity >= 1500 ? 48 : capacity >= 500 ? 42 : 36;
+  const bodyWidth = capacity >= 1500 ? 17 : capacity >= 500 ? 14 : 11;
+  const color = active ? '#7bb8ff' : '#8899aa';
+  const accent = type === 'terraform_freighter' ? '#88cc88' : '#7bb8ff';
+  return (
+    <svg width={size} height={size} viewBox="0 0 50 50" fill="none" stroke={color} strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <path d={`M25 6 L${25 + bodyWidth} 24 L25 32 L${25 - bodyWidth} 24 Z`} fill={active ? 'rgba(68,136,170,0.16)' : 'rgba(5,10,20,0.45)'} />
+      <path d={`M${25 - bodyWidth} 24 H${25 + bodyWidth}`} opacity="0.55" />
+      <path d={`M${25 - bodyWidth * 0.55} 31 L${25 - bodyWidth * 0.9} 39 M${25 + bodyWidth * 0.55} 31 L${25 + bodyWidth * 0.9} 39`} opacity="0.62" />
+      {capacity >= 500 && <path d={`M${25 - bodyWidth - 5} 25 H${25 - bodyWidth} M${25 + bodyWidth} 25 H${25 + bodyWidth + 5}`} opacity="0.76" />}
+      {capacity >= 1500 && <path d={`M${25 - bodyWidth - 8} 30 H${25 - bodyWidth + 1} M${25 + bodyWidth - 1} 30 H${25 + bodyWidth + 8}`} opacity="0.68" />}
+      <circle cx="25" cy="23" r={capacity >= 1500 ? 3.2 : 2.4} stroke={accent} fill={active ? 'rgba(123,184,255,0.18)' : 'none'} />
+      <text x="25" y="47" textAnchor="middle" fill={accent} stroke="none" fontSize="8" fontFamily="monospace">{capacity}</text>
+    </svg>
+  );
+}
+
 const LX_RES_KEYS: CargoResource[] = ['minerals', 'volatiles', 'isotopes', 'water'];
-const LX_RES_ICON: Record<CargoResource, () => React.ReactElement> = {
-  minerals: IcoMinerals,
-  volatiles: IcoVolatiles,
-  isotopes: IcoIsotopes,
-  water: IcoWater,
-};
 
 export function LogisticsTab({
   ships,
   shipments = [],
   targetPlanetId,
   planetResources = {},
+  targetHasLandingPad = true,
   getDonorResources,
   getCargoRouteLY,
   getPlanetLabel,
@@ -746,13 +712,14 @@ export function LogisticsTab({
   shipments?: CargoShipment[];
   targetPlanetId: string;
   planetResources?: Record<string, { minerals: number; volatiles: number; isotopes: number; water: number }>;
+  /** Whether the target planet has a landing pad / spaceport to receive cargo. */
+  targetHasLandingPad?: boolean;
   getDonorResources?: (planetId: string) => { minerals: number; volatiles: number; isotopes: number; water: number };
   getCargoRouteLY?: (fromPlanetId: string, toPlanetId: string) => number | null;
   getPlanetLabel?: (planetId: string) => string;
   onStartCargoShipment?: (params: { shipId: string; fromPlanetId: string; toPlanetId: string; resource: CargoResource; amount: number }) => void;
 }) {
   const { t } = useTranslation();
-  const [donorPlanetId, setDonorPlanetId] = useState('');
   const [shipType, setShipType] = useState<Ship['type'] | ''>('');
   const [resource, setResource] = useState<CargoResource>('minerals');
   const [amount, setAmount] = useState(0);
@@ -782,7 +749,7 @@ export function LogisticsTab({
     }))
     .sort((a, b) => (a.distanceLY ?? Number.POSITIVE_INFINITY) - (b.distanceLY ?? Number.POSITIVE_INFINITY));
 
-  const selectedDonor = donors.find((donor) => donor.planetId === donorPlanetId) ?? donors[0] ?? null;
+  const selectedDonor = donors[0] ?? null;
 
   // Group the donor's ships by type → one row per type with a quantity badge.
   const typeGroups = selectedDonor
@@ -817,6 +784,16 @@ export function LogisticsTab({
 
   const sectionLabel: React.CSSProperties = { color: '#667788', fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.5 };
 
+  // Cargo can only be unloaded where there's a landing pad / spaceport.
+  if (!targetHasLandingPad) {
+    return (
+      <div style={{ padding: 12, display: 'grid', gap: 8 }}>
+        <div style={{ color: '#8899aa', fontSize: 10 }}>{t('planet_terminal.logistics_desc')}</div>
+        <div style={{ color: '#cc8844', fontSize: 10, lineHeight: 1.5 }}>{t('planet_terminal.landing_pad_required')}</div>
+      </div>
+    );
+  }
+
   if (donors.length === 0) {
     return (
       <div style={{ padding: 12, display: 'grid', gap: 8 }}>
@@ -830,70 +807,64 @@ export function LogisticsTab({
     <div style={{ padding: 12, display: 'grid', gap: 10 }}>
       <div style={{ color: '#8899aa', fontSize: 10 }}>{t('planet_terminal.logistics_desc')}</div>
 
-      {/* ── Donor planet picker — SVG icon buttons with distance in light-years ── */}
-      <div style={{ display: 'grid', gap: 5 }}>
-        <div style={sectionLabel}>{t('planet_terminal.select_planet')}</div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {donors.map((donor) => {
-            const active = donor.planetId === selectedDonor?.planetId;
-            return (
-              <button
-                key={donor.planetId}
-                type="button"
-                title={`${t('planet_terminal.select_planet')}: ${donor.name} · ${fmtLY(donor.distanceLY)}`}
-                onClick={() => { setDonorPlanetId(donor.planetId); setShipType(''); setAmount(0); }}
-                style={{
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-                  minWidth: 64, maxWidth: 92, padding: '7px 8px',
-                  border: `1px solid ${active ? '#446688' : '#334455'}`,
-                  borderRadius: 6,
-                  background: active ? 'rgba(40,70,100,0.3)' : 'rgba(5,10,20,0.5)',
-                  color: active ? '#7bb8ff' : '#8899aa',
-                  fontFamily: 'monospace', cursor: 'pointer',
-                }}
-              >
-                <IcoPlanet />
-                <span style={{ fontSize: 9, maxWidth: 76, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{donor.name}</span>
-                <span style={{ fontSize: 9, color: active ? '#7bb8ff' : '#667788' }}>{fmtLY(donor.distanceLY)}</span>
-              </button>
-            );
-          })}
+      {selectedDonor && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+          padding: '7px 9px', border: '1px solid rgba(51,68,85,0.42)', borderRadius: 5,
+          background: 'rgba(5,10,20,0.42)', color: '#8899aa', fontSize: 10,
+        }}>
+          <span style={{ color: '#667788', textTransform: 'uppercase', letterSpacing: 0.7 }}>{t('planet_terminal.nearest_colony')}</span>
+          <span style={{ color: '#7bb8ff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {selectedDonor.name} · {fmtLY(selectedDonor.distanceLY)}
+          </span>
         </div>
-      </div>
+      )}
 
       {/* ── Ship-type picker — one row per type with a quantity badge (×N) ── */}
       {typeGroups.length > 0 && (
         <div style={{ display: 'grid', gap: 5 }}>
           <div style={sectionLabel}>{t('planet_terminal.select_ship')}</div>
-          <div style={{ display: 'grid', gap: 4 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6 }}>
             {typeGroups.map((group) => {
               const active = group.type === selectedGroup?.type;
               return (
                 <button
                   key={group.type}
                   type="button"
+                  title={`${PRODUCIBLE_DEFS[group.type].name} · ${group.capacity}`}
                   onClick={() => { setShipType(group.type); setAmount(0); }}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: 8, padding: '7px 9px',
+                    position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    minHeight: 62, padding: '6px 4px',
                     border: `1px solid ${active ? '#446688' : '#334455'}`,
-                    borderRadius: 5,
+                    borderRadius: 6,
                     background: active ? 'rgba(40,70,100,0.3)' : 'rgba(5,10,20,0.5)',
                     color: active ? '#7bb8ff' : '#aabbcc',
-                    fontFamily: 'monospace', fontSize: 10, cursor: 'pointer', textAlign: 'left',
+                    fontFamily: 'monospace', cursor: 'pointer',
                   }}
                 >
-                  <IcoShip />
-                  <span style={{ flex: 1 }}>{PRODUCIBLE_DEFS[group.type].name}</span>
-                  <span style={{ color: '#667788', fontSize: 9 }}>{group.capacity}</span>
+                  <CargoShipIcon type={group.type} capacity={group.capacity} active={active} />
                   <span style={{
-                    minWidth: 26, textAlign: 'center', padding: '1px 6px', borderRadius: 999,
+                    position: 'absolute', top: 4, right: 5,
+                    minWidth: 22, textAlign: 'center', padding: '1px 5px', borderRadius: 999,
                     border: `1px solid ${active ? '#446688' : '#334455'}`,
+                    background: 'rgba(2,5,16,0.78)',
                     color: active ? '#7bb8ff' : '#8899aa', fontSize: 9,
                   }}>×{group.count}</span>
                 </button>
               );
             })}
           </div>
+          {selectedGroup && (
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', gap: 10,
+              padding: '6px 8px', border: '1px solid rgba(51,68,85,0.32)', borderRadius: 4,
+              background: 'rgba(5,10,20,0.32)', fontSize: 10,
+            }}>
+              <span style={{ color: '#aabbcc', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{PRODUCIBLE_DEFS[selectedGroup.type].name}</span>
+              <span style={{ color: '#7bb8ff' }}>{t('planet_terminal.cargo_capacity', { amount: selectedGroup.capacity })}</span>
+            </div>
+          )}
         </div>
       )}
 
@@ -902,9 +873,9 @@ export function LogisticsTab({
         <div style={sectionLabel}>{t('planet_terminal.select_resource')}</div>
         <div style={{ display: 'flex', gap: 6 }}>
           {LX_RES_KEYS.map((key) => {
-            const Icon = LX_RES_ICON[key];
             const active = resource === key;
             const stock = Math.floor(selectedDonor?.resources[key] ?? 0);
+            const color = RESOURCE_COLORS[key];
             return (
               <button
                 key={key}
@@ -916,12 +887,12 @@ export function LogisticsTab({
                   border: `1px solid ${active ? '#446688' : '#334455'}`,
                   borderRadius: 5,
                   background: active ? 'rgba(40,70,100,0.3)' : 'rgba(5,10,20,0.5)',
-                  color: active ? '#7bb8ff' : '#8899aa',
+                  color: active ? color : '#8899aa',
                   fontFamily: 'monospace', cursor: 'pointer',
                 }}
               >
-                <Icon />
-                <span style={{ fontSize: 9 }}>{stock}</span>
+                <ResourceIcon type={key} size={16} />
+                <span style={{ fontSize: 9, color: active ? color : '#8899aa' }}>{stock}</span>
               </button>
             );
           })}
@@ -1003,6 +974,8 @@ export function PlanetContextMenu({
   playerLevel,
   hasGenesisVault,
   onShowTerraform,
+  terraformPanelContent,
+  targetHasLandingPad = true,
   revealLevel = 0,
   activeMission,
   planetMissionClock = Date.now(),
@@ -1054,6 +1027,10 @@ export function PlanetContextMenu({
   hasGenesisVault?: boolean;
   /** Called when the player clicks Terraforming — opens full-screen panel */
   onShowTerraform?: (planet: Planet) => void;
+  /** Inline terraforming panel rendered directly inside the "Terraforming" tab */
+  terraformPanelContent?: React.ReactNode;
+  /** Whether the selected planet has a landing pad / spaceport (gates Logistics) */
+  targetHasLandingPad?: boolean;
   revealLevel?: PlanetRevealLevel;
   activeMission?: PlanetMission | null;
   planetMissionClock?: number;
@@ -1146,12 +1123,13 @@ export function PlanetContextMenu({
     setActiveTab(unlockedTabs.has(tab) ? tab : 'actions');
   };
   const hasFullPlanetResearch = revealLevel >= 3;
-  const canLaunchTerraform = isTerraformable(planet) && hasFullPlanetResearch && Boolean(hasGenesisVault) && playerLevel >= 48;
+  // Terraforming gate mirrors the core rules (terraform-rules.ts): the planet must
+  // be terraformable, fully researched, and have a Genesis Vault built on a colony.
+  // No arbitrary player-level requirement — the Genesis Vault itself unlocks at L18.
+  const canLaunchTerraform = isTerraformable(planet) && hasFullPlanetResearch && Boolean(hasGenesisVault);
   const terraformDisabledReason = !hasFullPlanetResearch
     ? t('terraform.reason.full_research_required')
-    : playerLevel < 48
-      ? 'L48'
-      : t('terraform.reason.genesis_vault_required');
+    : t('terraform.reason.genesis_vault_required');
   const activeMissionProgress = activeMission ? getPlanetMissionProgress(activeMission, planetMissionClock) : null;
   const hasDroneReport = reportSummary?.missionType === 'drone_recon' || reportSummary?.missionType === 'surface_landing';
   const availableMissionTypes: PlanetMissionType[] = [
@@ -1379,6 +1357,7 @@ export function PlanetContextMenu({
               ships={cargoShips}
               shipments={cargoShipments}
               targetPlanetId={planet.id}
+              targetHasLandingPad={targetHasLandingPad}
               planetResources={planetResourcesById}
               getDonorResources={getDonorResources}
               getCargoRouteLY={getCargoRouteLY}
@@ -1390,13 +1369,12 @@ export function PlanetContextMenu({
           {activeTab === 'terraform' && (
             <>
               {isTerraformable(planet) ? (
-                canLaunchTerraform && onShowTerraform ? (
-                  <MenuItem
-                    icon="*"
-                    label={t('planet.action_terraform')}
-                    onClick={() => { onShowTerraform(planet); onClose(); }}
-                    color="#88cc88"
-                  />
+                canLaunchTerraform ? (
+                  terraformPanelContent ?? (
+                    <div style={{ padding: '10px 14px', color: '#667788', fontSize: 10 }}>
+                      {t('planet_terminal.terraform_requirements_visible')}
+                    </div>
+                  )
                 ) : (
                   <MenuItem
                     icon="*"

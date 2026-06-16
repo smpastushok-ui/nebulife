@@ -44,4 +44,8 @@ export interface CommandBarProps {
   navigationDisabled?: boolean;
   /** Guest (not linked) with progress → pulse the player badge to nudge sign-in. */
   highlightAuth?: boolean;
+  /** Terraform-missions status for the cross-cutting mission button (right side). */
+  missionStatus?: { activeCount: number; total: number } | null;
+  /** Toggle the missions panel. */
+  onMissionsClick?: () => void;
 }

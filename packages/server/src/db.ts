@@ -1610,6 +1610,7 @@ export async function saveLifeform(data: {
   source?: 'found' | 'created';
   rarity: string;
   speciesName?: string | null;
+  promptUsed?: string | null;
   isBundle?: boolean;
   /** Bundled asset URL for common lifeforms (per-species photo). */
   photoUrl?: string | null;
@@ -1636,11 +1637,11 @@ export async function saveLifeform(data: {
   const rows = await sql`
     INSERT INTO lifeforms (
       id, player_id, system_id, planet_id, source, rarity, species_name, is_bundle,
-      photo_url, photo_status, video_url, video_status
+      photo_url, photo_status, video_url, video_status, prompt_used
     ) VALUES (
       ${data.id}, ${data.playerId}, ${data.systemId ?? null}, ${data.planetId ?? null},
       ${data.source ?? 'found'}, ${data.rarity}, ${data.speciesName ?? null}, ${data.isBundle ?? false},
-      ${data.photoUrl ?? null}, ${photoStatus}, ${data.videoUrl ?? null}, ${videoStatus}
+      ${data.photoUrl ?? null}, ${photoStatus}, ${data.videoUrl ?? null}, ${videoStatus}, ${data.promptUsed ?? null}
     )
     RETURNING *
   `;
