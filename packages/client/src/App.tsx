@@ -3389,6 +3389,24 @@ function AppInner() {
     // Debit resources immediately from the donor colony's per-planet store
     addResources(donorPlanetId, { [resource]: -amount });
 
+    // Seed the planet's terraform state on first start so (a) incoming
+    // deliveries can accumulate progress and (b) the system-level aura marks
+    // this planet as "in progress". Without a stored state the delivery tick
+    // skips the planet and no planet would ever show the terraforming effect.
+    const targetKey = targetSystemId ? planetObjectKey(targetSystemId, targetPlanetId) : targetPlanetId;
+    setTerraformStates((prev) => {
+      if (prev[targetKey] || prev[targetPlanetId]) return prev;
+      const systems = engineRef.current?.getAllSystems() ?? [];
+      let targetPlanet: Planet | undefined;
+      for (const sys of systems) {
+        if (targetSystemId && sys.id !== targetSystemId) continue;
+        const found = sys.planets.find((p) => p.id === targetPlanetId);
+        if (found) { targetPlanet = found; break; }
+      }
+      if (!targetPlanet) return prev;
+      return { ...prev, [targetKey]: getInitialTerraformState(targetPlanet) };
+    });
+
     const now = Date.now();
     const mission: Mission & { targetSystemId?: string } = {
       id: `mission-${now}-${Math.random().toString(36).slice(2, 8)}`,
@@ -12470,11 +12488,6 @@ function AppInner() {
             const sys = state.scene === 'planet-view' && state.selectedSystem ? state.selectedSystem : homeInfo.system;
             const report = getPlanetScopedValue(planetReports, sys.id, p.id);
             return report?.missionType === 'orbital_probe';
-          })()}
-          terraformInProgress={(() => {
-            const p = state.scene === 'planet-view' && state.selectedPlanet ? state.selectedPlanet : homeInfo.planet;
-            const tfState = getTerraformState(p);
-            return Boolean(tfState && getOverallProgress(tfState) > 0 && !tfState.completedAt);
           })()}
           textureUrl={(() => {
             const p = state.scene === 'planet-view' && state.selectedPlanet ? state.selectedPlanet : homeInfo.planet;
