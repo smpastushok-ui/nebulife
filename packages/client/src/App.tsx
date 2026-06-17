@@ -5528,30 +5528,52 @@ function AppInner() {
     // below would clobber a just-harvested local slot (same array length, no
     // timestamp), making resource tiles look ready again after a restart — i.e.
     // XP persisted but the 10-min cooldown reset, enabling repeat XP farming.
-    const mergeHexHarvestTimers = (serverSlots: unknown[], localSlots: unknown[]): unknown[] => {
-      if (!Array.isArray(localSlots) || localSlots.length === 0) return serverSlots;
-      const localById = new Map<string, { lastHarvestedAt?: number }>();
-      for (const s of localSlots) {
-        if (s && typeof s === 'object' && typeof (s as { id?: unknown }).id === 'string') {
-          localById.set((s as { id: string }).id, s as { lastHarvestedAt?: number });
+    type MergeSlot = {
+      id?: unknown; state?: unknown; buildingLevel?: unknown; lastHarvestedAt?: unknown;
+    };
+    // Progression rank for a hex tile so a merge never downgrades a placed
+    // building back to an empty/locked tile: built > unlocked > locked > hidden.
+    const slotProgress = (s: MergeSlot): number => {
+      const state = typeof s.state === 'string' ? s.state : '';
+      const level = typeof s.buildingLevel === 'number' ? s.buildingLevel : 0;
+      if (state === 'building' || state === 'harvester') return 100 + level;
+      if (state === 'empty' || state === 'resource') return 10;
+      if (state === 'locked') return 1;
+      return 0;
+    };
+    // Union server + local hex slots by id so neither device loses placed
+    // buildings — this is what makes observatory count / colony layout converge
+    // across web + mobile instead of each device keeping its own count. For each
+    // id we keep the more progressed tile and always carry the newest harvest
+    // cooldown so resource tiles can't be farmed by restarting the app.
+    const mergeHexSlotsById = (serverSlots: unknown[], localSlots: unknown[]): unknown[] => {
+      const byId = new Map<string, MergeSlot>();
+      const order: string[] = [];
+      const ingest = (arr: unknown[]): void => {
+        for (const raw of arr) {
+          if (!raw || typeof raw !== 'object') continue;
+          const s = raw as MergeSlot;
+          if (typeof s.id !== 'string') continue;
+          const existing = byId.get(s.id);
+          if (!existing) { byId.set(s.id, s); order.push(s.id); continue; }
+          const winner = slotProgress(s) > slotProgress(existing) ? s : existing;
+          const newest = Math.max(
+            typeof s.lastHarvestedAt === 'number' ? s.lastHarvestedAt : 0,
+            typeof existing.lastHarvestedAt === 'number' ? existing.lastHarvestedAt : 0,
+          );
+          byId.set(s.id, newest > 0 ? { ...winner, lastHarvestedAt: newest } : winner);
         }
-      }
-      return serverSlots.map((s) => {
-        if (!s || typeof s !== 'object' || typeof (s as { id?: unknown }).id !== 'string') return s;
-        const srv = s as { id: string; lastHarvestedAt?: number };
-        const loc = localById.get(srv.id);
-        const newest = Math.max(srv.lastHarvestedAt ?? 0, loc?.lastHarvestedAt ?? 0);
-        return newest > (srv.lastHarvestedAt ?? 0) ? { ...srv, lastHarvestedAt: newest } : s;
-      });
+      };
+      ingest(Array.isArray(serverSlots) ? serverSlots : []);
+      ingest(Array.isArray(localSlots) ? localSlots : []);
+      return order.map((id) => byId.get(id)!);
     };
 
     if (Array.isArray(gs.hex_slots) && gs.hex_slots.length > 0) {
       try {
         const localRaw = localStorage.getItem('nebulife_hex_slots');
         const localSlots = localRaw ? JSON.parse(localRaw) as unknown[] : [];
-        if (!Array.isArray(localSlots) || gs.hex_slots.length >= localSlots.length) {
-          localStorage.setItem('nebulife_hex_slots', JSON.stringify(mergeHexHarvestTimers(gs.hex_slots, localSlots)));
-        }
+        localStorage.setItem('nebulife_hex_slots', JSON.stringify(mergeHexSlotsById(gs.hex_slots, localSlots)));
       } catch {
         try { localStorage.setItem('nebulife_hex_slots', JSON.stringify(gs.hex_slots)); } catch { /* ignore */ }
       }
@@ -5562,9 +5584,7 @@ function AppInner() {
         try {
           const localRaw = localStorage.getItem(key);
           const localSlots = localRaw ? JSON.parse(localRaw) as unknown[] : [];
-          if (!Array.isArray(localSlots) || slots.length >= localSlots.length) {
-            localStorage.setItem(key, JSON.stringify(mergeHexHarvestTimers(slots, localSlots)));
-          }
+          localStorage.setItem(key, JSON.stringify(mergeHexSlotsById(slots, localSlots)));
         } catch {
           try { localStorage.setItem(key, JSON.stringify(slots)); } catch { /* ignore */ }
         }
