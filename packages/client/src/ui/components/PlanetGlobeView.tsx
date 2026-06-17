@@ -57,6 +57,8 @@ interface PlanetGlobeViewProps {
   system: StarSystem;
   mode: 'home' | 'planet-view';
   showOrbitalProbe?: boolean;
+  /** When true, renders the green terraforming energy net + scan ring. */
+  terraformInProgress?: boolean;
   onDoubleClick?: () => void;
   textureUrl?: string | null;
   onSceneLoaded?: () => void;
@@ -1172,6 +1174,60 @@ function createOrbitalProbe(scene: THREE.Scene, planet: Planet): ProbeOrbitData 
   };
 }
 
+// ---------------------------------------------------------------------------
+// Terraforming-in-progress shell — a green "energy net" wireframe wrapping the
+// globe plus a horizontal scan ring that sweeps pole-to-pole. Lightweight
+// (one wireframe sphere + one line), additive-blended so it reads clearly on
+// every device tier. Disposed automatically by the scene-traverse teardown.
+// ---------------------------------------------------------------------------
+
+interface TerraformShellData {
+  group: THREE.Group;
+  grid: THREE.LineSegments;
+  scanRing: THREE.Line;
+  shellRadius: number;
+}
+
+function createTerraformShell(scene: THREE.Scene): TerraformShellData {
+  const group = new THREE.Group();
+  group.renderOrder = 4;
+
+  const shellRadius = 1.06;
+
+  // Energy grid net — a sparse lat/long wireframe hugging the planet.
+  const gridGeo = new THREE.WireframeGeometry(new THREE.SphereGeometry(shellRadius, 16, 11));
+  const gridMat = new THREE.LineBasicMaterial({
+    color: 0x44ff88,
+    transparent: true,
+    opacity: 0.16,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  const grid = new THREE.LineSegments(gridGeo, gridMat);
+  group.add(grid);
+
+  // Scan ring — a unit XZ circle scaled + lifted each frame so it sweeps the
+  // surface like a terraforming pass.
+  const ringPts: THREE.Vector3[] = [];
+  for (let i = 0; i <= 64; i++) {
+    const a = (i / 64) * Math.PI * 2;
+    ringPts.push(new THREE.Vector3(Math.cos(a), 0, Math.sin(a)));
+  }
+  const ringGeo = new THREE.BufferGeometry().setFromPoints(ringPts);
+  const ringMat = new THREE.LineBasicMaterial({
+    color: 0x88ffaa,
+    transparent: true,
+    opacity: 0.7,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  const scanRing = new THREE.Line(ringGeo, ringMat);
+  group.add(scanRing);
+
+  scene.add(group);
+  return { group, grid, scanRing, shellRadius };
+}
+
 // Cached GLB for the evacuation ship. Loaded once on first PlanetGlobeView
 // mount; subsequent ships clone it. Falls back to the procedural cone if
 // the file is missing / still loading.
@@ -1485,9 +1541,13 @@ function spawnShootingStar(scene: THREE.Scene): ShootingStar {
 // ---------------------------------------------------------------------------
 
 const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
-  ({ planet, star, system, mode, showOrbitalProbe = false, onDoubleClick, textureUrl, onSceneLoaded }, ref) => {
+  ({ planet, star, system, mode, showOrbitalProbe = false, terraformInProgress = false, onDoubleClick, textureUrl, onSceneLoaded }, ref) => {
     const { t } = useTranslation();
     const containerRef = useRef<HTMLDivElement>(null);
+    // Read live in the RAF loop so the terraform net can toggle without a full
+    // WebGL scene rebuild.
+    const terraformActiveRef = useRef(terraformInProgress);
+    terraformActiveRef.current = terraformInProgress;
     const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
     const animFrameRef = useRef<number>(0);
 
@@ -1767,6 +1827,11 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       // 10. Orbital science probe after orbital-probe research.
       const probeOrbit = showOrbitalProbe ? createOrbitalProbe(scene, planet) : null;
 
+      // 11. Terraforming energy net — created up-front, shown only while a
+      // terraform mission is active (toggled per-frame via the ref).
+      const terraformShell = createTerraformShell(scene);
+      terraformShell.group.visible = terraformActiveRef.current;
+
       // --- Cosmic events (shooting stars on all scenes) ---
       let shootingStars: ShootingStar[] = [];
       let nextShootingStarTime = 3 + Math.random() * 7; // 3-10s for first
@@ -1924,6 +1989,25 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
           probeOrbit.group.position.set(x, 0.05 * Math.sin(probeOrbit.angle * 2), z);
           probeOrbit.group.rotation.y = -probeOrbit.angle + Math.PI / 2;
           probeOrbit.group.renderOrder = z > 0 ? 3 : -2;
+        }
+
+        // Terraforming energy net — rotating green wireframe + sweeping scan ring.
+        {
+          const active = terraformActiveRef.current;
+          terraformShell.group.visible = active;
+          if (active) {
+            terraformShell.group.rotation.y += deltaMs * 0.00035;
+            const pulse = 0.5 + Math.abs(Math.sin(elapsed * 0.0016)) * 0.5;
+            (terraformShell.grid.material as THREE.LineBasicMaterial).opacity = 0.1 + 0.12 * pulse;
+            // Scan ring sweeps bottom → top, hugging the sphere and fading at poles.
+            const R = terraformShell.shellRadius;
+            const sweep = (elapsed * 0.00016) % 1;
+            const y = -R + 2 * R * sweep;
+            const ringR = Math.sqrt(Math.max(0.0004, R * R - y * y));
+            terraformShell.scanRing.position.y = y;
+            terraformShell.scanRing.scale.set(ringR, 1, ringR);
+            (terraformShell.scanRing.material as THREE.LineBasicMaterial).opacity = 0.25 + 0.55 * Math.sin(sweep * Math.PI);
+          }
         }
 
         // Scanning overlay

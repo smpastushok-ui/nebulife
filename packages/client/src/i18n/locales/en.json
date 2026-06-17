@@ -65,6 +65,7 @@
     "ingredient_nucleotide_matrix": "Nucleotide Matrix",
     "ingredient_chiral_catalyst": "Chiral Catalyst",
     "spark_found": "Spark of Life secured: {{name}}",
+    "spark_secured": "Spark of Life secured",
     "spark_primordial": "Primordial Spark",
     "spark_adaptive": "Adaptive Spark",
     "spark_neural": "Neural Spark",
@@ -856,6 +857,24 @@
     "col_moons_short": "MON",
     "no_moons": "no moons"
   },
+  "separation": {
+    "section": "Quantum Separation",
+    "explainer": "Load {{amount}} bulk minerals — over 1 hour the separator breaks them down into discrete elements. Simple elements appear more often and in larger amounts, rare ones less often. Consumes energy and research data.",
+    "input": "Input",
+    "research_cost": "Research",
+    "duration": "Time",
+    "unit_minerals": "minerals",
+    "unit_research": "research data",
+    "in_progress": "Separating...",
+    "start": "Start separation",
+    "no_power": "No power",
+    "need_bulk": "Need {{amount}} minerals",
+    "need_research": "Need {{amount}} research data",
+    "busy": "Separator already busy",
+    "done": "Separation complete: {{summary}}",
+    "log": "Quantum separator broke minerals into elements: {{summary}}",
+    "possible_elements": "Possible elements"
+  },
   "observatory": {
     "title": "Nebulife Observatory",
     "setting_up": "Setting up observatory...",
@@ -940,6 +959,7 @@
     "reset_warning": "This action cannot be undone. All progress will be lost.",
     "confirm_delete": "Confirm Permanent Delete",
     "delete_warning": "All data will be deleted with no way to recover.",
+    "edit_name": "Change name",
     "avatar_section": "AVATAR",
     "avatar_upload": "Change avatar",
     "avatar_remove": "Remove avatar",
@@ -2635,6 +2655,7 @@
     "transport_zoom": "Enlarge image",
     "transport_help_title": "Craft explanation",
     "transport_count": "{{count}} pcs",
+    "transport_capacity": "Cargo: {{amount}}",
     "transport_art_slot": "ART",
     "transport_help": {
       "research_shuttle": "Reusable carrier for orbital survey probes and satellites. After production it is stored as a fleet ship on this planet.",

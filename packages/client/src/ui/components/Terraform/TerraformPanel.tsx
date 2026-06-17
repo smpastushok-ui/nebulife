@@ -252,68 +252,15 @@ function ParamRow({
 
   return (
     <div style={rowStyle}>
-      {/* Title row */}
+      {/* Title row: chevron + name + percent only (keeps it from crowding) */}
       <div style={titleRowStyle}>
-        {/* Chevron */}
         <button style={chevronStyle} onClick={() => setExpanded((v) => !v)}>
           &#x25B6;
         </button>
-
-        {/* Name */}
         <span style={labelStyle}>
           {t(`terraform.param_full.${paramId}`, { defaultValue: t(`terraform.param.${paramId}`) })}
         </span>
-
-        {/* Pct */}
         <span style={pctStyle}>{pct}%</span>
-
-        {/* Action button area */}
-        {activeMission ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 9, color: '#7bb8ff', flexShrink: 0 }}>
-              {t(`terraform.phase.${activeMission.phase}`)}
-              {missionPhaseProgress !== null && (
-                <span style={{ color: '#556677' }}>
-                  {' '}({Math.round(missionPhaseProgress * 100)}%)
-                </span>
-              )}
-            </span>
-            <button
-              style={{
-                ...btnBase,
-                background: 'rgba(80,30,30,0.6)',
-                color: '#cc6666',
-              }}
-              onClick={() => onCancelMission(activeMission.id)}
-            >
-              {t('terraform.cancel_mission')}
-            </button>
-          </div>
-        ) : canDispatch ? (
-          <button
-            style={{
-              ...btnBase,
-              background: 'rgba(40,70,100,0.7)',
-              color: '#7bb8ff',
-            }}
-            onClick={() => onDispatch(paramId)}
-          >
-            {t(actionLabelKey)}
-          </button>
-        ) : (
-          <button
-            disabled
-            title={reasonText}
-            style={{
-              ...btnBase,
-              background: 'rgba(20,30,45,0.4)',
-              color: '#445566',
-              cursor: 'not-allowed',
-            }}
-          >
-            {t(actionLabelKey)}
-          </button>
-        )}
       </div>
 
       {/* Progress bar */}
@@ -332,6 +279,58 @@ function ParamRow({
             transition: 'width 0.3s ease',
           }} />
         </div>
+      </div>
+
+      {/* Action / mission-status row — own line so nothing overlaps */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        marginTop: 7,
+        padding: '0 18px',
+        justifyContent: 'flex-end',
+      }}>
+        {activeMission ? (
+          <>
+            <span style={{
+              fontSize: 9,
+              color: '#7bb8ff',
+              marginRight: 'auto',
+              minWidth: 0,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}>
+              {t(`terraform.phase.${activeMission.phase}`)}
+              {missionPhaseProgress !== null && (
+                <span style={{ color: '#556677' }}>
+                  {' '}({Math.round(missionPhaseProgress * 100)}%)
+                </span>
+              )}
+            </span>
+            <button
+              style={{ ...btnBase, background: 'rgba(80,30,30,0.6)', color: '#cc6666' }}
+              onClick={() => onCancelMission(activeMission.id)}
+            >
+              {t('terraform.cancel_mission')}
+            </button>
+          </>
+        ) : canDispatch ? (
+          <button
+            style={{ ...btnBase, background: 'rgba(40,70,100,0.7)', color: '#7bb8ff' }}
+            onClick={() => onDispatch(paramId)}
+          >
+            {t(actionLabelKey)}
+          </button>
+        ) : (
+          <button
+            disabled
+            title={reasonText}
+            style={{ ...btnBase, background: 'rgba(20,30,45,0.4)', color: '#445566', cursor: 'not-allowed' }}
+          >
+            {t(actionLabelKey)}
+          </button>
+        )}
       </div>
 
       {/* Expanded details */}

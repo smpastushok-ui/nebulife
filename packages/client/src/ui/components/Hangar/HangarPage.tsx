@@ -523,29 +523,6 @@ export const HangarPage: React.FC<HangarPageProps> = ({
                 })}
               </div>
 
-              <button
-                style={{
-                  ...S.customShipCta,
-                  ...S.desktopFlushBlock,
-                  opacity: mounted ? 1 : 0,
-                  transform: mounted ? 'translateY(0)' : 'translateY(14px)',
-                }}
-                onClick={handleCustomShipOrder}
-              >
-                <span style={S.customShipCtaIcon}>
-                  <span style={S.customShipCtaGlyph}><ShipGlyph color="#c6dbf2" /></span>
-                  <span style={S.customPlus}>+</span>
-                </span>
-                <span style={S.customShipCtaText}>
-                  <strong>{t('hangar.ship.custom_3d')}</strong>
-                  <small>{t('hangar.ship.custom_hint' as Parameters<typeof t>[0])}</small>
-                </span>
-                <span style={S.customShipCtaCost}>
-                  {CUSTOM_SHIP_COST}
-                  <QuarkIcon />
-                </span>
-              </button>
-
               <div
                 style={{
                   ...S.quickLaunchPanel,
@@ -773,34 +750,6 @@ export const HangarPage: React.FC<HangarPageProps> = ({
               </button>
             );
           })}
-        </div>
-
-        <div style={{ position: 'relative' }}>
-          <button
-            style={{
-              ...S.customShipCta,
-              opacity: mounted ? 1 : 0,
-              transform: mounted ? 'translateY(0)' : 'translateY(14px)',
-              paddingRight: 50,
-            }}
-            onClick={handleCustomShipOrder}
-          >
-            <span style={S.customShipCtaIcon}>
-              <span style={S.customShipCtaGlyph}><ShipGlyph color="#c6dbf2" /></span>
-              <span style={S.customPlus}>+</span>
-            </span>
-            <span style={S.customShipCtaText}>
-              <strong>{t('hangar.ship.custom_3d')}</strong>
-              <small>{t('hangar.ship.custom_hint' as Parameters<typeof t>[0])}</small>
-            </span>
-            <span style={S.customShipCtaCost}>
-              {CUSTOM_SHIP_COST}
-              <QuarkIcon />
-            </span>
-          </button>
-          <div style={{ position: 'absolute', top: 12, right: 12 }}>
-            <PremiumHelpButton helpId="custom-ship" />
-          </div>
         </div>
 
         {/* ── Controls panel (desktop only) ─────────────────────── */}

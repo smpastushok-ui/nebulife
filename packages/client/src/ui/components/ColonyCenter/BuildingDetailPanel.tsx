@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { BuildingType, FleetState, ObservatorySearchDuration, ObservatorySearchProgram, ObservatoryState, PlacedBuilding, Planet, PlanetResourceStocks, ProducibleType } from '@nebulife/core';
-import { BUILDING_DEFS, PRODUCIBLE_ASSET_PATHS, PRODUCIBLE_DEFS, getAvailableObservatoryPrograms, getCatalogEntry, getCatalogName, getObservatoryLevel, getObservatoryMaxActiveSearches, getObservatorySearchChance, getObservatoryXpProgress, isShipProducible } from '@nebulife/core';
+import type { BuildingType, FleetState, ObservatorySearchDuration, ObservatorySearchProgram, ObservatoryState, PlacedBuilding, Planet, PlanetResourceStocks, ProducibleType, SeparationJob, SeparationGroup } from '@nebulife/core';
+import { BUILDING_DEFS, PRODUCIBLE_ASSET_PATHS, PRODUCIBLE_DEFS, getAvailableObservatoryPrograms, getCatalogEntry, getCatalogName, getObservatoryLevel, getObservatoryMaxActiveSearches, getObservatorySearchChance, getObservatoryXpProgress, isShipProducible, SEPARATION_BATCH, SEPARATION_DURATION_MS, SEPARATION_RESEARCH_DATA_COST, getSeparationElements } from '@nebulife/core';
 
 import { ResourceIcon, RESOURCE_COLORS } from '../ResourceIcon.js';
 import { buildingName, buildingDesc } from '../../../i18n/building-labels.js';
@@ -32,10 +32,12 @@ export interface BuildingDetailPanelProps {
   shipFleet?: FleetState;
   explorationProductionQueue?: Array<{ id: string; type: ProducibleType; planetId: string; startedAt: number; durationMs: number }>;
   observatoryState?: ObservatoryState;
+  separationJobs?: SeparationJob[];
+  onStartSeparation?: (buildingId: string, planetId: string, group?: SeparationGroup) => boolean | void;
   onClose: () => void;
   onOpenColonyCenter?: (tab?: 'overview' | 'production') => void;
   onStartPayloadProduction?: (type: ProducibleType) => void;
-  onStartObservatorySearch?: (duration: ObservatorySearchDuration, program: ObservatorySearchProgram) => boolean | void;
+  onStartObservatorySearch?: (duration: ObservatorySearchDuration, program: ObservatorySearchProgram, observatoryCount?: number) => boolean | void;
   isPremium?: boolean;
   onResourceChange?: (delta: Partial<ColonyResources>) => void;
   onResearchDataChange?: (delta: number) => void;
@@ -540,6 +542,7 @@ function ProducibleFrameCard({
   const title = t(`planet_missions.payload.${type}`);
   const help = t(`building_detail.transport_help.${type}`);
   const longTitle = title.length > 18;
+  const cargoCapacity = PRODUCIBLE_DEFS[type]?.cargoCapacity ?? 0;
 
   return (
     <div style={{
@@ -647,6 +650,20 @@ function ProducibleFrameCard({
             {t('building_detail.transport_count', { count })}
           </div>
         </div>
+        {cargoCapacity > 0 && (
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 5, alignSelf: 'flex-start',
+            color: '#7bb8ff', fontSize: 9.5, lineHeight: 1,
+            padding: '3px 6px', borderRadius: 4,
+            border: '1px solid rgba(123,184,255,0.34)', background: 'rgba(68,136,170,0.12)',
+          }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" strokeLinecap="round" aria-hidden="true">
+              <path d="M3 8 L12 3 L21 8 L21 16 L12 21 L3 16 Z" />
+              <path d="M3 8 L12 13 L21 8 M12 13 L12 21" opacity="0.6" />
+            </svg>
+            {t('building_detail.transport_capacity', { amount: cargoCapacity })}
+          </div>
+        )}
         <div style={{ color: '#667788', fontSize: 9, lineHeight: 1.32, overflowWrap: 'anywhere' }}>{payloadCostSummary(type, t)}</div>
         {activeQueue.length > 0 && (
           <div style={{ color: '#ddaa44', fontSize: 10 }}>
@@ -775,6 +792,8 @@ export function BuildingDetailPanel({
   shipFleet,
   explorationProductionQueue,
   observatoryState,
+  separationJobs,
+  onStartSeparation,
   onClose,
   onOpenColonyCenter,
   onStartPayloadProduction,
@@ -789,6 +808,7 @@ export function BuildingDetailPanel({
   const [observatoryProgram, setObservatoryProgram] = useState<ObservatorySearchProgram>('routine_sky_watch');
   const [observatoryNow, setObservatoryNow] = useState(() => Date.now());
   const [observatoryAdsRunning, setObservatoryAdsRunning] = useState(false);
+  const [separationNow, setSeparationNow] = useState(() => Date.now());
   const type = building?.type ?? buildingType;
   const def = type ? BUILDING_DEFS[type] : null;
 
@@ -855,7 +875,10 @@ export function BuildingDetailPanel({
   const observatoryXp = observatoryState ? getObservatoryXpProgress(observatoryState) : { level: 1, current: 0, required: 100, pct: 0 };
   const observatoryPrograms = getAvailableObservatoryPrograms(observatoryLevel);
   const activeObservatorySessions = observatoryState?.sessions ?? [];
-  const maxObservatorySessions = observatoryState ? getObservatoryMaxActiveSearches(observatoryState) : 1;
+  // Each observatory building grants its own independent search launch, so two
+  // observatories on the surface can run two searches concurrently.
+  const observatoryCount = Math.max(1, buildings.filter((b) => b.type === 'observatory' && !b.shutdown).length);
+  const maxObservatorySessions = observatoryState ? getObservatoryMaxActiveSearches(observatoryState, observatoryCount) : 1;
   const hasObservatorySlot = activeObservatorySessions.length < maxObservatorySessions;
   const observatoryReports = [...(observatoryState?.reports ?? [])].reverse().slice(0, 8);
   const selectedObservatoryProgram = observatoryPrograms.includes(observatoryProgram)
@@ -867,6 +890,23 @@ export function BuildingDetailPanel({
     const id = window.setInterval(() => setObservatoryNow(Date.now()), 1000);
     return () => window.clearInterval(id);
   }, [activeObservatorySessions.length]);
+
+  // ── Quantum separator batch state ──
+  const activeSeparationJob = (separationJobs ?? []).find((j) => j.buildingId === building?.id) ?? null;
+  const separationElapsed = activeSeparationJob ? separationNow - activeSeparationJob.startedAt : 0;
+  const separationPct = activeSeparationJob
+    ? Math.min(100, Math.round((separationElapsed / activeSeparationJob.durationMs) * 100))
+    : 0;
+  const separationSecondsLeft = activeSeparationJob
+    ? Math.max(0, Math.ceil((activeSeparationJob.durationMs - separationElapsed) / 1000))
+    : 0;
+  const canAffordSeparation =
+    (colonyResources.minerals ?? 0) >= SEPARATION_BATCH && researchData >= SEPARATION_RESEARCH_DATA_COST;
+  useEffect(() => {
+    if (!activeSeparationJob) return;
+    const id = window.setInterval(() => setSeparationNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [activeSeparationJob?.id]);
 
   const addInfoReport = (title: string, body: string, impact = t('building_detail.report_no_persistent_effect')) => {
     void title;
@@ -1211,7 +1251,7 @@ export function BuildingDetailPanel({
                             return;
                           }
                         }
-                        const started = onStartObservatorySearch?.(duration, selectedObservatoryProgram);
+                        const started = onStartObservatorySearch?.(duration, selectedObservatoryProgram, observatoryCount);
                         if (started === false) return;
                         addInfoReport(t('observatory.in_progress'), isPremium ? t('observatory.search_started') : t('observatory.search_started_after_ads'));
                       }}
@@ -1248,6 +1288,91 @@ export function BuildingDetailPanel({
                     {t('observatory.no_reports')}
                   </div>
                 )}
+              </div>
+            </div>
+          </Section>
+        )}
+
+        {type === 'quantum_separator' && building && (
+          <Section title={t('separation.section')}>
+            <div style={{
+              background: 'rgba(10,15,25,0.48)',
+              border: '1px solid rgba(68,136,170,0.35)',
+              borderRadius: 5,
+              padding: compact ? 10 : 12,
+              display: 'grid',
+              gap: 12,
+            }}>
+              <div style={{
+                color: '#8899aa',
+                fontSize: 10,
+                lineHeight: 1.45,
+                background: 'rgba(5,10,20,0.42)',
+                border: '1px solid rgba(68,136,170,0.25)',
+                borderRadius: 4,
+                padding: '9px 10px',
+              }}>
+                {t('separation.explainer', { amount: SEPARATION_BATCH })}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8 }}>
+                <MetricCard label={t('separation.input')} value={`${SEPARATION_BATCH}`} sub={t('separation.unit_minerals')} accent="#aa8855" />
+                <MetricCard label={t('separation.research_cost')} value={`${SEPARATION_RESEARCH_DATA_COST}`} sub={t('separation.unit_research')} accent="#9fd0ff" />
+                <MetricCard label={t('separation.duration')} value="1h" accent="#88bb99" />
+              </div>
+
+              {activeSeparationJob ? (
+                <div style={{ display: 'grid', gap: 7 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#9fd0ff' }}>
+                    <span>{t('separation.in_progress')}</span>
+                    <span>{`${Math.floor(separationSecondsLeft / 60)}:${String(separationSecondsLeft % 60).padStart(2, '0')}`}</span>
+                  </div>
+                  <div style={{ height: 6, borderRadius: 999, background: 'rgba(51,68,85,0.45)', overflow: 'hidden' }}>
+                    <div style={{ width: `${separationPct}%`, height: '100%', background: 'linear-gradient(90deg, #446688, #9fd0ff)' }} />
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  disabled={stats.isShutdown || !canAffordSeparation || !onStartSeparation}
+                  onClick={() => onStartSeparation?.(building.id, planet.id, 'mineral')}
+                  style={{
+                    background: stats.isShutdown || !canAffordSeparation ? 'rgba(20,30,45,0.4)' : 'rgba(68,136,170,0.18)',
+                    border: `1px solid ${stats.isShutdown || !canAffordSeparation ? BORDER : ACTIVE_BORDER}`,
+                    borderRadius: 4,
+                    color: stats.isShutdown || !canAffordSeparation ? '#556677' : '#9fd0ff',
+                    fontFamily: 'monospace',
+                    fontSize: 11,
+                    letterSpacing: 1,
+                    textTransform: 'uppercase',
+                    padding: '10px 12px',
+                    cursor: stats.isShutdown || !canAffordSeparation ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {stats.isShutdown
+                    ? t('separation.no_power')
+                    : !canAffordSeparation
+                      ? t('separation.need_bulk', { amount: SEPARATION_BATCH })
+                      : t('separation.start')}
+                </button>
+              )}
+
+              <div style={{ display: 'grid', gap: 5 }}>
+                <div style={{ fontSize: 10, color: '#667788', letterSpacing: 1.5, textTransform: 'uppercase' }}>
+                  {t('separation.possible_elements')}
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                  {getSeparationElements('mineral').map((el) => (
+                    <span key={el} style={{
+                      background: 'rgba(5,10,20,0.42)',
+                      border: '1px solid rgba(51,68,85,0.55)',
+                      borderRadius: 3,
+                      color: '#aabbcc',
+                      fontSize: 10,
+                      padding: '3px 7px',
+                    }}>{el}</span>
+                  ))}
+                </div>
               </div>
             </div>
           </Section>

@@ -347,7 +347,6 @@ function runSingleTick(
 // ---------------------------------------------------------------------------
 
 /** Element pools that refineries can produce */
-const MINERAL_ELEMENTS = ['Fe', 'Cu', 'Ti', 'Al', 'Si', 'Ni'];
 const VOLATILE_ELEMENTS = ['H', 'He', 'N', 'C', 'S'];  // O removed: it is now a mineral element
 
 function updatePopulationCapacityFromSupport(colony: PlanetColonyState, techState: TechTreeState): void {
@@ -418,11 +417,10 @@ function processRefineryBuilding(
   // mineral=0 colonies still received Ti/Cu/Fe etc., gas_fractionator with
   // 0 volatiles produced H/He, isotope_centrifuge with 0 isotopes produced U.
   if (b.type === 'quantum_separator') {
-    if ((colony.resources.minerals ?? 0) < 2) return produced;
-    const idx = rng.nextInt(0, MINERAL_ELEMENTS.length - 1);
-    const el = MINERAL_ELEMENTS[idx];
-    colony.chemicalInventory[el] = (colony.chemicalInventory[el] ?? 0) + 1;
-    produced[el] = (produced[el] ?? 0) + 1;
+    // Quantum separator no longer auto-separates per tick — it now runs explicit
+    // 100-unit batch jobs (see game/separation.ts + client handler) so that
+    // elements only ever appear as the result of a deliberate separation.
+    return produced;
   } else if (b.type === 'gas_fractionator') {
     if ((colony.resources.volatiles ?? 0) < 2) return produced;
     const idx = rng.nextInt(0, VOLATILE_ELEMENTS.length - 1);

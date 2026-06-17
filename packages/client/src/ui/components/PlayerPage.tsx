@@ -1,9 +1,14 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { levelProgress, MAX_PLAYER_LEVEL } from '@nebulife/core';
 import { playSfx } from '../../audio/SfxPlayer.js';
 import { getPushPermissionStatus } from '../../notifications/push-service.js';
 import { setPerfTierChoice, type PerfTierChoice } from '../../utils/device-tier.js';
+import { apiFetch, authFetch } from '../../auth/api-client.js';
+
+// Same rules as CallsignModal — 3-20 chars, latin/digits/_/-.
+const CALLSIGN_RE = /^[a-zA-Z0-9_-]{3,20}$/;
+const RENAME_API_BASE = '/api';
 
 // ---------------------------------------------------------------------------
 // PlayerPage — Full-screen player profile overlay
@@ -45,6 +50,8 @@ interface PlayerPageProps {
   onChangeAmbientVolume?: (val: number) => void;
   /** Redeem a one-time premium promo code. Returns error key on failure. */
   onRedeemPromoCode?: (code: string) => Promise<{ success: boolean; error?: string }>;
+  /** Called after the player successfully changes their callsign/name. */
+  onNameChanged?: (newName: string) => void;
 }
 
 // ── Pro badge ─────────────────────────────────────────────────────────────
@@ -157,6 +164,7 @@ export function PlayerPage({
   ambientVolume = 0.30,
   onChangeAmbientVolume,
   onRedeemPromoCode,
+  onNameChanged,
 }: PlayerPageProps) {
   const { t, i18n } = useTranslation();
   const [confirmReset, setConfirmReset] = useState(false);
@@ -175,6 +183,91 @@ export function PlayerPage({
     }
   });
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
+
+  // ── Rename (change callsign/name) state ───────────────────────────────────
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState('');
+  const [nameAvailable, setNameAvailable] = useState<boolean | null>(null);
+  const [nameChecking, setNameChecking] = useState(false);
+  const [nameError, setNameError] = useState('');
+  const [nameSaving, setNameSaving] = useState(false);
+  const nameDebounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const checkNameAvailability = useCallback(async (callsign: string) => {
+    if (!CALLSIGN_RE.test(callsign)) {
+      setNameAvailable(null);
+      setNameChecking(false);
+      return;
+    }
+    setNameChecking(true);
+    try {
+      const res = await apiFetch(`${RENAME_API_BASE}/auth/check-callsign?callsign=${encodeURIComponent(callsign)}`);
+      const data = await res.json();
+      setNameAvailable(data.available);
+      if (data.error) setNameError(data.error);
+    } catch {
+      setNameError(t('callsign.check_error'));
+    } finally {
+      setNameChecking(false);
+    }
+  }, [t]);
+
+  const startEditName = () => {
+    setNameInput(playerName);
+    setNameAvailable(null);
+    setNameError('');
+    setEditingName(true);
+    playSfx('ui-click', 0.07);
+  };
+
+  const cancelEditName = () => {
+    if (nameDebounceRef.current) clearTimeout(nameDebounceRef.current);
+    setEditingName(false);
+    setNameError('');
+    setNameAvailable(null);
+  };
+
+  const handleNameInputChange = (val: string) => {
+    const filtered = val.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 20);
+    setNameInput(filtered);
+    setNameAvailable(null);
+    setNameError('');
+    if (nameDebounceRef.current) clearTimeout(nameDebounceRef.current);
+    if (filtered.length >= 3 && filtered.toLowerCase() !== playerName.toLowerCase()) {
+      nameDebounceRef.current = setTimeout(() => checkNameAvailability(filtered), 500);
+    }
+  };
+
+  const handleNameSave = async () => {
+    const next = nameInput.trim();
+    if (next.toLowerCase() === playerName.toLowerCase()) { cancelEditName(); return; }
+    if (!CALLSIGN_RE.test(next)) { setNameError(t('callsign.invalid_format')); return; }
+    if (nameAvailable === false) { setNameError(t('callsign.taken')); return; }
+    setNameSaving(true);
+    setNameError('');
+    try {
+      const res = await authFetch(`${RENAME_API_BASE}/auth/set-callsign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ callsign: next }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: t('common.error') }));
+        setNameError(data.error ?? `HTTP ${res.status}`);
+        return;
+      }
+      playSfx('ui-click', 0.1);
+      onNameChanged?.(next);
+      setEditingName(false);
+    } catch (err) {
+      setNameError(err instanceof Error ? err.message : t('common.error'));
+    } finally {
+      setNameSaving(false);
+    }
+  };
+
+  const nameInputValid = CALLSIGN_RE.test(nameInput) && nameInput.toLowerCase() !== playerName.toLowerCase();
+  const canSaveName = nameInputValid && nameAvailable !== false && !nameSaving && !nameChecking;
 
   const progress = levelProgress(playerXP);
   const isMaxLevel = playerLevel >= MAX_PLAYER_LEVEL;
@@ -436,17 +529,119 @@ export function PlayerPage({
 
         {/* Name */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
-          <div style={{
-            fontSize: 14,
-            color: '#aabbcc',
-            letterSpacing: 1,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-          }}>
-            {playerName}
-            {isPremium && <ProBadge />}
-          </div>
+          {!editingName ? (
+            <div style={{
+              fontSize: 14,
+              color: '#aabbcc',
+              letterSpacing: 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}>
+              {playerName}
+              {isPremium && <ProBadge />}
+              {onNameChanged && (
+                <button
+                  onClick={startEditName}
+                  title={t('player.edit_name')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#667788',
+                    padding: 2,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    lineHeight: 0,
+                  }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M11.5 2.5 L13.5 4.5 L5 13 L2.5 13.5 L3 11 Z" />
+                    <path d="M10 4 L12 6" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, width: '100%', maxWidth: 240 }}>
+              <input
+                autoFocus
+                type="text"
+                value={nameInput}
+                onChange={(e) => handleNameInputChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && canSaveName) handleNameSave();
+                  if (e.key === 'Escape') cancelEditName();
+                }}
+                maxLength={20}
+                placeholder="Commander_42"
+                style={{
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  padding: '7px 10px',
+                  background: 'rgba(10,20,35,0.8)',
+                  border: '1px solid #446688',
+                  color: '#ccddee',
+                  fontSize: 13,
+                  fontFamily: 'monospace',
+                  borderRadius: 3,
+                  outline: 'none',
+                  textAlign: 'center',
+                  letterSpacing: '0.05em',
+                }}
+              />
+              <div style={{ minHeight: 14, fontSize: 9, textAlign: 'center' }}>
+                {nameInput.length > 0 && nameInput.length < 3 && (
+                  <span style={{ color: '#667788' }}>{t('callsign.min_3_chars')}</span>
+                )}
+                {nameChecking && <span style={{ color: '#4488aa' }}>{t('callsign.checking')}</span>}
+                {!nameChecking && nameAvailable === true && (
+                  <span style={{ color: '#44ff88' }}>{t('callsign.available')}</span>
+                )}
+                {!nameChecking && nameAvailable === false && (
+                  <span style={{ color: '#cc4444' }}>{t('callsign.taken')}</span>
+                )}
+                {nameError && <span style={{ color: '#cc4444' }}>{nameError}</span>}
+              </div>
+              <div style={{ display: 'flex', gap: 6, width: '100%' }}>
+                <button
+                  onClick={cancelEditName}
+                  disabled={nameSaving}
+                  style={{
+                    flex: 1,
+                    padding: '6px 0',
+                    background: 'transparent',
+                    border: '1px solid #334455',
+                    color: '#8899aa',
+                    fontSize: 10,
+                    fontFamily: 'monospace',
+                    borderRadius: 3,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t('common.cancel', { defaultValue: 'Скасувати' })}
+                </button>
+                <button
+                  onClick={handleNameSave}
+                  disabled={!canSaveName}
+                  style={{
+                    flex: 1,
+                    padding: '6px 0',
+                    background: 'rgba(30,60,80,0.6)',
+                    border: '1px solid #446688',
+                    color: '#aaccee',
+                    fontSize: 10,
+                    fontFamily: 'monospace',
+                    borderRadius: 3,
+                    cursor: canSaveName ? 'pointer' : 'default',
+                    opacity: canSaveName ? 1 : 0.4,
+                  }}
+                >
+                  {nameSaving ? t('callsign.saving') : t('common.confirm')}
+                </button>
+              </div>
+            </div>
+          )}
           {isPremium && (
             <div style={{
               fontSize: 9,

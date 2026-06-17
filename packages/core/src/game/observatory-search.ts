@@ -88,7 +88,10 @@ export function normalizeObservatoryState(value: unknown): ObservatoryState {
     ? raw.sessions
         .filter(isValidSession)
         .sort((a, b) => a.completesAt - b.completesAt)
-        .slice(0, getObservatoryMaxActiveSearches({ xp: normalizedXp }))
+        // Use the hard cap (not the level/building-derived max) so sessions
+        // legitimately started from multiple observatories are not dropped on
+        // reload — the active-launch gate is enforced at start time.
+        .slice(0, OBSERVATORY_SESSION_HARD_CAP)
     : [];
   return {
     xp: normalizedXp,
@@ -110,11 +113,27 @@ export function getObservatoryLevel(state: Pick<ObservatoryState, 'xp'>): number
   return Math.min(5, level);
 }
 
-export function getObservatoryMaxActiveSearches(state: Pick<ObservatoryState, 'xp'>): number {
+/** Hard sanity cap on concurrently-stored sessions (corruption guard). */
+export const OBSERVATORY_SESSION_HARD_CAP = 12;
+
+/**
+ * Max concurrent observatory searches.
+ *
+ * Base capacity grows with observatory level (1 → 1, 2 → 2, 3+ → 3). On top of
+ * that, EACH observatory building the player owns can run its own search
+ * concurrently, so having two observatories means two independent launches.
+ *
+ * @param observatoryCount Number of (non-shutdown) observatory buildings. Defaults
+ *                         to 1 for backward compatibility / single-building callers.
+ */
+export function getObservatoryMaxActiveSearches(
+  state: Pick<ObservatoryState, 'xp'>,
+  observatoryCount = 1,
+): number {
   const level = getObservatoryLevel(state);
-  if (level <= 1) return 1;
-  if (level === 2) return 2;
-  return 3;
+  const levelMax = level <= 1 ? 1 : level === 2 ? 2 : 3;
+  const buildings = Math.max(1, Math.floor(observatoryCount) || 1);
+  return Math.min(OBSERVATORY_SESSION_HARD_CAP, Math.max(levelMax, buildings));
 }
 
 export function getObservatoryXpProgress(state: Pick<ObservatoryState, 'xp'>): { level: number; current: number; required: number; pct: number } {
@@ -143,10 +162,11 @@ export function startObservatorySearch(
   program: ObservatorySearchProgram,
   now: number,
   seedBase: string | number,
+  observatoryCount = 1,
 ): ObservatoryState {
   const level = getObservatoryLevel(state);
   if (PROGRAM_LEVEL[program] > level) return state;
-  if (state.sessions.length >= getObservatoryMaxActiveSearches(state)) return state;
+  if (state.sessions.length >= getObservatoryMaxActiveSearches(state, observatoryCount)) return state;
   const seed = typeof seedBase === 'number'
     ? seedBase
     : seedFromString(`${seedBase}:${state.searchesCompleted}:${state.sessions.length}:${now}:${duration}:${program}`);

@@ -446,17 +446,15 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
   isotope_collector: {
     type: 'isotope_collector', category: 'extraction',
     name: 'Збирач ізотопів',
-    description: 'Пасивний видобуток ізотопів з космічного випромінювання. 15 ISO/год.',
+    description: 'Пасивний видобуток ізотопів з космічного випромінювання. 180 ISO/год.',
     size: 1, sizeW: 1, sizeH: 1,
     requiresTerrain: LAND_TERRAIN,
     cost: [{ resource: 'minerals', amount: 12 }, { resource: 'volatiles', amount: 5 }],
     levelRequired: 6, techRequired: null, maxPerPlanet: 3,
     energyOutput: 0, energyConsumption: 5, energyStorageAdd: 0,
-    // Bumped 0.15 → 0.25 (9 → 15 ISO/hr). 3× collectors = 45 ISO/hr,
-    // covers a single isotope_centrifuge consuming 24 ISO/hr (after that
-    // building's rate fix below) with +21 ISO/hr surplus for the U build
-    // cost of fusion_reactor.
-    production: [{ resource: 'isotopes', amount: 0.25 }],
+    // 3.0/tick = 180 ISO/hr — brought in line with the other extractors,
+    // which were all yielding far more than the old 15 ISO/hr.
+    production: [{ resource: 'isotopes', amount: 3.0 }],
     consumption: [],
     allowedPlanetTypes: ROCKY_DWARF, requiresAtmosphere: false,
     storageCapacityAdd: 0, populationCapacityAdd: 0, fogRevealRadius: 0,

@@ -37,6 +37,8 @@ interface SceneControlsPanelProps {
   hidden?: boolean;
   /** Galaxy research: eye toggle + hover % counter */
   researchPanel?: ResearchPanelInfo;
+  /** Cross-cutting terraform missions button (rendered last, bottom of column) */
+  missionButton?: { activeCount: number; total: number; onClick: () => void } | null;
 }
 
 const NEON_STYLE_ID = 'scp-neon-pulse';
@@ -114,6 +116,7 @@ export function SceneControlsPanel({
   extraButtons,
   hidden = false,
   researchPanel,
+  missionButton,
 }: SceneControlsPanelProps) {
   const { t } = useTranslation();
   // Inject neon pulse keyframes once
@@ -235,6 +238,25 @@ export function SceneControlsPanel({
               <path d="M12.6 11.9H9.8" />
               <path d="M12.6 11.9V14.7" />
             </svg>
+          </div>
+        </ControlButton>
+      )}
+
+      {/* Terraform missions: cross-cutting, last button in the column. */}
+      {missionButton && (
+        <ControlButton
+          onClick={missionButton.onClick}
+          title={t('terraform.tracker_title')}
+          pulse={missionButton.activeCount > 0}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, lineHeight: 1 }}>
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8 1.6 C9.7 3.2 10.4 5.3 10.4 7.6 L10.4 10 L5.6 10 L5.6 7.6 C5.6 5.3 6.3 3.2 8 1.6 Z" />
+              <path d="M5.6 8.2 L3.4 10 L3.4 11.6 L5.6 10.8 M10.4 8.2 L12.6 10 L12.6 11.6 L10.4 10.8" />
+            </svg>
+            <span style={{ fontSize: 8, letterSpacing: 0.3, fontFamily: 'monospace' }}>
+              {missionButton.activeCount}/{missionButton.total}
+            </span>
           </div>
         </ControlButton>
       )}

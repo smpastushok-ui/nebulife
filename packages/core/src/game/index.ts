@@ -162,6 +162,16 @@ export {
 } from './daily-directives.js';
 export type { DirectiveMetric, DirectiveDef, DailyDirectiveState } from './daily-directives.js';
 
+// Quantum separator — bulk → element separation batches
+export {
+  SEPARATION_BATCH,
+  SEPARATION_DURATION_MS,
+  SEPARATION_RESEARCH_DATA_COST,
+  getSeparationElements,
+  rollSeparation,
+} from './separation.js';
+export type { SeparationGroup, SeparationJob } from './separation.js';
+
 // Prompt builder
 export { buildPrompt, buildExpeditionPrompt } from './prompt-builder.js';
 

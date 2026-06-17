@@ -124,8 +124,12 @@ import {
   startObservatorySearch,
   completeReadyObservatorySearches,
   getObservatoryLevel,
+  SEPARATION_BATCH,
+  SEPARATION_DURATION_MS,
+  SEPARATION_RESEARCH_DATA_COST,
+  rollSeparation,
 } from '@nebulife/core';
-import type { TechTreeState, TechNode, SurfaceObjectType, BuildingType, PlanetColonyState, PlacedBuilding, PlanetResourceStocks, ProducibleType, FleetState, Ship, CargoShipment, ObservatoryState, ObservatorySearchDuration, ObservatorySearchProgram } from '@nebulife/core';
+import type { TechTreeState, TechNode, SurfaceObjectType, BuildingType, PlanetColonyState, PlacedBuilding, PlanetResourceStocks, ProducibleType, FleetState, Ship, CargoShipment, ObservatoryState, ObservatorySearchDuration, ObservatorySearchProgram, SeparationJob, SeparationGroup } from '@nebulife/core';
 import type { PlanetTerraformState, Mission, TerraformParamId, ShipTier as TfShipTier, PlanetOverride } from '@nebulife/core';
 import type { PlanetMission, PlanetMissionType, PlanetReportSummary, PlanetRevealLevel } from '@nebulife/core';
 import {
@@ -546,6 +550,7 @@ interface SyncedGameState {
   planet_reports?: Record<string, PlanetReportSummary>;
   exploration_payloads?: Partial<Record<ProducibleType, number>>;
   exploration_production_queue?: ExplorationPayloadProductionItem[];
+  separation_jobs?: SeparationJob[];
   arena_stats?: ArenaStats;
   hangar_ship?: string;
   custom_ship_id?: string | null;
@@ -839,6 +844,9 @@ class IntroErrorBoundary extends React.Component<
 
 function AppInner() {
   const { t, lang, setLanguage } = useT();
+  // react-i18next instance (reads locales/*.json, supports interpolation) — used
+  // for dynamic messages the custom single-arg LanguageProvider `t` can't format.
+  const { t: tr } = useTranslation();
   const canvasRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
   const universeCanvasRef = useRef<HTMLDivElement>(null);
@@ -1328,6 +1336,8 @@ function AppInner() {
     } catch { /* ignore */ }
     return INITIAL_RESEARCH_DATA;
   });
+  const researchDataRef = useRef(researchData);
+  researchDataRef.current = researchData;
 
   useEffect(() => {
     try { localStorage.setItem('nebulife_research_data', String(researchData)); }
@@ -1595,6 +1605,22 @@ function AppInner() {
   const explorationProductionQueueRef = useRef(explorationProductionQueue);
   explorationProductionQueueRef.current = explorationProductionQueue;
 
+  // Quantum-separator batch jobs (100 bulk units → weighted elements, 1h each).
+  const [separationJobs, setSeparationJobs] = useState<SeparationJob[]>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_separation_jobs');
+      if (saved) return JSON.parse(saved) as SeparationJob[];
+    } catch { /* ignore */ }
+    return [];
+  });
+  const separationJobsRef = useRef(separationJobs);
+  separationJobsRef.current = separationJobs;
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_separation_jobs', JSON.stringify(separationJobs)); }
+    catch { /* ignore quota */ }
+    separationJobsRef.current = separationJobs;
+  }, [separationJobs]);
+
   const [planetMissionClock, setPlanetMissionClock] = useState(() => Date.now());
   const [systemPlanetStatusIconsMode, setSystemPlanetStatusIconsMode] = useState(false);
   const [systemPlanetLabelsMode, setSystemPlanetLabelsMode] = useState(false);
@@ -1813,11 +1839,12 @@ function AppInner() {
 
   const grantLifeSpark = useCallback((spark: LifeSparkType, source: 'harvest' | 'refinery') => {
     setLifeSparks(prev => ({ ...prev, [spark]: (prev[spark] ?? 0) + 1 }));
-    const sparkName = i18n.t(`lifeform.spark_${spark}`, { defaultValue: spark });
-    setToastMessage(i18n.t('lifeform.spark_found', { name: sparkName, defaultValue: 'Spark of Life secured' }));
-    setTimeout(() => setToastMessage(null), 3000);
+    // Dedicated, prominent notification — sparks are rare and must not be lost
+    // behind the generic toast (which ingredient/resource pickups overwrite).
+    playSfx('new-discovery-find', 0.4);
+    setSparkNotice({ spark, key: Date.now() });
     void trackEvent('lifeform_spark_found', { spark, source });
-  }, [i18n]);
+  }, []);
 
   // ── Exodus phase flag ──────────────────────────────────────────────────
   const [isExodusPhase, setIsExodusPhase] = useState<boolean>(() => {
@@ -2775,6 +2802,18 @@ function AppInner() {
 
   const [showPlayerPage, setShowPlayerPage] = useState(false);
   const [showMissionsPanel, setShowMissionsPanel] = useState(false);
+  // Cross-cutting terraform missions button for the left SceneControlsPanel
+  // (shown only when the player has a fleet). Last button in the column.
+  const missionButtonProps = useMemo(
+    () => (fleet.length > 0
+      ? {
+          activeCount: fleet.filter((m) => m.phase !== 'idle').length,
+          total: Math.max(1, fleet.length),
+          onClick: () => setShowMissionsPanel((v) => !v),
+        }
+      : null),
+    [fleet],
+  );
   const [showChaosModal, setShowChaosModal] = useState(false);
   const [showCosmicArchive, setShowCosmicArchive] = useState(false);
   // Terraform panel — full-screen overlay for a specific planet
@@ -3918,12 +3957,19 @@ function AppInner() {
         const nextShips = prev.ships.map((ship) => {
           const shipment = activeShipmentByShip.get(ship.id);
           if (!shipment) {
-            const wasCargoShipment = (prev.cargoShipments ?? []).some((item) => item.shipId === ship.id && item.id === ship.assignmentId);
-            if (!wasCargoShipment) return ship;
+            // Ship finished its cargo run — find the originating shipment so we
+            // can dock it back at its HOME colony. During the return flight
+            // ship.currentPlanetId is null, so we must recover the origin from
+            // the shipment record, otherwise the ship docks "nowhere" and never
+            // becomes selectable again.
+            const originShipment = (prev.cargoShipments ?? []).find(
+              (item) => item.shipId === ship.id && item.id === ship.assignmentId,
+            );
+            if (!originShipment) return ship;
             return {
               ...ship,
               status: 'docked' as const,
-              currentPlanetId: ship.currentPlanetId ?? null,
+              currentPlanetId: originShipment.fromPlanetId ?? ship.currentPlanetId ?? null,
               destinationPlanetId: null,
               cargo: { ...ship.cargo, minerals: 0, volatiles: 0, isotopes: 0, water: 0 },
               departedAt: null,
@@ -4910,6 +4956,13 @@ function AppInner() {
     source?: 'system' | 'planet' | 'mission';
   } | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  // Prominent, dedicated notification for rare Spark-of-Life drops.
+  const [sparkNotice, setSparkNotice] = useState<{ spark: LifeSparkType; key: number } | null>(null);
+  useEffect(() => {
+    if (!sparkNotice) return;
+    const id = window.setTimeout(() => setSparkNotice(null), 4600);
+    return () => window.clearTimeout(id);
+  }, [sparkNotice]);
 
   // ── Digest modal state ──────────────────────────────────────────────
   const [digestModalImages, setDigestModalImages] = useState<string[] | null>(null);
@@ -5767,6 +5820,15 @@ function AppInner() {
       setExplorationProductionQueue((localQueue) => {
         const byId = new Map(localQueue.map((item) => [item.id, item]));
         for (const item of serverQueue) byId.set(item.id, item);
+        return [...byId.values()];
+      });
+    }
+
+    if (Array.isArray(gs.separation_jobs) && gs.separation_jobs.length > 0) {
+      const serverJobs = gs.separation_jobs as SeparationJob[];
+      setSeparationJobs((localJobs) => {
+        const byId = new Map(localJobs.map((job) => [job.id, job]));
+        for (const job of serverJobs) byId.set(job.id, job);
         return [...byId.values()];
       });
     }
@@ -9264,7 +9326,7 @@ function AppInner() {
     ]);
   }, []);
 
-  const handleStartObservatorySearch = useCallback((duration: ObservatorySearchDuration, program: ObservatorySearchProgram): void => {
+  const handleStartObservatorySearch = useCallback((duration: ObservatorySearchDuration, program: ObservatorySearchProgram, observatoryCount = 1): void => {
     const now = Date.now();
     setObservatoryState((prev) => startObservatorySearch(
       normalizeObservatoryState(prev),
@@ -9272,10 +9334,92 @@ function AppInner() {
       program,
       now,
       `${playerId.current || 'local'}:${homeInfo?.system.id ?? 'home'}`,
+      observatoryCount,
     ));
     bumpDirectiveRef.current('observatory_search');
     scheduleSyncToServer();
   }, [homeInfo?.system.id, scheduleSyncToServer]);
+
+  // ── Quantum separator: start a 100-unit bulk → elements batch (1h) ──
+  const handleStartSeparation = useCallback((
+    buildingId: string,
+    planetId: string,
+    group: SeparationGroup = 'mineral',
+  ): boolean => {
+    const now = Date.now();
+    if (separationJobsRef.current.some((j) => j.buildingId === buildingId)) {
+      setToastMessage(tr('separation.busy'));
+      return false;
+    }
+    const resourceKey = group === 'volatile' ? 'volatiles' : group === 'isotope' ? 'isotopes' : 'minerals';
+    const available = getResources(planetId)[resourceKey];
+    if (available < SEPARATION_BATCH) {
+      setToastMessage(tr('separation.need_bulk', { amount: SEPARATION_BATCH }));
+      return false;
+    }
+    if (researchDataRef.current < SEPARATION_RESEARCH_DATA_COST) {
+      setToastMessage(tr('separation.need_research', { amount: SEPARATION_RESEARCH_DATA_COST }));
+      return false;
+    }
+    addResources(planetId, { [resourceKey]: -SEPARATION_BATCH });
+    setResearchData((prev) => Math.max(0, prev - SEPARATION_RESEARCH_DATA_COST));
+    let buildingHash = 0;
+    for (let i = 0; i < buildingId.length; i++) buildingHash = (buildingHash * 31 + buildingId.charCodeAt(i)) | 0;
+    const seed = ((Math.floor(now / 1000)) ^ buildingHash) >>> 0;
+    const job: SeparationJob = {
+      id: `sep-${now}-${Math.random().toString(36).slice(2, 6)}`,
+      buildingId,
+      planetId,
+      group,
+      amount: SEPARATION_BATCH,
+      startedAt: now,
+      durationMs: SEPARATION_DURATION_MS,
+      seed,
+    };
+    setSeparationJobs((prev) => [...prev, job]);
+    scheduleSyncToServer();
+    return true;
+  }, [getResources, addResources, scheduleSyncToServer, tr]);
+
+  const completeReadySeparation = useCallback((now: number): void => {
+    const jobs = separationJobsRef.current;
+    if (jobs.length === 0) return;
+    const done: SeparationJob[] = [];
+    const remaining: SeparationJob[] = [];
+    for (const job of jobs) {
+      if (now - job.startedAt >= job.durationMs) done.push(job);
+      else remaining.push(job);
+    }
+    if (done.length === 0) return;
+    separationJobsRef.current = remaining;
+    setSeparationJobs(remaining);
+
+    const totals: Record<string, number> = {};
+    for (const job of done) {
+      const elems = rollSeparation(job.group, job.amount, job.seed);
+      for (const [el, amt] of Object.entries(elems)) totals[el] = (totals[el] ?? 0) + amt;
+    }
+    setChemicalInventory((prev) => {
+      const next = { ...prev };
+      for (const [el, amt] of Object.entries(totals)) next[el] = (next[el] ?? 0) + amt;
+      return next;
+    });
+    const summary = Object.entries(totals)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([el, amt]) => `${el} ${amt}`)
+      .join(', ');
+    setToastMessage(tr('separation.done', { summary }));
+    addLogEntry('science', tr('separation.log', { summary }));
+    scheduleSyncToServer();
+  }, [scheduleSyncToServer, tr, addLogEntry]);
+
+  useEffect(() => {
+    if (separationJobs.length === 0) return;
+    completeReadySeparation(Date.now());
+    const id = window.setInterval(() => completeReadySeparation(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [completeReadySeparation, separationJobs.length]);
 
   // ── Retention systems: directives impl, comet event, ops hub ─────────────
 
@@ -9934,6 +10078,7 @@ function AppInner() {
       planet_reports: planetReports,
       exploration_payloads: explorationPayloads,
       exploration_production_queue: explorationProductionQueue,
+      separation_jobs: separationJobs,
       arena_stats: arenaStats ?? undefined,
       hangar_ship: localStorage.getItem('nebulife_hangar_ship') ?? undefined,
       custom_ship_id: localStorage.getItem('nebulife_custom_ship_id'),
@@ -10072,7 +10217,7 @@ function AppInner() {
     if (!pid) return;
     if (isFirebaseConfigured && !serverHydrated) return;
     scheduleSyncToServer();
-  }, [serverHydrated, playerXP, playerLevel, researchState, isExodusPhase, colonyResources, colonyResourcesByPlanet, playerStats, arenaStats, researchData, techTreeState, logEntries, favoritePlanets, pinnedSystems, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet, shipFleet, planetRevealLevels, planetMissions, planetReports, explorationPayloads, explorationProductionQueue, observatoryState, astraQuizAnswers, planetOverrides, planetResourceStocks, dailyDirectives, cometClaims]);
+  }, [serverHydrated, playerXP, playerLevel, researchState, isExodusPhase, colonyResources, colonyResourcesByPlanet, playerStats, arenaStats, researchData, techTreeState, logEntries, favoritePlanets, pinnedSystems, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet, shipFleet, planetRevealLevels, planetMissions, planetReports, explorationPayloads, explorationProductionQueue, separationJobs, observatoryState, astraQuizAnswers, planetOverrides, planetResourceStocks, dailyDirectives, cometClaims]);
 
   // Sync on page hide / beforeunload (best-effort) + re-sync from server on foreground
   useEffect(() => {
@@ -11295,10 +11440,6 @@ function AppInner() {
           onOpenPlayerPage={() => setShowPlayerPage(true)}
           navigationDisabled={false}
           highlightAuth={guestNeedsLink}
-          missionStatus={fleet.length > 0
-            ? { activeCount: fleet.filter((m) => m.phase !== 'idle').length, total: Math.max(1, fleet.length) }
-            : null}
-          onMissionsClick={() => setShowMissionsPanel((v) => !v)}
         />
       )}
 
@@ -11320,6 +11461,7 @@ function AppInner() {
           showZoom
           hidden={hideLeftPanel}
           onRecover={handleRecoverScene}
+          missionButton={missionButtonProps}
           extraButtons={!isExodusPhase ? [
             {
               title: t('nav.surface'),
@@ -11345,6 +11487,7 @@ function AppInner() {
           showZoom
           hidden={hideLeftPanel}
           onRecover={handleRecoverScene}
+          missionButton={missionButtonProps}
           researchPanel={{
             labelsEnabled: researchLabelsMode,
             onToggle: () => {
@@ -11368,6 +11511,7 @@ function AppInner() {
           showZoom
           hidden={hideLeftPanel}
           onRecover={handleRecoverScene}
+          missionButton={missionButtonProps}
           extraButtons={[
             {
               title: systemPlanetLabelsMode ? t('cmd.planet_names_on') : t('cmd.planet_names_tooltip'),
@@ -11417,6 +11561,7 @@ function AppInner() {
           showZoom
           hidden={hideLeftPanel}
           onRecover={handleRecoverScene}
+          missionButton={missionButtonProps}
           extraButtons={state.selectedPlanet ? (() => {
             const buttons: NonNullable<React.ComponentProps<typeof SceneControlsPanel>['extraButtons']> = [{
               title: favoritePlanets.has(state.selectedPlanet!.id)
@@ -11460,6 +11605,7 @@ function AppInner() {
           backLabel={t('common.back')}
           hidden={hideLeftPanel}
           onRecover={handleRecoverScene}
+          missionButton={missionButtonProps}
           extraButtons={[
             {
               title: t('nav.exosphere'),
@@ -11505,6 +11651,7 @@ function AppInner() {
           showZoom
           hidden={hideLeftPanel}
           onRecover={handleRecoverScene}
+          missionButton={missionButtonProps}
           extraButtons={[
             {
               title: t('cmd.fly_cluster'),
@@ -11530,6 +11677,7 @@ function AppInner() {
           showZoom
           hidden={hideLeftPanel}
           onRecover={handleRecoverScene}
+          missionButton={missionButtonProps}
           extraButtons={[
             {
               title: t('cmd.fly_star'),
@@ -12303,6 +12451,11 @@ function AppInner() {
             const report = getPlanetScopedValue(planetReports, sys.id, p.id);
             return report?.missionType === 'orbital_probe';
           })()}
+          terraformInProgress={(() => {
+            const p = state.scene === 'planet-view' && state.selectedPlanet ? state.selectedPlanet : homeInfo.planet;
+            const tfState = getTerraformState(p);
+            return Boolean(tfState && getOverallProgress(tfState) > 0 && !tfState.completedAt);
+          })()}
           textureUrl={(() => {
             const p = state.scene === 'planet-view' && state.selectedPlanet ? state.selectedPlanet : homeInfo.planet;
             const sys = state.scene === 'planet-view' && state.selectedSystem ? state.selectedSystem : homeInfo.system;
@@ -12519,6 +12672,8 @@ function AppInner() {
           onStartPayloadProduction={handleStartPayloadProduction}
           observatoryState={observatoryState}
           onStartObservatorySearch={handleStartObservatorySearch}
+          separationJobs={separationJobs}
+          onStartSeparation={handleStartSeparation}
           isPremium={isPremiumActive}
           shutdownBuildingTypes={colonyState
             ? new Set(colonyState.buildings.filter(b => b.shutdown).map(b => b.type))
@@ -12645,6 +12800,7 @@ function AppInner() {
             }
             return { success: result.success, error: result.error };
           }}
+          onNameChanged={(newName) => setState((prev) => ({ ...prev, playerName: newName }))}
         />
       )}
 
@@ -13359,6 +13515,54 @@ function AppInner() {
           {toastMessage}
         </div>
       )}
+
+      {/* Spark-of-Life notification — dedicated prominent banner */}
+      {sparkNotice && !arenaPopupGate && (() => {
+        const sparkColors: Record<LifeSparkType, string> = {
+          primordial: '#44ff88',
+          adaptive: '#7bb8ff',
+          neural: '#c08cff',
+          stellar: '#ffcc55',
+        };
+        const color = sparkColors[sparkNotice.spark] ?? '#44ff88';
+        return (
+          <div
+            key={sparkNotice.key}
+            style={{
+              position: 'fixed',
+              top: 'calc(74px + env(safe-area-inset-top, 0px))',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 9850,
+              pointerEvents: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              padding: '11px 20px 11px 16px',
+              borderRadius: 8,
+              background: 'rgba(8,12,22,0.96)',
+              border: `1px solid ${color}`,
+              boxShadow: `0 0 26px ${color}55, inset 0 0 18px ${color}22`,
+              fontFamily: 'monospace',
+              animation: 'sparkNoticeIn 0.5s cubic-bezier(0.2,0.9,0.3,1.25)',
+            }}
+          >
+            <style>{`@keyframes sparkNoticeIn{0%{opacity:0;transform:translate(-50%,-16px) scale(0.9)}60%{opacity:1;transform:translate(-50%,4px) scale(1.03)}100%{opacity:1;transform:translate(-50%,0) scale(1)}}`}</style>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" style={{ filter: `drop-shadow(0 0 6px ${color})` }}>
+              <path d="M12 2 L13.7 9.3 L21 11 L13.7 12.7 L12 20 L10.3 12.7 L3 11 L10.3 9.3 Z" fill={color} opacity="0.92" />
+              <circle cx="12" cy="11" r="2.1" fill="#ffffff" opacity="0.9" />
+            </svg>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={{ fontSize: 9, letterSpacing: 1.6, color: '#8899aa', textTransform: 'uppercase' }}>
+                {t('lifeform.spark_secured' as Parameters<typeof t>[0])}
+              </span>
+              <span style={{ fontSize: 13, fontWeight: 700, color, letterSpacing: 0.5 }}>
+                {t(`lifeform.spark_${sparkNotice.spark}` as Parameters<typeof t>[0])}
+              </span>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* System Objects Panel */}
       {showObjectsPanel && objectsPanelSystem && (

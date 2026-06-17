@@ -188,6 +188,21 @@ export function GenesisLabModal({
         <div style={styles.title}>{t('lifeform.genesis_title')}</div>
         <div style={styles.subtitle}>{t('lifeform.genesis_subtitle')}</div>
 
+        <div style={styles.topAction}>
+          <button
+            onClick={handleCreate}
+            disabled={!canCreate}
+            style={{
+              ...styles.createBtn,
+              color: accent, borderColor: accent, background: hexA(accent, 0.12),
+              opacity: canCreate ? 1 : 0.5, cursor: canCreate ? 'pointer' : 'not-allowed',
+            }}
+          >
+            {busy ? t(`lifeform.genesis_stage_${stage}`) : t('lifeform.genesis_create')}
+          </button>
+          {error && <div style={styles.error}>{error}</div>}
+        </div>
+
         <div style={styles.hero}>
           <GenesisPreview genome={genome} stage={stage} />
           <div style={styles.heroPanel}>
@@ -205,7 +220,7 @@ export function GenesisLabModal({
               <b>{formatDuration(genome.durationMinutes)}</b>
             </div>
             <div style={styles.traits}>
-              {genome.traits.slice(0, 5).map((trait) => <span key={trait}>{trait}</span>)}
+              {genome.traits.slice(0, 5).map((trait) => <span key={trait} style={styles.traitChip}>{trait}</span>)}
             </div>
           </div>
         </div>
@@ -241,7 +256,7 @@ export function GenesisLabModal({
                 <button disabled={selected <= 0 || busy} onClick={() => adjustElement(symbol, -1)} style={styles.smallBtn}>-</button>
                 <div>
                   <div style={{ color: selected > 0 ? accent : TEXT }}>{symbol}</div>
-                  <div style={styles.elementCount}>{selected} / {have}</div>
+                  <div style={styles.elementCount}>{selected} / {formatAmount(have)}</div>
                 </div>
                 <button disabled={have <= selected || busy} onClick={() => adjustElement(symbol, 1)} style={styles.smallBtn}>+</button>
               </div>
@@ -286,22 +301,16 @@ export function GenesisLabModal({
           </div>
         </div>
 
-        {error && <div style={styles.error}>{error}</div>}
-
-        <button
-          onClick={handleCreate}
-          disabled={!canCreate}
-          style={{
-            ...styles.createBtn,
-            color: accent, borderColor: accent, background: hexA(accent, 0.12),
-            opacity: canCreate ? 1 : 0.5, cursor: canCreate ? 'pointer' : 'not-allowed',
-          }}
-        >
-          {busy ? t(`lifeform.genesis_stage_${stage}`) : t('lifeform.genesis_create')}
-        </button>
       </div>
     </div>
   );
+}
+
+/** Compact resource amount — kills floating-point tails like 1163.5799999999992. */
+function formatAmount(n: number): string {
+  if (!Number.isFinite(n)) return '0';
+  const r = Math.round(n * 10) / 10;
+  return Number.isInteger(r) ? String(r) : r.toFixed(1);
 }
 
 function formatDuration(minutes: number): string {
@@ -374,6 +383,7 @@ const styles: Record<string, React.CSSProperties> = {
   species: { fontSize: 15, fontWeight: 700, letterSpacing: 1, marginBottom: 8 },
   metricRow: { display: 'flex', justifyContent: 'space-between', gap: 12, color: TEXT_MUTED, fontSize: 12, marginTop: 6 },
   traits: { display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 },
+  traitChip: { fontSize: 9, color: '#9fb3c8', border: `1px solid ${BORDER}`, borderRadius: 3, padding: '2px 6px', background: 'rgba(120,150,190,0.08)', letterSpacing: 0.5, textTransform: 'uppercase' },
   sectionLabel: { color: TEXT_MUTED, fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', marginTop: 14, marginBottom: 8 },
   empty: {
     color: TEXT_MUTED, fontSize: 12, lineHeight: 1.5, textAlign: 'center',
@@ -401,9 +411,15 @@ const styles: Record<string, React.CSSProperties> = {
   },
   recipeHead: { color: TEXT_MUTED, fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 2 },
   recipeRow: { display: 'flex', justifyContent: 'space-between', fontSize: 12 },
-  error: { color: '#ff8844', fontSize: 12, textAlign: 'center', marginTop: 10 },
+  error: { color: '#ff8844', fontSize: 12, textAlign: 'center', marginTop: 0 },
+  topAction: {
+    position: 'sticky', top: 0, zIndex: 5,
+    background: 'rgba(10,15,25,0.97)',
+    paddingTop: 4, paddingBottom: 10, marginBottom: 6,
+    display: 'flex', flexDirection: 'column', gap: 8,
+  },
   createBtn: {
-    marginTop: 16, width: '100%', border: '1px solid', fontFamily: 'monospace', fontSize: 13, fontWeight: 700,
+    marginTop: 0, width: '100%', border: '1px solid', fontFamily: 'monospace', fontSize: 13, fontWeight: 700,
     letterSpacing: 1, borderRadius: 3, padding: '12px 14px',
   },
 };
