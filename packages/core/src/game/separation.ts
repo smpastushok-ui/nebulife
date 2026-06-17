@@ -15,10 +15,9 @@
 // ---------------------------------------------------------------------------
 
 import { SeededRNG } from '../math/rng.js';
-import type { ResourceGroup } from '../chemistry/resource-groups.js';
 
 /** Bulk group resource that the separator can decompose. */
-export type SeparationGroup = ResourceGroup;
+export type SeparationGroup = 'mineral' | 'volatile' | 'isotope' | 'water';
 
 export interface SeparationJob {
   id: string;
@@ -62,6 +61,10 @@ const SEPARATION_POOLS: Record<SeparationGroup, Array<[string, number]>> = {
   ],
   isotope: [
     ['U', 16], ['Th', 10], ['Ra', 3], ['Pu', 1],
+  ],
+  // Water (H₂O) splits into hydrogen and oxygen at the 2:1 atomic ratio.
+  water: [
+    ['H', 2], ['O', 1],
   ],
 };
 

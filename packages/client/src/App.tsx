@@ -9351,7 +9351,7 @@ function AppInner() {
       setToastMessage(tr('separation.busy'));
       return false;
     }
-    const resourceKey = group === 'volatile' ? 'volatiles' : group === 'isotope' ? 'isotopes' : 'minerals';
+    const resourceKey = group === 'volatile' ? 'volatiles' : group === 'isotope' ? 'isotopes' : group === 'water' ? 'water' : 'minerals';
     const available = getResources(planetId)[resourceKey];
     if (available < SEPARATION_BATCH) {
       setToastMessage(tr('separation.need_bulk', { amount: SEPARATION_BATCH }));

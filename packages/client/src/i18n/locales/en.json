@@ -77,6 +77,7 @@
     "genesis_select_rarity": "Target complexity",
     "genesis_complexity": "Life tier",
     "genesis_elements": "Element matrix",
+    "genesis_no_elements": "No elements yet. First separate bulk resources into elements in the Quantum Separator.",
     "genesis_sparks": "Sparks of Life",
     "genesis_predicted_rarity": "Predicted rarity",
     "genesis_success": "Stabilization chance",
@@ -85,6 +86,8 @@
     "genesis_cost_quarks": "Quark cost",
     "genesis_recipe": "Requires",
     "genesis_create": "Synthesize life",
+    "genesis_tagline": "Create a new lifeform from elements and sparks",
+    "genesis_open_lab": "Open synthesis lab",
     "genesis_creating": "Synthesizing...",
     "genesis_stage_idle": "Synthesizing...",
     "genesis_stage_charging": "Charging the ark...",
@@ -872,8 +875,17 @@
     "need_research": "Need {{amount}} research data",
     "busy": "Separator already busy",
     "done": "Separation complete: {{summary}}",
-    "log": "Quantum separator broke minerals into elements: {{summary}}",
-    "possible_elements": "Possible elements"
+    "log": "Quantum separator broke resources into elements: {{summary}}",
+    "possible_elements": "Possible elements",
+    "tagline": "Break bulk resources down into elements",
+    "choose_group": "Choose a group to separate",
+    "in_stock": "in stock",
+    "group": {
+      "water": "Water",
+      "mineral": "Minerals",
+      "isotope": "Isotopes",
+      "volatile": "Volatiles"
+    }
   },
   "observatory": {
     "title": "Nebulife Observatory",

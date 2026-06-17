@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { BuildingType, FleetState, ObservatorySearchDuration, ObservatorySearchProgram, ObservatoryState, PlacedBuilding, Planet, PlanetResourceStocks, ProducibleType, SeparationJob, SeparationGroup } from '@nebulife/core';
 import { BUILDING_DEFS, PRODUCIBLE_ASSET_PATHS, PRODUCIBLE_DEFS, getAvailableObservatoryPrograms, getCatalogEntry, getCatalogName, getObservatoryLevel, getObservatoryMaxActiveSearches, getObservatorySearchChance, getObservatoryXpProgress, isShipProducible, SEPARATION_BATCH, SEPARATION_DURATION_MS, SEPARATION_RESEARCH_DATA_COST, getSeparationElements } from '@nebulife/core';
 
-import { ResourceIcon, RESOURCE_COLORS } from '../ResourceIcon.js';
+import { ResourceIcon, RESOURCE_COLORS, type ResourceType } from '../ResourceIcon.js';
 import { buildingName, buildingDesc } from '../../../i18n/building-labels.js';
 import { formatSignedRatePerHour, formatHourlyAmount, tickRateToHourly } from '../../../i18n/format-rate.js';
 import { watchAdsWithProgress, isNativePlatform } from '../../../services/ads-service.js';
@@ -48,6 +48,14 @@ const PANEL_BG = '#020510';
 const CARD_BG = 'rgba(10,15,25,0.62)';
 const BORDER = '#233344';
 const ACTIVE_BORDER = '#446688';
+
+/** Selectable bulk groups for the quantum separator, in display order. */
+const SEPARATION_GROUP_LIST: { group: SeparationGroup; resource: ResourceType }[] = [
+  { group: 'water',    resource: 'water' },
+  { group: 'mineral',  resource: 'minerals' },
+  { group: 'isotope',  resource: 'isotopes' },
+  { group: 'volatile', resource: 'volatiles' },
+];
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -809,6 +817,7 @@ export function BuildingDetailPanel({
   const [observatoryNow, setObservatoryNow] = useState(() => Date.now());
   const [observatoryAdsRunning, setObservatoryAdsRunning] = useState(false);
   const [separationNow, setSeparationNow] = useState(() => Date.now());
+  const [separationGroup, setSeparationGroup] = useState<SeparationGroup>('mineral');
   const type = building?.type ?? buildingType;
   const def = type ? BUILDING_DEFS[type] : null;
 
@@ -900,8 +909,15 @@ export function BuildingDetailPanel({
   const separationSecondsLeft = activeSeparationJob
     ? Math.max(0, Math.ceil((activeSeparationJob.durationMs - separationElapsed) / 1000))
     : 0;
+  // The group shown/used: an active job's locked group, otherwise the selection.
+  const effectiveSeparationGroup: SeparationGroup = activeSeparationJob?.group ?? separationGroup;
+  const SEPARATION_GROUP_RESOURCE: Record<SeparationGroup, ColonyResourceKey> = {
+    mineral: 'minerals', volatile: 'volatiles', isotope: 'isotopes', water: 'water',
+  };
+  const separationResourceKey = SEPARATION_GROUP_RESOURCE[separationGroup];
+  const separationAvailable = colonyResources[separationResourceKey] ?? 0;
   const canAffordSeparation =
-    (colonyResources.minerals ?? 0) >= SEPARATION_BATCH && researchData >= SEPARATION_RESEARCH_DATA_COST;
+    separationAvailable >= SEPARATION_BATCH && researchData >= SEPARATION_RESEARCH_DATA_COST;
   useEffect(() => {
     if (!activeSeparationJob) return;
     const id = window.setInterval(() => setSeparationNow(Date.now()), 1000);
@@ -984,6 +1000,247 @@ export function BuildingDetailPanel({
         flexDirection: 'column',
         gap: compact ? 10 : 14,
       }}>
+        {type === 'quantum_separator' && building && (() => {
+          const groupColor = RESOURCE_COLORS[SEPARATION_GROUP_RESOURCE[effectiveSeparationGroup]];
+          const blocked = stats.isShutdown || !canAffordSeparation || !onStartSeparation;
+          return (
+            <div style={{
+              position: 'relative',
+              overflow: 'hidden',
+              background: `radial-gradient(120% 140% at 0% 0%, ${groupColor}1f, rgba(8,14,26,0.92) 58%)`,
+              border: `1px solid ${groupColor}66`,
+              borderRadius: 8,
+              padding: compact ? 12 : 16,
+              display: 'grid',
+              gap: 13,
+              boxShadow: `0 16px 38px rgba(0,0,0,0.35), inset 0 0 40px ${groupColor}12`,
+            }}>
+              {/* Title */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  width: 26, height: 26, borderRadius: 6,
+                  background: `${groupColor}1c`, border: `1px solid ${groupColor}66`,
+                  boxShadow: `0 0 14px ${groupColor}44`,
+                }}>
+                  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke={groupColor}
+                    strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="8" cy="8" r="1.5" fill={groupColor} stroke="none" />
+                    <ellipse cx="8" cy="8" rx="6.5" ry="2.6" />
+                    <ellipse cx="8" cy="8" rx="6.5" ry="2.6" transform="rotate(60 8 8)" />
+                    <ellipse cx="8" cy="8" rx="6.5" ry="2.6" transform="rotate(120 8 8)" />
+                  </svg>
+                </span>
+                <div style={{ display: 'grid', gap: 1 }}>
+                  <div style={{ fontSize: 12, color: '#cfe3ff', letterSpacing: 2, textTransform: 'uppercase' }}>
+                    {t('separation.section')}
+                  </div>
+                  <div style={{ fontSize: 9, color: '#7d93ab', letterSpacing: 0.5 }}>
+                    {t('separation.tagline')}
+                  </div>
+                </div>
+              </div>
+
+              {/* Group selector */}
+              <div style={{ display: 'grid', gap: 6 }}>
+                <div style={{ fontSize: 9, color: '#667788', letterSpacing: 1.5, textTransform: 'uppercase' }}>
+                  {t('separation.choose_group')}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 7 }}>
+                  {SEPARATION_GROUP_LIST.map(({ group, resource }) => {
+                    const selected = effectiveSeparationGroup === group;
+                    const color = RESOURCE_COLORS[resource];
+                    const avail = Math.floor(colonyResources[SEPARATION_GROUP_RESOURCE[group]] ?? 0);
+                    const enough = avail >= SEPARATION_BATCH;
+                    return (
+                      <button
+                        key={group}
+                        type="button"
+                        disabled={!!activeSeparationJob}
+                        onClick={() => setSeparationGroup(group)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 8,
+                          textAlign: 'left',
+                          background: selected ? `${color}22` : 'rgba(5,10,20,0.5)',
+                          border: `1px solid ${selected ? color : 'rgba(51,68,85,0.6)'}`,
+                          borderRadius: 6,
+                          padding: '8px 10px',
+                          cursor: activeSeparationJob ? 'default' : 'pointer',
+                          opacity: activeSeparationJob && !selected ? 0.4 : 1,
+                          boxShadow: selected ? `0 0 14px ${color}3a` : 'none',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                          width: 22, height: 22, borderRadius: 5,
+                          background: `${color}1a`, border: `1px solid ${color}55`,
+                        }}>
+                          <ResourceIcon type={resource} size={13} />
+                        </span>
+                        <div style={{ display: 'grid', gap: 1, minWidth: 0 }}>
+                          <span style={{ fontSize: 10.5, color: selected ? '#e6f0ff' : '#aabbcc', letterSpacing: 0.5 }}>
+                            {t(`separation.group.${group}`)}
+                          </span>
+                          <span style={{ fontSize: 8.5, color: enough ? '#7d93ab' : '#cc7777', letterSpacing: 0.3 }}>
+                            {avail} {t('separation.in_stock')}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Cost chips */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  background: 'rgba(5,10,20,0.5)', border: `1px solid ${groupColor}55`,
+                  borderRadius: 999, padding: '5px 10px', fontSize: 10, color: '#cfe3ff',
+                }}>
+                  <ResourceIcon type={SEPARATION_GROUP_RESOURCE[effectiveSeparationGroup]} size={11} />
+                  −{SEPARATION_BATCH}
+                </span>
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  background: 'rgba(5,10,20,0.5)', border: '1px solid rgba(68,136,170,0.4)',
+                  borderRadius: 999, padding: '5px 10px', fontSize: 10, color: '#9fd0ff',
+                }}>
+                  ◇ −{SEPARATION_RESEARCH_DATA_COST} {t('separation.unit_research')}
+                </span>
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  background: 'rgba(5,10,20,0.5)', border: '1px solid rgba(136,187,153,0.4)',
+                  borderRadius: 999, padding: '5px 10px', fontSize: 10, color: '#88bb99',
+                }}>
+                  ⧗ 1h
+                </span>
+              </div>
+
+              {/* Active job OR start */}
+              {activeSeparationJob ? (
+                <div style={{ display: 'grid', gap: 7 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 10, color: '#9fd0ff' }}>
+                    <span style={{ letterSpacing: 1, textTransform: 'uppercase' }}>{t('separation.in_progress')}</span>
+                    <span style={{ fontVariantNumeric: 'tabular-nums', color: '#cfe3ff' }}>
+                      {`${Math.floor(separationSecondsLeft / 60)}:${String(separationSecondsLeft % 60).padStart(2, '0')}`}
+                    </span>
+                  </div>
+                  <div style={{ height: 8, borderRadius: 999, background: 'rgba(5,10,20,0.7)', overflow: 'hidden', border: `1px solid ${groupColor}33` }}>
+                    <div style={{
+                      width: `${separationPct}%`, height: '100%',
+                      background: `linear-gradient(90deg, ${groupColor}, #cfe3ff)`,
+                      boxShadow: `0 0 12px ${groupColor}`,
+                      transition: 'width 0.5s linear',
+                    }} />
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  disabled={blocked}
+                  onClick={() => onStartSeparation?.(building.id, planet.id, separationGroup)}
+                  style={{
+                    background: blocked ? 'rgba(20,30,45,0.45)' : `linear-gradient(180deg, ${groupColor}33, ${groupColor}18)`,
+                    border: `1px solid ${blocked ? BORDER : groupColor}`,
+                    borderRadius: 6,
+                    color: blocked ? '#556677' : '#e6f0ff',
+                    fontFamily: 'monospace',
+                    fontSize: 11.5,
+                    letterSpacing: 1.5,
+                    textTransform: 'uppercase',
+                    padding: '11px 12px',
+                    cursor: blocked ? 'not-allowed' : 'pointer',
+                    boxShadow: blocked ? 'none' : `0 0 18px ${groupColor}3a`,
+                  }}
+                >
+                  {stats.isShutdown
+                    ? t('separation.no_power')
+                    : !canAffordSeparation
+                      ? t('separation.need_bulk', { amount: SEPARATION_BATCH })
+                      : t('separation.start')}
+                </button>
+              )}
+
+              {/* Possible elements */}
+              <div style={{ display: 'grid', gap: 5 }}>
+                <div style={{ fontSize: 9, color: '#667788', letterSpacing: 1.5, textTransform: 'uppercase' }}>
+                  {t('separation.possible_elements')}
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                  {getSeparationElements(effectiveSeparationGroup).map((el, i) => (
+                    <span key={el} style={{
+                      background: i < 3 ? `${groupColor}1c` : 'rgba(5,10,20,0.42)',
+                      border: `1px solid ${i < 3 ? `${groupColor}55` : 'rgba(51,68,85,0.55)'}`,
+                      borderRadius: 4,
+                      color: i < 3 ? '#e6f0ff' : '#8c9cad',
+                      fontSize: 10,
+                      padding: '3px 7px',
+                    }}>{el}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {type === 'genesis_vault' && (
+          <div style={{
+            position: 'relative',
+            overflow: 'hidden',
+            background: 'radial-gradient(120% 140% at 0% 0%, rgba(68,255,136,0.16), rgba(8,16,26,0.92) 58%)',
+            border: '1px solid rgba(68,255,136,0.5)',
+            borderRadius: 8,
+            padding: compact ? 12 : 16,
+            display: 'grid',
+            gap: 12,
+            boxShadow: '0 16px 38px rgba(0,0,0,0.35), inset 0 0 40px rgba(68,255,136,0.10)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                width: 26, height: 26, borderRadius: 6,
+                background: 'rgba(68,255,136,0.14)', border: '1px solid rgba(68,255,136,0.5)',
+                boxShadow: '0 0 14px rgba(68,255,136,0.4)',
+              }}>
+                <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="#44ff88"
+                  strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M8 14c3-2 4.5-4.5 4.5-7A4.5 4.5 0 0 0 8 2.5 4.5 4.5 0 0 0 3.5 7c0 2.5 1.5 5 4.5 7Z" />
+                  <path d="M8 13c0-3 0-5 1.6-7M8 13c0-2.4 0-4-1.4-5.6" opacity="0.6" />
+                </svg>
+              </span>
+              <div style={{ display: 'grid', gap: 1 }}>
+                <div style={{ fontSize: 12, color: '#bdffd6', letterSpacing: 2, textTransform: 'uppercase' }}>
+                  {t('lifeform.genesis_create')}
+                </div>
+                <div style={{ fontSize: 9, color: '#7faf93', letterSpacing: 0.5 }}>
+                  {t('lifeform.genesis_tagline')}
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => { try { window.dispatchEvent(new CustomEvent('nebulife:open-genesis-lab')); } catch { /* ignore */ } }}
+              style={{
+                background: 'linear-gradient(180deg, rgba(68,255,136,0.30), rgba(68,255,136,0.14))',
+                border: '1px solid #44ff88',
+                borderRadius: 6,
+                color: '#eafff2',
+                fontFamily: 'monospace',
+                fontSize: 11.5,
+                letterSpacing: 1.5,
+                textTransform: 'uppercase',
+                padding: '11px 12px',
+                cursor: 'pointer',
+                boxShadow: '0 0 18px rgba(68,255,136,0.32)',
+              }}
+            >
+              {t('lifeform.genesis_open_lab')}
+            </button>
+          </div>
+        )}
+
         <div style={{
           background: 'linear-gradient(135deg, rgba(20,30,45,0.72), rgba(5,10,20,0.74))',
           border: `1px solid ${ACTIVE_BORDER}`,
@@ -1293,91 +1550,6 @@ export function BuildingDetailPanel({
           </Section>
         )}
 
-        {type === 'quantum_separator' && building && (
-          <Section title={t('separation.section')}>
-            <div style={{
-              background: 'rgba(10,15,25,0.48)',
-              border: '1px solid rgba(68,136,170,0.35)',
-              borderRadius: 5,
-              padding: compact ? 10 : 12,
-              display: 'grid',
-              gap: 12,
-            }}>
-              <div style={{
-                color: '#8899aa',
-                fontSize: 10,
-                lineHeight: 1.45,
-                background: 'rgba(5,10,20,0.42)',
-                border: '1px solid rgba(68,136,170,0.25)',
-                borderRadius: 4,
-                padding: '9px 10px',
-              }}>
-                {t('separation.explainer', { amount: SEPARATION_BATCH })}
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8 }}>
-                <MetricCard label={t('separation.input')} value={`${SEPARATION_BATCH}`} sub={t('separation.unit_minerals')} accent="#aa8855" />
-                <MetricCard label={t('separation.research_cost')} value={`${SEPARATION_RESEARCH_DATA_COST}`} sub={t('separation.unit_research')} accent="#9fd0ff" />
-                <MetricCard label={t('separation.duration')} value="1h" accent="#88bb99" />
-              </div>
-
-              {activeSeparationJob ? (
-                <div style={{ display: 'grid', gap: 7 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#9fd0ff' }}>
-                    <span>{t('separation.in_progress')}</span>
-                    <span>{`${Math.floor(separationSecondsLeft / 60)}:${String(separationSecondsLeft % 60).padStart(2, '0')}`}</span>
-                  </div>
-                  <div style={{ height: 6, borderRadius: 999, background: 'rgba(51,68,85,0.45)', overflow: 'hidden' }}>
-                    <div style={{ width: `${separationPct}%`, height: '100%', background: 'linear-gradient(90deg, #446688, #9fd0ff)' }} />
-                  </div>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  disabled={stats.isShutdown || !canAffordSeparation || !onStartSeparation}
-                  onClick={() => onStartSeparation?.(building.id, planet.id, 'mineral')}
-                  style={{
-                    background: stats.isShutdown || !canAffordSeparation ? 'rgba(20,30,45,0.4)' : 'rgba(68,136,170,0.18)',
-                    border: `1px solid ${stats.isShutdown || !canAffordSeparation ? BORDER : ACTIVE_BORDER}`,
-                    borderRadius: 4,
-                    color: stats.isShutdown || !canAffordSeparation ? '#556677' : '#9fd0ff',
-                    fontFamily: 'monospace',
-                    fontSize: 11,
-                    letterSpacing: 1,
-                    textTransform: 'uppercase',
-                    padding: '10px 12px',
-                    cursor: stats.isShutdown || !canAffordSeparation ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  {stats.isShutdown
-                    ? t('separation.no_power')
-                    : !canAffordSeparation
-                      ? t('separation.need_bulk', { amount: SEPARATION_BATCH })
-                      : t('separation.start')}
-                </button>
-              )}
-
-              <div style={{ display: 'grid', gap: 5 }}>
-                <div style={{ fontSize: 10, color: '#667788', letterSpacing: 1.5, textTransform: 'uppercase' }}>
-                  {t('separation.possible_elements')}
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                  {getSeparationElements('mineral').map((el) => (
-                    <span key={el} style={{
-                      background: 'rgba(5,10,20,0.42)',
-                      border: '1px solid rgba(51,68,85,0.55)',
-                      borderRadius: 3,
-                      color: '#aabbcc',
-                      fontSize: 10,
-                      padding: '3px 7px',
-                    }}>{el}</span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </Section>
-        )}
-
         <Section title={t('building_detail.passive_effects')}>
           <div style={{ display: 'grid', gridTemplateColumns: compact ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: 8 }}>
             {passiveEffects.length > 0 ? passiveEffects.map((effect) => (
@@ -1406,28 +1578,6 @@ export function BuildingDetailPanel({
               }}
             >
               {t('building_detail.action_open_center')}
-            </button>
-          )}
-          {type === 'genesis_vault' && (
-            <button
-              type="button"
-              onClick={() => { try { window.dispatchEvent(new CustomEvent('nebulife:open-genesis-lab')); } catch { /* ignore */ } }}
-              style={{
-                marginTop: 8,
-                justifySelf: 'start',
-                background: 'rgba(68,255,136,0.10)',
-                border: '1px solid #44ff88',
-                borderRadius: 4,
-                color: '#44ff88',
-                fontFamily: 'monospace',
-                fontSize: 10,
-                letterSpacing: 1,
-                textTransform: 'uppercase',
-                padding: '8px 12px',
-                cursor: 'pointer',
-              }}
-            >
-              {t('lifeform.genesis_create')}
             </button>
           )}
           {type === 'landing_pad' && (

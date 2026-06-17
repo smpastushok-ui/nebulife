@@ -77,6 +77,7 @@
     "genesis_select_rarity": "Цільова складність",
     "genesis_complexity": "Рівень життя",
     "genesis_elements": "Елементна матриця",
+    "genesis_no_elements": "Елементів ще немає. Спершу розділіть групові ресурси на елементи в Квантовому сепараторі.",
     "genesis_sparks": "Іскри життя",
     "genesis_predicted_rarity": "Прогноз рідкісності",
     "genesis_success": "Шанс стабілізації",
@@ -85,6 +86,8 @@
     "genesis_cost_quarks": "Вартість у кварках",
     "genesis_recipe": "Потрібно",
     "genesis_create": "Синтезувати життя",
+    "genesis_tagline": "Створення нової форми життя з елементів та іскор",
+    "genesis_open_lab": "Відкрити лабораторію синтезу",
     "genesis_creating": "Синтез...",
     "genesis_stage_idle": "Синтез...",
     "genesis_stage_charging": "Зарядження ковчега...",
@@ -870,8 +873,17 @@
     "need_research": "Потрібно {{amount}} наук. даних",
     "busy": "Сепаратор уже зайнятий",
     "done": "Розділення завершено: {{summary}}",
-    "log": "Квантовий сепаратор розклав мінерали на елементи: {{summary}}",
-    "possible_elements": "Можливі елементи"
+    "log": "Квантовий сепаратор розклав ресурси на елементи: {{summary}}",
+    "possible_elements": "Можливі елементи",
+    "tagline": "Розклад групових ресурсів на елементи",
+    "choose_group": "Оберіть групу для розділення",
+    "in_stock": "на складі",
+    "group": {
+      "water": "Вода",
+      "mineral": "Мінерали",
+      "isotope": "Ізотопи",
+      "volatile": "Леткі речовини"
+    }
   },
   "observatory": {
     "title": "Обсерваторія Nebulife",

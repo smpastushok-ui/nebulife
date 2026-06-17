@@ -24,7 +24,6 @@ import type { DiscoveryRarity, GenesisGenome, LifeComplexityTier, LifeformIngred
 import { createLifeform, type LifeformRecord } from '../../api/lifeform-api.js';
 
 const COMPLEXITIES: LifeComplexityTier[] = ['microbial', 'flora', 'fauna', 'exotic'];
-const DEFAULT_ELEMENTS = ['C', 'H', 'O', 'N', 'P', 'S', 'Si', 'Fe', 'Cu', 'Ti', 'He', 'Cl'];
 const TEXT = '#aabbcc';
 const TEXT_MUTED = '#667788';
 const BORDER = '#334455';
@@ -78,8 +77,8 @@ export function GenesisLabModal({
   const [complexity, setComplexity] = useState<LifeComplexityTier>('microbial');
   const [selectedElements, setSelectedElements] = useState<Record<string, number>>(() => {
     const initial: Record<string, number> = {};
-    for (const symbol of DEFAULT_ELEMENTS) {
-      if ((elements[symbol] ?? 0) > 0 && Object.keys(initial).length < 4) initial[symbol] = 1;
+    for (const [symbol, amount] of Object.entries(elements)) {
+      if (amount > 0 && Object.keys(initial).length < 4) initial[symbol] = 1;
     }
     return initial;
   });
@@ -110,12 +109,14 @@ export function GenesisLabModal({
     () => LIFEFORM_INGREDIENT_IDS.reduce((sum, id) => sum + (ingredients[id] ?? 0), 0),
     [ingredients],
   );
+  // Only elements the player has actually produced via the quantum separator.
+  // Before any separation there are no elements — the synthesis list is empty.
   const elementOptions = useMemo(() => {
-    const owned = Object.entries(elements)
+    return Object.entries(elements)
       .filter(([, amount]) => amount > 0)
       .sort(([, a], [, b]) => b - a)
-      .map(([symbol]) => symbol);
-    return Array.from(new Set([...owned, ...DEFAULT_ELEMENTS])).slice(0, 16);
+      .map(([symbol]) => symbol)
+      .slice(0, 16);
   }, [elements]);
 
   const adjustElement = (symbol: string, delta: number) => {
@@ -203,7 +204,7 @@ export function GenesisLabModal({
           {error && <div style={styles.error}>{error}</div>}
         </div>
 
-        <div style={styles.hero}>
+        <div className="genesis-hero" style={styles.hero}>
           <GenesisPreview genome={genome} stage={stage} />
           <div style={styles.heroPanel}>
             <div style={{ ...styles.species, color: accent }}>{genome.speciesName}</div>
@@ -247,6 +248,19 @@ export function GenesisLabModal({
         </div>
 
         <div style={styles.sectionLabel}>{t('lifeform.genesis_elements')}</div>
+        {elementOptions.length === 0 && (
+          <div style={{
+            border: `1px dashed ${BORDER}`,
+            borderRadius: 6,
+            padding: '12px 14px',
+            color: TEXT_MUTED,
+            fontSize: 11,
+            lineHeight: 1.5,
+            background: 'rgba(5,10,20,0.42)',
+          }}>
+            {t('lifeform.genesis_no_elements')}
+          </div>
+        )}
         <div style={styles.elementGrid}>
           {elementOptions.map((symbol) => {
             const have = elements[symbol] ?? 0;
@@ -378,9 +392,9 @@ const styles: Record<string, React.CSSProperties> = {
   },
   title: { color: '#44ff88', fontSize: 16, fontWeight: 700, letterSpacing: 2, textAlign: 'center' },
   subtitle: { color: TEXT_MUTED, fontSize: 12, textAlign: 'center', marginTop: 4, marginBottom: 14 },
-  hero: { display: 'grid', gridTemplateColumns: 'minmax(180px, 260px) 1fr', gap: 14, alignItems: 'center' },
-  heroPanel: { border: `1px solid ${BORDER}`, borderRadius: 6, background: 'rgba(0,0,0,0.28)', padding: 12 },
-  species: { fontSize: 15, fontWeight: 700, letterSpacing: 1, marginBottom: 8 },
+  hero: { display: 'grid', gap: 14, alignItems: 'center' },
+  heroPanel: { border: `1px solid ${BORDER}`, borderRadius: 6, background: 'rgba(0,0,0,0.28)', padding: 12, minWidth: 0 },
+  species: { fontSize: 15, fontWeight: 700, letterSpacing: 1, marginBottom: 8, overflowWrap: 'anywhere' },
   metricRow: { display: 'flex', justifyContent: 'space-between', gap: 12, color: TEXT_MUTED, fontSize: 12, marginTop: 6 },
   traits: { display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 },
   traitChip: { fontSize: 9, color: '#9fb3c8', border: `1px solid ${BORDER}`, borderRadius: 3, padding: '2px 6px', background: 'rgba(120,150,190,0.08)', letterSpacing: 0.5, textTransform: 'uppercase' },
@@ -425,6 +439,12 @@ const styles: Record<string, React.CSSProperties> = {
 };
 
 const GENESIS_CSS = `
+  .genesis-hero {
+    grid-template-columns: minmax(170px, 240px) 1fr;
+  }
+  @media (max-width: 640px) {
+    .genesis-hero { grid-template-columns: 1fr; }
+  }
   .genesis-preview {
     position: relative;
     height: 230px;
