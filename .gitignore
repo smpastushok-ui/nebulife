@@ -34,6 +34,10 @@ packages/client/ios/build/
 *.ipa
 procedural_genesis_microbe_preview.svg
 
+# Consolidated release artifacts & archived docs (local only)
+/_releases/
+/_archive/
+
 # Local dev/scratch harnesses (not shipped)
 packages/client/planet-shader-test.html
 packages/client/src/dev/
