@@ -1121,49 +1121,48 @@ export class SystemScene {
     aura.eventMode = 'none';
     aura.zIndex = 10040;
 
-    const r1 = size + 4;
-    const r2 = size + 9;
+    const r = size + 5;
 
-    // Clockwise ring — two opposing arcs so the rotation is visible.
-    const ringCW = new Container();
-    ringCW.label = 'tf-ring-cw';
-    const g1 = new Graphics();
-    g1.arc(0, 0, r1, 0, Math.PI * 0.78);
-    g1.stroke({ width: 1.5, color: 0x44ff88, alpha: 0.62, cap: 'round' });
-    g1.arc(0, 0, r1, Math.PI, Math.PI * 1.78);
-    g1.stroke({ width: 1.5, color: 0x44ff88, alpha: 0.62, cap: 'round' });
-    g1.blendMode = 'add';
-    ringCW.addChild(g1);
+    // Static wireframe-globe latitudes (drawn once): the limb + flattened
+    // parallels read as the fixed "shell" of the rotating net.
+    const lat = new Graphics();
+    lat.label = 'tf-lat';
+    lat.circle(0, 0, r);
+    lat.stroke({ width: 1, color: 0x44ff88, alpha: 0.34, cap: 'round' });
+    lat.ellipse(0, 0, r, r * 0.24); // equator
+    lat.stroke({ width: 0.9, color: 0x66ff99, alpha: 0.32 });
+    for (let i = 1; i <= 2; i++) {
+      const latAng = (i / 3) * (Math.PI / 2);
+      const yy = r * Math.sin(latAng);
+      const rx = r * Math.cos(latAng);
+      lat.ellipse(0, yy, rx, rx * 0.24);
+      lat.stroke({ width: 0.8, color: 0x44ff88, alpha: 0.24, cap: 'round' });
+      lat.ellipse(0, -yy, rx, rx * 0.24);
+      lat.stroke({ width: 0.8, color: 0x44ff88, alpha: 0.24, cap: 'round' });
+    }
+    lat.blendMode = 'add';
 
-    // Counter-clockwise ring — single wider arc, lighter green.
-    const ringCCW = new Container();
-    ringCCW.label = 'tf-ring-ccw';
-    const g2 = new Graphics();
-    g2.arc(0, 0, r2, Math.PI * 0.25, Math.PI * 1.15);
-    g2.stroke({ width: 1.1, color: 0x88ff66, alpha: 0.48, cap: 'round' });
-    g2.blendMode = 'add';
-    ringCCW.addChild(g2);
+    // Meridians: redrawn each frame in updateMissionVisuals so their projected
+    // width sweeps (line -> circle -> line), reading as a spinning grid.
+    const mer = new Graphics();
+    mer.label = 'tf-mer';
+    mer.blendMode = 'add';
 
-    // Lightning filaments hugging the surface — flicker per-frame.
+    // Atmospheric lightning: short jagged bolts that intermittently strike just
+    // above the surface. Redrawn per-frame (strike shape is seeded per strike so
+    // it holds while flickering in brightness).
     const bolts = new Graphics();
     bolts.label = 'tf-bolts';
-    const boltCount = 3;
-    for (let i = 0; i < boltCount; i++) {
-      const a = (i / boltCount) * Math.PI * 2;
-      const baseR = size + 1;
-      bolts.moveTo(Math.cos(a) * baseR, Math.sin(a) * baseR);
-      const segs = 3;
-      for (let s = 1; s <= segs; s++) {
-        const rr = baseR + (s / segs) * 5.5;
-        const aa = a + (s % 2 === 0 ? 0.2 : -0.2);
-        bolts.lineTo(Math.cos(aa) * rr, Math.sin(aa) * rr);
-      }
-    }
-    bolts.stroke({ width: 1, color: 0xaaffaa, alpha: 0.5, cap: 'round', join: 'round' });
     bolts.blendMode = 'add';
 
-    aura.addChild(ringCW, ringCCW, bolts);
+    aura.addChild(lat, mer, bolts);
     return aura;
+  }
+
+  // Cheap deterministic pseudo-random in [0,1) for stable per-strike bolt shapes.
+  private boltRand(n: number): number {
+    const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+    return x - Math.floor(x);
   }
 
   private createPlanetHalo(radius: number, planet: Planet): Container {
@@ -1249,13 +1248,58 @@ export class SystemScene {
       if (!(group instanceof Container)) continue;
       const aura = group.getChildByLabel('planet-terraform-aura');
       if (aura instanceof Container) {
-        const cw = aura.getChildByLabel('tf-ring-cw');
-        const ccw = aura.getChildByLabel('tf-ring-ccw');
+        const size = getPlanetSize(node.planet);
+        const mer = aura.getChildByLabel('tf-mer');
+        if (mer instanceof Graphics) {
+          const r = size + 5;
+          const phase = this.time * 0.0016; // longitude sweep speed
+          const meridianCount = 4;
+          mer.clear();
+          for (let m = 0; m < meridianCount; m++) {
+            const ang = phase + (m / meridianCount) * Math.PI;
+            const rx = Math.abs(Math.sin(ang)) * r;
+            const facing = rx / r; // 0 = edge-on (line), 1 = facing viewer (circle)
+            mer.ellipse(0, 0, Math.max(0.6, rx), r);
+            mer.stroke({ width: 0.9, color: 0x44ff88, alpha: 0.18 + facing * 0.28, cap: 'round' });
+          }
+        }
         const bolts = aura.getChildByLabel('tf-bolts');
-        if (cw) cw.rotation = this.time * 0.0012;
-        if (ccw) ccw.rotation = -this.time * 0.0019;
-        aura.alpha = 0.7 + Math.sin(this.time * 0.005) * 0.3;
-        if (bolts) bolts.alpha = 0.3 + Math.abs(Math.sin(this.time * 0.012)) * 0.6;
+        if (bolts instanceof Graphics) {
+          bolts.clear();
+          const channels = 3;
+          for (let b = 0; b < channels; b++) {
+            const period = 820 + b * 240;            // each channel fires on its own cadence
+            const t = (this.time + b * 433) % period;
+            const strikeDur = 200;
+            if (t > strikeDur) continue;              // dark phase between strikes
+            const strikeIndex = Math.floor((this.time + b * 433) / period);
+            const env = 1 - t / strikeDur;            // fade out over the strike
+            const flick = 0.55 + 0.45 * Math.sin(this.time * 0.09 + b * 2.1);
+            const alpha = Math.min(1, env * (0.5 + flick * 0.5));
+            // Strike location around the limb (stable per strike, scattered).
+            const ang = this.boltRand(strikeIndex * 7 + b * 3) * Math.PI * 2;
+            const cos = Math.cos(ang);
+            const sin = Math.sin(ang) * 0.5; // squash vertically to sit on the disc
+            // Jagged bolt descending through the atmosphere toward the surface.
+            const segs = 4;
+            const outerR = size + 8;
+            const px = cos * outerR;
+            const py = sin * outerR;
+            bolts.moveTo(px, py);
+            for (let s = 1; s <= segs; s++) {
+              const rr = outerR - (s / segs) * 9;
+              const jitter = (this.boltRand(strikeIndex * 31 + b * 13 + s) - 0.5) * 5.5;
+              const tx = -sin * jitter; // lateral offset (perpendicular to radial dir)
+              const ty = cos * jitter * 0.5;
+              bolts.lineTo(cos * rr + tx, sin * rr + ty);
+            }
+            bolts.stroke({ width: 1.1, color: 0xbbffcc, alpha, cap: 'round', join: 'round' });
+            // Bright flash node at the strike point.
+            bolts.circle(px, py, 1.6 + env * 1.4);
+            bolts.fill({ color: 0xeaffe6, alpha: alpha * 0.9 });
+          }
+        }
+        aura.alpha = 0.72 + Math.sin(this.time * 0.005) * 0.28;
       }
       const icon = group.getChildByLabel('planet-terraform-icon');
       if (!icon) continue;
