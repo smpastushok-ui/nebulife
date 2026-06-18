@@ -117,6 +117,18 @@
         return;
       }
       window.addEventListener('load', function () {
+        // Capture whether this page is ALREADY controlled by a service worker.
+        // If so, a later controllerchange means a NEW worker took over (an
+        // update) and the currently-rendered page is now serving stale assets —
+        // force a one-time reload so users immediately get the fresh build
+        // instead of being stuck on an old UI until a manual hard-refresh.
+        var hadController = !!navigator.serviceWorker.controller;
+        var reloadedForUpdate = false;
+        navigator.serviceWorker.addEventListener('controllerchange', function () {
+          if (reloadedForUpdate || !hadController) return;
+          reloadedForUpdate = true;
+          window.location.reload();
+        });
         navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
           .then(function (reg) { reg.update(); })
           .catch(function () {});

@@ -1,6 +1,7 @@
 // Nebulife Service Worker — enables PWA install + offline caching
-// v26: cache-bust to ensure latest BuildingDetailPanel (separation + genesis CTA)
-const CACHE_NAME = 'nebulife-v27';
+// v28: cache-bust + controllerchange auto-reload so updated workers no longer
+// leave users stranded on a stale UI (hidden genesis/separator sections).
+const CACHE_NAME = 'nebulife-v28';
 
 // Assets to pre-cache on install
 const PRECACHE_URLS = [
