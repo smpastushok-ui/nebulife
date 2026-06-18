@@ -20,6 +20,11 @@ import {
 
 type ColonyResources = Record<ColonyResourceKey, number>;
 
+// Visible build marker so we can tell at a glance whether a given client is
+// actually running the latest deploy (shown in the building-detail subtitle).
+// Bump on each deploy that touches this panel.
+const PANEL_BUILD_STAMP = 'B30';
+
 export interface BuildingDetailPanelProps {
   planet: Planet;
   building?: PlacedBuilding;
@@ -1004,6 +1009,7 @@ export function BuildingDetailPanel({
             {aggregateMode
               ? t('building_detail.aggregate_subtitle', { count: stats.count })
               : t('building_detail.level_subtitle', { level: stats.level })}
+            <span style={{ color: '#33506a', marginLeft: 8 }}>· build {PANEL_BUILD_STAMP}</span>
           </div>
         </div>
         <div style={{
