@@ -1,27 +1,19 @@
 // Nebulife Service Worker — enables PWA install + offline caching
-// v28: cache-bust + controllerchange auto-reload so updated workers no longer
-// leave users stranded on a stale UI (hidden genesis/separator sections).
-const CACHE_NAME = 'nebulife-v28';
-
-// Assets to pre-cache on install
-const PRECACHE_URLS = [
-  '/',
-  '/index.html',
-];
+// v29: keep the worker for push notifications, but do not cache the app shell
+// or JS assets. Fresh deploys must always win over an old PWA/service-worker UI.
+const CACHE_NAME = 'nebulife-v29';
 
 // Install: pre-cache shell
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS))
-  );
   self.skipWaiting();
 });
 
-// Activate: clean old caches
+// Activate: clean all old Nebulife app-shell caches. The SW is retained only
+// for notifications and last-ditch offline fallback, never for normal UI cache.
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+      Promise.all(keys.filter((k) => k.startsWith('nebulife-')).map((k) => caches.delete(k)))
     )
   );
   self.clients.claim();
@@ -83,7 +75,8 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// Fetch: network-first for API, cache-first for assets
+// Fetch: network-only for the app shell/assets. Do not write new UI responses
+// into Cache Storage; stale cached HTML/JS has repeatedly hidden new screens.
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
@@ -97,26 +90,5 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        // Cache only complete successful GET responses.
-        // Skip 206 Partial Content (Range requests for audio/video) and any
-        // response with a Content-Range header — Cache API rejects those and
-        // the unhandled TypeError ends up in the page console.
-        if (
-          response.ok &&
-          response.status !== 206 &&
-          event.request.method === 'GET' &&
-          !response.headers.has('content-range')
-        ) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME)
-            .then((cache) => cache.put(event.request, clone))
-            .catch(() => { /* ignore quota / opaque-range / other cache errors */ });
-        }
-        return response;
-      })
-      .catch(() => caches.match(event.request))
-  );
+  event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
 });

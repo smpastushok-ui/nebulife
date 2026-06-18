@@ -12,7 +12,7 @@
 
 import React, { useMemo, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Planet, Star, StarSystem, PlacedBuilding, PlanetResourceStocks, BuildingType, ProducibleType, FleetState } from '@nebulife/core';
+import type { Planet, Star, StarSystem, PlacedBuilding, PlanetResourceStocks, BuildingType, ProducibleType, FleetState, SeparationGroup, SeparationJob } from '@nebulife/core';
 import { BUILDING_DEFS, getDepletionEfficiency } from '@nebulife/core';
 import { getDeviceTier } from '../../../utils/device-tier.js';
 import { playSfx } from '../../../audio/SfxPlayer.js';
@@ -105,7 +105,9 @@ export interface ColonyCenterPageProps {
   explorationPayloads?: Partial<Record<ProducibleType, number>>;
   shipFleet?: FleetState;
   explorationProductionQueue?: Array<{ id: string; type: ProducibleType; planetId: string; startedAt: number; durationMs: number }>;
+  separationJobs?: SeparationJob[];
   onStartPayloadProduction?: (type: ProducibleType) => void;
+  onStartSeparation?: (buildingId: string, planetId: string, group?: SeparationGroup) => boolean | void;
   initialTab?: ColonyCenterTabId;
 }
 
@@ -1108,6 +1110,10 @@ export const ColonyCenterPage: React.FC<ColonyCenterPageProps> = (props) => {
   const [tab, setTab] = useState<ColonyCenterTabId>(props.initialTab ?? 'overview');
   const [quarkHover, setQuarkHover] = useState(false);
   const [inspectBuildingType, setInspectBuildingType] = useState<BuildingType | null>(null);
+  const inspectedBuilding = inspectBuildingType
+    ? props.active.buildings.find((item) => item.type === inspectBuildingType && !item.shutdown)
+      ?? props.active.buildings.find((item) => item.type === inspectBuildingType)
+    : undefined;
 
   const isLowTier = useMemo(() => {
     const tier = getDeviceTier();
@@ -1259,6 +1265,7 @@ export const ColonyCenterPage: React.FC<ColonyCenterPageProps> = (props) => {
       {inspectBuildingType && (
         <BuildingDetailPanel
           planet={props.active.planet}
+          building={inspectedBuilding}
           buildingType={inspectBuildingType}
           buildings={props.active.buildings}
           colonyResources={props.colonyResources}
@@ -1267,6 +1274,8 @@ export const ColonyCenterPage: React.FC<ColonyCenterPageProps> = (props) => {
           explorationPayloads={props.explorationPayloads}
           shipFleet={props.shipFleet}
           explorationProductionQueue={props.explorationProductionQueue}
+          separationJobs={props.separationJobs}
+          onStartSeparation={props.onStartSeparation}
           onStartPayloadProduction={props.onStartPayloadProduction}
           onClose={() => setInspectBuildingType(null)}
           onOpenColonyCenter={() => setInspectBuildingType(null)}

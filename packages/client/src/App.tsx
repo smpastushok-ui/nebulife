@@ -13922,7 +13922,9 @@ function AppInner() {
             explorationPayloads={explorationPayloads}
             shipFleet={shipFleet}
             explorationProductionQueue={explorationProductionQueue}
+            separationJobs={separationJobs}
             onStartPayloadProduction={handleStartPayloadProduction}
+            onStartSeparation={handleStartSeparation}
           />
         );
       })()}
