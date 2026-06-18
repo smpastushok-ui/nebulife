@@ -24,11 +24,15 @@ packages/client/public/sfx/transit/
 .env*.local
 
 # Local mobile build outputs
+/build/
 packages/client/build/
 packages/client/android/app/build/
 packages/client/android/build/
 packages/client/ios/App/build/
 packages/client/ios/build/
+*.xcarchive/
+*.ipa
+procedural_genesis_microbe_preview.svg
 
 # Local dev/scratch harnesses (not shipped)
 packages/client/planet-shader-test.html

@@ -1,6 +1,6 @@
 // Nebulife Service Worker — enables PWA install + offline caching
-// v25: Phase A5 + B2/B4 + device-tier + C2/C3/C4 + D1 (low-end perf pass)
-const CACHE_NAME = 'nebulife-v25';
+// v26: cache-bust to ensure latest BuildingDetailPanel (separation + genesis CTA)
+const CACHE_NAME = 'nebulife-v26';
 
 // Assets to pre-cache on install
 const PRECACHE_URLS = [
