@@ -23,7 +23,7 @@ type ColonyResources = Record<ColonyResourceKey, number>;
 // Visible build marker so we can tell at a glance whether a given client is
 // actually running the latest deploy (shown in the building-detail subtitle).
 // Bump on each deploy that touches this panel.
-const PANEL_BUILD_STAMP = 'B30';
+const PANEL_BUILD_STAMP = 'B31';
 
 export interface BuildingDetailPanelProps {
   planet: Planet;
@@ -1038,6 +1038,12 @@ export function BuildingDetailPanel({
           return (
             <div style={{
               position: 'relative',
+              // NOTE: flexShrink:0 is REQUIRED. This block is a flex item inside
+              // the scrollable column body, and `overflow:hidden` drops its flex
+              // auto-min-height to 0 — so when the body overflows, the flex
+              // algorithm collapses this whole block to zero height, leaving only
+              // the title visible. Pinning flex-shrink keeps the body rendered.
+              flexShrink: 0,
               overflow: 'hidden',
               background: `radial-gradient(120% 140% at 0% 0%, ${groupColor}1f, rgba(8,14,26,0.92) 58%)`,
               border: `1px solid ${groupColor}66`,
@@ -1220,6 +1226,9 @@ export function BuildingDetailPanel({
         {type === 'genesis_vault' && (
           <div style={{
             position: 'relative',
+            // flexShrink:0: same flex/overflow:hidden collapse guard as the
+            // separator block above — without it the body collapses to 0 height.
+            flexShrink: 0,
             overflow: 'hidden',
             background: 'radial-gradient(120% 140% at 0% 0%, rgba(68,255,136,0.16), rgba(8,16,26,0.92) 58%)',
             border: '1px solid rgba(68,255,136,0.5)',
