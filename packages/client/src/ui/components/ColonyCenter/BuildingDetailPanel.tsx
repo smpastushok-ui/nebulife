@@ -57,6 +57,17 @@ const SEPARATION_GROUP_LIST: { group: SeparationGroup; resource: ResourceType }[
   { group: 'volatile', resource: 'volatiles' },
 ];
 
+/**
+ * Reusable mission carriers are not cargo haulers — they deliver a specific
+ * exploration module. Map each carrier to the payload module(s) it carries so
+ * the card shows "carries: <module>" instead of a misleading cargo number.
+ */
+const CARRIER_PAYLOADS: Partial<Record<ProducibleType, ProducibleType[]>> = {
+  research_shuttle: ['survey_probe', 'orbital_satellite'],
+  rover_dropcraft: ['surface_rover', 'lander'],
+  atmo_probe_carrier: ['atmosphere_probe'],
+};
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -551,6 +562,7 @@ function ProducibleFrameCard({
   const help = t(`building_detail.transport_help.${type}`);
   const longTitle = title.length > 18;
   const cargoCapacity = PRODUCIBLE_DEFS[type]?.cargoCapacity ?? 0;
+  const carriedPayloads = CARRIER_PAYLOADS[type];
 
   return (
     <div style={{
@@ -658,7 +670,21 @@ function ProducibleFrameCard({
             {t('building_detail.transport_count', { count })}
           </div>
         </div>
-        {cargoCapacity > 0 && (
+        {carriedPayloads ? (
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 5, alignSelf: 'flex-start',
+            color: '#9fd0ff', fontSize: 9.5, lineHeight: 1.25,
+            padding: '3px 6px', borderRadius: 4,
+            border: '1px solid rgba(123,184,255,0.34)', background: 'rgba(68,136,170,0.12)',
+            overflowWrap: 'anywhere',
+          }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" strokeLinecap="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+              <circle cx="12" cy="12" r="3.2" />
+              <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M18.8 5.2l-2.1 2.1M7.3 16.7l-2.1 2.1" opacity="0.7" />
+            </svg>
+            <span>{t('building_detail.transport_carries')}: {carriedPayloads.map((p) => t(`planet_missions.payload.${p}`)).join(', ')}</span>
+          </div>
+        ) : cargoCapacity > 0 && (
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 5, alignSelf: 'flex-start',
             color: '#7bb8ff', fontSize: 9.5, lineHeight: 1,

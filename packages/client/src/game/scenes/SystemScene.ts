@@ -1023,11 +1023,13 @@ export class SystemScene {
     for (const [, node] of this.planetNodes) {
       const existing = node.container.getChildByLabel('planet-status-icons');
       if (existing) node.container.removeChild(existing);
-      if (!this.planetStatusIconsVisible) continue;
 
       const status = this.planetStatusVisuals.get(node.planet.id);
       if (!status) continue;
-      const items = [
+      // The terraforming aura must always render for in-progress planets, even
+      // when the status-badge overlay is toggled off. Only the lettered badges
+      // are gated behind `planetStatusIconsVisible`.
+      const items = (this.planetStatusIconsVisible ? [
         status.orbit && { key: 'O', color: 0x7bb8ff },
         status.atmosphere && { key: 'A', color: 0xffcc66 },
         status.surface && { key: 'S', color: 0xd7b36a },
@@ -1035,7 +1037,7 @@ export class SystemScene {
         status.colony && { key: 'C', color: 0x9fd0ff },
         status.life && { key: 'L', color: 0x66dd99 },
         status.settled && { key: 'P', color: 0xd7e8f4 },
-      ].filter(Boolean) as Array<{ key: string; color: number }>;
+      ] : []).filter(Boolean) as Array<{ key: string; color: number }>;
       if (items.length === 0 && !status.terraformInProgress) continue;
 
       const group = new Container();

@@ -2669,6 +2669,7 @@
     "transport_help_title": "Пояснення апарата",
     "transport_count": "{{count}} шт.",
     "transport_capacity": "Вантаж: {{amount}}",
+    "transport_carries": "Несе",
     "transport_art_slot": "ART",
     "transport_help": {
       "research_shuttle": "Багаторазовий носій для орбітальних скан-зондів і супутників. Після виробництва зберігається як корабель флоту на цій планеті.",

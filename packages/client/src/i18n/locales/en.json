@@ -2668,6 +2668,7 @@
     "transport_help_title": "Craft explanation",
     "transport_count": "{{count}} pcs",
     "transport_capacity": "Cargo: {{amount}}",
+    "transport_carries": "Carries",
     "transport_art_slot": "ART",
     "transport_help": {
       "research_shuttle": "Reusable carrier for orbital survey probes and satellites. After production it is stored as a fleet ship on this planet.",

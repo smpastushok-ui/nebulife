@@ -412,6 +412,14 @@ if (typeof document !== 'undefined' && !document.getElementById(GLOW_STYLE_ID)) 
       from { max-height: 0; opacity: 0; }
       to   { max-height: 2000px; opacity: 1; }
     }
+    @keyframes nebucatalog-tf-spin {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+    @keyframes nebucatalog-tf-pulse {
+      0%, 100% { opacity: 0.55; filter: drop-shadow(0 0 2px rgba(68,255,136,0.4)); }
+      50%       { opacity: 1;   filter: drop-shadow(0 0 6px rgba(68,255,136,0.85)); }
+    }
   `;
   document.head.appendChild(s);
 }
@@ -788,6 +796,7 @@ function PlanetCard({
   isSelected,
   isFavorite,
   statusIcons,
+  terraformInProgress,
   onClick,
 }: {
   planet: Planet;
@@ -796,6 +805,7 @@ function PlanetCard({
   isSelected: boolean;
   isFavorite: boolean;
   statusIcons: PlanetStatusIcon[];
+  terraformInProgress?: boolean;
   onClick: () => void;
 }) {
   const { t } = useTranslation();
@@ -864,6 +874,32 @@ function PlanetCard({
           transition: 'box-shadow 0.2s',
         }}
       >
+        {terraformInProgress && (
+          <div
+            aria-hidden
+            style={{
+              position: 'absolute',
+              inset: -2,
+              borderRadius: '50%',
+              pointerEvents: 'none',
+              zIndex: 1,
+              animation: 'nebucatalog-tf-pulse 1.7s ease-in-out infinite',
+            }}
+          >
+            <svg
+              width={canvas + 4}
+              height={canvas + 4}
+              viewBox="0 0 100 100"
+              style={{ position: 'absolute', inset: 0, overflow: 'visible', animation: 'nebucatalog-tf-spin 7s linear infinite' }}
+            >
+              <circle cx="50" cy="50" r="40" fill="none" stroke="#44ff88" strokeWidth="1" strokeOpacity="0.5" />
+              <ellipse cx="50" cy="50" rx="40" ry="14" fill="none" stroke="#66ff99" strokeWidth="0.8" strokeOpacity="0.42" />
+              <ellipse cx="50" cy="50" rx="14" ry="40" fill="none" stroke="#44ff88" strokeWidth="0.8" strokeOpacity="0.4" />
+              <ellipse cx="50" cy="50" rx="29" ry="40" fill="none" stroke="#44ff88" strokeWidth="0.7" strokeOpacity="0.28" />
+              <ellipse cx="50" cy="50" rx="40" ry="29" fill="none" stroke="#44ff88" strokeWidth="0.7" strokeOpacity="0.28" />
+            </svg>
+          </div>
+        )}
         {statusIcons.map((icon, index) => {
           // Arrange status icons in a semi-circle over the top half of the planet card,
           // sweeping from -200 deg (left-ish) to +20 deg (right-ish).
@@ -2341,6 +2377,7 @@ export function PlanetsCatalogV2({
                   isSelected={isSelected}
                   isFavorite={isFavorite}
                   statusIcons={statusIcons}
+                  terraformInProgress={Boolean(tfState && getOverallProgress(tfState) > 0 && !tfState.completedAt)}
                   onClick={() => {
                     if (focusedPlanetId === planet.id) {
                       // Second click on same focused card: deselect + close panel
