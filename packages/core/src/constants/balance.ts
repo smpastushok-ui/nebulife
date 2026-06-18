@@ -116,8 +116,8 @@ export const POST_EVACUATION_RESOURCE_RESERVE = {
 export const HOME_PLANET_STOCK_FLOOR = {
   minerals: 250_000,
   volatiles: 150_000,
-  isotopes: 50_000,
-  water: 120_000,
+  isotopes: 100_000,
+  water: 150_000,
 } as const;
 
 /** Base energy buffer from colony wiring (without battery stations). */

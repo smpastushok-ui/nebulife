@@ -221,6 +221,10 @@ const ALL_PLANETS: PlanetType[] = ['rocky', 'terrestrial', 'dwarf', 'gas-giant',
 // ---------------------------------------------------------------------------
 // Building definitions (static catalog) — 28 buildings
 // ---------------------------------------------------------------------------
+// NOTE: the inline `cost` values below are baseline placeholders. The actual
+// build cost for every standard structure is the single source of truth in
+// BUILD_COSTS (defined right after this object) and is applied on module load.
+// Edit prices in BUILD_COSTS, not here.
 
 export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
   // ═══════════════════════════════════════════════════════════════════════════
@@ -695,6 +699,73 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     storageCapacityAdd: 0, populationCapacityAdd: 0, fogRevealRadius: 0,
   },
 };
+
+// ---------------------------------------------------------------------------
+// Build-cost balance (single source of truth)
+// ---------------------------------------------------------------------------
+// Design goals:
+//  1. The L1–L5 starter package is ALWAYS buildable from the settlement grant
+//     (POST_EVACUATION_RESOURCE_RESERVE ≈ 3500 M / 2500 V / 1200 I). Even
+//     building the max allowed count of every bootstrap structure costs only
+//     ~1450 M / 490 V / 30 I, leaving a comfortable margin — no soft-lock.
+//  2. Costs scale with the structure's unlock level so progress requires
+//     accumulating extractor output over time instead of being free.
+//  3. No cost exceeds the maximum reachable storage cap (base 1000 +
+//     4×5000 storage modules = 21 000), so nothing can ever become unbuildable.
+//
+// Tiers (by levelRequired):
+//   Bootstrap (L1–5): cheap, covered by the starting grant.
+//   Early    (L6–14): small accumulation needed.
+//   Mid      (L15–30): meaningful accumulation / multiple ticks.
+//   Late     (L32–42): large stockpiles, storage modules expected.
+//   Endgame  (L48–50): requires storage modules and/or imports.
+//
+// colony_hub (free, auto-placed) and alpha_harvester (quark purchase) are
+// intentionally omitted so they keep their empty `cost`.
+const BUILD_COSTS: Partial<Record<BuildingType, [number, number, number]>> = {
+  // [minerals, volatiles, isotopes]
+  // ── Bootstrap (L1–5) — guaranteed from the settlement grant ──
+  mine:             [35, 0, 0],
+  water_extractor:  [30, 12, 0],
+  solar_plant:      [35, 0, 0],
+  observatory:      [60, 30, 8],
+  greenhouse:       [45, 25, 0],
+  resource_storage: [70, 25, 0],
+  research_lab:     [80, 40, 0],
+  // ── Early (L6–14) ──
+  isotope_collector:[110, 45, 0],
+  battery_station:  [90, 35, 0],
+  wind_generator:   [110, 45, 0],
+  thermal_generator:[160, 80, 20],
+  landing_pad:      [220, 120, 40],
+  atmo_extractor:   [180, 100, 25],
+  radar_tower:      [230, 120, 35],
+  // ── Mid (L15–30) ──
+  residential_dome: [260, 150, 40],
+  deep_drill:       [320, 160, 55],
+  atmo_shield:      [400, 210, 75],
+  orbital_telescope:[470, 240, 90],
+  orbital_collector:[440, 220, 85],
+  // ── Late (L32–42) ──
+  biome_dome:       [540, 290, 100],
+  spaceport:        [650, 340, 130],
+  quantum_computer: [780, 330, 130],
+  fusion_reactor:   [900, 450, 260],
+  // ── Endgame (L48–50) — storage modules / imports expected ──
+  genesis_vault:    [1800, 900, 400],
+  quantum_separator:[1200, 600, 220],
+  gas_fractionator: [1300, 650, 240],
+  isotope_centrifuge:[1600, 800, 300],
+};
+
+for (const [type, amounts] of Object.entries(BUILD_COSTS) as [BuildingType, [number, number, number]][]) {
+  const [m, v, i] = amounts;
+  const cost: { resource: string; amount: number }[] = [];
+  if (m > 0) cost.push({ resource: 'minerals', amount: m });
+  if (v > 0) cost.push({ resource: 'volatiles', amount: v });
+  if (i > 0) cost.push({ resource: 'isotopes', amount: i });
+  BUILDING_DEFS[type].cost = cost;
+}
 
 // ---------------------------------------------------------------------------
 // Harvest / regrowth system
