@@ -23,7 +23,7 @@ type ColonyResources = Record<ColonyResourceKey, number>;
 // Visible build marker so we can tell at a glance whether a given client is
 // actually running the latest deploy (shown in the building-detail subtitle).
 // Bump on each deploy that touches this panel.
-const PANEL_BUILD_STAMP = 'B31';
+const PANEL_BUILD_STAMP = 'B32';
 
 export interface BuildingDetailPanelProps {
   planet: Planet;
@@ -857,6 +857,27 @@ export function BuildingDetailPanel({
     return deriveBuildingDetailStats({ type, planet, buildings, building, planetStocks });
   }, [building, buildings, planet, planetStocks, type]);
 
+  // Rules of hooks: every hook must run before any early return. The two
+  // interval timers below previously sat AFTER `if (!stats) return null`,
+  // so the hook count changed between renders (stats null vs. present) and
+  // React threw error #310. Compute their minimal deps here and keep the
+  // effects above the guard.
+  const activeObservatorySessionCount = (observatoryState?.sessions ?? []).length;
+  const activeSeparationJobId =
+    (separationJobs ?? []).find((j) => j.buildingId === building?.id)?.id ?? null;
+
+  useEffect(() => {
+    if (activeObservatorySessionCount === 0) return;
+    const id = window.setInterval(() => setObservatoryNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [activeObservatorySessionCount]);
+
+  useEffect(() => {
+    if (!activeSeparationJobId) return;
+    const id = window.setInterval(() => setSeparationNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [activeSeparationJobId]);
+
   if (!type || !def || !stats) return null;
 
   const primary = primaryOutputResource(type);
@@ -925,12 +946,6 @@ export function BuildingDetailPanel({
     ? observatoryProgram
     : observatoryPrograms[observatoryPrograms.length - 1] ?? 'routine_sky_watch';
 
-  useEffect(() => {
-    if (activeObservatorySessions.length === 0) return;
-    const id = window.setInterval(() => setObservatoryNow(Date.now()), 1000);
-    return () => window.clearInterval(id);
-  }, [activeObservatorySessions.length]);
-
   // ── Quantum separator batch state ──
   const activeSeparationJob = (separationJobs ?? []).find((j) => j.buildingId === building?.id) ?? null;
   const separationElapsed = activeSeparationJob ? separationNow - activeSeparationJob.startedAt : 0;
@@ -949,11 +964,6 @@ export function BuildingDetailPanel({
   const separationAvailable = colonyResources[separationResourceKey] ?? 0;
   const canAffordSeparation =
     separationAvailable >= SEPARATION_BATCH && researchData >= SEPARATION_RESEARCH_DATA_COST;
-  useEffect(() => {
-    if (!activeSeparationJob) return;
-    const id = window.setInterval(() => setSeparationNow(Date.now()), 1000);
-    return () => window.clearInterval(id);
-  }, [activeSeparationJob?.id]);
 
   const addInfoReport = (title: string, body: string, impact = t('building_detail.report_no_persistent_effect')) => {
     void title;

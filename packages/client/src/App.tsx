@@ -9387,16 +9387,19 @@ function AppInner() {
     const now = Date.now();
     if (separationJobsRef.current.some((j) => j.buildingId === buildingId)) {
       setToastMessage(tr('separation.busy'));
+      setTimeout(() => setToastMessage(null), 3200);
       return false;
     }
     const resourceKey = group === 'volatile' ? 'volatiles' : group === 'isotope' ? 'isotopes' : group === 'water' ? 'water' : 'minerals';
     const available = getResources(planetId)[resourceKey];
     if (available < SEPARATION_BATCH) {
       setToastMessage(tr('separation.need_bulk', { amount: SEPARATION_BATCH }));
+      setTimeout(() => setToastMessage(null), 3200);
       return false;
     }
     if (researchDataRef.current < SEPARATION_RESEARCH_DATA_COST) {
       setToastMessage(tr('separation.need_research', { amount: SEPARATION_RESEARCH_DATA_COST }));
+      setTimeout(() => setToastMessage(null), 3200);
       return false;
     }
     addResources(planetId, { [resourceKey]: -SEPARATION_BATCH });
@@ -9448,6 +9451,7 @@ function AppInner() {
       .map(([el, amt]) => `${el} ${amt}`)
       .join(', ');
     setToastMessage(tr('separation.done', { summary }));
+    setTimeout(() => setToastMessage(null), 4000);
     addLogEntry('science', tr('separation.log', { summary }));
     scheduleSyncToServer();
   }, [scheduleSyncToServer, tr, addLogEntry]);
