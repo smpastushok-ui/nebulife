@@ -52,6 +52,15 @@ export class GameEngine {
   private systemFadeOverlay: HTMLDivElement | null = null;
   private systemFadeTimer: number | null = null;
 
+  // Last-known system overlay state, cached so it survives the deferred
+  // system-switch transition. The React effects push these against the OLD
+  // (collapsing) scene 1s before the NEW scene mounts, so without caching the
+  // status badges / labels / favorite stars are lost on every system change.
+  private lastStatusVisuals: PlanetStatusVisual[] = [];
+  private lastStatusVisible = false;
+  private lastLabelsVisible = false;
+  private lastFavoritePlanetIds: string[] = [];
+
   private rings: GalaxyRing[] = [];
   private playerPos = { x: 0, y: 0 };
   private researchState: ResearchState = { slots: [], systems: {} };
@@ -343,6 +352,12 @@ export class GameEngine {
     this.systemScene.container.alpha = 1;
     this.camera.attach(this.systemScene.container);
 
+    // Re-apply cached overlays — the React effects already pushed the latest
+    // status/label/favorite state against the previous scene during the fade.
+    this.systemScene.setPlanetStatusVisuals(this.lastStatusVisuals, this.lastStatusVisible);
+    this.systemScene.setPlanetLabelsVisible(this.lastLabelsVisible);
+    this.systemScene.setFavoritePlanets(this.lastFavoritePlanetIds);
+
     // Set min zoom so background star field always covers the screen (no dark edges)
     const { fieldSize, maxExtent } = this.systemScene;
     const screenDim = Math.max(this.app.screen.width, this.app.screen.height);
@@ -448,12 +463,21 @@ export class GameEngine {
 
   /** Sync optional planet status icons into the active system scene. */
   setSystemPlanetStatusVisuals(statuses: PlanetStatusVisual[], visible: boolean) {
+    this.lastStatusVisuals = statuses;
+    this.lastStatusVisible = visible;
     this.systemScene?.setPlanetStatusVisuals(statuses, visible);
   }
 
   /** Toggle planet name labels inside the active system scene. */
   setSystemPlanetLabelsVisible(visible: boolean) {
+    this.lastLabelsVisible = visible;
     this.systemScene?.setPlanetLabelsVisible(visible);
+  }
+
+  /** Mark favorite planets so a gold star renders above them in the system. */
+  setSystemFavoritePlanets(planetIds: string[]) {
+    this.lastFavoritePlanetIds = planetIds;
+    this.systemScene?.setFavoritePlanets(planetIds);
   }
 
   /** Sync generated planet texture previews into the active system scene. */

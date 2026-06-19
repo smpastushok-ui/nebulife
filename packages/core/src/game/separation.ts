@@ -23,6 +23,12 @@ export interface SeparationJob {
   id: string;
   /** PlacedBuilding id of the quantum_separator running this job. */
   buildingId: string;
+  /**
+   * Building type that launched the job (e.g. 'quantum_separator',
+   * 'isotope_centrifuge'). Used to attribute the yield history. Optional for
+   * backward compatibility with jobs persisted before this field existed.
+   */
+  buildingType?: string;
   /** Scoped planet key the elements are credited to (bulk resource source). */
   planetId: string;
   group: SeparationGroup;

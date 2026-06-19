@@ -30,6 +30,10 @@ interface HexGridProps {
   onTransformRef?: (el: HTMLDivElement | null) => void;
   shutdownBuildingTypes?: Set<string>;
   storageBlockedBuildingTypes?: Set<string>;
+  /** Per-building-type beacon tint (buildingType → colour) for "result ready". */
+  buildingAlerts?: Record<string, string>;
+  /** Per-building-type cosmic-event countdown (buildingType → {color, untilMs}). */
+  buildingCountdowns?: Record<string, { color: string; untilMs: number }>;
 }
 
 export const HexGrid = React.memo(function HexGrid({
@@ -49,6 +53,8 @@ export const HexGrid = React.memo(function HexGrid({
   onTransformRef,
   shutdownBuildingTypes,
   storageBlockedBuildingTypes,
+  buildingAlerts,
+  buildingCountdowns,
 }: HexGridProps) {
   // Compute hex positions for this planet size
   const positions = useMemo(() => {
@@ -181,6 +187,8 @@ export const HexGrid = React.memo(function HexGrid({
               onDestroy={onDestroy}
               isShutdown={shutdownBuildingTypes?.has(slot.buildingType ?? '') ?? false}
               isStorageBlocked={storageBlockedBuildingTypes?.has(slot.buildingType ?? '') ?? false}
+              alertColor={buildingAlerts?.[slot.buildingType ?? ''] ?? null}
+              countdownOverlay={buildingCountdowns?.[slot.buildingType ?? ''] ?? null}
             />
           );
         })}

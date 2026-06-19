@@ -2324,6 +2324,40 @@ export async function getLatestCompleteDigest(): Promise<WeeklyDigestRow | null>
   return (rows[0] as WeeklyDigestRow) ?? null;
 }
 
+export interface CosmicEventRow {
+  id: number | string;
+  title_uk: string;
+  title_en: string;
+  description_uk: string | null;
+  description_en: string | null;
+  event_time: string;
+  photo_url: string | null;
+  video_url: string | null;
+}
+
+/**
+ * Upcoming cosmic events (event_time in the future), soonest first.
+ * Read-only; events are authored directly in the `cosmic_events` table.
+ * Returns [] gracefully if the table does not exist yet (pre-migration).
+ */
+export async function getUpcomingCosmicEvents(limit = 10): Promise<CosmicEventRow[]> {
+  const sql = getSQL();
+  try {
+    const rows = await sql`
+      SELECT id, title_uk, title_en, description_uk, description_en,
+             event_time, photo_url, video_url
+      FROM cosmic_events
+      WHERE event_time > NOW()
+      ORDER BY event_time ASC
+      LIMIT ${limit}
+    `;
+    return rows as CosmicEventRow[];
+  } catch (err) {
+    console.error('getUpcomingCosmicEvents error (table missing?):', err);
+    return [];
+  }
+}
+
 /** Returns complete digest that has not yet had emails sent. */
 export async function getDigestPendingEmails(): Promise<WeeklyDigestRow | null> {
   const sql = getSQL();

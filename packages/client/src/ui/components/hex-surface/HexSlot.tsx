@@ -73,6 +73,13 @@ interface HexSlotProps {
   canAfford: boolean;
   isShutdown?: boolean;
   isStorageBlocked?: boolean;
+  /** When set, draws a pulsing "report ready" beacon above the building,
+   *  tinted to the discovery's event colour. Cleared once the player opens
+   *  the building. */
+  alertColor?: string | null;
+  /** When set, draws a small countdown pill above the building counting down to
+   *  `untilMs` (cosmic event). Ticks locally so the grid isn't re-rendered. */
+  countdownOverlay?: { color: string; untilMs: number } | null;
 }
 
 // Pointy-top hex clip-path (matches reference design)
@@ -465,10 +472,20 @@ export const HexSlot = React.memo(function HexSlot({
   canAfford,
   isShutdown = false,
   isStorageBlocked = false,
+  alertColor = null,
+  countdownOverlay = null,
 }: HexSlotProps) {
   const { t } = useTranslation();
   const left = x - HEX_W / 2;
   const top  = y - HEX_H / 2;
+
+  // Local 1s tick for the cosmic-event countdown pill (only when present).
+  const [countdownNow, setCountdownNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!countdownOverlay) return;
+    const cid = window.setInterval(() => setCountdownNow(Date.now()), 1000);
+    return () => window.clearInterval(cid);
+  }, [countdownOverlay]);
 
   let opacity = 1;
   if (slot.state === 'hidden') {
@@ -697,6 +714,45 @@ export const HexSlot = React.memo(function HexSlot({
           transition: 'transform 0.3s cubic-bezier(0.34,1.56,0.64,1)',
         }}>
           <BuildingContent slot={slot} />
+        </div>
+      )}
+      {countdownOverlay && (slot.state === 'building' || slot.state === 'harvester') && (() => {
+        const remain = Math.max(0, Math.floor((countdownOverlay.untilMs - countdownNow) / 1000));
+        const dd = Math.floor(remain / 86400);
+        const hh = Math.floor((remain % 86400) / 3600);
+        const mm = Math.floor((remain % 3600) / 60);
+        const ss = remain % 60;
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const label = dd > 0 ? `${dd}d ${pad(hh)}:${pad(mm)}` : `${pad(hh)}:${pad(mm)}:${pad(ss)}`;
+        return (
+          <div style={{
+            position: 'absolute', left: '50%', top: -14, transform: 'translateX(-50%)',
+            zIndex: 170, pointerEvents: 'none', display: 'flex', alignItems: 'center', gap: 4,
+            background: 'rgba(5,10,20,0.92)', border: `1px solid ${countdownOverlay.color}99`,
+            borderRadius: 4, padding: '2px 6px', whiteSpace: 'nowrap',
+          }}>
+            <span style={{ width: 5, height: 5, borderRadius: '50%', background: countdownOverlay.color, boxShadow: `0 0 6px ${countdownOverlay.color}` }} />
+            <span style={{ color: countdownOverlay.color, fontSize: 9, fontFamily: 'monospace', letterSpacing: 0.5, fontVariantNumeric: 'tabular-nums' }}>{label}</span>
+          </div>
+        );
+      })()}
+      {alertColor && (slot.state === 'building' || slot.state === 'harvester') && (
+        <div
+          className="obs-beacon"
+          style={{
+            position: 'absolute',
+            left: '50%',
+            top: 4,
+            transform: 'translateX(-50%)',
+            zIndex: 165,
+            pointerEvents: 'none',
+            // CSS custom prop drives the procedural glow tint (see hex-animations.css)
+            ['--obs-beacon-color' as string]: alertColor,
+          }}
+        >
+          <span className="obs-beacon-ring" />
+          <span className="obs-beacon-ring obs-beacon-ring-delayed" />
+          <span className="obs-beacon-core" />
         </div>
       )}
       {isShutdown && (slot.state === 'building' || slot.state === 'harvester') && (

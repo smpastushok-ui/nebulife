@@ -200,6 +200,7 @@ export class SystemScene {
   private missionVisuals: Map<string, MissionVisualNode> = new Map();
   private planetStatusVisuals: Map<string, PlanetStatusVisual> = new Map();
   private planetStatusIconsVisible = false;
+  private favoritePlanetIds: Set<string> = new Set();
   private planetLabelsVisible = false;
   private planet3DLayer: SystemPlanet3DLayer | null = null;
   private readonly use3DPlanets: boolean;
@@ -998,6 +999,38 @@ export class SystemScene {
     this.planetStatusVisuals = new Map(statuses.map((status) => [status.planetId, status]));
     this.planetStatusIconsVisible = visible;
     this.redrawPlanetStatusIcons();
+  }
+
+  setFavoritePlanets(planetIds: string[]) {
+    this.favoritePlanetIds = new Set(planetIds);
+    this.redrawFavoriteStars();
+  }
+
+  private redrawFavoriteStars() {
+    for (const [, node] of this.planetNodes) {
+      const existing = node.container.getChildByLabel('planet-favorite-star');
+      if (existing) node.container.removeChild(existing);
+      if (!this.favoritePlanetIds.has(node.planet.id)) continue;
+
+      const star = new Graphics();
+      star.label = 'planet-favorite-star';
+      star.zIndex = 10060;
+      const outer = 5.6;
+      const inner = outer * 0.42;
+      for (let i = 0; i < 10; i++) {
+        const r = i % 2 === 0 ? outer : inner;
+        const a = (-Math.PI / 2) + (i / 10) * Math.PI * 2;
+        const px = Math.cos(a) * r;
+        const py = Math.sin(a) * r;
+        if (i === 0) star.moveTo(px, py);
+        else star.lineTo(px, py);
+      }
+      star.closePath();
+      star.fill({ color: 0xffcc44, alpha: 0.96 });
+      star.stroke({ color: 0x020510, width: 0.8, alpha: 0.9 });
+      star.y = -(getPlanetSize(node.planet) + 22);
+      node.container.addChild(star);
+    }
   }
 
   setPlanetLabelsVisible(visible: boolean) {

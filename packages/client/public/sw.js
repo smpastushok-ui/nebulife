@@ -1,7 +1,7 @@
 // Nebulife Service Worker — enables PWA install + offline caching
 // v29: keep the worker for push notifications, but do not cache the app shell
 // or JS assets. Fresh deploys must always win over an old PWA/service-worker UI.
-const CACHE_NAME = 'nebulife-v29';
+const CACHE_NAME = 'nebulife-v30';
 
 // Install: pre-cache shell
 self.addEventListener('install', (event) => {

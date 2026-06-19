@@ -58,8 +58,8 @@ import {
   normalizeDailyDirectiveState,
   bumpDirectiveMetric,
 } from '@nebulife/core';
-import type { CometSchedule, DailyDirectiveState, DirectiveMetric } from '@nebulife/core';
-import { OperationsHub, EventCountdownChip, SIGNAL_REWARD_XP, SIGNAL_REWARD_RESEARCH, type OpsTab } from './ui/components/OperationsHub/index.js';
+import type { CometSchedule, DailyDirectiveState, DirectiveMetric, CosmicEvent } from '@nebulife/core';
+import { OperationsHub, SIGNAL_REWARD_XP, SIGNAL_REWARD_RESEARCH, type OpsTab } from './ui/components/OperationsHub/index.js';
 import { claimDirectivesReward, getDirectiveStreakInfo, claimCometReward } from './api/retention-api.js';
 import type { LifeformPlanetContext } from '@nebulife/core';
 import type { DiscoveryRarity, LifeformIngredientId, LifeSparkType } from '@nebulife/core';
@@ -128,8 +128,12 @@ import {
   SEPARATION_DURATION_MS,
   SEPARATION_RESEARCH_DATA_COST,
   rollSeparation,
+  EXTRACTION_BATCH,
+  EXTRACTION_DURATION_MS,
+  EXTRACTION_RESEARCH_DATA_COST,
+  rollParticleExtraction,
 } from '@nebulife/core';
-import type { TechTreeState, TechNode, SurfaceObjectType, BuildingType, PlanetColonyState, PlacedBuilding, PlanetResourceStocks, ProducibleType, FleetState, Ship, CargoShipment, ObservatoryState, ObservatorySearchDuration, ObservatorySearchProgram, SeparationJob, SeparationGroup } from '@nebulife/core';
+import type { TechTreeState, TechNode, SurfaceObjectType, BuildingType, PlanetColonyState, PlacedBuilding, PlanetResourceStocks, ProducibleType, FleetState, Ship, CargoShipment, ObservatoryState, ObservatorySearchDuration, ObservatorySearchProgram, SeparationJob, SeparationGroup, ExtractionJob } from '@nebulife/core';
 import type { PlanetTerraformState, Mission, TerraformParamId, ShipTier as TfShipTier, PlanetOverride } from '@nebulife/core';
 import type { PlanetMission, PlanetMissionType, PlanetReportSummary, PlanetRevealLevel } from '@nebulife/core';
 import {
@@ -263,6 +267,10 @@ import { CarrierRaid } from './ui/components/Raid/CarrierRaid.js';
 import { ColonyCenterPage, RESOURCE_BOOST_PRICES, TIME_BOOST_PRICES, BOOST_DURATION_MS } from './ui/components/ColonyCenter/ColonyCenterPage.js';
 import type { ColonyCenterPlanet, ColonyCenterTabId } from './ui/components/ColonyCenter/ColonyCenterPage.js';
 import { applyPlanetMissionDurationMultiplier, getPlanetMissionDurationMultiplier } from './ui/components/ColonyCenter/building-detail-model.js';
+import { ElementResultCard } from './ui/components/ColonyCenter/ElementResultCard.js';
+import type { ElementResult } from './ui/components/ColonyCenter/ElementResultCard.js';
+import { DnaConstructorGame } from './ui/components/ColonyCenter/DnaConstructorGame.js';
+import { fetchUpcomingCosmicEvents } from './api/events-api.js';
 import { SpaceAmbient } from './audio/SpaceAmbient.js';
 import type { SharedLessonInfo } from './ui/components/Academy/AcademyDashboard.js';
 import { PlayerPage } from './ui/components/PlayerPage.js';
@@ -1511,6 +1519,53 @@ function AppInner() {
     catch { /* ignore */ }
   }, [lifeSparks]);
 
+  // ── Manual-job result histories (last 5 each) + result-card modal ─────────
+  // Separation/centrifuge yields and lab experiments are logged here so the
+  // building detail panel can show a "last 5" strip and re-open any result.
+  const [elementYieldHistory, setElementYieldHistory] = useState<ElementResult[]>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_element_yield_history');
+      if (saved) return JSON.parse(saved) as ElementResult[];
+    } catch { /* ignore */ }
+    return [];
+  });
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_element_yield_history', JSON.stringify(elementYieldHistory)); }
+    catch { /* ignore */ }
+  }, [elementYieldHistory]);
+
+  const [experimentHistory, setExperimentHistory] = useState<ElementResult[]>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_experiment_history');
+      if (saved) return JSON.parse(saved) as ElementResult[];
+    } catch { /* ignore */ }
+    return [];
+  });
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_experiment_history', JSON.stringify(experimentHistory)); }
+    catch { /* ignore */ }
+  }, [experimentHistory]);
+
+  /** Currently-open result card (separation / extraction / spark), or null. */
+  const [resultCard, setResultCard] = useState<ElementResult | null>(null);
+
+  /** Whether the DNA-constructor spark minigame modal is open. */
+  const [showDnaLab, setShowDnaLab] = useState(false);
+
+  // ── Backend-authored cosmic events (telescope / observatory) ─────────────
+  const [upcomingEvents, setUpcomingEvents] = useState<CosmicEvent[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetchUpcomingCosmicEvents().then((events) => {
+      if (!cancelled) setUpcomingEvents(events);
+    });
+    // Refresh hourly while the session is open.
+    const id = window.setInterval(() => {
+      fetchUpcomingCosmicEvents().then((events) => { if (!cancelled) setUpcomingEvents(events); });
+    }, 3_600_000);
+    return () => { cancelled = true; window.clearInterval(id); };
+  }, []);
+
   // ── Terraforming state ───────────────────────────────────────────────────
   /** Terraform progress per planet, keyed by planetId. Persisted to localStorage. */
   const [terraformStates, setTerraformStates] = useState<Record<string, PlanetTerraformState>>(() => {
@@ -1620,6 +1675,22 @@ function AppInner() {
     catch { /* ignore quota */ }
     separationJobsRef.current = separationJobs;
   }, [separationJobs]);
+
+  // Research-lab particle-extraction jobs (60 bulk units → rare particles, 45m).
+  const [extractionJobs, setExtractionJobs] = useState<ExtractionJob[]>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_extraction_jobs');
+      if (saved) return JSON.parse(saved) as ExtractionJob[];
+    } catch { /* ignore */ }
+    return [];
+  });
+  const extractionJobsRef = useRef(extractionJobs);
+  extractionJobsRef.current = extractionJobs;
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_extraction_jobs', JSON.stringify(extractionJobs)); }
+    catch { /* ignore quota */ }
+    extractionJobsRef.current = extractionJobs;
+  }, [extractionJobs]);
 
   const [planetMissionClock, setPlanetMissionClock] = useState(() => Date.now());
   const [systemPlanetStatusIconsMode, setSystemPlanetStatusIconsMode] = useState(false);
@@ -4853,6 +4924,18 @@ function AppInner() {
     try { localStorage.setItem('nebulife_favorite_planets', JSON.stringify([...favoritePlanets])); }
     catch { /* ignore */ }
   }, [favoritePlanets]);
+
+  // Render a gold favorite-star above favorited planets at the system level.
+  useEffect(() => {
+    if (state.scene !== 'system' || !state.selectedSystem) {
+      engineRef.current?.setSystemFavoritePlanets([]);
+      return;
+    }
+    const ids = state.selectedSystem.planets
+      .filter((planet) => favoritePlanets.has(planet.id))
+      .map((planet) => planet.id);
+    engineRef.current?.setSystemFavoritePlanets(ids);
+  }, [state.scene, state.selectedSystem, favoritePlanets]);
 
   const [pinnedSystems, setPinnedSystems] = useState<Set<string>>(() => {
     try {
@@ -9207,6 +9290,64 @@ function AppInner() {
     ]);
   }, []);
 
+  /** System-chat notification for a completed observatory search. Hits carry
+   *  the full discovery so the chat shows a "переглянути" button that re-opens
+   *  the reveal; no-signal completions post an informational line only. */
+  const addObservatoryReportNotif = useCallback((
+    discovery: Discovery | null,
+    name?: string,
+    duplicate?: boolean,
+  ) => {
+    const planetName = homeInfo?.system.name ?? '';
+    const text = discovery
+      ? (duplicate
+          ? t('observatory.notif_duplicate').replace('{name}', name ?? discovery.type)
+          : t('observatory.notif_found').replace('{name}', name ?? discovery.type))
+      : t('observatory.notif_no_signal');
+    setSystemNotifs((prev) => [
+      ...prev,
+      {
+        id: `notif-obs-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        text,
+        planetName,
+        systemId: homeInfo?.system.id ?? '',
+        planetId: '',
+        timestamp: Date.now(),
+        read: false,
+        discovery: discovery ?? undefined,
+      },
+    ]);
+  }, [t, homeInfo]);
+
+  /**
+   * System-chat notification for a completed manual job (separation batch,
+   * lab particle extraction, life-spark synthesis). Carries the full
+   * {@link ElementResult} so the "переглянути" button re-opens the visual card.
+   */
+  const addResultNotif = useCallback((result: ElementResult, text: string) => {
+    setSystemNotifs((prev) => [
+      ...prev,
+      {
+        id: `notif-res-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        text,
+        planetName: homeInfo?.system.name ?? '',
+        systemId: homeInfo?.system.id ?? '',
+        planetId: '',
+        timestamp: Date.now(),
+        read: false,
+        result,
+      },
+    ]);
+  }, [homeInfo]);
+
+  /** Push a result onto a capped (last-5) history list. */
+  const pushResultHistory = useCallback((
+    setter: React.Dispatch<React.SetStateAction<ElementResult[]>>,
+    result: ElementResult,
+  ) => {
+    setter((prev) => [result, ...prev].slice(0, 5));
+  }, []);
+
   /**
    * Shared "lifeform found → reveal" handler for every find source (harvest,
    * building placement, first contact). Returns true when a discovery was
@@ -9383,6 +9524,7 @@ function AppInner() {
     buildingId: string,
     planetId: string,
     group: SeparationGroup = 'mineral',
+    sourceBuildingType: string = 'quantum_separator',
   ): boolean => {
     const now = Date.now();
     if (separationJobsRef.current.some((j) => j.buildingId === buildingId)) {
@@ -9410,6 +9552,7 @@ function AppInner() {
     const job: SeparationJob = {
       id: `sep-${now}-${Math.random().toString(36).slice(2, 6)}`,
       buildingId,
+      buildingType: sourceBuildingType,
       planetId,
       group,
       amount: SEPARATION_BATCH,
@@ -9439,6 +9582,25 @@ function AppInner() {
     for (const job of done) {
       const elems = rollSeparation(job.group, job.amount, job.seed);
       for (const [el, amt] of Object.entries(elems)) totals[el] = (totals[el] ?? 0) + amt;
+
+      // Per-job visual result → last-5 history + system-chat notification.
+      const source = job.buildingType ?? 'quantum_separator';
+      const jobSummary = Object.entries(elems)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 4)
+        .map(([el, amt]) => `${el} ${amt}`)
+        .join(', ');
+      const result: ElementResult = {
+        id: `res-${job.id}`,
+        kind: 'separation',
+        source,
+        elements: elems,
+        detail: tr(`separation.group_${job.group}` as 'separation.group_mineral'),
+        completedAt: now,
+      };
+      pushResultHistory(setElementYieldHistory, result);
+      addResultNotif(result, tr('separation.notif', { summary: jobSummary }));
+      addLogEntry('science', tr('separation.log', { summary: jobSummary }));
     }
     setChemicalInventory((prev) => {
       const next = { ...prev };
@@ -9452,9 +9614,8 @@ function AppInner() {
       .join(', ');
     setToastMessage(tr('separation.done', { summary }));
     setTimeout(() => setToastMessage(null), 4000);
-    addLogEntry('science', tr('separation.log', { summary }));
     scheduleSyncToServer();
-  }, [scheduleSyncToServer, tr, addLogEntry]);
+  }, [scheduleSyncToServer, tr, addLogEntry, addResultNotif, pushResultHistory]);
 
   useEffect(() => {
     if (separationJobs.length === 0) return;
@@ -9462,6 +9623,107 @@ function AppInner() {
     const id = window.setInterval(() => completeReadySeparation(Date.now()), 1000);
     return () => window.clearInterval(id);
   }, [completeReadySeparation, separationJobs.length]);
+
+  // ── Research lab: particle extraction (60 bulk → rare particles, 45m) ─────
+  const handleStartExtraction = useCallback((buildingId: string, planetId: string): boolean => {
+    const now = Date.now();
+    if (extractionJobsRef.current.some((j) => j.buildingId === buildingId)) {
+      setToastMessage(tr('lab.busy'));
+      setTimeout(() => setToastMessage(null), 3200);
+      return false;
+    }
+    const available = getResources(planetId).minerals;
+    if (available < EXTRACTION_BATCH) {
+      setToastMessage(tr('lab.need_bulk', { amount: EXTRACTION_BATCH }));
+      setTimeout(() => setToastMessage(null), 3200);
+      return false;
+    }
+    if (researchDataRef.current < EXTRACTION_RESEARCH_DATA_COST) {
+      setToastMessage(tr('separation.need_research', { amount: EXTRACTION_RESEARCH_DATA_COST }));
+      setTimeout(() => setToastMessage(null), 3200);
+      return false;
+    }
+    addResources(planetId, { minerals: -EXTRACTION_BATCH });
+    setResearchData((prev) => Math.max(0, prev - EXTRACTION_RESEARCH_DATA_COST));
+    let buildingHash = 0;
+    for (let i = 0; i < buildingId.length; i++) buildingHash = (buildingHash * 31 + buildingId.charCodeAt(i)) | 0;
+    const seed = ((Math.floor(now / 1000)) ^ buildingHash ^ 0x5eed) >>> 0;
+    const job: ExtractionJob = {
+      id: `ext-${now}-${Math.random().toString(36).slice(2, 6)}`,
+      buildingId,
+      planetId,
+      amount: EXTRACTION_BATCH,
+      startedAt: now,
+      durationMs: EXTRACTION_DURATION_MS,
+      seed,
+    };
+    setExtractionJobs((prev) => [...prev, job]);
+    scheduleSyncToServer();
+    return true;
+  }, [getResources, addResources, scheduleSyncToServer, tr]);
+
+  const completeReadyExtraction = useCallback((now: number): void => {
+    const jobs = extractionJobsRef.current;
+    if (jobs.length === 0) return;
+    const done: ExtractionJob[] = [];
+    const remaining: ExtractionJob[] = [];
+    for (const job of jobs) {
+      if (now - job.startedAt >= job.durationMs) done.push(job);
+      else remaining.push(job);
+    }
+    if (done.length === 0) return;
+    extractionJobsRef.current = remaining;
+    setExtractionJobs(remaining);
+
+    const totals: Record<string, number> = {};
+    for (const job of done) {
+      const elems = rollParticleExtraction(job.seed);
+      for (const [el, amt] of Object.entries(elems)) totals[el] = (totals[el] ?? 0) + amt;
+      const jobSummary = Object.entries(elems)
+        .sort((a, b) => b[1] - a[1]).slice(0, 4).map(([el, amt]) => `${el} ${amt}`).join(', ');
+      const result: ElementResult = {
+        id: `res-${job.id}`,
+        kind: 'extraction',
+        source: 'research_lab',
+        elements: elems,
+        detail: tr('lab.extraction_detail'),
+        completedAt: now,
+      };
+      pushResultHistory(setExperimentHistory, result);
+      addResultNotif(result, tr('lab.extraction_notif', { summary: jobSummary }));
+      addLogEntry('science', tr('lab.extraction_log', { summary: jobSummary }));
+    }
+    setChemicalInventory((prev) => {
+      const next = { ...prev };
+      for (const [el, amt] of Object.entries(totals)) next[el] = (next[el] ?? 0) + amt;
+      return next;
+    });
+    scheduleSyncToServer();
+  }, [scheduleSyncToServer, tr, addLogEntry, addResultNotif, pushResultHistory]);
+
+  useEffect(() => {
+    if (extractionJobs.length === 0) return;
+    completeReadyExtraction(Date.now());
+    const id = window.setInterval(() => completeReadyExtraction(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [completeReadyExtraction, extractionJobs.length]);
+
+  /** Grant a spark after a successful DNA-constructor minigame. */
+  const handleSparkSynthesisSuccess = useCallback((sparkType: LifeSparkType): void => {
+    setLifeSparks((prev) => ({ ...prev, [sparkType]: (prev[sparkType] ?? 0) + 1 }));
+    const result: ElementResult = {
+      id: `res-spark-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      kind: 'spark',
+      source: 'research_lab',
+      sparkType,
+      completedAt: Date.now(),
+    };
+    pushResultHistory(setExperimentHistory, result);
+    const sparkName = tr(`lab.spark.${sparkType}` as 'lab.spark.primordial');
+    addResultNotif(result, tr('lab.spark_notif', { spark: sparkName }));
+    addLogEntry('science', tr('lab.spark_log', { spark: sparkName }));
+    scheduleSyncToServer();
+  }, [scheduleSyncToServer, tr, addLogEntry, addResultNotif, pushResultHistory]);
 
   // ── Retention systems: directives impl, comet event, ops hub ─────────────
 
@@ -9638,15 +9900,38 @@ function AppInner() {
       const result = completeReadyObservatorySearches(observatoryStateRef.current, COSMIC_CATALOG, now);
       if (result.results.length === 0) return;
 
-      setObservatoryState(result.state);
+      // Attach the home-corrected discovery to each hit report so the report
+      // card and the system-chat notification can re-open it later.
+      const discoveryBySession = new Map<string, Discovery>();
+      for (const searchResult of result.results) {
+        if (searchResult.discovery) {
+          discoveryBySession.set(searchResult.session.id, {
+            ...searchResult.discovery,
+            systemId: homeInfo.system.id,
+          });
+        }
+      }
+      const patchedState = discoveryBySession.size > 0
+        ? {
+            ...result.state,
+            reports: (result.state.reports ?? []).map((r) =>
+              discoveryBySession.has(r.sessionId)
+                ? { ...r, discovery: discoveryBySession.get(r.sessionId)! }
+                : r),
+          }
+        : result.state;
+      setObservatoryState(patchedState);
+
       const discoveryItems: Array<{ discovery: Discovery; system: StarSystem }> = [];
       for (const searchResult of result.results) {
         if (!searchResult.discovery) {
           addLogEntry('science', t('observatory.search_no_signal_log'));
+          addObservatoryReportNotif(null);
           continue;
         }
 
-        const discovery = { ...searchResult.discovery, systemId: homeInfo.system.id };
+        const discovery = discoveryBySession.get(searchResult.session.id)
+          ?? { ...searchResult.discovery, systemId: homeInfo.system.id };
         discoveryItems.push({ discovery, system: homeInfo.system });
         const entry = getCatalogEntry(discovery.type) as CatalogEntry | undefined;
         const name = entry ? getCatalogName(entry, i18n.language) : discovery.type;
@@ -9656,6 +9941,7 @@ function AppInner() {
             : t('observatory.search_found_log').replace('{name}', name),
           { systemId: homeInfo.system.id, objectType: discovery.type, discoveryRef: discovery },
         );
+        addObservatoryReportNotif(discovery, name, searchResult.duplicate);
         if (searchResult.leveledUp) {
           addLogEntry('science',
             t('observatory.level_up_log').replace('{level}', String(getObservatoryLevel(searchResult.state))),
@@ -9678,7 +9964,7 @@ function AppInner() {
     completeReady();
     const id = window.setInterval(completeReady, 30_000);
     return () => window.clearInterval(id);
-  }, [addLogEntry, homeInfo, i18n.language, scheduleSyncToServer, t]);
+  }, [addLogEntry, addObservatoryReportNotif, homeInfo, i18n.language, scheduleSyncToServer, t]);
 
   // ── Digest modal event listener ──
   useEffect(() => {
@@ -9871,6 +10157,10 @@ function AppInner() {
     if (digestEntryShownRef.current) return;
     if (!serverHydrated || needsOnboarding || needsCallsign) return;
     if (cinematicActive || cinematicVideoPlaying) return;
+    // Never surface over the first-run flow: the tutorial covers colonization
+    // and the surface onboarding, and completing OR skipping it advances
+    // tutorialStep to tutorialCompleteStep. Only invite once the player is past it.
+    if (isTutorialActive || tutorialStep < tutorialCompleteStep) return;
     if (!latestDigestWeekDate) return;
     if (lastDigestSeen != null && latestDigestWeekDate === lastDigestSeen) return;
     // One entry popup per digest, even across reloads (separate from chat badge).
@@ -9889,6 +10179,7 @@ function AppInner() {
     return () => window.clearTimeout(id);
   }, [
     serverHydrated, needsOnboarding, needsCallsign, cinematicActive, cinematicVideoPlaying,
+    isTutorialActive, tutorialStep, tutorialCompleteStep,
     latestDigestWeekDate, lastDigestSeen, pendingDiscovery, completedModal,
     discoveryQueue.length, completedModalQueue.length,
   ]);
@@ -12709,8 +13000,17 @@ function AppInner() {
           onStartPayloadProduction={handleStartPayloadProduction}
           observatoryState={observatoryState}
           onStartObservatorySearch={handleStartObservatorySearch}
+          onViewReportDiscovery={handleOpenDiscoveryFromLog}
           separationJobs={separationJobs}
           onStartSeparation={handleStartSeparation}
+          elementYieldHistory={elementYieldHistory}
+          experimentHistory={experimentHistory}
+          onViewResult={(r) => setResultCard(r)}
+          extractionJobs={extractionJobs}
+          onStartExtraction={handleStartExtraction}
+          onOpenDnaLab={() => setShowDnaLab(true)}
+          upcomingEvents={upcomingEvents}
+          onOpenSignals={() => { setOpsHubTab('signals'); setShowOpsHub(true); }}
           isPremium={isPremiumActive}
           shutdownBuildingTypes={colonyState
             ? new Set(colonyState.buildings.filter(b => b.shutdown).map(b => b.type))
@@ -12790,14 +13090,8 @@ function AppInner() {
           onStartCometTracking={handleStartCometTracking}
         />
       )}
-      {/* Comet Herald bottom countdown — calm sibling of the evacuation timer */}
-      {serverHydrated && !showOpsHub && state.scene !== 'home-intro' && (
-        <EventCountdownChip
-          schedule={cometSchedule}
-          claimed={cometClaimedForCurrent}
-          onClick={() => { setOpsHubTab('event'); setShowOpsHub(true); }}
-        />
-      )}
+      {/* Cosmic event countdown moved off-screen into the orbital telescope /
+          observatory building (see HexSurface buildingCountdowns overlay). */}
       {/* Player Page (profile, quarks, logout, reset) */}
       {showPlayerPage && (
         <PlayerPage
@@ -13679,6 +13973,8 @@ function AppInner() {
             setSystemNotifs((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n))
           }
           onOpenLifeform={openLifeformCard}
+          onOpenObservatoryReport={handleOpenDiscoveryFromLog}
+          onOpenResult={(r) => { setResultCard(r); return true; }}
           onAwardXP={awardXP}
           onNavigateToPlanet={(systemId, planetId) => {
             const allSystems = engineRef.current?.getAllSystems() ?? [];
@@ -13726,6 +14022,19 @@ function AppInner() {
           forceExpanded={isTutorialActive && (activeTutorialStep?.id === 'astra-handoff' || activeTutorialStep?.id === 'astra-chat-tabs' || activeTutorialStep?.id === 'astra-chat-close')}
           hideCollapsedButton={tutorialMinimized}
           isPremium={isPremiumActive}
+        />
+      )}
+
+      {/* Manual-job result card (separation / lab extraction / spark) */}
+      {resultCard && (
+        <ElementResultCard result={resultCard} onClose={() => setResultCard(null)} />
+      )}
+
+      {/* Research-lab spark-of-life DNA constructor minigame */}
+      {showDnaLab && (
+        <DnaConstructorGame
+          onSuccess={handleSparkSynthesisSuccess}
+          onClose={() => setShowDnaLab(false)}
         />
       )}
 
@@ -13929,6 +14238,14 @@ function AppInner() {
             separationJobs={separationJobs}
             onStartPayloadProduction={handleStartPayloadProduction}
             onStartSeparation={handleStartSeparation}
+            elementYieldHistory={elementYieldHistory}
+            experimentHistory={experimentHistory}
+            onViewResult={(r) => setResultCard(r)}
+            extractionJobs={extractionJobs}
+            onStartExtraction={handleStartExtraction}
+            onOpenDnaLab={() => setShowDnaLab(true)}
+            upcomingEvents={upcomingEvents}
+            onOpenSignals={() => { setOpsHubTab('signals'); setShowOpsHub(true); }}
           />
         );
       })()}

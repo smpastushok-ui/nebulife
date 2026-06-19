@@ -63,6 +63,7 @@ export type {
   ObservatoryReportRecord,
   ObservatoryState,
 } from './observatory.js';
+export type { CosmicEvent } from './cosmic-event.js';
 export type {
   TerraformParamId,
   TerraformParamState,

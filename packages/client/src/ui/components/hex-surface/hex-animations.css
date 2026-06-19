@@ -78,3 +78,50 @@
  * .hex-resource-glow-border (was 2s infinite with box-shadow)
  * Total removed: up to 210 concurrent infinite animations.
  */
+
+/* ---------------------------------------------------------------------------
+ * Observatory "report ready" beacon (procedural — no sprites).
+ * Scoped: only renders on observatory tiles with an UNREAD report (≤4 tiles),
+ * and disappears the moment the player opens the building. Tint comes from the
+ * --obs-beacon-color custom property (the discovery's event/rarity colour).
+ * ------------------------------------------------------------------------- */
+.obs-beacon {
+  width: 0;
+  height: 0;
+}
+.obs-beacon .obs-beacon-core,
+.obs-beacon .obs-beacon-ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+.obs-beacon .obs-beacon-core {
+  width: 9px;
+  height: 9px;
+  margin-left: -4.5px;
+  margin-top: -4.5px;
+  background: var(--obs-beacon-color, #4488aa);
+  box-shadow: 0 0 7px var(--obs-beacon-color, #4488aa), 0 0 12px var(--obs-beacon-color, #4488aa);
+  animation: obsBeaconCore 1.6s ease-in-out infinite;
+}
+.obs-beacon .obs-beacon-ring {
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  margin-top: -7px;
+  border: 2px solid var(--obs-beacon-color, #4488aa);
+  animation: obsBeaconPing 1.8s ease-out infinite;
+}
+.obs-beacon .obs-beacon-ring-delayed {
+  animation-delay: 0.9s;
+}
+@keyframes obsBeaconCore {
+  0%, 100% { transform: scale(0.85); opacity: 0.85; }
+  50%      { transform: scale(1.2);  opacity: 1; }
+}
+@keyframes obsBeaconPing {
+  0%   { transform: scale(0.5); opacity: 0.9; }
+  100% { transform: scale(2.6); opacity: 0; }
+}

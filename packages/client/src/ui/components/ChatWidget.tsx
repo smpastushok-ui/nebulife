@@ -17,6 +17,8 @@ import { askAstra, type AstraMessage } from '../../api/ai-api.js';
 import { NewDMModal } from './NewDMModal.js';
 import { AstraFabButton, getAstraFabPosition, isVerticalSideChatLayout } from './AstraFabButton.js';
 import type { LogEntry, LogCategory } from './CosmicArchive/SystemLog.js';
+import type { Discovery } from '@nebulife/core';
+import type { ElementResult } from './ColonyCenter/ElementResultCard';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -49,6 +51,12 @@ export interface SystemNotif {
   read: boolean;
   /** When set, this is a lifeform-found notif — shows a "view specimen" button. */
   lifeformId?: string;
+  /** When set, this is an observatory-report notif — shows a "переглянути"
+   *  button that re-opens the discovery reveal. */
+  discovery?: Discovery;
+  /** When set, this is a manual-job result notif (separation / lab) — shows a
+   *  "переглянути" button that re-opens the visual result card. */
+  result?: ElementResult;
 }
 
 interface ChatWidgetProps {
@@ -65,6 +73,10 @@ interface ChatWidgetProps {
   onOpenLogDiscovery?: (entry: LogEntry) => void | boolean | Promise<void | boolean>;
   /** Open the specimen card in the Cosmic Archive Life gallery. */
   onOpenLifeform?: (lifeformId: string) => void | boolean | Promise<void | boolean>;
+  /** Re-open an observatory discovery reveal from a system-chat report notif. */
+  onOpenObservatoryReport?: (discovery: Discovery) => void | boolean | Promise<void | boolean>;
+  /** Re-open a manual-job result card (separation / lab) from a report notif. */
+  onOpenResult?: (result: ElementResult) => void | boolean | Promise<void | boolean>;
   /** week_date of the most recently seen digest (from player.last_digest_seen) */
   lastDigestSeen?: string | null;
   /** week_date of the latest complete digest (fetched on app load) */
@@ -148,7 +160,7 @@ function filterLegacyLessonNotifs(msgs: MessageData[]): MessageData[] {
 // research ticks, countdown, etc.) previously forced a full re-render of
 // the entire chat tree. Memo blocks those; real chat updates come from
 // this component's own internal polling + setState so they still render.
-function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = [], logEntries = [], onSystemNotifRead, onNavigateToPlanet, onNavigateToSystem, onOpenPlanetMissionReport, onOpenSystemReport, onOpenLogDiscovery, onOpenLifeform, lastDigestSeen, latestDigestWeekDate, preferredLanguage, onAwardXP, quizAnswers = {}, onQuizAnswer, onDigestSeen, playerLevel = 1, forceCollapsed = false, forceExpanded = false, hideCollapsedButton = false, isPremium = false }: ChatWidgetProps) {
+function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = [], logEntries = [], onSystemNotifRead, onNavigateToPlanet, onNavigateToSystem, onOpenPlanetMissionReport, onOpenSystemReport, onOpenLogDiscovery, onOpenLifeform, onOpenObservatoryReport, onOpenResult, lastDigestSeen, latestDigestWeekDate, preferredLanguage, onAwardXP, quizAnswers = {}, onQuizAnswer, onDigestSeen, playerLevel = 1, forceCollapsed = false, forceExpanded = false, hideCollapsedButton = false, isPremium = false }: ChatWidgetProps) {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(true);
   const [viewport, setViewport] = useState(() => ({
@@ -1068,7 +1080,27 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
                     {notif.text}
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {notif.lifeformId && onOpenLifeform ? (
+                    {notif.discovery && onOpenObservatoryReport ? (
+                      <button
+                        onClick={() => {
+                          onSystemNotifRead?.(notif.id);
+                          runSystemAction(() => onOpenObservatoryReport(notif.discovery!));
+                        }}
+                        style={SYSTEM_ACTION_BUTTON_STYLE}
+                      >
+                        {t('observatory.view_report')}
+                      </button>
+                    ) : notif.result && onOpenResult ? (
+                      <button
+                        onClick={() => {
+                          onSystemNotifRead?.(notif.id);
+                          runSystemAction(() => onOpenResult(notif.result!));
+                        }}
+                        style={SYSTEM_ACTION_BUTTON_STYLE}
+                      >
+                        {t('observatory.view_report')}
+                      </button>
+                    ) : notif.lifeformId && onOpenLifeform ? (
                       <button
                         onClick={() => {
                           onSystemNotifRead?.(notif.id);

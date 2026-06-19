@@ -19,8 +19,8 @@ import React, {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { Planet, Star, BuildingType, SurfaceObjectType, TechTreeState, PlacedBuilding, PlanetResourceStocks, ProducibleType, FleetState, ObservatoryState, ObservatorySearchDuration, ObservatorySearchProgram, SeparationJob, SeparationGroup } from '@nebulife/core';
-import { getPlanetSize } from '@nebulife/core';
+import type { Planet, Star, BuildingType, SurfaceObjectType, TechTreeState, PlacedBuilding, PlanetResourceStocks, ProducibleType, FleetState, ObservatoryState, ObservatorySearchDuration, ObservatorySearchProgram, SeparationJob, SeparationGroup, Discovery, ExtractionJob, CosmicEvent } from '@nebulife/core';
+import { getPlanetSize, RARITY_COLORS } from '@nebulife/core';
 
 import { useHexState } from './useHexState.js';
 import { HexGrid } from './HexGrid.js';
@@ -28,6 +28,7 @@ import { getHexPositions, HEX_RADIUS, type HexPlanetSize, type ResourceType } fr
 import { HexBuildMenu, getAlphaHarvesterPrice } from './HexBuildMenu.js';
 import { playSfx } from '../../../audio/SfxPlayer.js';
 import { BuildingDetailPanel } from '../ColonyCenter/BuildingDetailPanel.js';
+import type { ElementResult } from '../ColonyCenter/ElementResultCard.js';
 
 // ---------------------------------------------------------------------------
 // Public types (re-exported so App.tsx imports work unchanged)
@@ -95,8 +96,17 @@ interface HexSurfaceProps {
   onStartPayloadProduction?: (type: ProducibleType) => void;
   observatoryState?: ObservatoryState;
   onStartObservatorySearch?: (duration: ObservatorySearchDuration, program: ObservatorySearchProgram, observatoryCount?: number) => void;
+  onViewReportDiscovery?: (discovery: Discovery) => void;
   separationJobs?: SeparationJob[];
-  onStartSeparation?: (buildingId: string, planetId: string, group?: SeparationGroup) => boolean | void;
+  onStartSeparation?: (buildingId: string, planetId: string, group?: SeparationGroup, sourceBuildingType?: string) => boolean | void;
+  elementYieldHistory?: ElementResult[];
+  experimentHistory?: ElementResult[];
+  onViewResult?: (result: ElementResult) => void;
+  extractionJobs?: ExtractionJob[];
+  onStartExtraction?: (buildingId: string, planetId: string) => boolean | void;
+  onOpenDnaLab?: () => void;
+  upcomingEvents?: CosmicEvent[];
+  onOpenSignals?: () => void;
   isPremium?: boolean;
   /** Opens the Colony Center hub page — fired when the player inspects the
    *  `colony_hub` building. Parent wires this to setShowColonyCenter(true). */
@@ -219,8 +229,17 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       onStartPayloadProduction,
       observatoryState,
       onStartObservatorySearch,
+      onViewReportDiscovery,
       separationJobs,
       onStartSeparation,
+      elementYieldHistory,
+      experimentHistory,
+      onViewResult,
+      extractionJobs,
+      onStartExtraction,
+      onOpenDnaLab,
+      upcomingEvents,
+      onOpenSignals,
   isPremium = false,
       onOpenColonyCenter,
     },
@@ -527,6 +546,78 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       return buildingsForDetail.find((b) => b.id === `${playerId}-${detailSlotId}-${slot.buildingType}`) ?? null;
     }, [buildingsForDetail, detailSlotId, hexState, playerId]);
 
+    // ── Per-building "result ready" beacons ──────────────────────────────────
+    // A result (observatory report, separation batch, lab experiment) is
+    // "unread" until the player opens that building type. `seenAt` maps a
+    // building type → the timestamp it was last opened. The newest unread
+    // result's event/rarity colour tints the pulsing beacon on the tile.
+    const [seenAt, setSeenAt] = useState<Record<string, number>>(() => {
+      try {
+        const raw = localStorage.getItem('nebulife_building_seen_at');
+        if (raw) return JSON.parse(raw) as Record<string, number>;
+      } catch { /* ignore */ }
+      return {};
+    });
+
+    const buildingAlerts = useMemo<Record<string, string>>(() => {
+      const out: Record<string, string> = {};
+      // Observatory — newest unread report, tinted by rarity.
+      const reports = observatoryState?.reports ?? [];
+      let obs: { completedAt: number; rarity: string | null } | null = null;
+      for (const r of reports) {
+        if (r.completedAt > (seenAt.observatory ?? 0) && (!obs || r.completedAt > obs.completedAt)) {
+          obs = { completedAt: r.completedAt, rarity: r.rarity };
+        }
+      }
+      if (obs) out.observatory = obs.rarity ? (RARITY_COLORS[obs.rarity as keyof typeof RARITY_COLORS] ?? '#4488aa') : '#4488aa';
+      // Separation / centrifuge / fractionator — chemistry green per source type.
+      for (const e of elementYieldHistory ?? []) {
+        const src = e.source || 'quantum_separator';
+        if (e.completedAt > (seenAt[src] ?? 0)) out[src] = '#44ff88';
+      }
+      // Research lab — purple for sparks, blue for extractions.
+      for (const e of experimentHistory ?? []) {
+        if (e.completedAt > (seenAt.research_lab ?? 0)) {
+          out.research_lab = e.kind === 'spark' ? '#b78cff' : '#7bb8ff';
+          break;
+        }
+      }
+      return out;
+    }, [observatoryState, elementYieldHistory, experimentHistory, seenAt]);
+
+    // Opening a building marks its type's results as seen (clears the beacon).
+    useEffect(() => {
+      if (!detailSlotId) return;
+      const slot = hexState.getSlot(detailSlotId);
+      const bt = slot?.buildingType;
+      if (!bt) return;
+      setSeenAt((prev) => {
+        const next = { ...prev, [bt]: Date.now() };
+        try { localStorage.setItem('nebulife_building_seen_at', JSON.stringify(next)); } catch { /* ignore */ }
+        return next;
+      });
+    }, [detailSlotId, hexState]);
+
+    // ── Cosmic-event countdown overlay (telescope first, observatory fallback) ─
+    // Shows a small countdown pill above the relevant building tile. The pill
+    // ticks locally inside HexSlot so the grid is not re-rendered every second.
+    const buildingCountdowns = useMemo<Record<string, { color: string; untilMs: number }>>(() => {
+      const out: Record<string, { color: string; untilMs: number }> = {};
+      const nearest = upcomingEvents && upcomingEvents.length > 0 ? upcomingEvents[0] : null;
+      if (!nearest) return out;
+      const builtTypes = new Set(
+        hexState.slots
+          .filter((s) => s.state === 'building' || s.state === 'harvester')
+          .map((s) => s.buildingType ?? ''),
+      );
+      if (builtTypes.has('orbital_telescope')) {
+        out.orbital_telescope = { color: '#7bb8ff', untilMs: nearest.eventTime };
+      } else if (builtTypes.has('observatory')) {
+        out.observatory = { color: '#8899aa', untilMs: nearest.eventTime };
+      }
+      return out;
+    }, [upcomingEvents, hexState.slots]);
+
     const handleInspect = useCallback((slotId: string) => {
       const slot = hexState.getSlot(slotId);
       if (!slot) return;
@@ -760,6 +851,8 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
           onTransformRef={handleTransformRef}
           shutdownBuildingTypes={shutdownBuildingTypes}
           storageBlockedBuildingTypes={storageBlockedBuildingTypes}
+          buildingAlerts={buildingAlerts}
+          buildingCountdowns={buildingCountdowns}
         />
 
         {/* Build menu popup */}
@@ -794,8 +887,17 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
             explorationProductionQueue={explorationProductionQueue}
             observatoryState={observatoryState}
             onStartObservatorySearch={onStartObservatorySearch}
+            onViewReportDiscovery={onViewReportDiscovery}
             separationJobs={separationJobs}
             onStartSeparation={onStartSeparation}
+            elementYieldHistory={elementYieldHistory}
+            experimentHistory={experimentHistory}
+            onViewResult={onViewResult}
+            extractionJobs={extractionJobs}
+            onStartExtraction={onStartExtraction}
+            onOpenDnaLab={onOpenDnaLab}
+            upcomingEvents={upcomingEvents}
+            onOpenSignals={onOpenSignals}
             isPremium={isPremium}
             onClose={() => setDetailSlotId(null)}
             onOpenColonyCenter={onOpenColonyCenter}

@@ -172,6 +172,18 @@ export {
 } from './separation.js';
 export type { SeparationGroup, SeparationJob } from './separation.js';
 
+// Research lab — particle extraction + spark-of-life DNA minigame tiers
+export {
+  EXTRACTION_BATCH,
+  EXTRACTION_DURATION_MS,
+  EXTRACTION_RESEARCH_DATA_COST,
+  EXTRACTION_YIELD_COUNT,
+  rollParticleExtraction,
+  getExtractionElements,
+  SPARK_DIFFICULTY,
+} from './lab.js';
+export type { ExtractionJob, SparkDifficulty } from './lab.js';
+
 // Prompt builder
 export { buildPrompt, buildExpeditionPrompt } from './prompt-builder.js';
 

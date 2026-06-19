@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { BuildingType, FleetState, ObservatorySearchDuration, ObservatorySearchProgram, ObservatoryState, PlacedBuilding, Planet, PlanetResourceStocks, ProducibleType, SeparationJob, SeparationGroup } from '@nebulife/core';
-import { BUILDING_DEFS, PRODUCIBLE_ASSET_PATHS, PRODUCIBLE_DEFS, getAvailableObservatoryPrograms, getCatalogEntry, getCatalogName, getObservatoryLevel, getObservatoryMaxActiveSearches, getObservatorySearchChance, getObservatoryXpProgress, isShipProducible, SEPARATION_BATCH, SEPARATION_DURATION_MS, SEPARATION_RESEARCH_DATA_COST, getSeparationElements } from '@nebulife/core';
+import type { BuildingType, Discovery, FleetState, ObservatorySearchDuration, ObservatorySearchProgram, ObservatoryState, PlacedBuilding, Planet, PlanetResourceStocks, ProducibleType, SeparationJob, SeparationGroup, ExtractionJob, CosmicEvent } from '@nebulife/core';
+import { BUILDING_DEFS, PRODUCIBLE_ASSET_PATHS, PRODUCIBLE_DEFS, RARITY_COLORS, getAvailableObservatoryPrograms, getCatalogEntry, getCatalogName, getObservatoryLevel, getObservatoryMaxActiveSearches, getObservatorySearchChance, getObservatoryXpProgress, isShipProducible, SEPARATION_BATCH, SEPARATION_DURATION_MS, SEPARATION_RESEARCH_DATA_COST, getSeparationElements, EXTRACTION_BATCH, EXTRACTION_RESEARCH_DATA_COST, getExtractionElements } from '@nebulife/core';
 
 import { ResourceIcon, RESOURCE_COLORS, type ResourceType } from '../ResourceIcon.js';
 import { buildingName, buildingDesc } from '../../../i18n/building-labels.js';
@@ -17,13 +17,14 @@ import {
   type ColonyResourceKey,
   type RateRow,
 } from './building-detail-model.js';
+import { type ElementResult, resultAccent } from './ElementResultCard.js';
 
 type ColonyResources = Record<ColonyResourceKey, number>;
 
 // Visible build marker so we can tell at a glance whether a given client is
 // actually running the latest deploy (shown in the building-detail subtitle).
 // Bump on each deploy that touches this panel.
-const PANEL_BUILD_STAMP = 'B32';
+const PANEL_BUILD_STAMP = 'B35';
 
 export interface BuildingDetailPanelProps {
   planet: Planet;
@@ -38,11 +39,29 @@ export interface BuildingDetailPanelProps {
   explorationProductionQueue?: Array<{ id: string; type: ProducibleType; planetId: string; startedAt: number; durationMs: number }>;
   observatoryState?: ObservatoryState;
   separationJobs?: SeparationJob[];
-  onStartSeparation?: (buildingId: string, planetId: string, group?: SeparationGroup) => boolean | void;
+  onStartSeparation?: (buildingId: string, planetId: string, group?: SeparationGroup, sourceBuildingType?: string) => boolean | void;
+  /** Last-5 separation/centrifuge yields (newest first) for the history strip. */
+  elementYieldHistory?: ElementResult[];
+  /** Last-5 lab experiments (newest first) for the research-lab history strip. */
+  experimentHistory?: ElementResult[];
+  /** Open the visual result card for a history entry / fresh job. */
+  onViewResult?: (result: ElementResult) => void;
+  /** Active research-lab particle-extraction jobs (for progress display). */
+  extractionJobs?: ExtractionJob[];
+  /** Start a particle-extraction batch on the given research_lab. */
+  onStartExtraction?: (buildingId: string, planetId: string) => boolean | void;
+  /** Open the DNA-constructor spark minigame (fired from the lab section). */
+  onOpenDnaLab?: () => void;
+  /** Backend-authored upcoming cosmic events (telescope / observatory / radar). */
+  upcomingEvents?: CosmicEvent[];
+  /** Open the Operations Hub signals tab (radar-tower decode shortcut). */
+  onOpenSignals?: () => void;
   onClose: () => void;
   onOpenColonyCenter?: (tab?: 'overview' | 'production') => void;
   onStartPayloadProduction?: (type: ProducibleType) => void;
   onStartObservatorySearch?: (duration: ObservatorySearchDuration, program: ObservatorySearchProgram, observatoryCount?: number) => boolean | void;
+  /** Re-open a completed report's discovery reveal (Quantum Focus / telemetry). */
+  onViewReportDiscovery?: (discovery: Discovery) => void;
   isPremium?: boolean;
   onResourceChange?: (delta: Partial<ColonyResources>) => void;
   onResearchDataChange?: (delta: number) => void;
@@ -79,6 +98,125 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <div style={{ fontSize: 10, color: '#667788', letterSpacing: 2, textTransform: 'uppercase' }}>{title}</div>
       {children}
     </section>
+  );
+}
+
+function formatCountdown(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const d = Math.floor(total / 86400);
+  const h = Math.floor((total % 86400) / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return d > 0 ? `${d}d ${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(h)}:${pad(m)}:${pad(s)}`;
+}
+
+/** Live cosmic-event countdown (re-ticks every second). */
+function EventCountdown({ untilMs, color }: { untilMs: number; color: string }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  return (
+    <span style={{ color, fontVariantNumeric: 'tabular-nums', fontSize: 12, letterSpacing: 0.5 }}>
+      {formatCountdown(untilMs - now)}
+    </span>
+  );
+}
+
+/**
+ * Full cosmic-event card for the orbital telescope: bilingual title, optional
+ * photo/video, live countdown. When `imageless` (observatory fallback) the
+ * imagery is replaced by a "build telescope" notice and the event is inactive.
+ */
+function CosmicEventCard({ event, imageless }: { event: CosmicEvent; imageless?: boolean }) {
+  const { t, i18n } = useTranslation();
+  const uk = i18n.language?.startsWith('uk');
+  const title = uk ? event.titleUk : event.titleEn;
+  const desc = uk ? event.descriptionUk : event.descriptionEn;
+  const accent = imageless ? '#8899aa' : '#7bb8ff';
+  return (
+    <div style={{
+      display: 'grid', gap: 8, padding: 11, borderRadius: 7,
+      background: 'rgba(5,10,20,0.45)', border: `1px solid ${accent}40`,
+      opacity: imageless ? 0.82 : 1,
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+        <span style={{ color: '#cfe3ff', fontSize: 11.5, letterSpacing: 0.3 }}>{title}</span>
+        <EventCountdown untilMs={event.eventTime} color={accent} />
+      </div>
+      {!imageless && event.videoUrl ? (
+        <video src={event.videoUrl} autoPlay loop muted playsInline style={{ width: '100%', borderRadius: 5, border: `1px solid ${accent}33` }} />
+      ) : !imageless && event.photoUrl ? (
+        <img src={event.photoUrl} alt={title} style={{ width: '100%', borderRadius: 5, border: `1px solid ${accent}33` }} />
+      ) : null}
+      {desc && <div style={{ color: '#8c9cad', fontSize: 9.5, lineHeight: 1.5 }}>{desc}</div>}
+      {imageless && (
+        <div style={{ color: '#ffb080', fontSize: 9.5, lineHeight: 1.45 }}>{t('events.need_telescope')}</div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Last-5 history strip for manual jobs (separation batches, lab experiments).
+ * Each entry is a clickable chip that re-opens the full {@link ElementResult}
+ * card. Rendered above the chemistry/experiment controls inside the building.
+ */
+function ResultHistoryStrip({
+  title,
+  history,
+  onView,
+}: {
+  title: string;
+  history: ElementResult[];
+  onView?: (result: ElementResult) => void;
+}) {
+  const { t } = useTranslation();
+  if (!history || history.length === 0) return null;
+  return (
+    <div style={{ display: 'grid', gap: 6, flexShrink: 0 }}>
+      <div style={{ fontSize: 9, color: '#667788', letterSpacing: 1.5, textTransform: 'uppercase' }}>{title}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+        {history.slice(0, 5).map((r) => {
+          const accent = resultAccent(r);
+          const label = r.kind === 'spark'
+            ? t(`lab.spark.${r.sparkType}` as 'lab.spark.primordial')
+            : Object.entries(r.elements ?? {})
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 3)
+                .map(([el, amt]) => `${el} ${amt}`)
+                .join(', ');
+          return (
+            <button
+              key={r.id}
+              type="button"
+              onClick={() => onView?.(r)}
+              disabled={!onView}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, textAlign: 'left',
+                background: `${accent}12`,
+                border: `1px solid ${accent}55`,
+                borderRadius: 6,
+                padding: '7px 9px',
+                cursor: onView ? 'pointer' : 'default',
+                fontFamily: 'monospace',
+              }}
+            >
+              <span style={{
+                width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                background: accent, boxShadow: `0 0 8px ${accent}`,
+              }} />
+              <span style={{ flex: 1, minWidth: 0, color: '#aabbcc', fontSize: 10.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {label || t('separation.result_empty')}
+              </span>
+              <span style={{ color: accent, fontSize: 9, letterSpacing: 0.5 }}>{t('observatory.view_report')}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -509,23 +647,40 @@ function ObservatoryDurationButton({
   );
 }
 
-function ObservatoryReportCard({ report }: { report: NonNullable<ObservatoryState['reports']>[number] }) {
+function ObservatoryReportCard({
+  report,
+  onView,
+}: {
+  report: NonNullable<ObservatoryState['reports']>[number];
+  onView?: (discovery: Discovery) => void;
+}) {
   const { t, i18n } = useTranslation();
   const style = OBSERVATORY_DURATION_STYLE[report.duration];
   const entry = report.discoveryType ? getCatalogEntry(report.discoveryType) : undefined;
   const name = entry ? getCatalogName(entry, i18n.language) : report.discoveryType;
   const date = new Date(report.completedAt);
+  // Rarity drives the accent for hits; duration accent is the fallback.
+  const accent = report.rarity ? RARITY_COLORS[report.rarity] : report.discoveryType ? style.accent : '#667788';
+  const viewable = Boolean(report.discovery && onView);
+  const handleView = () => { if (report.discovery && onView) onView(report.discovery); };
   return (
-    <div style={{
-      background: 'rgba(5,10,20,0.58)',
-      border: `1px solid ${report.discoveryType ? `${style.accent}66` : 'rgba(51,68,85,0.7)'}`,
-      borderRadius: 5,
-      padding: '9px 10px',
-      display: 'grid',
-      gap: 5,
-    }}>
+    <div
+      onClick={viewable ? handleView : undefined}
+      role={viewable ? 'button' : undefined}
+      tabIndex={viewable ? 0 : undefined}
+      onKeyDown={viewable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleView(); } } : undefined}
+      style={{
+        background: 'rgba(5,10,20,0.58)',
+        border: `1px solid ${report.discoveryType ? `${accent}66` : 'rgba(51,68,85,0.7)'}`,
+        borderRadius: 5,
+        padding: '9px 10px',
+        display: 'grid',
+        gap: 5,
+        cursor: viewable ? 'pointer' : 'default',
+      }}
+    >
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
-        <span style={{ color: report.discoveryType ? style.accent : '#667788', fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' }}>
+        <span style={{ color: report.discoveryType ? accent : '#667788', fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' }}>
           {report.discoveryType ? (name ?? report.discoveryType) : t('observatory.report_no_signal')}
         </span>
         <span style={{ color: '#556677', fontSize: 9 }}>
@@ -538,6 +693,27 @@ function ObservatoryReportCard({ report }: { report: NonNullable<ObservatoryStat
         {report.xpGained > 0 ? ` · +${report.xpGained} XP` : ''}
         {report.duplicate ? ` · ${t('observatory.report_duplicate')}` : ''}
       </div>
+      {viewable && (
+        <button
+          onClick={(e) => { e.stopPropagation(); handleView(); }}
+          style={{
+            justifySelf: 'start',
+            marginTop: 2,
+            background: `${accent}1c`,
+            border: `1px solid ${accent}66`,
+            borderRadius: 4,
+            color: accent,
+            fontFamily: 'monospace',
+            fontSize: 10,
+            letterSpacing: 1,
+            textTransform: 'uppercase',
+            padding: '4px 10px',
+            cursor: 'pointer',
+          }}
+        >
+          {t('observatory.view_report')}
+        </button>
+      )}
     </div>
   );
 }
@@ -837,6 +1013,15 @@ export function BuildingDetailPanel({
   onOpenColonyCenter,
   onStartPayloadProduction,
   onStartObservatorySearch,
+  onViewReportDiscovery,
+  elementYieldHistory,
+  experimentHistory,
+  onViewResult,
+  extractionJobs,
+  onStartExtraction,
+  onOpenDnaLab,
+  upcomingEvents,
+  onOpenSignals,
   isPremium = false,
   onResourceChange,
   onResearchDataChange,
@@ -848,6 +1033,7 @@ export function BuildingDetailPanel({
   const [observatoryNow, setObservatoryNow] = useState(() => Date.now());
   const [observatoryAdsRunning, setObservatoryAdsRunning] = useState(false);
   const [separationNow, setSeparationNow] = useState(() => Date.now());
+  const [extractionNow, setExtractionNow] = useState(() => Date.now());
   const [separationGroup, setSeparationGroup] = useState<SeparationGroup>('mineral');
   const type = building?.type ?? buildingType;
   const def = type ? BUILDING_DEFS[type] : null;
@@ -865,6 +1051,8 @@ export function BuildingDetailPanel({
   const activeObservatorySessionCount = (observatoryState?.sessions ?? []).length;
   const activeSeparationJobId =
     (separationJobs ?? []).find((j) => j.buildingId === building?.id)?.id ?? null;
+  const activeExtractionJobId =
+    (extractionJobs ?? []).find((j) => j.buildingId === building?.id)?.id ?? null;
 
   useEffect(() => {
     if (activeObservatorySessionCount === 0) return;
@@ -877,6 +1065,12 @@ export function BuildingDetailPanel({
     const id = window.setInterval(() => setSeparationNow(Date.now()), 1000);
     return () => window.clearInterval(id);
   }, [activeSeparationJobId]);
+
+  useEffect(() => {
+    if (!activeExtractionJobId) return;
+    const id = window.setInterval(() => setExtractionNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [activeExtractionJobId]);
 
   if (!type || !def || !stats) return null;
 
@@ -964,6 +1158,18 @@ export function BuildingDetailPanel({
   const separationAvailable = colonyResources[separationResourceKey] ?? 0;
   const canAffordSeparation =
     separationAvailable >= SEPARATION_BATCH && researchData >= SEPARATION_RESEARCH_DATA_COST;
+
+  // ── Research-lab particle-extraction state ──
+  const activeExtractionJob = (extractionJobs ?? []).find((j) => j.buildingId === building?.id) ?? null;
+  const extractionElapsed = activeExtractionJob ? extractionNow - activeExtractionJob.startedAt : 0;
+  const extractionPct = activeExtractionJob
+    ? Math.min(100, Math.round((extractionElapsed / activeExtractionJob.durationMs) * 100))
+    : 0;
+  const extractionSecondsLeft = activeExtractionJob
+    ? Math.max(0, Math.ceil((activeExtractionJob.durationMs - extractionElapsed) / 1000))
+    : 0;
+  const canAffordExtraction =
+    (colonyResources.minerals ?? 0) >= EXTRACTION_BATCH && researchData >= EXTRACTION_RESEARCH_DATA_COST;
 
   const addInfoReport = (title: string, body: string, impact = t('building_detail.report_no_persistent_effect')) => {
     void title;
@@ -1089,6 +1295,13 @@ export function BuildingDetailPanel({
                 </div>
               </div>
 
+              {/* Last-5 separation history (above the chemistry controls) */}
+              <ResultHistoryStrip
+                title={t('separation.history')}
+                history={(elementYieldHistory ?? []).filter((r) => (r.source ?? 'quantum_separator') === (type ?? 'quantum_separator'))}
+                onView={onViewResult}
+              />
+
               {/* Group selector */}
               <div style={{ display: 'grid', gap: 6 }}>
                 <div style={{ fontSize: 9, color: '#667788', letterSpacing: 1.5, textTransform: 'uppercase' }}>
@@ -1188,7 +1401,7 @@ export function BuildingDetailPanel({
                 <button
                   type="button"
                   disabled={blocked}
-                  onClick={() => onStartSeparation?.(building.id, planet.id, separationGroup)}
+                  onClick={() => onStartSeparation?.(building.id, planet.id, separationGroup, type)}
                   style={{
                     background: blocked ? 'rgba(20,30,45,0.45)' : `linear-gradient(180deg, ${groupColor}33, ${groupColor}18)`,
                     border: `1px solid ${blocked ? BORDER : groupColor}`,
@@ -1291,6 +1504,200 @@ export function BuildingDetailPanel({
             </button>
           </div>
         )}
+
+        {type === 'research_lab' && building && (() => {
+          const labAccent = '#7bb8ff';
+          const extractBlocked = stats.isShutdown || !canAffordExtraction || !onStartExtraction;
+          return (
+            <div style={{
+              position: 'relative', flexShrink: 0, overflow: 'hidden',
+              background: `radial-gradient(120% 140% at 0% 0%, ${labAccent}1f, rgba(8,14,26,0.92) 58%)`,
+              border: `1px solid ${labAccent}66`, borderRadius: 8,
+              padding: compact ? 12 : 16, display: 'grid', gap: 13,
+              boxShadow: `0 16px 38px rgba(0,0,0,0.35), inset 0 0 40px ${labAccent}12`,
+            }}>
+              {/* Header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  width: 26, height: 26, borderRadius: 6,
+                  background: `${labAccent}1c`, border: `1px solid ${labAccent}66`, boxShadow: `0 0 14px ${labAccent}44`,
+                }}>
+                  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke={labAccent} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M6 2v4L3 13a1.5 1.5 0 0 0 1.4 2h7.2A1.5 1.5 0 0 0 13 13l-3-7V2" />
+                    <path d="M5 2h6" />
+                  </svg>
+                </span>
+                <div style={{ display: 'grid', gap: 1 }}>
+                  <div style={{ fontSize: 12, color: '#cfe3ff', letterSpacing: 2, textTransform: 'uppercase' }}>{t('lab.experiments')}</div>
+                  <div style={{ fontSize: 9, color: '#7d93ab', letterSpacing: 0.5 }}>{t('lab.experiments_tagline')}</div>
+                </div>
+              </div>
+
+              {/* Last-5 experiment history */}
+              <ResultHistoryStrip title={t('lab.history')} history={experimentHistory ?? []} onView={onViewResult} />
+
+              {/* Experiment 1 — particle extraction */}
+              <div style={{ display: 'grid', gap: 8, padding: 11, borderRadius: 7, background: 'rgba(5,10,20,0.45)', border: `1px solid ${labAccent}33` }}>
+                <div style={{ fontSize: 11, color: '#cfe3ff', letterSpacing: 0.5 }}>{t('lab.extraction_title')}</div>
+                <div style={{ fontSize: 9.5, color: '#8c9cad', lineHeight: 1.5 }}>{t('lab.extraction_desc')}</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'rgba(5,10,20,0.5)', border: `1px solid ${labAccent}55`, borderRadius: 999, padding: '5px 10px', fontSize: 10, color: '#cfe3ff' }}>
+                    <ResourceIcon type="minerals" size={11} /> −{EXTRACTION_BATCH}
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'rgba(5,10,20,0.5)', border: '1px solid rgba(68,136,170,0.4)', borderRadius: 999, padding: '5px 10px', fontSize: 10, color: '#9fd0ff' }}>
+                    ◇ −{EXTRACTION_RESEARCH_DATA_COST}
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'rgba(5,10,20,0.5)', border: '1px solid rgba(136,187,153,0.4)', borderRadius: 999, padding: '5px 10px', fontSize: 10, color: '#88bb99' }}>⧗ 45m</span>
+                </div>
+                {activeExtractionJob ? (
+                  <div style={{ display: 'grid', gap: 7 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 10, color: '#9fd0ff' }}>
+                      <span style={{ letterSpacing: 1, textTransform: 'uppercase' }}>{t('lab.extracting')}</span>
+                      <span style={{ fontVariantNumeric: 'tabular-nums', color: '#cfe3ff' }}>
+                        {`${Math.floor(extractionSecondsLeft / 60)}:${String(extractionSecondsLeft % 60).padStart(2, '0')}`}
+                      </span>
+                    </div>
+                    <div style={{ height: 8, borderRadius: 999, background: 'rgba(5,10,20,0.7)', overflow: 'hidden', border: `1px solid ${labAccent}33` }}>
+                      <div style={{ width: `${extractionPct}%`, height: '100%', background: `linear-gradient(90deg, ${labAccent}, #cfe3ff)`, boxShadow: `0 0 12px ${labAccent}`, transition: 'width 0.5s linear' }} />
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={extractBlocked}
+                    onClick={() => onStartExtraction?.(building.id, planet.id)}
+                    style={{
+                      background: extractBlocked ? 'rgba(20,30,45,0.45)' : `linear-gradient(180deg, ${labAccent}33, ${labAccent}18)`,
+                      border: `1px solid ${extractBlocked ? BORDER : labAccent}`, borderRadius: 6,
+                      color: extractBlocked ? '#556677' : '#e6f0ff', fontFamily: 'monospace', fontSize: 11.5,
+                      letterSpacing: 1.5, textTransform: 'uppercase', padding: '11px 12px',
+                      cursor: extractBlocked ? 'not-allowed' : 'pointer', boxShadow: extractBlocked ? 'none' : `0 0 18px ${labAccent}3a`,
+                    }}
+                  >
+                    {stats.isShutdown ? t('separation.no_power') : !canAffordExtraction ? t('lab.need_bulk', { amount: EXTRACTION_BATCH }) : t('lab.extract_start')}
+                  </button>
+                )}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                  {getExtractionElements().slice(0, 8).map((el, i) => (
+                    <span key={el} style={{
+                      background: i < 4 ? `${labAccent}1c` : 'rgba(5,10,20,0.42)',
+                      border: `1px solid ${i < 4 ? `${labAccent}55` : 'rgba(51,68,85,0.55)'}`,
+                      borderRadius: 4, color: i < 4 ? '#e6f0ff' : '#8c9cad', fontSize: 10, padding: '3px 7px',
+                    }}>{el}</span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Experiment 2 — spark of life (DNA minigame) */}
+              <div style={{ display: 'grid', gap: 8, padding: 11, borderRadius: 7, background: 'rgba(5,10,20,0.45)', border: '1px solid rgba(183,140,255,0.3)' }}>
+                <div style={{ fontSize: 11, color: '#e3d2ff', letterSpacing: 0.5 }}>{t('lab.spark_title')}</div>
+                <div style={{ fontSize: 9.5, color: '#9c8cad', lineHeight: 1.5 }}>{t('lab.spark_desc')}</div>
+                <button
+                  type="button"
+                  disabled={stats.isShutdown || !onOpenDnaLab}
+                  onClick={() => onOpenDnaLab?.()}
+                  style={{
+                    background: stats.isShutdown ? 'rgba(20,30,45,0.45)' : 'linear-gradient(180deg, rgba(183,140,255,0.30), rgba(183,140,255,0.14))',
+                    border: `1px solid ${stats.isShutdown ? BORDER : '#b78cff'}`, borderRadius: 6,
+                    color: stats.isShutdown ? '#556677' : '#f0e6ff', fontFamily: 'monospace', fontSize: 11.5,
+                    letterSpacing: 1.5, textTransform: 'uppercase', padding: '11px 12px',
+                    cursor: stats.isShutdown ? 'not-allowed' : 'pointer', boxShadow: stats.isShutdown ? 'none' : '0 0 18px rgba(183,140,255,0.32)',
+                  }}
+                >
+                  {stats.isShutdown ? t('separation.no_power') : t('lab.spark_start')}
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+
+        {type === 'orbital_telescope' && (() => {
+          const events = upcomingEvents ?? [];
+          return (
+            <div style={{
+              position: 'relative', flexShrink: 0, overflow: 'hidden',
+              background: 'radial-gradient(120% 140% at 0% 0%, rgba(123,184,255,0.16), rgba(8,14,26,0.92) 58%)',
+              border: '1px solid rgba(123,184,255,0.5)', borderRadius: 8,
+              padding: compact ? 12 : 16, display: 'grid', gap: 12,
+              boxShadow: '0 16px 38px rgba(0,0,0,0.35), inset 0 0 40px rgba(123,184,255,0.10)',
+            }}>
+              <div style={{ display: 'grid', gap: 1 }}>
+                <div style={{ fontSize: 12, color: '#cfe3ff', letterSpacing: 2, textTransform: 'uppercase' }}>{t('events.telescope_section')}</div>
+                <div style={{ fontSize: 9, color: '#7d93ab', letterSpacing: 0.5 }}>{t('events.telescope_tagline')}</div>
+              </div>
+              {events.length === 0 ? (
+                <div style={{ color: '#667788', fontSize: 11, padding: '8px 0' }}>{t('events.none')}</div>
+              ) : (
+                events.map((ev) => <CosmicEventCard key={ev.id} event={ev} />)
+              )}
+            </div>
+          );
+        })()}
+
+        {type === 'observatory' && (upcomingEvents?.length ?? 0) > 0 && (
+          <div style={{
+            position: 'relative', flexShrink: 0, overflow: 'hidden',
+            background: 'radial-gradient(120% 140% at 0% 0%, rgba(136,153,170,0.14), rgba(8,14,26,0.92) 58%)',
+            border: '1px solid rgba(136,153,170,0.4)', borderRadius: 8,
+            padding: compact ? 12 : 16, display: 'grid', gap: 12,
+          }}>
+            <div style={{ display: 'grid', gap: 1 }}>
+              <div style={{ fontSize: 12, color: '#cfe3ff', letterSpacing: 2, textTransform: 'uppercase' }}>{t('events.observatory_section')}</div>
+              <div style={{ fontSize: 9, color: '#7d93ab', letterSpacing: 0.5 }}>{t('events.observatory_tagline')}</div>
+            </div>
+            <CosmicEventCard event={upcomingEvents![0]} imageless />
+          </div>
+        )}
+
+        {type === 'radar_tower' && (() => {
+          const events = upcomingEvents ?? [];
+          return (
+            <div style={{
+              position: 'relative', flexShrink: 0, overflow: 'hidden',
+              background: 'radial-gradient(120% 140% at 0% 0%, rgba(255,207,102,0.14), rgba(8,14,26,0.92) 58%)',
+              border: '1px solid rgba(255,207,102,0.4)', borderRadius: 8,
+              padding: compact ? 12 : 16, display: 'grid', gap: 12,
+            }}>
+              <div style={{ display: 'grid', gap: 1 }}>
+                <div style={{ fontSize: 12, color: '#ffe3a8', letterSpacing: 2, textTransform: 'uppercase' }}>{t('events.radar_section')}</div>
+                <div style={{ fontSize: 9, color: '#bfa86a', letterSpacing: 0.5 }}>{t('events.radar_tagline')}</div>
+              </div>
+              {/* Cosmic events feed */}
+              <div style={{ display: 'grid', gap: 6 }}>
+                <div style={{ fontSize: 9, color: '#667788', letterSpacing: 1.5, textTransform: 'uppercase' }}>{t('events.feed')}</div>
+                {events.length === 0 ? (
+                  <div style={{ color: '#667788', fontSize: 11 }}>{t('events.none')}</div>
+                ) : (
+                  events.slice(0, 5).map((ev) => {
+                    const uk = i18n.language?.startsWith('uk');
+                    return (
+                      <div key={ev.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '7px 9px', borderRadius: 6, background: 'rgba(5,10,20,0.45)', border: '1px solid rgba(255,207,102,0.25)' }}>
+                        <span style={{ color: '#cfe3ff', fontSize: 10.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{uk ? ev.titleUk : ev.titleEn}</span>
+                        <EventCountdown untilMs={ev.eventTime} color="#ffcf66" />
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              {/* Signal decoding shortcut (also available in the Operations Hub) */}
+              <button
+                type="button"
+                disabled={!onOpenSignals}
+                onClick={() => onOpenSignals?.()}
+                style={{
+                  background: 'linear-gradient(180deg, rgba(255,207,102,0.26), rgba(255,207,102,0.12))',
+                  border: '1px solid #ffcf66', borderRadius: 6, color: '#fff3d6',
+                  fontFamily: 'monospace', fontSize: 11.5, letterSpacing: 1.5, textTransform: 'uppercase',
+                  padding: '11px 12px', cursor: onOpenSignals ? 'pointer' : 'not-allowed',
+                  boxShadow: '0 0 18px rgba(255,207,102,0.28)',
+                }}
+              >
+                {t('events.decode_signal')}
+              </button>
+            </div>
+          );
+        })()}
 
         <div style={{
           background: 'linear-gradient(135deg, rgba(20,30,45,0.72), rgba(5,10,20,0.74))',
@@ -1580,7 +1987,11 @@ export function BuildingDetailPanel({
                 {observatoryReports.length > 0 ? (
                   <div style={{ display: 'grid', gap: 6 }}>
                     {observatoryReports.map((report) => (
-                      <ObservatoryReportCard key={report.id} report={report} />
+                      <ObservatoryReportCard
+                        key={report.id}
+                        report={report}
+                        onView={onViewReportDiscovery ? (d) => { onViewReportDiscovery(d); onClose(); } : undefined}
+                      />
                     ))}
                   </div>
                 ) : (

@@ -12,7 +12,7 @@
 
 import React, { useMemo, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Planet, Star, StarSystem, PlacedBuilding, PlanetResourceStocks, BuildingType, ProducibleType, FleetState, SeparationGroup, SeparationJob } from '@nebulife/core';
+import type { Planet, Star, StarSystem, PlacedBuilding, PlanetResourceStocks, BuildingType, ProducibleType, FleetState, SeparationGroup, SeparationJob, ExtractionJob, CosmicEvent } from '@nebulife/core';
 import { BUILDING_DEFS, getDepletionEfficiency } from '@nebulife/core';
 import { getDeviceTier } from '../../../utils/device-tier.js';
 import { playSfx } from '../../../audio/SfxPlayer.js';
@@ -20,6 +20,7 @@ import { ResourceIcon, RESOURCE_COLORS } from '../ResourceIcon.js';
 import { buildingName } from '../../../i18n/building-labels.js';
 import { formatHourlyAmount } from '../../../i18n/format-rate.js';
 import { BuildingDetailPanel } from './BuildingDetailPanel.js';
+import type { ElementResult } from './ElementResultCard.js';
 import { PremiumHelpButton } from '../PremiumHelp.js';
 
 // ---------------------------------------------------------------------------
@@ -107,7 +108,15 @@ export interface ColonyCenterPageProps {
   explorationProductionQueue?: Array<{ id: string; type: ProducibleType; planetId: string; startedAt: number; durationMs: number }>;
   separationJobs?: SeparationJob[];
   onStartPayloadProduction?: (type: ProducibleType) => void;
-  onStartSeparation?: (buildingId: string, planetId: string, group?: SeparationGroup) => boolean | void;
+  onStartSeparation?: (buildingId: string, planetId: string, group?: SeparationGroup, sourceBuildingType?: string) => boolean | void;
+  elementYieldHistory?: ElementResult[];
+  experimentHistory?: ElementResult[];
+  onViewResult?: (result: ElementResult) => void;
+  extractionJobs?: ExtractionJob[];
+  onStartExtraction?: (buildingId: string, planetId: string) => boolean | void;
+  onOpenDnaLab?: () => void;
+  upcomingEvents?: CosmicEvent[];
+  onOpenSignals?: () => void;
   initialTab?: ColonyCenterTabId;
 }
 
@@ -1276,6 +1285,14 @@ export const ColonyCenterPage: React.FC<ColonyCenterPageProps> = (props) => {
           explorationProductionQueue={props.explorationProductionQueue}
           separationJobs={props.separationJobs}
           onStartSeparation={props.onStartSeparation}
+          elementYieldHistory={props.elementYieldHistory}
+          experimentHistory={props.experimentHistory}
+          onViewResult={props.onViewResult}
+          extractionJobs={props.extractionJobs}
+          onStartExtraction={props.onStartExtraction}
+          onOpenDnaLab={props.onOpenDnaLab}
+          upcomingEvents={props.upcomingEvents}
+          onOpenSignals={props.onOpenSignals}
           onStartPayloadProduction={props.onStartPayloadProduction}
           onClose={() => setInspectBuildingType(null)}
           onOpenColonyCenter={() => setInspectBuildingType(null)}

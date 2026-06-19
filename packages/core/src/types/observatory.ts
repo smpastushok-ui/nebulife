@@ -1,4 +1,4 @@
-import type { DiscoveryRarity } from '../game/discovery.js';
+import type { Discovery, DiscoveryRarity } from '../game/discovery.js';
 
 export type ObservatorySearchDuration = '1h' | '6h' | '24h';
 
@@ -37,6 +37,13 @@ export interface ObservatoryReportRecord {
   duplicate: boolean;
   xpGained: number;
   leveledUp: boolean;
+  /**
+   * Full discovery payload for the matching hit, attached client-side after
+   * completion (systemId corrected to the home system). Lets the report card
+   * and the system-chat notification re-open the discovery later. Null/absent
+   * for no-signal reports.
+   */
+  discovery?: Discovery | null;
 }
 
 export interface ObservatoryState {
