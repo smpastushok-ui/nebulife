@@ -264,6 +264,8 @@ import { EncyclopediaScreen } from './ui/components/Encyclopedia/EncyclopediaScr
 import { SpaceArena } from './ui/components/SpaceArena/SpaceArena.js';
 import { HangarPage } from './ui/components/Hangar/HangarPage.js';
 import { CarrierRaid } from './ui/components/Raid/CarrierRaid.js';
+import { CosmicBattlePage } from './ui/components/CosmicBattle/CosmicBattlePage.js';
+import type { CosmicBattleRewardBundle } from './ui/components/CosmicBattle/cosmic-battle-engine.js';
 import { ColonyCenterPage, RESOURCE_BOOST_PRICES, TIME_BOOST_PRICES, BOOST_DURATION_MS } from './ui/components/ColonyCenter/ColonyCenterPage.js';
 import type { ColonyCenterPlanet, ColonyCenterTabId } from './ui/components/ColonyCenter/ColonyCenterPage.js';
 import { applyPlanetMissionDurationMultiplier, getPlanetMissionDurationMultiplier } from './ui/components/ColonyCenter/building-detail-model.js';
@@ -576,6 +578,7 @@ interface SyncedGameState {
   // Colony
   colony_resources: { minerals: number; volatiles: number; isotopes: number; water: number };
   colony_resources_by_planet?: Record<string, { minerals: number; volatiles: number; isotopes: number; water: number }>;
+  colony_resources_updated_at?: number;
   hex_slots?: unknown[];
   hex_slots_by_planet?: Record<string, unknown[]>;
   chemical_inventory: Record<string, number>;
@@ -604,6 +607,7 @@ interface SyncedGameState {
   // Log & favorites (cross-device persistence)
   log_entries: unknown[];
   favorite_planets: string[];
+  favorite_planets_updated_at?: number;
   pinned_systems?: string[];
   // Evacuation (cross-device persistence)
   evac_system_id: string | null;
@@ -1479,10 +1483,21 @@ function AppInner() {
 
   const colonyResourcesByPlanetRef = useRef(colonyResourcesByPlanet);
   colonyResourcesByPlanetRef.current = colonyResourcesByPlanet;
+  const colonyResourcesUpdatedAtRef = useRef<number>((() => {
+    try {
+      const raw = localStorage.getItem('nebulife_colony_resources_updated_at');
+      const parsed = raw ? Number(raw) : 0;
+      return Number.isFinite(parsed) ? parsed : 0;
+    } catch { return 0; }
+  })());
 
-  const commitColonyResourcesByPlanet = useCallback((next: Record<string, ColonyResourceBundle>) => {
+  const commitColonyResourcesByPlanet = useCallback((next: Record<string, ColonyResourceBundle>, updatedAt = Date.now()) => {
     colonyResourcesByPlanetRef.current = next;
-    try { localStorage.setItem('nebulife_colony_resources_by_planet', JSON.stringify(next)); }
+    colonyResourcesUpdatedAtRef.current = updatedAt;
+    try {
+      localStorage.setItem('nebulife_colony_resources_by_planet', JSON.stringify(next));
+      localStorage.setItem('nebulife_colony_resources_updated_at', String(updatedAt));
+    }
     catch { /* ignore quota */ }
     setColonyResourcesByPlanet(next);
   }, []);
@@ -1852,16 +1867,24 @@ function AppInner() {
     const prev = colonyResourcesByPlanetRef.current;
     const cur = readPlanetResources(prev, planetId);
     const capacity = getStorageCapacityForPlanet(planetId);
+    const applyDelta = (key: ColonyResourceName): number => {
+      const amount = delta[key] ?? 0;
+      const raw = Math.max(0, cur[key] + amount);
+      if (amount < 0) return raw;
+      // Positive production/rewards must never lower a saved value when storage
+      // capacity is temporarily under-computed during refresh/hydration.
+      return Math.max(cur[key], Math.min(capacity, raw));
+    };
     const next = { ...prev };
     // Drop any legacy scoped variant of this planet — bare id is canonical.
     for (const key of Object.keys(next)) {
       if (key !== planetId && barePlanetKey(key) === planetId) delete next[key];
     }
     next[planetId] = {
-      minerals:  Math.min(capacity, Math.max(0, cur.minerals  + (delta.minerals  ?? 0))),
-      volatiles: Math.min(capacity, Math.max(0, cur.volatiles + (delta.volatiles ?? 0))),
-      isotopes:  Math.min(capacity, Math.max(0, cur.isotopes  + (delta.isotopes  ?? 0))),
-      water:     Math.min(capacity, Math.max(0, cur.water     + (delta.water     ?? 0))),
+      minerals: applyDelta('minerals'),
+      volatiles: applyDelta('volatiles'),
+      isotopes: applyDelta('isotopes'),
+      water: applyDelta('water'),
     };
     commitColonyResourcesByPlanet(next);
   }, [commitColonyResourcesByPlanet, getStorageCapacityForPlanet]);
@@ -2973,11 +2996,16 @@ function AppInner() {
     else localStorage.removeItem('nebulife_arena_active');
   }, []);
   const [showRaid, setShowRaidRaw] = useState(false);
+  const [showCosmicBattle, setShowCosmicBattleRaw] = useState(false);
   const [lastRaidQuestDate, setLastRaidQuestDate] = useState<string>(() => {
     try { return localStorage.getItem('nebulife_daily_raid_date') ?? ''; } catch { return ''; }
   });
   const setShowRaid = useCallback((val: boolean) => {
     setShowRaidRaw(val);
+    setArenaPopupGate(val);
+  }, []);
+  const setShowCosmicBattle = useCallback((val: boolean) => {
+    setShowCosmicBattleRaw(val);
     setArenaPopupGate(val);
   }, []);
   // Post-arena popup queue — popups that were deferred while arena was active
@@ -2996,14 +3024,14 @@ function AppInner() {
 
   // Ref to showArena that stays current inside callbacks without re-creating them.
   const showArenaRef = useRef(false);
-  useEffect(() => { showArenaRef.current = showArena || showRaid; }, [showArena, showRaid]);
+  useEffect(() => { showArenaRef.current = showArena || showRaid || showCosmicBattle; }, [showArena, showRaid, showCosmicBattle]);
 
   useEffect(() => {
     if (!showCosmicArchive) return;
-    if (showArena || showRaid || showHangar || showAcademy || showEncyclopedia || showPlayerPage || showColonyCenter || showTerraformPlanet) {
+    if (showArena || showRaid || showCosmicBattle || showHangar || showAcademy || showEncyclopedia || showPlayerPage || showColonyCenter || showTerraformPlanet) {
       setShowCosmicArchive(false);
     }
-  }, [showArena, showRaid, showHangar, showAcademy, showEncyclopedia, showPlayerPage, showColonyCenter, showTerraformPlanet, showCosmicArchive]);
+  }, [showArena, showRaid, showCosmicBattle, showHangar, showAcademy, showEncyclopedia, showPlayerPage, showColonyCenter, showTerraformPlanet, showCosmicArchive]);
 
   // Pause SpaceAmbient when player is on planet surface or inside the
   // Terminal (Cosmic Archive) overlay - those scenes will get their own
@@ -3028,13 +3056,13 @@ function AppInner() {
   // hangar or arena is open — even if the player left surfaceTarget set,
   // the surface scene itself unmounts so audio must stop too.
   useEffect(() => {
-    if (surfaceTarget && !showHangar && !showArena && !showRaid) {
+    if (surfaceTarget && !showHangar && !showArena && !showRaid && !showCosmicBattle) {
       playLoop('planet-loop', 0.1);
     } else {
       stopLoop('planet-loop');
     }
     return () => stopLoop('planet-loop');
-  }, [surfaceTarget, showHangar, showArena, showRaid]);
+  }, [surfaceTarget, showHangar, showArena, showRaid, showCosmicBattle]);
 
   // Terminal ambient loop — new user-supplied track (terminal-loop.mp3),
   // loops at 40% volume while the Cosmic Archive is open. Initial volume
@@ -3051,7 +3079,7 @@ function AppInner() {
       try { if (localStorage.getItem('nebulife_terminal_muted') === '1') vol = 0; } catch { /* ignore */ }
       playLoop('terminal-loop.mp3', vol);
       // Duck the surface planet-loop if it is currently running
-      if (surfaceTarget && !showHangar && !showArena && !showRaid) {
+      if (surfaceTarget && !showHangar && !showArena && !showRaid && !showCosmicBattle) {
         const FADE_STEPS = 14;
         const FADE_INTERVAL = 50; // ms → total ~700 ms
         const targetVol = 0;
@@ -3067,7 +3095,7 @@ function AppInner() {
     } else {
       stopLoop('terminal-loop.mp3');
       // Restore surface music volume if surface is still active
-      if (surfaceTarget && !showHangar && !showArena && !showRaid) {
+      if (surfaceTarget && !showHangar && !showArena && !showRaid && !showCosmicBattle) {
         const FADE_STEPS = 14;
         const FADE_INTERVAL = 50; // ms → total ~700 ms
         const targetVol = 0.1;
@@ -4722,7 +4750,7 @@ function AppInner() {
     // SHOULD play from the cinematic intro onward — only the old intro melody
     // was removed, not this cosmos bed.
     const preGame = !bootLoaderDone || (isFirebaseConfigured && !firebaseUser && !isGuest);
-    const shouldPause = preGame || !ambientEnabled || !!surfaceTarget || showCosmicArchive || cinematicVideoPlaying || showHangar || showRaid || isTutorialInteractiveActive;
+    const shouldPause = preGame || !ambientEnabled || !!surfaceTarget || showCosmicArchive || cinematicVideoPlaying || showHangar || showRaid || showCosmicBattle || isTutorialInteractiveActive;
     const wasPaused = prevAmbientPausedRef.current;
     if (shouldPause) {
       if (!wasPaused) ambient.pause();
@@ -4734,7 +4762,7 @@ function AppInner() {
       ambient.resume();
     }
     prevAmbientPausedRef.current = shouldPause;
-  }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying, showHangar, showRaid, activeTutorialStep, tutorialMinimized, bootLoaderDone, firebaseUser, isGuest]);
+  }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying, showHangar, showRaid, showCosmicBattle, activeTutorialStep, tutorialMinimized, bootLoaderDone, firebaseUser, isGuest]);
 
   // Onboarding Ambient Loop
   useEffect(() => {
@@ -4770,7 +4798,7 @@ function AppInner() {
     // Do not unlock/resume audio on the very first taps during the intro or
     // auth screen — those interactions must stay silent (see Normal Ambient Loop).
     const preGame = !bootLoaderDone || (isFirebaseConfigured && !firebaseUser && !isGuest);
-    const shouldPause = preGame || !ambientEnabled || !!surfaceTarget || showCosmicArchive || cinematicVideoPlaying || showHangar || showRaid || isTutorialInteractiveActive;
+    const shouldPause = preGame || !ambientEnabled || !!surfaceTarget || showCosmicArchive || cinematicVideoPlaying || showHangar || showRaid || showCosmicBattle || isTutorialInteractiveActive;
     if (shouldPause) return;
     const unlockSpaceAudio = () => {
       ambientRef.current?.resume(800);
@@ -4783,7 +4811,7 @@ function AppInner() {
       document.removeEventListener('keydown', unlockSpaceAudio, true);
       document.removeEventListener('touchstart', unlockSpaceAudio, true);
     };
-  }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying, showHangar, showRaid, activeTutorialStep, tutorialMinimized, bootLoaderDone, firebaseUser, isGuest]);
+  }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying, showHangar, showRaid, showCosmicBattle, activeTutorialStep, tutorialMinimized, bootLoaderDone, firebaseUser, isGuest]);
 
   useEffect(() => {
     if (!surfaceTarget || needsOnboarding || isTutorialActive || showAcademy || showCosmicArchive) return;
@@ -4890,6 +4918,7 @@ function AppInner() {
     if (!isTutorialActive) return;
     setShowArena(false);
     setShowRaid(false);
+    setShowCosmicBattle(false);
     setShowHangar(false);
     setShowCosmicArchive(false);
     setShowAcademy(false);
@@ -4936,6 +4965,22 @@ function AppInner() {
       return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
     } catch { return new Set(); }
   });
+  const favoritePlanetsUpdatedAtRef = useRef<number>((() => {
+    try {
+      const raw = localStorage.getItem('nebulife_favorite_planets_updated_at');
+      const parsed = raw ? Number(raw) : 0;
+      return Number.isFinite(parsed) ? parsed : 0;
+    } catch { return 0; }
+  })());
+  const commitFavoritePlanets = useCallback((next: Set<string>, updatedAt = Date.now()) => {
+    const copy = new Set(next);
+    favoritePlanetsUpdatedAtRef.current = updatedAt;
+    try {
+      localStorage.setItem('nebulife_favorite_planets', JSON.stringify([...copy]));
+      localStorage.setItem('nebulife_favorite_planets_updated_at', String(updatedAt));
+    } catch { /* ignore quota */ }
+    setFavoritePlanets(copy);
+  }, []);
   useEffect(() => {
     try { localStorage.setItem('nebulife_favorite_planets', JSON.stringify([...favoritePlanets])); }
     catch { /* ignore */ }
@@ -4969,6 +5014,12 @@ function AppInner() {
       const next = new Set(prev);
       if (next.has(planetId)) next.delete(planetId);
       else next.add(planetId);
+      const updatedAt = Date.now();
+      favoritePlanetsUpdatedAtRef.current = updatedAt;
+      try {
+        localStorage.setItem('nebulife_favorite_planets', JSON.stringify([...next]));
+        localStorage.setItem('nebulife_favorite_planets_updated_at', String(updatedAt));
+      } catch { /* ignore quota */ }
       return next;
     });
     scheduleSyncToServer();
@@ -5250,10 +5301,10 @@ function AppInner() {
     const keysToRemove = [
       'nebulife_player_xp', 'nebulife_player_level', 'nebulife_research_state',
       'nebulife_tech_tree', 'nebulife_player_stats', 'nebulife_research_data',
-      'nebulife_colony_resources', 'nebulife_chemical_inventory', 'nebulife_colony_state', 'nebulife_exodus_phase', 'nebulife_tutorial_step',
+      'nebulife_colony_resources', 'nebulife_colony_resources_updated_at', 'nebulife_chemical_inventory', 'nebulife_colony_state', 'nebulife_exodus_phase', 'nebulife_tutorial_step',
       'nebulife_log_entries', 'nebulife_onboarding_done', 'nebulife_scene',
       'nebulife_nav_system', 'nebulife_nav_planet', 'nebulife_destroyed_planets',
-      'nebulife_favorite_planets', 'nebulife_game_started_at', 'nebulife_time_multiplier',
+      'nebulife_favorite_planets', 'nebulife_favorite_planets_updated_at', 'nebulife_game_started_at', 'nebulife_time_multiplier',
       'nebulife_accel_at', 'nebulife_game_time_at_accel', 'nebulife_clock_revealed',
       'nebulife_home_system_id', 'nebulife_home_planet_id', 'nebulife_generation_index',
       'nebulife_evac_system_id', 'nebulife_evac_planet_id', 'nebulife_evac_forced',
@@ -5621,12 +5672,40 @@ function AppInner() {
         nextMap[pid] = normalizeResourceBundle(resources);
       }
       if (Object.keys(nextMap).length > 0) {
-        // Server state is the cross-device truth. Max-merging with localStorage
-        // resurrected stale desktop/mobile resource counts after spending.
-        setColonyResourcesByPlanet(nextMap);
-        try { localStorage.setItem('nebulife_colony_resources_by_planet', JSON.stringify(nextMap)); } catch { /* ignore */ }
+        let localMap: Record<string, ColonyResourceBundle> | null = null;
+        let localUpdatedAt = 0;
         try {
-          const summed = Object.values(nextMap).reduce<ColonyResourceBundle>((acc, resources) => ({
+          const raw = localStorage.getItem('nebulife_colony_resources_by_planet');
+          if (raw) {
+            const parsed = JSON.parse(raw) as Record<string, unknown>;
+            const normalizedLocal: Record<string, ColonyResourceBundle> = {};
+            for (const [pid, resources] of Object.entries(parsed)) {
+              normalizedLocal[pid] = normalizeResourceBundle(resources);
+            }
+            if (Object.keys(normalizedLocal).length > 0) localMap = normalizeResourceMap(normalizedLocal).map;
+          }
+          const rawUpdatedAt = localStorage.getItem('nebulife_colony_resources_updated_at');
+          const parsedUpdatedAt = rawUpdatedAt ? Number(rawUpdatedAt) : 0;
+          localUpdatedAt = Number.isFinite(parsedUpdatedAt) ? parsedUpdatedAt : 0;
+        } catch {
+          localMap = null;
+          localUpdatedAt = 0;
+        }
+        const serverUpdatedAt = typeof gs.colony_resources_updated_at === 'number' ? gs.colony_resources_updated_at : 0;
+        const normalizedServer = normalizeResourceMap(nextMap).map;
+        // Do not max-merge resources: spending must be able to reduce counts.
+        // Pick the newest whole resource snapshot. If the server lacks a timestamp,
+        // a local timestamped snapshot means this device has fresher spend/add data.
+        const shouldKeepLocal = Boolean(localMap)
+          && localUpdatedAt > 0
+          && (serverUpdatedAt === 0 || localUpdatedAt >= serverUpdatedAt);
+        const resolvedMap = shouldKeepLocal ? localMap! : normalizedServer;
+        const resolvedUpdatedAt = shouldKeepLocal
+          ? localUpdatedAt
+          : (serverUpdatedAt || Date.now());
+        commitColonyResourcesByPlanet(resolvedMap, resolvedUpdatedAt);
+        try {
+          const summed = Object.values(resolvedMap).reduce<ColonyResourceBundle>((acc, resources) => ({
             minerals: acc.minerals + resources.minerals,
             volatiles: acc.volatiles + resources.volatiles,
             isotopes: acc.isotopes + resources.isotopes,
@@ -5644,7 +5723,7 @@ function AppInner() {
       // If homeInfo already known, migrate immediately; otherwise migration effect handles it
       const hpid = homeInfoRef.current?.planet.id;
       if (hpid) {
-        setColonyResourcesByPlanet({ [hpid]: cr });
+        commitColonyResourcesByPlanet({ [hpid]: cr }, typeof gs.colony_resources_updated_at === 'number' ? gs.colony_resources_updated_at : Date.now());
       }
     }
     if (gs.chemical_inventory && typeof gs.chemical_inventory === 'object') {
@@ -5817,8 +5896,26 @@ function AppInner() {
     }
     // Favorite planets
     if (Array.isArray(gs.favorite_planets)) {
-      setFavoritePlanets(new Set(gs.favorite_planets));
-      try { localStorage.setItem('nebulife_favorite_planets', JSON.stringify(gs.favorite_planets)); } catch { /* ignore */ }
+      let localFavorites: string[] | null = null;
+      let localUpdatedAt = 0;
+      try {
+        const raw = localStorage.getItem('nebulife_favorite_planets');
+        if (raw !== null) localFavorites = JSON.parse(raw) as string[];
+        const rawUpdatedAt = localStorage.getItem('nebulife_favorite_planets_updated_at');
+        const parsedUpdatedAt = rawUpdatedAt ? Number(rawUpdatedAt) : 0;
+        localUpdatedAt = Number.isFinite(parsedUpdatedAt) ? parsedUpdatedAt : 0;
+      } catch {
+        localFavorites = null;
+        localUpdatedAt = 0;
+      }
+      const serverUpdatedAt = typeof gs.favorite_planets_updated_at === 'number' ? gs.favorite_planets_updated_at : 0;
+      const shouldKeepLocal = Array.isArray(localFavorites)
+        && (serverUpdatedAt === 0 || localUpdatedAt >= serverUpdatedAt);
+      const nextFavorites = shouldKeepLocal ? localFavorites : gs.favorite_planets;
+      const nextUpdatedAt = shouldKeepLocal
+        ? (localUpdatedAt || Date.now())
+        : (serverUpdatedAt || Date.now());
+      commitFavoritePlanets(new Set(nextFavorites), nextUpdatedAt);
     }
     // Pinned systems
     if (Array.isArray(gs.pinned_systems)) {
@@ -6135,7 +6232,7 @@ function AppInner() {
 
     serverHydratedRef.current = true;
     setServerHydrated(true);
-  }, [mergeArenaStats, normalizeArenaStats]);
+  }, [commitColonyResourcesByPlanet, commitFavoritePlanets, mergeArenaStats, normalizeArenaStats]);
 
   // ── Firebase auth lifecycle ──────────────────────────────────────────
   useEffect(() => {
@@ -6952,7 +7049,7 @@ function AppInner() {
   const pendingPopupsRef = useRef<Array<() => void>>([]);
   useEffect(() => { pendingPopupsRef.current = pendingPostArenaPopups; }, [pendingPostArenaPopups]);
   useEffect(() => {
-    if (showArena || showRaid) return; // still in arena/raid
+    if (showArena || showRaid || showCosmicBattle) return; // still in arena/raid-style overlay
     if (pendingPostArenaPopups.length === 0) return;
     // Fire each deferred popup with a 1.5 s gap between them.
     const queue = [...pendingPostArenaPopups];
@@ -6966,7 +7063,7 @@ function AppInner() {
       void t;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showArena, showRaid]);
+  }, [showArena, showRaid, showCosmicBattle]);
 
   // Ring-unlock growth is map-native: the camera frames the galaxy map while
   // GalaxyScene grows real parent→system threads to newly available stars.
@@ -7019,6 +7116,7 @@ function AppInner() {
     if (!evacuationTarget || evacuationPhase !== 'idle' || evacuationPromptDismissed) return;
     setShowArena(false);
       setShowRaid(false);
+      setShowCosmicBattle(false);
     setShowHangar(false);
     setShowCosmicArchive(false);
     setShowAcademy(false);
@@ -7324,6 +7422,7 @@ function AppInner() {
     setWarpActive(false);
     setShowArena(false);
     setShowRaid(false);
+    setShowCosmicBattle(false);
     setShowHangar(false);
     setShowCosmicArchive(false);
     setShowAcademy(false);
@@ -9209,38 +9308,35 @@ function AppInner() {
     const oldPlanetId = homeInfo?.planet.id;
     homeInfoRef.current = { system: evacuationTarget.system, planet: evacuationTarget.planet };
     if (oldPlanetId && oldPlanetId !== newPlanetId) {
-      setColonyResourcesByPlanet((prev) => {
-        // Canonical bare keys (readPlanetResources folds any legacy scoped variant).
-        const carried = readPlanetResources(prev, oldPlanetId);
-        const existing = readPlanetResources(prev, newPlanetId);
-        const merged = { ...prev };
-        // Move old planet's resources onto new planet, clear old entry (all variants).
-        for (const key of Object.keys(merged)) {
-          if (barePlanetKey(key) === oldPlanetId || barePlanetKey(key) === newPlanetId) delete merged[key];
-        }
-        merged[newPlanetId] = {
-          minerals:  Math.max(existing.minerals  + carried.minerals,  POST_EVACUATION_RESOURCE_RESERVE.minerals),
-          volatiles: Math.max(existing.volatiles + carried.volatiles, POST_EVACUATION_RESOURCE_RESERVE.volatiles),
-          isotopes:  Math.max(existing.isotopes  + carried.isotopes,  POST_EVACUATION_RESOURCE_RESERVE.isotopes),
-          water:     Math.max(existing.water     + carried.water,     POST_EVACUATION_RESOURCE_RESERVE.water),
-        };
-        return merged;
-      });
+      const prev = colonyResourcesByPlanetRef.current;
+      // Canonical bare keys (readPlanetResources folds any legacy scoped variant).
+      const carried = readPlanetResources(prev, oldPlanetId);
+      const existing = readPlanetResources(prev, newPlanetId);
+      const merged = { ...prev };
+      // Move old planet's resources onto new planet, clear old entry (all variants).
+      for (const key of Object.keys(merged)) {
+        if (barePlanetKey(key) === oldPlanetId || barePlanetKey(key) === newPlanetId) delete merged[key];
+      }
+      merged[newPlanetId] = {
+        minerals:  Math.max(existing.minerals  + carried.minerals,  POST_EVACUATION_RESOURCE_RESERVE.minerals),
+        volatiles: Math.max(existing.volatiles + carried.volatiles, POST_EVACUATION_RESOURCE_RESERVE.volatiles),
+        isotopes:  Math.max(existing.isotopes  + carried.isotopes,  POST_EVACUATION_RESOURCE_RESERVE.isotopes),
+        water:     Math.max(existing.water     + carried.water,     POST_EVACUATION_RESOURCE_RESERVE.water),
+      };
+      commitColonyResourcesByPlanet(merged);
     } else {
-      setColonyResourcesByPlanet((prev) => {
-        const existing = readPlanetResources(prev, newPlanetId);
-        const out = { ...prev };
-        for (const key of Object.keys(out)) {
-          if (key !== newPlanetId && barePlanetKey(key) === newPlanetId) delete out[key];
-        }
-        out[newPlanetId] = {
-          minerals: Math.max(existing.minerals, POST_EVACUATION_RESOURCE_RESERVE.minerals),
-          volatiles: Math.max(existing.volatiles, POST_EVACUATION_RESOURCE_RESERVE.volatiles),
-          isotopes: Math.max(existing.isotopes, POST_EVACUATION_RESOURCE_RESERVE.isotopes),
-          water: Math.max(existing.water, POST_EVACUATION_RESOURCE_RESERVE.water),
-        };
-        return out;
-      });
+      const existing = readPlanetResources(colonyResourcesByPlanetRef.current, newPlanetId);
+      const out = { ...colonyResourcesByPlanetRef.current };
+      for (const key of Object.keys(out)) {
+        if (key !== newPlanetId && barePlanetKey(key) === newPlanetId) delete out[key];
+      }
+      out[newPlanetId] = {
+        minerals: Math.max(existing.minerals, POST_EVACUATION_RESOURCE_RESERVE.minerals),
+        volatiles: Math.max(existing.volatiles, POST_EVACUATION_RESOURCE_RESERVE.volatiles),
+        isotopes: Math.max(existing.isotopes, POST_EVACUATION_RESOURCE_RESERVE.isotopes),
+        water: Math.max(existing.water, POST_EVACUATION_RESOURCE_RESERVE.water),
+      };
+      commitColonyResourcesByPlanet(out);
     }
 
     // Open surface view for the colony planet
@@ -9264,7 +9360,7 @@ function AppInner() {
     }
     // Also schedule normal sync for the rest of the state
     setTimeout(() => syncGameStateRef.current(), 500);
-  }, [evacuationTarget, ensureHomePlanetStockFloor, homeInfo]);
+  }, [commitColonyResourcesByPlanet, evacuationTarget, ensureHomePlanetStockFloor, homeInfo]);
 
   // Keep currentSceneRef in sync with state.scene for use in async callbacks
   useEffect(() => { currentSceneRef.current = state.scene; }, [state.scene]);
@@ -10433,6 +10529,7 @@ function AppInner() {
       last_regen_time: Date.now(),
       colony_resources: syncedColonyResources,
       colony_resources_by_planet: syncedColonyResourcesByPlanet,
+      colony_resources_updated_at: colonyResourcesUpdatedAtRef.current || 0,
       hex_slots: hexSlots,
       hex_slots_by_planet: hexSlotsByPlanet,
       chemical_inventory: chemicalInventory,
@@ -10455,6 +10552,7 @@ function AppInner() {
       // Log & favorites
       log_entries: logEntries,
       favorite_planets: [...favoritePlanets],
+      favorite_planets_updated_at: favoritePlanetsUpdatedAtRef.current || 0,
       pinned_systems: [...pinnedSystems],
       // Evacuation
       evac_system_id: localStorage.getItem('nebulife_evac_system_id'),
@@ -11281,7 +11379,7 @@ function AppInner() {
   // floating in the corner during the planet-approach phase, breaking the
   // cinematic. Stage 1 (system flight) intentionally hides it too so both
   // ship-flight stages have the same chrome-free background.
-  const hideLeftPanel = !!(showArena || showRaid || showHangar || cinematicActive || needsOnboarding || evacuationPhase !== 'idle');
+  const hideLeftPanel = !!(showArena || showRaid || showCosmicBattle || showHangar || cinematicActive || needsOnboarding || evacuationPhase !== 'idle');
 
   const toolGroups: ToolGroup[] = [];
   const ARENA_MIN_LEVEL = 10;
@@ -11515,7 +11613,7 @@ function AppInner() {
   useEffect(() => {
     if (topBarMode !== 'stats' || statsShownRef.current) return;
     const canShow =
-      !shouldShowWebAccessGate && !showArena && !showRaid &&
+      !shouldShowWebAccessGate && !showArena && !showRaid && !showCosmicBattle &&
       !showHangar && !cinematicActive && !needsOnboarding;
     if (!canShow) return;
     statsShownRef.current = true;
@@ -11524,7 +11622,51 @@ function AppInner() {
       try { localStorage.setItem('nebulife_galaxy_stats_date', new Date().toISOString().slice(0, 10)); } catch { /* ignore */ }
     }, 5000);
     return () => clearTimeout(swap);
-  }, [topBarMode, shouldShowWebAccessGate, showArena, showRaid, showHangar, cinematicActive, needsOnboarding]);
+  }, [topBarMode, shouldShowWebAccessGate, showArena, showRaid, showCosmicBattle, showHangar, cinematicActive, needsOnboarding]);
+
+  const handleCosmicBattleReward = useCallback((bundle: CosmicBattleRewardBundle) => {
+    const now = Date.now();
+    const targetPlanetId = homeInfoRef.current?.planet.id
+      ?? surfaceTargetRef.current?.planet.id
+      ?? Object.keys(colonyResourcesByPlanetRef.current)[0]
+      ?? '';
+
+    setQuarks((prev) => prev + bundle.quarks);
+    if (bundle.quarks > 0) {
+      enqueueQuarkToast({
+        amount: bundle.quarks,
+        reason: 'gift',
+        customLabel: t('cosmic_battle.reward_source' as Parameters<typeof t>[0]),
+      });
+    }
+
+    const reward = bundle.reward;
+    if (reward.kind === 'resource' && targetPlanetId) {
+      addResources(targetPlanetId, { [reward.resource]: reward.amount });
+    } else if (reward.kind === 'payload') {
+      setExplorationPayloads((prev) => {
+        const next = { ...prev, [reward.payload]: (prev[reward.payload] ?? 0) + reward.amount };
+        explorationPayloadsRef.current = next;
+        try { localStorage.setItem('nebulife_exploration_payloads', JSON.stringify(next)); } catch { /* ignore quota */ }
+        return next;
+      });
+    } else if (reward.kind === 'ship' && targetPlanetId) {
+      const producedShip = createDockedShipFromProduction(reward.shipType, targetPlanetId, now);
+      setShipFleet((prev) => {
+        const next = { ...prev, ships: [...prev.ships, producedShip] };
+        try { localStorage.setItem('nebulife_fleet_state', JSON.stringify(next)); } catch { /* ignore quota */ }
+        return next;
+      });
+    } else if (reward.kind === 'spark') {
+      setLifeSparks((prev) => ({ ...prev, [reward.spark]: (prev[reward.spark] ?? 0) + reward.amount }));
+    } else if (reward.kind === 'ingredient') {
+      setLifeIngredients((prev) => ({ ...prev, [reward.ingredient]: (prev[reward.ingredient] ?? 0) + reward.amount }));
+    }
+
+    setToastMessage(t('cosmic_battle.reward_toast' as Parameters<typeof t>[0]));
+    window.setTimeout(() => setToastMessage(null), 2800);
+    scheduleSyncToServer();
+  }, [addResources, createDockedShipFromProduction, scheduleSyncToServer, t]);
 
   return (
     <>
@@ -11555,7 +11697,7 @@ function AppInner() {
       />
 
       {/* Resource HUD — top center (hidden in arena, hangar, and during intro) */}
-      {!shouldShowWebAccessGate && !showArena && !showRaid && !showHangar && !cinematicActive && !needsOnboarding && (<ResourceDisplay
+      {!shouldShowWebAccessGate && !showArena && !showRaid && !showCosmicBattle && !showHangar && !cinematicActive && !needsOnboarding && (<ResourceDisplay
         researchData={Math.floor(researchData)}
         quarks={quarks}
         isExodusPhase={isExodusPhase}
@@ -11583,13 +11725,13 @@ function AppInner() {
         observatoryTotal={researchState.slots.length}
         highlightResearchData={showGetResearchData}
         showResources={topBarMode === 'resources'}
-        showColonyResources={!surfaceTarget}
+        showColonyResources
       />
       )}
 
       {/* Galaxy stats bar — top center, swaps with the resources panel above.
           Same visibility gating as ResourceDisplay; shown while topBarMode==='stats'. */}
-      {!shouldShowWebAccessGate && !showArena && !showRaid && !showHangar && !cinematicActive && !needsOnboarding && topBarMode === 'stats' && (
+      {!shouldShowWebAccessGate && !showArena && !showRaid && !showCosmicBattle && !showHangar && !cinematicActive && !needsOnboarding && topBarMode === 'stats' && (
         <GalaxyStatsBar stats={galaxyStats} />
       )}
 
@@ -11825,7 +11967,7 @@ function AppInner() {
       />
 
       {/* CommandBar — visible at bottom (hidden during cinematic intro) */}
-      {!cinematicActive && !showArena && !showRaid && !showHangar && (
+      {!cinematicActive && !showArena && !showRaid && !showCosmicBattle && !showHangar && (
         <CommandBar
           scene={effectiveScene}
           navigationItems={navigationItems}
@@ -12820,7 +12962,7 @@ function AppInner() {
           So: only render when NO full-screen overlay is active. */}
       {(state.scene === 'home-intro' || state.scene === 'planet-view') && homeInfo
         && !needsOnboarding
-        && !showArena && !showRaid && !showHangar && !surfaceTarget
+        && !showArena && !showRaid && !showCosmicBattle && !showHangar && !surfaceTarget
         && !showPlayerPage && !showCosmicArchive && !showAcademy
         && !showChaosModal && !showTopUpModal
         && evacuationPhase !== 'stage4-orbit' && (
@@ -12881,7 +13023,7 @@ function AppInner() {
       )}
 
       {state.scene === 'planet-view' && state.selectedPlanet && state.selectedSystem
-        && !showArena && !showRaid && !showHangar && !surfaceTarget
+        && !showArena && !showRaid && !showCosmicBattle && !showHangar && !surfaceTarget
         && !showPlayerPage && !showCosmicArchive && !showAcademy
         && !showChaosModal && !showTopUpModal
         && evacuationPhase !== 'stage4-orbit' && (
@@ -12913,7 +13055,7 @@ function AppInner() {
       {/* Surface View (biosphere level) — unmount whenever hangar or arena is
           up so the surface's audio loop + render pipeline fully release.
           Without this the planet-loop plays over the hangar/arena ambience. */}
-      {surfaceTarget && !showHangar && !showArena && !showRaid && (
+      {surfaceTarget && !showHangar && !showArena && !showRaid && !showCosmicBattle && (
         <SurfaceShaderView
           ref={surfaceViewRef}
           planet={surfaceTarget.planet}
@@ -13426,7 +13568,7 @@ function AppInner() {
           researchData={Math.floor(researchData)}
           getResearchDataCost={getSystemResearchDataCost}
           favoritePlanets={favoritePlanets}
-          onFavoritesChange={(newFavs) => { setFavoritePlanets(newFavs); scheduleSyncToServer(); }}
+          onFavoritesChange={(newFavs) => { commitFavoritePlanets(newFavs); scheduleSyncToServer(); }}
           pinnedSystems={pinnedSystems}
           onPinnedSystemsChange={(systems) => { setPinnedSystems(systems); scheduleSyncToServer(); }}
           tutorialResearchTargetCount={isTutorialActive && activeTutorialStep?.id === 'free-task' ? 2 : 1}
@@ -13696,7 +13838,7 @@ function AppInner() {
       )}
 
       {/* Hangar — intermediate page between main game and Space Arena */}
-      {showHangar && !showArena && !showRaid && (
+      {showHangar && !showArena && !showRaid && !showCosmicBattle && (
         <HangarPage
           playerLevel={playerLevel}
           currentQuarks={quarks}
@@ -13744,6 +13886,12 @@ function AppInner() {
             setShowHangar(false);
             setShowRaid(true);
           }}
+          onEnterCosmicBattle={() => {
+            syncGameStateRef.current();
+            setArenaTeamMode(false);
+            setShowHangar(false);
+            setShowCosmicBattle(true);
+          }}
         />
       )}
 
@@ -13769,6 +13917,19 @@ function AppInner() {
           onAwardXP={awardXP}
           onExit={() => {
             setShowRaid(false);
+            setShowHangar(true);
+            restoreStarGroupView();
+          }}
+        />
+      )}
+
+      {/* Cosmic Battle */}
+      {showCosmicBattle && (
+        <CosmicBattlePage
+          seed={`${playerId.current || 'guest'}:${gameStateRef.current?.seed ?? 'cosmic-battle'}`}
+          onReward={handleCosmicBattleReward}
+          onExit={() => {
+            setShowCosmicBattle(false);
             setShowHangar(true);
             restoreStarGroupView();
           }}

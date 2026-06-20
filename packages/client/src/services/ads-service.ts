@@ -6,7 +6,6 @@ import { Capacitor } from '@capacitor/core';
 import { AdMob, RewardAdPluginEvents, RewardAdOptions, AdmobConsentStatus } from '@capacitor-community/admob';
 import { authFetch } from '../auth/api-client.js';
 import { areAdsUnlockedAfterSettlement, areAdsGeoAllowed } from './ad-release-gate.js';
-import { interstitialManager } from './interstitial-manager.js';
 import { trackEvent } from '../analytics/firebase-analytics.js';
 
 // =============================================================================
@@ -126,9 +125,6 @@ async function _doInit(): Promise<void> {
   });
 
   _admobInitialized = true;
-
-  // Preload the first interstitial ad so it's ready when needed
-  interstitialManager.prepareNext();
 }
 
 /**

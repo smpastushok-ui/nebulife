@@ -89,6 +89,12 @@
 - Бій: хвилі малих процедурних дронів, знищення щитів відкриває reactor phase.
 - Mobile budget: Tripo/GLB тільки для корабля гравця; масові союзники/вороги та carrier — процедурні low-poly meshes.
 
+### Hangar PvE: Cosmic Battle
+- Тактичний режим поруч з Arena: Battleship-подібна grid-битва проти AI середньої складності.
+- Гравець і AI отримують auto-placed fleet, постріли відкривають клітини, попадання запускають missile/impact анімації.
+- Перемога дає гарантовано +1 кварк і один weighted reward: групові ресурси, payload/transport unit, rare Spark of Life або life ingredient.
+- Runtime art exception: цей режим може використовувати curated Higgsfield-generated фони/ship art з `packages/client/public/cosmic-battle/`; tactical grid, missiles, scans і hit effects лишаються процедурними для performance та стилістичної сумісності.
+
 ---
 
 ## 3. Universe Generation

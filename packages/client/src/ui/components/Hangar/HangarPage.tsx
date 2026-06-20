@@ -39,6 +39,7 @@ interface HangarPageProps {
   onEnterArena: () => void;
   onEnterTeamBattle?: () => void;
   onEnterRaid?: () => void;
+  onEnterCosmicBattle?: () => void;
   raidAvailable?: boolean;
   onQuarksChanged?: (newBalance: number) => void;
 }
@@ -95,6 +96,7 @@ const CUSTOM_SHIP_ID_KEY = 'nebulife_custom_ship_id';
 const CUSTOM_SHIP_GLB_KEY = 'nebulife_custom_ship_glb_url';
 const CUSTOM_SHIP_COST = 49;
 const VALID_SHIP_IDS = new Set(SHIP_SLOTS.map(s => s.id));
+const TEAM_BATTLE_VISIBLE = false;
 
 function isShipSlotId(value: string | null): value is ShipSlotId {
   return value === 'blue' || value === 'red' || value === 'custom';
@@ -152,11 +154,13 @@ export const HangarPage: React.FC<HangarPageProps> = ({
   onEnterArena,
   onEnterTeamBattle,
   onEnterRaid,
+  onEnterCosmicBattle,
   raidAvailable: raidAvailableOverride,
   onQuarksChanged,
 }) => {
   const { t } = useT();
   const [mounted, setMounted] = useState(false);
+  const [route, setRoute] = useState<'mode_select' | 'arena'>('mode_select');
   const [toast, setToast] = useState<string | null>(null);
   const [controlsOpen, setControlsOpen] = useState(false);
   const [isMobile] = useState(() => typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0));
@@ -276,6 +280,16 @@ export const HangarPage: React.FC<HangarPageProps> = ({
     playSfx('ui-click', 0.07);
     onEnterArena();
   }, [onEnterArena]);
+
+  const handleOpenArenaRoute = useCallback(() => {
+    playSfx('ui-click', 0.07);
+    setRoute('arena');
+  }, []);
+
+  const handleOpenCosmicBattle = useCallback(() => {
+    playSfx('ui-click', 0.07);
+    onEnterCosmicBattle?.();
+  }, [onEnterCosmicBattle]);
 
   // Team Battle entry
   const handleEnterTeamBattle = useCallback(() => {
@@ -409,6 +423,73 @@ export const HangarPage: React.FC<HangarPageProps> = ({
   }, []);
 
   // ── Render ──────────────────────────────────────────────────────────────
+
+  if (route === 'mode_select') {
+    return (
+      <div style={S.root}>
+        <div style={S.starfield} />
+        <div style={S.vignette} />
+        <div style={S.hangarRibs} />
+        <div style={{ ...S.scroll, justifyContent: 'center' }}>
+          <div style={{
+            ...S.header,
+            opacity: mounted ? 1 : 0,
+            transform: mounted ? 'translateY(0)' : 'translateY(-20px)',
+            transition: 'opacity 0.5s ease, transform 0.5s ease',
+          }}>
+            <button style={S.backBtn} onClick={onBack}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+              </svg>
+              {t('hangar.back')}
+            </button>
+            <div style={S.titleBlock}>
+              <h1 style={S.title}>{t('hangar.mode_select.title' as Parameters<typeof t>[0])}</h1>
+              <div style={S.subtitle}>{t('hangar.mode_select.subtitle' as Parameters<typeof t>[0])}</div>
+            </div>
+            <div style={S.badge}>
+              <div style={S.badgeLabel}>{t('hangar.pilot')}</div>
+              <div style={S.badgeLevel}>L{playerLevel}</div>
+            </div>
+          </div>
+
+          <div style={S.modeSelectGrid}>
+            <button
+              style={{
+                ...S.modeCard,
+                borderColor: '#446688',
+                background: 'radial-gradient(circle at 30% 20%, rgba(123,184,255,0.22), transparent 42%), rgba(5,10,20,0.9)',
+                opacity: mounted ? 1 : 0,
+                transform: mounted ? 'translateY(0)' : 'translateY(18px)',
+              }}
+              onClick={handleOpenArenaRoute}
+            >
+              <div style={{ ...S.modeCardKicker, color: '#7bb8ff' }}>{t('hangar.mode_select.arena_kicker' as Parameters<typeof t>[0])}</div>
+              <div style={S.modeCardTitle}>{t('hangar.mode_select.arena_title' as Parameters<typeof t>[0])}</div>
+              <div style={S.modeCardDesc}>{t('hangar.mode_select.arena_desc' as Parameters<typeof t>[0])}</div>
+              <span style={{ ...S.modeCardAction, borderColor: '#7bb8ff', color: '#7bb8ff' }}>{t('hangar.mode_select.enter' as Parameters<typeof t>[0])}</span>
+            </button>
+            <button
+              style={{
+                ...S.modeCard,
+                borderColor: onEnterCosmicBattle ? '#665544' : '#223344',
+                background: 'radial-gradient(circle at 70% 25%, rgba(255,136,68,0.18), transparent 45%), rgba(5,10,20,0.9)',
+                opacity: mounted ? (onEnterCosmicBattle ? 1 : 0.56) : 0,
+                transform: mounted ? 'translateY(0)' : 'translateY(18px)',
+              }}
+              onClick={handleOpenCosmicBattle}
+              disabled={!onEnterCosmicBattle}
+            >
+              <div style={{ ...S.modeCardKicker, color: '#ff8844' }}>{t('hangar.mode_select.cosmic_kicker' as Parameters<typeof t>[0])}</div>
+              <div style={S.modeCardTitle}>{t('hangar.mode_select.cosmic_title' as Parameters<typeof t>[0])}</div>
+              <div style={S.modeCardDesc}>{t('hangar.mode_select.cosmic_desc' as Parameters<typeof t>[0])}</div>
+              <span style={{ ...S.modeCardAction, borderColor: '#ff8844', color: '#ff8844' }}>{t('hangar.mode_select.enter' as Parameters<typeof t>[0])}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={S.root}>
@@ -606,38 +687,40 @@ export const HangarPage: React.FC<HangarPageProps> = ({
                 )}
               </div>
 
-              <div style={{
-                ...S.entrySection,
-                ...S.desktopFlushBlock,
-                borderColor: teamBattleUnlocked && onEnterTeamBattle ? '#446644' : '#223344',
-                opacity: mounted ? (teamBattleUnlocked ? 1 : 0.5) : 0,
-                transition: 'opacity 0.5s ease 1.0s',
-              }}>
-                <div style={{ ...S.entryTitle, color: teamBattleUnlocked && onEnterTeamBattle ? '#88dd88' : '#667788' }}>
-                  {t('hangar.event.team_battle')}{!teamBattleUnlocked ? ' (L50)' : ''}
+              {TEAM_BATTLE_VISIBLE && (
+                <div style={{
+                  ...S.entrySection,
+                  ...S.desktopFlushBlock,
+                  borderColor: teamBattleUnlocked && onEnterTeamBattle ? '#446644' : '#223344',
+                  opacity: mounted ? (teamBattleUnlocked ? 1 : 0.5) : 0,
+                  transition: 'opacity 0.5s ease 1.0s',
+                }}>
+                  <div style={{ ...S.entryTitle, color: teamBattleUnlocked && onEnterTeamBattle ? '#88dd88' : '#667788' }}>
+                    {t('hangar.event.team_battle')}{!teamBattleUnlocked ? ' (L50)' : ''}
+                  </div>
+                  <div style={S.entryDesc}>{t('hangar.event.team_battle_desc')}</div>
+                  {teamBattleUnlocked && onEnterTeamBattle ? (
+                    <div style={S.entryButtons}>
+                      <button style={S.entryQuark} onClick={handleEnterTeamBattle}>
+                        1{' '}
+                        <QuarkIcon />
+                      </button>
+                    </div>
+                  ) : !teamBattleUnlocked ? (
+                    <div style={S.entryButtons}>
+                      <button
+                        style={{ ...S.entryQuark, opacity: 0.4, cursor: 'not-allowed', animation: 'none' }}
+                        onClick={handleEnterTeamBattle}
+                      >
+                        <LockIcon />
+                        <span style={{ marginLeft: 4 }}>L50</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={S.comingSoon}>{t('hangar.event.coming_soon')}</div>
+                  )}
                 </div>
-                <div style={S.entryDesc}>{t('hangar.event.team_battle_desc')}</div>
-                {teamBattleUnlocked && onEnterTeamBattle ? (
-                  <div style={S.entryButtons}>
-                    <button style={S.entryQuark} onClick={handleEnterTeamBattle}>
-                      1{' '}
-                      <QuarkIcon />
-                    </button>
-                  </div>
-                ) : !teamBattleUnlocked ? (
-                  <div style={S.entryButtons}>
-                    <button
-                      style={{ ...S.entryQuark, opacity: 0.4, cursor: 'not-allowed', animation: 'none' }}
-                      onClick={handleEnterTeamBattle}
-                    >
-                      <LockIcon />
-                      <span style={{ marginLeft: 4 }}>L50</span>
-                    </button>
-                  </div>
-                ) : (
-                  <div style={S.comingSoon}>{t('hangar.event.coming_soon')}</div>
-                )}
-              </div>
+              )}
 
               <div style={{
                 ...S.tournamentCard,
@@ -781,37 +864,39 @@ export const HangarPage: React.FC<HangarPageProps> = ({
         )}
 
         {/* ── TEAM BATTLE event card ────────────────────────────────── */}
-        <div style={{
-          ...S.entrySection,
-          borderColor: teamBattleUnlocked && onEnterTeamBattle ? '#446644' : '#223344',
-          opacity: mounted ? (teamBattleUnlocked ? 1 : 0.5) : 0,
-          transition: 'opacity 0.5s ease 1.0s',
-        }}>
-          <div style={{ ...S.entryTitle, color: teamBattleUnlocked && onEnterTeamBattle ? '#88dd88' : '#667788' }}>
-            {t('hangar.event.team_battle')}{!teamBattleUnlocked ? ' (L50)' : ''}
+        {TEAM_BATTLE_VISIBLE && (
+          <div style={{
+            ...S.entrySection,
+            borderColor: teamBattleUnlocked && onEnterTeamBattle ? '#446644' : '#223344',
+            opacity: mounted ? (teamBattleUnlocked ? 1 : 0.5) : 0,
+            transition: 'opacity 0.5s ease 1.0s',
+          }}>
+            <div style={{ ...S.entryTitle, color: teamBattleUnlocked && onEnterTeamBattle ? '#88dd88' : '#667788' }}>
+              {t('hangar.event.team_battle')}{!teamBattleUnlocked ? ' (L50)' : ''}
+            </div>
+            <div style={S.entryDesc}>{t('hangar.event.team_battle_desc')}</div>
+            {teamBattleUnlocked && onEnterTeamBattle ? (
+              <div style={S.entryButtons}>
+                <button style={S.entryQuark} onClick={handleEnterTeamBattle}>
+                  1{' '}
+                  <QuarkIcon />
+                </button>
+              </div>
+            ) : !teamBattleUnlocked ? (
+              <div style={S.entryButtons}>
+                <button
+                  style={{ ...S.entryQuark, opacity: 0.4, cursor: 'not-allowed', animation: 'none' }}
+                  onClick={handleEnterTeamBattle}
+                >
+                  <LockIcon />
+                  <span style={{ marginLeft: 4 }}>L50</span>
+                </button>
+              </div>
+            ) : (
+              <div style={S.comingSoon}>{t('hangar.event.coming_soon')}</div>
+            )}
           </div>
-          <div style={S.entryDesc}>{t('hangar.event.team_battle_desc')}</div>
-          {teamBattleUnlocked && onEnterTeamBattle ? (
-            <div style={S.entryButtons}>
-              <button style={S.entryQuark} onClick={handleEnterTeamBattle}>
-                1{' '}
-                <QuarkIcon />
-              </button>
-            </div>
-          ) : !teamBattleUnlocked ? (
-            <div style={S.entryButtons}>
-              <button
-                style={{ ...S.entryQuark, opacity: 0.4, cursor: 'not-allowed', animation: 'none' }}
-                onClick={handleEnterTeamBattle}
-              >
-                <LockIcon />
-                <span style={{ marginLeft: 4 }}>L50</span>
-              </button>
-            </div>
-          ) : (
-            <div style={S.comingSoon}>{t('hangar.event.coming_soon')}</div>
-          )}
-        </div>
+        )}
 
         {/* ── Tournament (coming soon) ──────────────────────────────── */}
         <div style={{
@@ -1199,6 +1284,57 @@ const S: Record<string, React.CSSProperties> = {
   },
   desktopFlushBlock: {
     margin: 0,
+  },
+  modeSelectGrid: {
+    width: 'min(1120px, calc(100vw - 32px))',
+    margin: 'clamp(48px, 9vh, 96px) auto 0',
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+    gap: 18,
+  },
+  modeCard: {
+    minHeight: 300,
+    padding: 24,
+    border: '1px solid #334455',
+    borderRadius: 8,
+    color: '#aabbcc',
+    fontFamily: 'monospace',
+    textAlign: 'left',
+    cursor: 'pointer',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+    boxShadow: 'inset 0 0 50px rgba(68,136,170,0.06), 0 18px 44px rgba(0,0,0,0.28)',
+    transition: 'opacity 0.55s ease 0.15s, transform 0.55s ease 0.15s, border-color 0.2s ease',
+  },
+  modeCardKicker: {
+    fontSize: 10,
+    letterSpacing: 2.4,
+    textTransform: 'uppercase',
+  },
+  modeCardTitle: {
+    marginTop: 14,
+    fontSize: 24,
+    letterSpacing: 3.5,
+    color: '#d8ecff',
+    textTransform: 'uppercase',
+  },
+  modeCardDesc: {
+    marginTop: 14,
+    fontSize: 12,
+    lineHeight: 1.55,
+    color: '#8899aa',
+    maxWidth: 460,
+  },
+  modeCardAction: {
+    alignSelf: 'flex-start',
+    marginTop: 28,
+    padding: '9px 12px',
+    border: '1px solid #446688',
+    borderRadius: 4,
+    fontSize: 10,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
   },
 
   // Header

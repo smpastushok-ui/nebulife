@@ -70,8 +70,11 @@
 - Territorial control: alliance контролює core zone → passive resource bonus.
 - PvP: arena вже live (L50+), expand у territorial defense.
 - PvE: Carrier Raid як другий Hangar-режим — 1 гравець + 4 AI wingmen проти носія, модулів і хвиль дронів.
+- PvE: Cosmic Battle — тактичний режим у Hangar на основі Battleship, гравець проти AI, з ресурсними reward drops.
 - Trade: marketplace для rare life-forms, AI-photos, 3D models.
 - Мета: ARPU ×5 через premium clan subscriptions ($4.99 → leader perks).
+
+**Вузький виняток для runtime art:** базове правило гри лишається "процедурне через PixiJS/Graphics, без текстур/спрайтів". Єдиний дозволений виняток — режим `Cosmic Battle` у Hangar: curated Higgsfield-generated background/ship art може лежати в `packages/client/public/cosmic-battle/` і використовуватися як декоративний tactical backdrop/card art. Grid, маркери цілей, ракети, попадання, туман війни та UI-анімації все одно мають бути процедурними CSS/SVG/Canvas.
 
 #### 🎯 Вектор F — "First-60-seconds onboarding refactor"
 - Current churn killer. Після language-select — провали 50%+.

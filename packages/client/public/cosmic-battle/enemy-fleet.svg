@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" role="img" aria-label="Hostile cosmic fleet">
+  <defs>
+    <linearGradient id="enemyHull" x1="0" x2="1">
+      <stop offset="0" stop-color="#140909"/>
+      <stop offset="0.55" stop-color="#ff8844"/>
+      <stop offset="1" stop-color="#ffd2a1"/>
+    </linearGradient>
+    <filter id="enemyGlow">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="900" height="520" fill="#020510"/>
+  <g opacity="0.23" stroke="#443322">
+    <path d="M70 100 H830 M70 210 H830 M70 320 H830 M70 430 H830"/>
+    <path d="M180 50 V470 M330 50 V470 M480 50 V470 M630 50 V470 M780 50 V470"/>
+  </g>
+  <g filter="url(#enemyGlow)">
+    <path d="M100 260 L235 175 L365 240 L480 110 L605 242 L805 250 L610 302 L492 410 L365 292 L220 345 Z" fill="url(#enemyHull)" opacity="0.9"/>
+    <path d="M235 175 L365 240 L480 110 L482 256 L492 410 L365 292 L220 345 L332 260 Z" fill="#10080a" opacity="0.68"/>
+    <path d="M110 260 L232 238 L325 260 L232 282 Z" fill="#cc4444" opacity="0.66"/>
+    <path d="M602 244 L792 250 L608 300 L668 270 Z" fill="#ffccaa" opacity="0.74"/>
+    <circle cx="480" cy="262" r="20" fill="#ff8844" opacity="0.72"/>
+    <circle cx="480" cy="262" r="7" fill="#ffe2cc"/>
+  </g>
+  <g stroke="#ff8844" stroke-width="2" opacity="0.5">
+    <path d="M140 120 C310 150 410 90 570 136" fill="none"/>
+    <path d="M180 420 C350 365 520 438 720 372" fill="none"/>
+  </g>
+</svg>

@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import type { AcademyProgress, DailyLesson } from '../../../api/academy-api.js';
 import { completeLesson } from '../../../api/academy-api.js';
 import { playSfx } from '../../../audio/SfxPlayer.js';
-import { interstitialManager } from '../../../services/interstitial-manager.js';
 import { trackEvent } from '../../../analytics/firebase-analytics.js';
 
 function QuarksIcon() {
@@ -69,7 +68,6 @@ export function LessonView({ lesson, progress, onRefresh, playerName }: LessonVi
         difficulty: lesson.difficulty,
       });
       onRefresh();
-      interstitialManager.tryShow();
     } catch (err) {
       console.error('Failed to complete lesson:', err);
     } finally {

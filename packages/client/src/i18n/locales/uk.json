@@ -210,6 +210,70 @@
       "added": "Корабель додано до ангару"
     }
   },
+  "cosmic_battle": {
+    "title": "Космічний бій",
+    "subtitle": "Тактична grid-битва проти AI: знайди ворожий флот, переживи контрудар і забери бойовий трофей.",
+    "back": "Назад",
+    "enemy_grid": "Ворожий сектор",
+    "ally_grid": "Наш флот",
+    "ally_fleet": "Союзний флот",
+    "enemy_fleet": "Сигнатура ворога",
+    "integrity": "Цілісність флоту: {{value}}%",
+    "target_hint": "Обери сектор для ракетного залпу",
+    "defense_hint": "AI сканує твою оборонну сітку",
+    "victory_title": "Флот ворога знищено",
+    "victory_body": "Тактичний сектор очищено. Рада Колонії передала трофеї на твій склад.",
+    "defeat_title": "Флот втрачено",
+    "defeat_body": "AI прочитав твій патерн пострілів. Перегрупуй флот і спробуй ще раз.",
+    "play_again": "Зіграти ще",
+    "return_hangar": "Повернутись в ангар",
+    "reward_line": "+{{quarks}} кварк · {{reward}}",
+    "reward_source": "Космічний бій",
+    "reward_toast": "Трофеї Космічного бою зараховано",
+    "status": {
+      "player_turn": "Твій хід",
+      "ai_turn": "Хід AI",
+      "animating": "Ракетний залп",
+      "victory": "Перемога",
+      "defeat": "Поразка"
+    },
+    "outcome": {
+      "hit": "Влучання підтверджено",
+      "miss": "Промах. Сектор порожній",
+      "enemy_hit": "AI влучив у наш корабель",
+      "enemy_miss": "AI промахнувся"
+    },
+    "ship": {
+      "carrier": "Носій",
+      "cruiser": "Крейсер",
+      "frigate": "Фрегат",
+      "corvette": "Корвет",
+      "drone": "Дрон-рій"
+    },
+    "reward": {
+      "minerals": "{{amount}} мінералів",
+      "volatiles": "{{amount}} летких речовин",
+      "isotopes": "{{amount}} ізотопів",
+      "water": "{{amount}} води",
+      "payload": "{{amount}} x {{item}}",
+      "ship": "{{amount}} x {{item}}",
+      "spark": "{{amount}} x {{item}}",
+      "ingredient": "{{amount}} x {{item}}"
+    },
+    "spark": {
+      "primordial": "Первісна іскра",
+      "adaptive": "Адаптивна іскра",
+      "neural": "Нейральна іскра",
+      "stellar": "Зоряна іскра"
+    },
+    "ingredient": {
+      "amino_seed": "Аміно-насінина",
+      "lipid_membrane": "Ліпідна мембрана",
+      "catalyst_core": "Каталітичне ядро",
+      "neural_spore": "Нейральна спора",
+      "stellar_enzyme": "Зоряний фермент"
+    }
+  },
   "raid": {
     "loading": "Підготовка рейду...",
     "kicker": "Операція флоту",

@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Cosmic battle tactical nebula">
+  <defs>
+    <radialGradient id="core" cx="64%" cy="42%" r="62%">
+      <stop offset="0" stop-color="#17304a"/>
+      <stop offset="0.42" stop-color="#071426"/>
+      <stop offset="1" stop-color="#020510"/>
+    </radialGradient>
+    <radialGradient id="blue" cx="18%" cy="32%" r="34%">
+      <stop offset="0" stop-color="#4488aa" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#4488aa" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="amber" cx="80%" cy="72%" r="42%">
+      <stop offset="0" stop-color="#ff8844" stop-opacity="0.2"/>
+      <stop offset="1" stop-color="#ff8844" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft">
+      <feGaussianBlur stdDeviation="2.2"/>
+    </filter>
+  </defs>
+  <rect width="1600" height="900" fill="url(#core)"/>
+  <rect width="1600" height="900" fill="url(#blue)"/>
+  <rect width="1600" height="900" fill="url(#amber)"/>
+  <g opacity="0.38" stroke="#446688" stroke-width="1">
+    <path d="M0 160 C280 90 490 270 760 210 S1240 80 1600 210" fill="none"/>
+    <path d="M0 690 C260 590 460 740 760 670 S1250 530 1600 620" fill="none"/>
+    <path d="M260 0 C310 220 210 390 330 590 S440 790 390 900" fill="none"/>
+    <path d="M1190 0 C1120 210 1270 380 1170 570 S1050 760 1090 900" fill="none"/>
+  </g>
+  <g opacity="0.42" filter="url(#soft)">
+    <circle cx="220" cy="190" r="2.4" fill="#aabbcc"/>
+    <circle cx="340" cy="640" r="1.8" fill="#7bb8ff"/>
+    <circle cx="520" cy="120" r="1.5" fill="#aabbcc"/>
+    <circle cx="680" cy="420" r="2" fill="#ffccaa"/>
+    <circle cx="900" cy="230" r="1.8" fill="#aabbcc"/>
+    <circle cx="1040" cy="710" r="2.4" fill="#7bb8ff"/>
+    <circle cx="1260" cy="140" r="1.7" fill="#aabbcc"/>
+    <circle cx="1410" cy="520" r="2.1" fill="#ff8844"/>
+  </g>
+  <g opacity="0.16" stroke="#7bb8ff" stroke-width="1">
+    <path d="M100 760 L440 620 L730 710 L1100 560 L1480 690" fill="none"/>
+    <path d="M150 230 L420 320 L720 250 L1050 330 L1450 240" fill="none"/>
+  </g>
+</svg>

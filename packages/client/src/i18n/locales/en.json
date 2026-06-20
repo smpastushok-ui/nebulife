@@ -210,6 +210,70 @@
       "added": "Ship added to hangar"
     }
   },
+  "cosmic_battle": {
+    "title": "Cosmic Battle",
+    "subtitle": "A tactical grid battle against AI: locate the hostile fleet, survive the counterstrike and claim a combat trophy.",
+    "back": "Back",
+    "enemy_grid": "Enemy sector",
+    "ally_grid": "Our fleet",
+    "ally_fleet": "Allied fleet",
+    "enemy_fleet": "Hostile signature",
+    "integrity": "Fleet integrity: {{value}}%",
+    "target_hint": "Choose a sector for missile strike",
+    "defense_hint": "AI is scanning your defense grid",
+    "victory_title": "Enemy fleet destroyed",
+    "victory_body": "Tactical sector cleared. The Colony Council transferred the trophy package to your stores.",
+    "defeat_title": "Fleet lost",
+    "defeat_body": "The AI read your targeting pattern. Regroup the fleet and try again.",
+    "play_again": "Play again",
+    "return_hangar": "Return to Hangar",
+    "reward_line": "+{{quarks}} quark · {{reward}}",
+    "reward_source": "Cosmic Battle",
+    "reward_toast": "Cosmic Battle trophies added",
+    "status": {
+      "player_turn": "Your turn",
+      "ai_turn": "AI turn",
+      "animating": "Missile strike",
+      "victory": "Victory",
+      "defeat": "Defeat"
+    },
+    "outcome": {
+      "hit": "Hit confirmed",
+      "miss": "Miss. Sector empty",
+      "enemy_hit": "AI hit our ship",
+      "enemy_miss": "AI missed"
+    },
+    "ship": {
+      "carrier": "Carrier",
+      "cruiser": "Cruiser",
+      "frigate": "Frigate",
+      "corvette": "Corvette",
+      "drone": "Drone swarm"
+    },
+    "reward": {
+      "minerals": "{{amount}} minerals",
+      "volatiles": "{{amount}} volatiles",
+      "isotopes": "{{amount}} isotopes",
+      "water": "{{amount}} water",
+      "payload": "{{amount}} x {{item}}",
+      "ship": "{{amount}} x {{item}}",
+      "spark": "{{amount}} x {{item}}",
+      "ingredient": "{{amount}} x {{item}}"
+    },
+    "spark": {
+      "primordial": "Primordial spark",
+      "adaptive": "Adaptive spark",
+      "neural": "Neural spark",
+      "stellar": "Stellar spark"
+    },
+    "ingredient": {
+      "amino_seed": "Amino seed",
+      "lipid_membrane": "Lipid membrane",
+      "catalyst_core": "Catalyst core",
+      "neural_spore": "Neural spore",
+      "stellar_enzyme": "Stellar enzyme"
+    }
+  },
   "raid": {
     "loading": "Preparing raid...",
     "kicker": "Fleet operation",
