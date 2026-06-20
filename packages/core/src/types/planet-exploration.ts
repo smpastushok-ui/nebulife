@@ -21,6 +21,7 @@ export type PlanetMissionPhase =
 export type PlanetMissionStartBlockReason =
   | 'already_revealed'
   | 'active_mission'
+  | 'previous_tier_required'
   | 'building_required'
   | 'surface_unavailable'
   | 'resources_required'

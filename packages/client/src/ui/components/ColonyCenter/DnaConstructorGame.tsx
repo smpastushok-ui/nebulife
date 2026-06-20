@@ -122,11 +122,34 @@ function generateLatticePuzzle(spark: LifeSparkType, session: number): LatticeTi
     y: Math.floor(i / config.width),
   }));
   const coreId = tileKey(config.core.x, config.core.y);
-  const blockerIds = new Set(
-    shuffle(allCells.filter((cell) => tileKey(cell.x, cell.y) !== coreId), rng)
-      .slice(0, config.blockerCount)
-      .map((cell) => tileKey(cell.x, cell.y)),
-  );
+  const blockerCandidates = allCells.filter((cell) => tileKey(cell.x, cell.y) !== coreId);
+  let blockerIds = new Set<string>();
+  for (let attempt = 0; attempt < 80; attempt++) {
+    const candidateIds = new Set(
+      shuffle(blockerCandidates, rng)
+        .slice(0, config.blockerCount)
+        .map((cell) => tileKey(cell.x, cell.y)),
+    );
+    const candidateActiveIds = new Set(allCells
+      .filter((cell) => !candidateIds.has(tileKey(cell.x, cell.y)))
+      .map((cell) => tileKey(cell.x, cell.y)));
+    const connected = new Set<string>([coreId]);
+    const queue = [config.core];
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      for (const dir of DIRS) {
+        const delta = DIR_DELTA[dir];
+        const id = tileKey(current.x + delta.dx, current.y + delta.dy);
+        if (!candidateActiveIds.has(id) || connected.has(id)) continue;
+        connected.add(id);
+        queue.push({ x: current.x + delta.dx, y: current.y + delta.dy });
+      }
+    }
+    if (connected.size === candidateActiveIds.size) {
+      blockerIds = candidateIds;
+      break;
+    }
+  }
 
   const activeCells = allCells.filter((cell) => !blockerIds.has(tileKey(cell.x, cell.y)));
   const activeIds = new Set(activeCells.map((cell) => tileKey(cell.x, cell.y)));
@@ -154,7 +177,7 @@ function generateLatticePuzzle(spark: LifeSparkType, session: number): LatticeTi
     }
   }
 
-  const nonCoreActive = activeCells.filter((cell) => tileKey(cell.x, cell.y) !== coreId);
+  const nonCoreActive = activeCells.filter((cell) => visited.has(tileKey(cell.x, cell.y)) && tileKey(cell.x, cell.y) !== coreId);
   const specialCells = shuffle(nonCoreActive, rng);
   const catalystIds = new Set(specialCells.splice(0, config.catalystCount).map((cell) => tileKey(cell.x, cell.y)));
   const neuralIds = new Set(specialCells.splice(0, config.neuralCount).map((cell) => tileKey(cell.x, cell.y)));
@@ -162,7 +185,9 @@ function generateLatticePuzzle(spark: LifeSparkType, session: number): LatticeTi
 
   return allCells.map((cell) => {
     const id = tileKey(cell.x, cell.y);
-    if (blockerIds.has(id)) {
+    // Blockers can partition the grid on larger sparks. Treat unreachable cells
+    // as inert blockers so a visually complete lattice cannot be stuck at 95%.
+    if (blockerIds.has(id) || !visited.has(id)) {
       return { id, x: cell.x, y: cell.y, kind: 'blocker', ports: [], rotation: 0, solutionRotation: 0, required: false, locked: true };
     }
     const solutionRotation = 0;
@@ -415,9 +440,15 @@ function CompletionBurst({ accent, title, detail }: { accent: string; title: str
 export function DnaConstructorGame({
   onSuccess,
   onClose,
+  claimedSpark,
+  completed,
+  onClaimSpark,
 }: {
   onSuccess: (spark: LifeSparkType) => void;
   onClose: () => void;
+  claimedSpark?: LifeSparkType | null;
+  completed?: boolean;
+  onClaimSpark?: (spark: LifeSparkType) => boolean;
 }) {
   const { t } = useTranslation();
   const [spark, setSpark] = useState<LifeSparkType | null>(null);
@@ -432,15 +463,20 @@ export function DnaConstructorGame({
   const config = spark ? configForSpark(spark) : null;
   const activeCount = tiles.filter((tile) => tile.required && tile.kind !== 'blocker').length;
   const poweredCount = tiles.filter((tile) => tile.required && analysis.powered.has(tile.id)).length;
+  const stellarNearlyStable = spark === 'stellar'
+    && activeCount > 0
+    && analysis.openEnds.size === 0
+    && poweredCount >= activeCount - 1;
+  const latticeComplete = analysis.complete || stellarNearlyStable;
   const stabilityPct = activeCount > 0
-    ? Math.round((poweredCount / activeCount) * 100 - Math.min(18, analysis.openEnds.size * 3))
+    ? (latticeComplete ? 100 : Math.round((poweredCount / activeCount) * 100 - Math.min(18, analysis.openEnds.size * 3)))
     : 0;
   const stability = Math.max(0, Math.min(100, stabilityPct));
   const stabilityColor = stability > 80 ? '#44ff88' : stability > 45 ? '#ffcf66' : '#ff8844';
   const sparkName = spark ? t(`lab.spark.${spark}` as 'lab.spark.primordial') : '';
 
   useEffect(() => {
-    if (!spark || status !== 'play' || !analysis.complete || successRef.current) return;
+    if (!spark || status !== 'play' || !latticeComplete || successRef.current) return;
     successRef.current = true;
     setStatus('igniting');
     const id = window.setTimeout(() => {
@@ -448,9 +484,12 @@ export function DnaConstructorGame({
       onSuccess(spark);
     }, 900);
     return () => window.clearTimeout(id);
-  }, [analysis.complete, onSuccess, spark, status]);
+  }, [latticeComplete, onSuccess, spark, status]);
 
   function startSpark(s: LifeSparkType) {
+    if (completed) return;
+    if (claimedSpark && claimedSpark !== s) return;
+    if (!claimedSpark && onClaimSpark && !onClaimSpark(s)) return;
     const nextSession = session + 1;
     setSession(nextSession);
     setSpark(s);
@@ -505,19 +544,40 @@ export function DnaConstructorGame({
         {!spark ? (
           <>
             <div style={{ color: '#8899aa', fontSize: 11, marginBottom: 12, lineHeight: 1.5 }}>{t('lab.dna_choose')}</div>
+            {completed && claimedSpark && (
+              <div style={{
+                marginBottom: 10,
+                padding: '9px 11px',
+                border: '1px solid #334455',
+                borderRadius: 5,
+                background: 'rgba(5,10,20,0.62)',
+                color: '#8899aa',
+                fontSize: 10,
+                lineHeight: 1.5,
+              }}>
+                {t('lab.dna_already_completed', { spark: t(`lab.spark.${claimedSpark}` as 'lab.spark.primordial') })}
+              </div>
+            )}
             <div style={{ display: 'grid', gap: 8 }}>
               {SPARK_ORDER.map((s) => {
                 const c = SPARK_COLOR[s];
                 const d = SPARK_DIFFICULTY[s];
                 const puzzle = configForSpark(s);
+                const lockedByClaim = Boolean(completed || (claimedSpark && claimedSpark !== s));
                 return (
                   <button
                     key={s}
                     onClick={() => startSpark(s)}
+                    disabled={lockedByClaim}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left',
-                      background: `${c}12`, border: `1px solid ${c}66`, borderRadius: 6,
-                      padding: '10px 12px', cursor: 'pointer', fontFamily: 'monospace',
+                      background: lockedByClaim ? 'rgba(20,25,35,0.55)' : `${c}12`,
+                      border: `1px solid ${lockedByClaim ? '#334455' : `${c}66`}`,
+                      borderRadius: 6,
+                      padding: '10px 12px',
+                      cursor: lockedByClaim ? 'not-allowed' : 'pointer',
+                      fontFamily: 'monospace',
+                      opacity: lockedByClaim ? 0.45 : 1,
                     }}
                   >
                     <span style={{ width: 12, height: 12, borderRadius: '50%', background: c, boxShadow: `0 0 10px ${c}`, flexShrink: 0 }} />
@@ -526,6 +586,7 @@ export function DnaConstructorGame({
                       <span>{puzzle.width}x{puzzle.height}</span>
                       <span style={{ color: '#556677' }}>·</span>
                       <span>{t('lab.dna_nodes', { count: d.length })}</span>
+                      {claimedSpark === s && <><span style={{ color: '#556677' }}>·</span><span style={{ color: c }}>{t('lab.dna_chosen')}</span></>}
                       {puzzle.blockerCount > 0 && <><span style={{ color: '#556677' }}>·</span><span style={{ color: '#ffb454' }}>{t('lab.dna_blockers', { count: puzzle.blockerCount })}</span></>}
                     </span>
                   </button>
@@ -538,7 +599,7 @@ export function DnaConstructorGame({
             {/* Signal integrity */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
               <span style={{ color: '#8899aa', fontSize: 10 }}>{t('lab.dna_progress', { done: poweredCount, total: activeCount })}</span>
-              <span style={{ color: stabilityColor, fontSize: 9.5, letterSpacing: 0.5 }}>{t('lab.dna_stability')} {stabilityPct}%</span>
+              <span style={{ color: stabilityColor, fontSize: 9.5, letterSpacing: 0.5 }}>{t('lab.dna_stability')} {stability}%</span>
             </div>
             <div style={{ height: 4, borderRadius: 2, background: 'rgba(5,10,20,0.7)', overflow: 'hidden', marginBottom: 12 }}>
               <div style={{ width: `${stability}%`, height: '100%', background: stabilityColor, transition: 'width 0.3s, background 0.3s' }} />

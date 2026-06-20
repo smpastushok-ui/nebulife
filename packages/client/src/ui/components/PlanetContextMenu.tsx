@@ -712,7 +712,7 @@ export function LogisticsTab({
   shipments?: CargoShipment[];
   targetPlanetId: string;
   planetResources?: Record<string, { minerals: number; volatiles: number; isotopes: number; water: number }>;
-  /** Whether the target planet has a landing pad / spaceport to receive cargo. */
+  /** Whether cargo unloads directly; without this, deliveries go to orbital cache. */
   targetHasLandingPad?: boolean;
   getDonorResources?: (planetId: string) => { minerals: number; volatiles: number; isotopes: number; water: number };
   getCargoRouteLY?: (fromPlanetId: string, toPlanetId: string) => number | null;
@@ -765,6 +765,7 @@ export function LogisticsTab({
   const maxAmount = Math.max(0, Math.min(selectedCapacity, Math.floor(selectedStock)));
   const sendAmount = Math.min(Math.max(1, Math.floor(amount || maxAmount)), maxAmount || 0);
   const canSend = Boolean(selectedShip && selectedDonor && maxAmount > 0 && onStartCargoShipment);
+  const targetResources = resolveResources(targetPlanetId);
 
   const activeShipments = shipments.filter((shipment) => shipment.toPlanetId === targetPlanetId || shipment.fromPlanetId === targetPlanetId);
 
@@ -784,20 +785,13 @@ export function LogisticsTab({
 
   const sectionLabel: React.CSSProperties = { color: '#667788', fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.5 };
 
-  // Cargo can only be unloaded where there's a landing pad / spaceport.
-  if (!targetHasLandingPad) {
-    return (
-      <div style={{ padding: 12, display: 'grid', gap: 8 }}>
-        <div style={{ color: '#8899aa', fontSize: 10 }}>{t('planet_terminal.logistics_desc')}</div>
-        <div style={{ color: '#cc8844', fontSize: 10, lineHeight: 1.5 }}>{t('planet_terminal.landing_pad_required')}</div>
-      </div>
-    );
-  }
-
   if (donors.length === 0) {
     return (
       <div style={{ padding: 12, display: 'grid', gap: 8 }}>
         <div style={{ color: '#8899aa', fontSize: 10 }}>{t('planet_terminal.logistics_desc')}</div>
+        {!targetHasLandingPad && (
+          <div style={{ color: '#cc8844', fontSize: 10, lineHeight: 1.5 }}>{t('planet_terminal.orbital_cache_notice')}</div>
+        )}
         <div style={{ color: '#cc8844', fontSize: 10 }}>{t('planet_terminal.no_cargo_ships')}</div>
       </div>
     );
@@ -806,6 +800,30 @@ export function LogisticsTab({
   return (
     <div style={{ padding: 12, display: 'grid', gap: 10 }}>
       <div style={{ color: '#8899aa', fontSize: 10 }}>{t('planet_terminal.logistics_desc')}</div>
+
+      {!targetHasLandingPad && (
+        <div style={{
+          display: 'grid',
+          gap: 5,
+          padding: '8px 10px',
+          border: '1px solid rgba(204,136,68,0.45)',
+          borderRadius: 5,
+          background: 'rgba(45,28,12,0.28)',
+          color: '#cc8844',
+          fontSize: 10,
+          lineHeight: 1.45,
+        }}>
+          <div>{t('planet_terminal.orbital_cache_notice')}</div>
+          <div style={{ color: '#8899aa' }}>
+            {t('planet_terminal.orbital_cache_stock', {
+              minerals: Math.floor(targetResources.minerals),
+              volatiles: Math.floor(targetResources.volatiles),
+              isotopes: Math.floor(targetResources.isotopes),
+              water: Math.floor(targetResources.water),
+            })}
+          </div>
+        </div>
+      )}
 
       {selectedDonor && (
         <div style={{
@@ -1029,7 +1047,7 @@ export function PlanetContextMenu({
   onShowTerraform?: (planet: Planet) => void;
   /** Inline terraforming panel rendered directly inside the "Terraforming" tab */
   terraformPanelContent?: React.ReactNode;
-  /** Whether the selected planet has a landing pad / spaceport (gates Logistics) */
+  /** Whether cargo unloads directly; without this, deliveries go to orbital cache. */
   targetHasLandingPad?: boolean;
   revealLevel?: PlanetRevealLevel;
   activeMission?: PlanetMission | null;
@@ -1108,6 +1126,7 @@ export function PlanetContextMenu({
   }, [activeTab, expandedGroup, reportsOpen, screenPosition, isDesktop]);
 
   const isSurfacePlanet = planet.type === 'rocky' || planet.type === 'terrestrial' || planet.type === 'dwarf';
+  const hasSurfaceOrOrbitalView = isSurfacePlanet || planet.type === 'gas-giant' || planet.type === 'ice-giant';
   const isSystemAccessible = systemResearchProgress >= 100;
   const unlockedTabs = useMemo(() => {
     const tabs = new Set<TabId>(['actions', 'alpha']);
@@ -1140,7 +1159,7 @@ export function PlanetContextMenu({
   ];
   const missionTypes: PlanetMissionType[] = explorationMissionsDisabled
     ? []
-    : availableMissionTypes.filter((type) => type === 'drone_recon' || getTargetRevealLevel(type) > revealLevel);
+    : availableMissionTypes;
   const unavailableSurfaceType: PlanetMissionType | null = (
     !explorationMissionsDisabled
     && !isSolidPlanetForLanding(planet)
@@ -1268,9 +1287,9 @@ export function PlanetContextMenu({
                   color={isFavorite ? '#7bb8ff' : '#8899aa'}
                 />
               )}
-              {isSurfacePlanet && onSurface && (
+              {hasSurfaceOrOrbitalView && onSurface && (
                 surfaceDisabledReason
-                  ? <MenuItem icon="▲" label={t('nav.surface_btn')} disabled title={surfaceDisabledReason} right="50+" />
+                  ? <MenuItem icon="▲" label={t('nav.surface_btn')} disabled title={surfaceDisabledReason} right="!" />
                   : <MenuItem icon="▲" label={t('nav.surface_btn')} onClick={itemsActive ? onSurface : undefined} color="#88ccaa" />
               )}
               {isSystemAccessible && (

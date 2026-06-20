@@ -457,6 +457,7 @@ function ArchiveActionButton({
   onClick,
   color = '#8899aa',
   disabled = false,
+  allowDisabledClick = false,
   title,
   right,
 }: {
@@ -464,15 +465,17 @@ function ArchiveActionButton({
   onClick?: () => void;
   color?: string;
   disabled?: boolean;
+  allowDisabledClick?: boolean;
   title?: string;
   right?: React.ReactNode;
 }) {
+  const isDisabledOnlyVisually = disabled && allowDisabledClick && Boolean(onClick);
   return (
     <button
       type="button"
-      onClick={disabled ? undefined : onClick}
+      onClick={isDisabledOnlyVisually ? onClick : disabled ? undefined : onClick}
       title={title}
-      disabled={disabled}
+      disabled={disabled && !isDisabledOnlyVisually}
       style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -485,7 +488,7 @@ function ArchiveActionButton({
         color: disabled ? '#445566' : color,
         fontFamily: 'monospace',
         fontSize: 11,
-        cursor: disabled ? 'help' : 'pointer',
+        cursor: disabled ? (isDisabledOnlyVisually ? 'pointer' : 'help') : 'pointer',
         textAlign: 'left',
       }}
     >
@@ -1662,6 +1665,8 @@ function ExpandedDetailPanel({
   // Small planet circle color for the header
   const planetColor = getPlanetBodyColor(planet);
   const isSurfacePlanet = planet.type === 'rocky' || planet.type === 'terrestrial' || planet.type === 'dwarf';
+  const hasSurfaceOrOrbitalView = isSurfacePlanet || planet.type === 'gas-giant' || planet.type === 'ice-giant';
+  const surfaceResearchBlocked = revealLevel < 3;
   const hasDroneReport = reportSummary?.missionType === 'drone_recon' || reportSummary?.missionType === 'surface_landing';
   const activeMissionProgress = activeMission ? getPlanetMissionProgress(activeMission, planetMissionClock) : null;
   const availableMissionTypes: PlanetMissionType[] = [
@@ -1672,7 +1677,7 @@ function ExpandedDetailPanel({
   ];
   const missionTypes: PlanetMissionType[] = explorationMissionsDisabled
     ? []
-    : availableMissionTypes.filter((type) => type === 'drone_recon' || getTargetRevealLevel(type) > revealLevel);
+    : availableMissionTypes;
   const unavailableSurfaceType: PlanetMissionType | null = (
     !explorationMissionsDisabled
     && !isSolidPlanetForLanding(planet)
@@ -1945,11 +1950,17 @@ function ExpandedDetailPanel({
                 color={isFavorite ? '#7bb8ff' : '#8899aa'}
               />
             )}
-            {onOpenSurface && isSurfacePlanet && (
+            {onOpenSurface && hasSurfaceOrOrbitalView && (
               <ArchiveActionButton
-                label={t('nav.surface_btn')}
+                label={surfaceResearchBlocked
+                  ? t('planet_info.surface_disabled', { reason: t('surface_gate.need_full_exploration') })
+                  : t('nav.surface_btn')}
                 onClick={() => { onOpenSurface(system, planet.id); onClose(); }}
                 color="#88ccaa"
+                disabled={surfaceResearchBlocked}
+                allowDisabledClick
+                title={surfaceResearchBlocked ? t('surface_gate.need_full_exploration') : undefined}
+                right={surfaceResearchBlocked ? '!' : undefined}
               />
             )}
             <div style={{ borderTop: '1px solid rgba(50,65,85,0.35)', paddingTop: 8, marginTop: 2 }}>

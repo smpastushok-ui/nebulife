@@ -80,6 +80,8 @@ export interface HexStateResult {
   chemicalInventory: Record<string, number>;
 }
 
+export type SurfaceAccessMode = 'survey' | 'colony' | 'orbital';
+
 // ---------------------------------------------------------------------------
 // Resource group mapping
 // ResourceType -> which colony resource bucket it fills
@@ -169,23 +171,24 @@ function revealAdjacentHidden(slots: HexSlotData[], unlockedId: string, size: He
 // Initial slot builder (fresh start, 30 diamond hexes)
 // ---------------------------------------------------------------------------
 
-function initialHubBuildingFor(size: HexPlanetSize): BuildingType {
-  return size === 'orbital' ? 'landing_pad' : 'colony_hub';
+function initialHubBuildingFor(size: HexPlanetSize, accessMode: SurfaceAccessMode): BuildingType | null {
+  if (size === 'orbital') return 'landing_pad';
+  return accessMode === 'colony' ? 'colony_hub' : null;
 }
 
-function buildInitialSlots(size: HexPlanetSize = 'medium'): HexSlotData[] {
+function buildInitialSlots(size: HexPlanetSize = 'medium', accessMode: SurfaceAccessMode = 'colony'): HexSlotData[] {
   const descriptors = buildDiamondDescriptors(size);
-  const hubBuilding = initialHubBuildingFor(size);
+  const hubBuilding = initialHubBuildingFor(size, accessMode);
   const slots: HexSlotData[] = descriptors.map(({ id, zone, zoneIndex }) => {
     if (zone === 0) {
-      // Hub — solid planets get a colony hub; giants get an orbital landing pad.
+      // Hub — colonies get a colony hub; giants get an orbital landing pad.
       return {
         id,
         ring: 0,
         index: zoneIndex,
-        state: 'building' as HexState,
-        buildingType: hubBuilding,
-        buildingLevel: 1,
+        state: hubBuilding ? 'building' as HexState : 'empty' as HexState,
+        buildingType: hubBuilding ?? undefined,
+        buildingLevel: hubBuilding ? 1 : undefined,
       };
     }
     if (zone === 1) {
@@ -214,7 +217,7 @@ function buildInitialSlots(size: HexPlanetSize = 'medium'): HexSlotData[] {
 // Detects by checking if the first saved slot id starts with "ring"
 // ---------------------------------------------------------------------------
 
-function migrateRingToDiamond(oldSlots: HexSlotData[], size: HexPlanetSize = 'medium'): HexSlotData[] {
+function migrateRingToDiamond(oldSlots: HexSlotData[], size: HexPlanetSize = 'medium', accessMode: SurfaceAccessMode = 'colony'): HexSlotData[] {
   if (!oldSlots.length || !oldSlots[0].id.startsWith('ring')) {
     // Already diamond format or empty — run adjacency + cost fix only
     return fixDiamondSlots(oldSlots, size);
@@ -240,14 +243,14 @@ function migrateRingToDiamond(oldSlots: HexSlotData[], size: HexPlanetSize = 'me
     if (zone === 0) {
       // Try to restore hub state from old ring0-0
       const oldHub = oldById.get('ring0-0');
-      const hubBuilding = initialHubBuildingFor(size);
+      const hubBuilding = initialHubBuildingFor(size, accessMode);
       return {
         id,
         ring: 0,
         index: zoneIndex,
-        state: oldHub?.state ?? ('building' as HexState),
-        buildingType: oldHub?.buildingType ?? hubBuilding,
-        buildingLevel: oldHub?.buildingLevel ?? 1,
+        state: oldHub?.state ?? (hubBuilding ? 'building' as HexState : 'empty' as HexState),
+        buildingType: oldHub?.buildingType ?? hubBuilding ?? undefined,
+        buildingLevel: oldHub?.buildingLevel ?? (hubBuilding ? 1 : undefined),
       };
     }
 
@@ -354,19 +357,26 @@ function isBuildingAllowedForPlanet(buildingType: BuildingType, planet: Planet):
   return BUILDING_DEFS[buildingType]?.allowedPlanetTypes.includes(planet.type) ?? false;
 }
 
-function sanitizeSlotsForPlanet(slots: HexSlotData[], planet: Planet, size: HexPlanetSize): HexSlotData[] {
+function isBuildingAllowedForMode(buildingType: BuildingType, accessMode: SurfaceAccessMode): boolean {
+  if (accessMode === 'survey') return false;
+  if (accessMode === 'orbital') return buildingType === 'orbital_collector';
+  return true;
+}
+
+function sanitizeSlotsForPlanet(slots: HexSlotData[], planet: Planet, size: HexPlanetSize, accessMode: SurfaceAccessMode): HexSlotData[] {
   const hubId = getHubId(size);
-  const hubBuilding = initialHubBuildingFor(size);
+  const hubBuilding = initialHubBuildingFor(size, accessMode);
   let changed = false;
   const sanitized = slots.map((slot) => {
     if (slot.id === hubId) {
-      if (slot.state !== 'building' || slot.buildingType !== hubBuilding) {
+      const expectedState: HexState = hubBuilding ? 'building' : 'empty';
+      if (slot.state !== expectedState || slot.buildingType !== (hubBuilding ?? undefined)) {
         changed = true;
         return {
           ...slot,
-          state: 'building' as HexState,
-          buildingType: hubBuilding,
-          buildingLevel: slot.buildingLevel ?? 1,
+          state: expectedState,
+          buildingType: hubBuilding ?? undefined,
+          buildingLevel: hubBuilding ? (slot.buildingLevel ?? 1) : undefined,
           resourceType: undefined,
           rarity: undefined,
           yieldPerHour: undefined,
@@ -379,7 +389,7 @@ function sanitizeSlotsForPlanet(slots: HexSlotData[], planet: Planet, size: HexP
 
     if (slot.state === 'building' && slot.buildingType) {
       const buildingType = slot.buildingType as BuildingType;
-      if (!isBuildingAllowedForPlanet(buildingType, planet)) {
+      if (!isBuildingAllowedForMode(buildingType, accessMode) || !isBuildingAllowedForPlanet(buildingType, planet)) {
         changed = true;
         return {
           ...slot,
@@ -571,6 +581,7 @@ export function useHexState(
   star: Star,
   playerId: string,
   systemId: string,
+  accessMode: SurfaceAccessMode,
   colonyResources: ColonyResources,
   onResourceChange?: (delta: Partial<ColonyResources>) => void,
   onBuildingPlaced?: (type: BuildingType) => void,
@@ -653,14 +664,14 @@ export function useHexState(
 
     /** Validate and migrate saved slots for current planet size */
     const validateAndMigrate = (raw: HexSlotData[]): HexSlotData[] => {
-      const migrated = migrateRingToDiamond(raw, planetSize);
+      const migrated = migrateRingToDiamond(raw, planetSize, accessMode);
       // If hub ID doesn't match expected layout → rebuild (planet size changed)
       const hubSlot = migrated.find(s => s.ring === 0);
       if (!hubSlot || hubSlot.id !== expectedHubId) {
         console.info('[useHexState] Hub ID mismatch — rebuilding for', planetSize);
-        return buildInitialSlots(planetSize);
+        return buildInitialSlots(planetSize, accessMode);
       }
-      return sanitizeSlotsForPlanet(migrated, planet, planetSize);
+      return sanitizeSlotsForPlanet(migrated, planet, planetSize, accessMode);
     };
 
     // 1) Load from localStorage FIRST (instant, survives app restart)
@@ -748,7 +759,7 @@ export function useHexState(
           // No server data — check if localStorage already loaded slots
           const hasLocal = slotsRef.current.length > 0;
           if (!hasLocal) {
-            const initial = buildInitialSlots(planetSize);
+            const initial = buildInitialSlots(planetSize, accessMode);
             setSlots(initial);
             scheduleSave(initial);
           } else {
@@ -759,14 +770,14 @@ export function useHexState(
       } catch (err) {
         console.error('[useHexState] load failed:', err);
         // If localStorage didn't load anything either, create initial
-        if (!cancelled && slotsRef.current.length === 0) setSlots(buildInitialSlots(planetSize));
+        if (!cancelled && slotsRef.current.length === 0) setSlots(buildInitialSlots(planetSize, accessMode));
       } finally {
         if (!cancelled && !localLoaded) setLoading(false);
       }
     })();
 
     return () => { cancelled = true; };
-  }, [hexSlotsKey, planet.id, planet.type, planetSize, playerId, scheduleSave, systemId]);
+  }, [accessMode, hexSlotsKey, planet.id, planet.type, planetSize, playerId, scheduleSave, systemId]);
 
   // Flush pending save on unmount (don't lose data!)
   useEffect(() => {
@@ -1006,6 +1017,7 @@ export function useHexState(
     (slotId: string, type: BuildingType): boolean => {
       const slot = slotsRef.current.find((s) => s.id === slotId);
       if (!slot || slot.state !== 'empty') return false;
+      if (!isBuildingAllowedForMode(type, accessMode)) return false;
       if (!isBuildingAllowedForPlanet(type, planet)) return false;
       const maxPerPlanet = BUILDING_DEFS[type]?.maxPerPlanet ?? 0;
       if (maxPerPlanet > 0) {
@@ -1054,7 +1066,7 @@ export function useHexState(
 
       return true;
     },
-    [colonyResources, chemicalInventory, onBuildingPlaced, onResourceChange, onElementChange, planet, playerId, systemId, updateSlots],
+    [accessMode, colonyResources, chemicalInventory, onBuildingPlaced, onResourceChange, onElementChange, planet, playerId, systemId, updateSlots],
   );
 
   // ---------------------------------------------------------------------------

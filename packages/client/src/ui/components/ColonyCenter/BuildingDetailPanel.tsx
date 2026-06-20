@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { BuildingType, Discovery, FleetState, ObservatorySearchDuration, ObservatorySearchProgram, ObservatoryState, PlacedBuilding, Planet, PlanetResourceStocks, ProducibleType, SeparationJob, SeparationGroup, ExtractionJob, CosmicEvent } from '@nebulife/core';
-import { BUILDING_DEFS, PRODUCIBLE_ASSET_PATHS, PRODUCIBLE_DEFS, RARITY_COLORS, getAvailableObservatoryPrograms, getCatalogEntry, getCatalogName, getObservatoryLevel, getObservatoryMaxActiveSearches, getObservatorySearchChance, getObservatoryXpProgress, isShipProducible, SEPARATION_BATCH, SEPARATION_DURATION_MS, SEPARATION_RESEARCH_DATA_COST, getSeparationElements, EXTRACTION_BATCH, EXTRACTION_RESEARCH_DATA_COST, getExtractionElements } from '@nebulife/core';
+import { BUILDING_DEFS, ELEMENTS, PRODUCIBLE_ASSET_PATHS, PRODUCIBLE_DEFS, RARITY_COLORS, getAvailableObservatoryPrograms, getCatalogEntry, getCatalogName, getObservatoryLevel, getObservatoryMaxActiveSearches, getObservatorySearchChance, getObservatoryXpProgress, isShipProducible, SEPARATION_BATCH, SEPARATION_DURATION_MS, SEPARATION_RESEARCH_DATA_COST, getSeparationElements, EXTRACTION_BATCH, EXTRACTION_RESEARCH_DATA_COST, getExtractionElements } from '@nebulife/core';
 
 import { ResourceIcon, RESOURCE_COLORS, type ResourceType } from '../ResourceIcon.js';
 import { buildingName, buildingDesc } from '../../../i18n/building-labels.js';
@@ -33,6 +33,7 @@ export interface BuildingDetailPanelProps {
   buildingType?: BuildingType;
   buildings: PlacedBuilding[];
   colonyResources: ColonyResources;
+  chemicalInventory?: Record<string, number>;
   researchData: number;
   planetStocks?: PlanetResourceStocks;
   explorationPayloads?: Partial<Record<ProducibleType, number>>;
@@ -73,6 +74,8 @@ const PANEL_BG = '#020510';
 const CARD_BG = 'rgba(10,15,25,0.62)';
 const BORDER = '#233344';
 const ACTIVE_BORDER = '#446688';
+const EVENT_RESEARCH_WINDOW_MS = 24 * 60 * 60 * 1000;
+const EVENT_RESEARCH_STORAGE_KEY = 'nebulife_cosmic_event_research';
 
 /** Selectable bulk groups for the quantum separator, in display order. */
 const SEPARATION_GROUP_LIST: { group: SeparationGroup; resource: ResourceType }[] = [
@@ -125,6 +128,24 @@ function formatCountdown(ms: number): string {
   return d > 0 ? `${d}d ${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(h)}:${pad(m)}:${pad(s)}`;
 }
 
+function readResearchedEventIds(): Set<string> {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(EVENT_RESEARCH_STORAGE_KEY) ?? '{}') as Record<string, unknown>;
+    return new Set(Object.entries(parsed).filter(([, value]) => typeof value === 'number').map(([id]) => id));
+  } catch {
+    return new Set();
+  }
+}
+
+function writeResearchedEvent(id: string): void {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(EVENT_RESEARCH_STORAGE_KEY) ?? '{}') as Record<string, unknown>;
+    localStorage.setItem(EVENT_RESEARCH_STORAGE_KEY, JSON.stringify({ ...parsed, [id]: Date.now() }));
+  } catch {
+    // Local-only event dossier state must not break the building panel.
+  }
+}
+
 /** Live cosmic-event countdown (re-ticks every second). */
 function EventCountdown({ untilMs, color }: { untilMs: number; color: string }) {
   const [now, setNow] = useState(() => Date.now());
@@ -136,6 +157,75 @@ function EventCountdown({ untilMs, color }: { untilMs: number; color: string }) 
     <span style={{ color, fontVariantNumeric: 'tabular-nums', fontSize: 12, letterSpacing: 0.5 }}>
       {formatCountdown(untilMs - now)}
     </span>
+  );
+}
+
+function EventResearchButton({
+  event,
+  researched,
+  onResearch,
+  compact = false,
+}: {
+  event: CosmicEvent;
+  researched: boolean;
+  onResearch: (eventId: string) => void;
+  compact?: boolean;
+}) {
+  const { t } = useTranslation();
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const opensIn = event.eventTime - now;
+  const closesIn = event.eventTime + EVENT_RESEARCH_WINDOW_MS - now;
+  const pending = opensIn > 0;
+  const active = !pending && closesIn > 0;
+  const expired = !pending && !active;
+  const disabled = researched || pending || expired;
+  const label = researched
+    ? t('events.research_logged')
+    : pending
+      ? t('events.research_available_in', { time: formatCountdown(opensIn) })
+      : expired
+        ? t('events.research_inactive')
+        : t('events.research_start');
+  const subLabel = active && !researched
+    ? t('events.research_window', { time: formatCountdown(closesIn) })
+    : null;
+
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={() => {
+        if (!disabled) onResearch(event.id);
+      }}
+      style={{
+        width: compact ? 'auto' : '100%',
+        minWidth: compact ? 152 : undefined,
+        display: 'grid',
+        gap: subLabel ? 2 : 0,
+        justifyItems: 'center',
+        padding: compact ? '7px 9px' : '10px 12px',
+        borderRadius: 6,
+        border: `1px solid ${active && !researched ? '#7bb8ff' : '#334455'}`,
+        background: active && !researched
+          ? 'linear-gradient(180deg, rgba(123,184,255,0.26), rgba(123,184,255,0.10))'
+          : 'rgba(20,25,35,0.48)',
+        color: active && !researched ? '#d7ecff' : researched ? '#88ccaa' : '#667788',
+        fontFamily: 'monospace',
+        fontSize: compact ? 9 : 10.5,
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        boxShadow: active && !researched ? '0 0 16px rgba(123,184,255,0.24)' : 'none',
+      }}
+    >
+      <span>{label}</span>
+      {subLabel && <span style={{ color: '#7d93ab', fontSize: compact ? 8 : 9, textTransform: 'none', letterSpacing: 0.3 }}>{subLabel}</span>}
+    </button>
   );
 }
 
@@ -199,7 +289,21 @@ function CosmicEventVisual({ event, imageless, accent }: { event: CosmicEvent; i
   );
 }
 
-function CosmicEventDetailModal({ event, imageless, onClose }: { event: CosmicEvent; imageless?: boolean; onClose: () => void }) {
+function CosmicEventDetailModal({
+  event,
+  imageless,
+  telescopeAvailable,
+  researched,
+  onResearch,
+  onClose,
+}: {
+  event: CosmicEvent;
+  imageless?: boolean;
+  telescopeAvailable: boolean;
+  researched: boolean;
+  onResearch: (eventId: string) => void;
+  onClose: () => void;
+}) {
   const { t, i18n } = useTranslation();
   const accent = imageless ? '#8899aa' : '#7bb8ff';
   const { title, desc } = eventText(event, i18n.language);
@@ -274,7 +378,11 @@ function CosmicEventDetailModal({ event, imageless, onClose }: { event: CosmicEv
           {desc || t('events.no_description')}
         </div>
 
-        {imageless && (
+        {telescopeAvailable ? (
+          <div style={{ marginTop: 14 }}>
+            <EventResearchButton event={event} researched={researched} onResearch={onResearch} />
+          </div>
+        ) : imageless && (
           <div style={{ marginTop: 14, color: '#ffb080', fontSize: 10.5, lineHeight: 1.5, padding: 10, borderRadius: 6, background: 'rgba(255,136,68,0.08)', border: '1px solid rgba(255,136,68,0.25)' }}>
             {t('events.need_telescope')}
           </div>
@@ -289,7 +397,21 @@ function CosmicEventDetailModal({ event, imageless, onClose }: { event: CosmicEv
  * photo/video, live countdown. When `imageless` (observatory fallback) the
  * imagery is replaced by a "build telescope" notice and the event is inactive.
  */
-function CosmicEventCard({ event, imageless }: { event: CosmicEvent; imageless?: boolean }) {
+function CosmicEventCard({
+  event,
+  imageless,
+  telescopeAvailable = !imageless,
+  compact = false,
+  researched = false,
+  onResearch = () => {},
+}: {
+  event: CosmicEvent;
+  imageless?: boolean;
+  telescopeAvailable?: boolean;
+  compact?: boolean;
+  researched?: boolean;
+  onResearch?: (eventId: string) => void;
+}) {
   const { t, i18n } = useTranslation();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const { title, desc } = eventText(event, i18n.language);
@@ -299,8 +421,8 @@ function CosmicEventCard({ event, imageless }: { event: CosmicEvent; imageless?:
       <div style={{
         position: 'relative',
         display: 'grid',
-        gap: 10,
-        padding: 11,
+        gap: compact ? 8 : 10,
+        padding: compact ? 9 : 11,
         borderRadius: 8,
         background: `radial-gradient(120% 160% at 100% 0%, ${accent}18, rgba(5,10,20,0.56) 54%)`,
         border: `1px solid ${accent}45`,
@@ -317,13 +439,13 @@ function CosmicEventCard({ event, imageless }: { event: CosmicEvent; imageless?:
           opacity: 0.18,
         }} />
 
-        <CosmicEventVisual event={event} imageless={imageless} accent={accent} />
+        {!compact && <CosmicEventVisual event={event} imageless={imageless} accent={accent} />}
 
         <div style={{ position: 'relative', display: 'grid', gap: 8 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
             <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
               <span style={{ color: accent, fontSize: 8.5, letterSpacing: 1.7, textTransform: 'uppercase' }}>{t('events.live_marker')}</span>
-              <span style={{ color: '#e6f0ff', fontSize: 12.5, letterSpacing: 0.35, lineHeight: 1.35 }}>{title}</span>
+              <span style={{ color: '#e6f0ff', fontSize: compact ? 11 : 12.5, letterSpacing: 0.35, lineHeight: 1.35 }}>{title}</span>
             </div>
             <div style={{ display: 'grid', gap: 2, justifyItems: 'end', flexShrink: 0 }}>
               <span style={{ color: '#667788', fontSize: 8, letterSpacing: 1.4, textTransform: 'uppercase' }}>{t('events.countdown')}</span>
@@ -331,7 +453,7 @@ function CosmicEventCard({ event, imageless }: { event: CosmicEvent; imageless?:
             </div>
           </div>
 
-          {desc && <div style={{ color: '#8c9cad', fontSize: 10, lineHeight: 1.52 }}>{desc.length > 150 ? `${desc.slice(0, 150).trim()}...` : desc}</div>}
+          {!compact && desc && <div style={{ color: '#8c9cad', fontSize: 10, lineHeight: 1.52 }}>{desc.length > 150 ? `${desc.slice(0, 150).trim()}...` : desc}</div>}
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, alignItems: 'center' }}>
             <span style={{
@@ -345,6 +467,9 @@ function CosmicEventCard({ event, imageless }: { event: CosmicEvent; imageless?:
             }}>
               {imageless ? t('events.timing_only') : event.videoUrl ? t('events.video_ready') : event.photoUrl ? t('events.image_ready') : t('events.telemetry_only')}
             </span>
+            {telescopeAvailable && (
+              <EventResearchButton event={event} researched={researched} onResearch={onResearch} compact={compact} />
+            )}
             <span style={{ flex: 1 }} />
             <button
               type="button"
@@ -368,7 +493,16 @@ function CosmicEventCard({ event, imageless }: { event: CosmicEvent; imageless?:
           </div>
         </div>
       </div>
-      {detailsOpen && <CosmicEventDetailModal event={event} imageless={imageless} onClose={() => setDetailsOpen(false)} />}
+      {detailsOpen && (
+        <CosmicEventDetailModal
+          event={event}
+          imageless={imageless}
+          telescopeAvailable={telescopeAvailable}
+          researched={researched}
+          onResearch={onResearch}
+          onClose={() => setDetailsOpen(false)}
+        />
+      )}
     </>
   );
 }
@@ -1215,6 +1349,7 @@ export function BuildingDetailPanel({
   buildingType,
   buildings,
   colonyResources,
+  chemicalInventory = {},
   researchData,
   planetStocks,
   explorationPayloads,
@@ -1249,8 +1384,13 @@ export function BuildingDetailPanel({
   const [separationNow, setSeparationNow] = useState(() => Date.now());
   const [extractionNow, setExtractionNow] = useState(() => Date.now());
   const [separationGroup, setSeparationGroup] = useState<SeparationGroup>('mineral');
+  const [researchedEventIds, setResearchedEventIds] = useState<Set<string>>(() => readResearchedEventIds());
   const type = building?.type ?? buildingType;
   const def = type ? BUILDING_DEFS[type] : null;
+  const hasOrbitalTelescope = useMemo(
+    () => buildings.some((b) => b.type === 'orbital_telescope' && !b.shutdown),
+    [buildings],
+  );
 
   const stats = useMemo(() => {
     if (!type) return null;
@@ -1273,6 +1413,16 @@ export function BuildingDetailPanel({
       ? separationGroup
       : (separationGroupOptions[0]?.group ?? separationGroup);
   }, [separationGroup, separationGroupOptions]);
+
+  const handleResearchEvent = useCallback((eventId: string) => {
+    writeResearchedEvent(eventId);
+    setResearchedEventIds((prev) => {
+      if (prev.has(eventId)) return prev;
+      const next = new Set(prev);
+      next.add(eventId);
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     if (activeObservatorySessionCount === 0) return;
@@ -1297,6 +1447,14 @@ export function BuildingDetailPanel({
     if (separationGroupOptions.some((item) => item.group === separationGroup)) return;
     setSeparationGroup(separationGroupOptions[0].group);
   }, [separationGroup, separationGroupOptions]);
+
+  const localElements = useMemo(() => (
+    Object.values(ELEMENTS)
+      .map((element) => ({ ...element, amount: chemicalInventory[element.symbol] ?? 0 }))
+      .filter((element) => element.amount > 0)
+      .sort((a, b) => b.amount - a.amount || a.atomicNumber - b.atomicNumber)
+      .slice(0, 8)
+  ), [chemicalInventory]);
 
   if (!type || !def || !stats) return null;
 
@@ -1855,7 +2013,16 @@ export function BuildingDetailPanel({
               {events.length === 0 ? (
                 <div style={{ color: '#667788', fontSize: 11, padding: '8px 0' }}>{t('events.none')}</div>
               ) : (
-                events.map((ev) => <CosmicEventCard key={ev.id} event={ev} />)
+                events.slice(0, 5).map((ev) => (
+                  <CosmicEventCard
+                    key={ev.id}
+                    event={ev}
+                    compact
+                    telescopeAvailable={hasOrbitalTelescope}
+                    researched={researchedEventIds.has(ev.id)}
+                    onResearch={handleResearchEvent}
+                  />
+                ))
               )}
             </div>
           );
@@ -1872,7 +2039,13 @@ export function BuildingDetailPanel({
               <div style={{ fontSize: 12, color: '#cfe3ff', letterSpacing: 2, textTransform: 'uppercase' }}>{t('events.observatory_section')}</div>
               <div style={{ fontSize: 9, color: '#7d93ab', letterSpacing: 0.5 }}>{t('events.observatory_tagline')}</div>
             </div>
-            <CosmicEventCard event={upcomingEvents![0]} imageless />
+            <CosmicEventCard
+              event={upcomingEvents![0]}
+              imageless={!hasOrbitalTelescope}
+              telescopeAvailable={hasOrbitalTelescope}
+              researched={researchedEventIds.has(upcomingEvents![0].id)}
+              onResearch={handleResearchEvent}
+            />
           </div>
         )}
 
@@ -2008,6 +2181,54 @@ export function BuildingDetailPanel({
             </div>
           </div>
         </Section>
+
+        {type === 'resource_storage' && (
+          <Section title={t('resource_widget.storage_title')}>
+            <div style={{
+              background: 'rgba(10,15,25,0.48)',
+              border: '1px solid rgba(68,136,170,0.35)',
+              borderRadius: 5,
+              padding: compact ? 10 : 12,
+              display: 'grid',
+              gap: 12,
+            }}>
+              <div style={{ display: 'grid', gridTemplateColumns: compact ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))', gap: 8 }}>
+                {(['minerals', 'volatiles', 'isotopes', 'water'] as ColonyResourceKey[]).map((resource) => (
+                  <div key={resource} style={{ border: '1px solid rgba(51,68,85,0.42)', borderRadius: 4, padding: 8, background: 'rgba(5,10,20,0.46)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: RESOURCE_COLORS[resource], fontSize: 10, marginBottom: 5 }}>
+                      <ResourceIcon type={resource} size={12} />
+                      <span>{t(`colony_center.resource.${resource}`)}</span>
+                    </div>
+                    <div style={{ color: '#cfe3ff', fontSize: 15, fontWeight: 700 }}>{Math.round(colonyResources[resource] ?? 0).toLocaleString()}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ borderTop: '1px solid rgba(51,68,85,0.42)', paddingTop: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 7 }}>
+                  <span style={{ color: '#8899aa', fontSize: 10, letterSpacing: 1.1, textTransform: 'uppercase' }}>
+                    {t('resource_widget.elements_title')}
+                  </span>
+                  <span style={{ color: '#667788', fontSize: 9 }}>{t('resource_widget.elements_count', { count: localElements.length })}</span>
+                </div>
+                {localElements.length > 0 ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: compact ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 6 }}>
+                    {localElements.map((element) => (
+                      <div key={element.symbol} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, border: '1px solid rgba(51,68,85,0.34)', borderRadius: 3, padding: '5px 7px', background: 'rgba(5,10,20,0.48)' }}>
+                        <span style={{ color: '#7bb8ff', fontWeight: 700 }}>{element.symbol}</span>
+                        <span style={{ color: '#8899aa', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {i18n.language === 'uk' ? element.nameUk : element.name}
+                        </span>
+                        <span style={{ color: '#cfe3ff', marginLeft: 'auto' }}>{Math.round(element.amount).toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ color: '#556677', fontSize: 10 }}>{t('archive.no_elements_owned')}</div>
+                )}
+              </div>
+            </div>
+          </Section>
+        )}
 
         {producibleTypes.length > 0 && (
           <Section title={type === 'landing_pad' ? t('building_detail.transport_landing_pad') : t('building_detail.transport_spaceport')}>

@@ -483,6 +483,14 @@ function readHexSlotBuildingsFromStorage(
   }
 }
 
+function hasBuildingInHexSlots(slots: unknown, buildingType: BuildingType): boolean {
+  return Array.isArray(slots)
+    && slots.some((slot) => {
+      const entry = slot as { state?: unknown; buildingType?: unknown };
+      return entry.state === 'building' && entry.buildingType === buildingType;
+    });
+}
+
 function clampResourceBundle(resources: ColonyResourceBundle, capacity: number): ColonyResourceBundle {
   return {
     minerals: Math.min(Math.max(0, resources.minerals), capacity),
@@ -582,8 +590,10 @@ interface SyncedGameState {
   hex_slots?: unknown[];
   hex_slots_by_planet?: Record<string, unknown[]>;
   chemical_inventory: Record<string, number>;
+  chemical_inventory_by_planet?: Record<string, Record<string, number>>;
   life_ingredients?: Record<string, number>;
   life_sparks?: Record<string, number>;
+  dna_spark_synthesis?: { spark: LifeSparkType; chosenAt: number; completedAt?: number };
   // Game phase
   exodus_phase: boolean;
   destroyed_planets: Array<{ planetId: string; systemId: string; orbitAU: number }>;
@@ -643,6 +653,15 @@ interface SyncedGameState {
   // Metadata
   synced_at: number;
   last_regen_time?: number;
+}
+
+type SurfaceAccessMode = 'survey' | 'colony' | 'orbital';
+
+interface SurfaceAccessCheck {
+  allowed: boolean;
+  mode?: SurfaceAccessMode;
+  reason?: string;
+  chaos?: boolean;
 }
 
 interface ArenaStats {
@@ -1573,11 +1592,25 @@ function AppInner() {
     } catch { /* ignore */ }
     return {};
   });
+  const [chemicalInventoryByPlanet, setChemicalInventoryByPlanet] = useState<Record<string, Record<string, number>>>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_chemical_inventory_by_planet');
+      if (saved) return JSON.parse(saved);
+    } catch { /* ignore */ }
+    return {};
+  });
+  const chemicalInventoryByPlanetRef = useRef(chemicalInventoryByPlanet);
+  chemicalInventoryByPlanetRef.current = chemicalInventoryByPlanet;
 
   useEffect(() => {
     try { localStorage.setItem('nebulife_chemical_inventory', JSON.stringify(chemicalInventory)); }
     catch { /* ignore */ }
   }, [chemicalInventory]);
+
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_chemical_inventory_by_planet', JSON.stringify(chemicalInventoryByPlanet)); }
+    catch { /* ignore */ }
+  }, [chemicalInventoryByPlanet]);
 
   // ── Genesis life ingredients (rare organic drops, L48+; Phase 2 Lab) ──────
   const [lifeIngredients, setLifeIngredients] = useState<Record<string, number>>(() => {
@@ -1604,11 +1637,30 @@ function AppInner() {
   });
   const lifeSparkHarvestCounter = useRef(0);
   const lifeSparkRefineryCounter = useRef(0);
+  const [dnaSparkSynthesis, setDnaSparkSynthesis] = useState<{ spark: LifeSparkType; chosenAt: number; completedAt?: number } | null>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_dna_spark_synthesis');
+      if (saved) {
+        const parsed = JSON.parse(saved) as { spark?: LifeSparkType; chosenAt?: number; completedAt?: number };
+        if (parsed?.spark && typeof parsed.chosenAt === 'number') {
+          return { spark: parsed.spark, chosenAt: parsed.chosenAt, completedAt: parsed.completedAt };
+        }
+      }
+    } catch { /* ignore */ }
+    return null;
+  });
 
   useEffect(() => {
     try { localStorage.setItem('nebulife_life_sparks', JSON.stringify(lifeSparks)); }
     catch { /* ignore */ }
   }, [lifeSparks]);
+
+  useEffect(() => {
+    try {
+      if (dnaSparkSynthesis) localStorage.setItem('nebulife_dna_spark_synthesis', JSON.stringify(dnaSparkSynthesis));
+      else localStorage.removeItem('nebulife_dna_spark_synthesis');
+    } catch { /* ignore */ }
+  }, [dnaSparkSynthesis]);
 
   // ── Manual-job result histories (last 5 each) + result-card modal ─────────
   // Separation/centrifuge yields and lab experiments are logged here so the
@@ -1982,6 +2034,7 @@ function AppInner() {
 
   /** Handle element inventory changes (from hex harvest or chemistry buildings) */
   const handleElementChange = useCallback((delta: Record<string, number>) => {
+    const targetPlanetId = surfaceTargetRef.current?.planet.id ?? homeInfoRef.current?.planet.id;
     setChemicalInventory(prev => {
       const next = { ...prev };
       for (const [el, amount] of Object.entries(delta)) {
@@ -1989,7 +2042,26 @@ function AppInner() {
       }
       return next;
     });
+    if (targetPlanetId) {
+      setChemicalInventoryByPlanet((prev) => {
+        const current = prev[targetPlanetId] ?? {};
+        const nextForPlanet = { ...current };
+        for (const [el, amount] of Object.entries(delta)) {
+          nextForPlanet[el] = Math.max(0, (nextForPlanet[el] ?? 0) + amount);
+        }
+        return { ...prev, [targetPlanetId]: nextForPlanet };
+      });
+    }
   }, []);
+
+  const getPlanetChemicalInventory = useCallback((planetId: string): Record<string, number> => {
+    const local = chemicalInventoryByPlanetRef.current[planetId];
+    if (local) return local;
+    // Legacy saves only had one global element bucket. Until the player creates
+    // a local bucket, show those elements on the active planet instead of
+    // making already-separated stock look lost.
+    return Object.keys(chemicalInventoryByPlanetRef.current).length === 0 ? chemicalInventory : {};
+  }, [chemicalInventory]);
 
   const grantLifeSpark = useCallback((spark: LifeSparkType, source: 'harvest' | 'refinery') => {
     setLifeSparks(prev => ({ ...prev, [spark]: (prev[spark] ?? 0) + 1 }));
@@ -3261,6 +3333,14 @@ function AppInner() {
             }
             return next;
           });
+          setChemicalInventoryByPlanet((prev) => {
+            const current = prev[planetId] ?? {};
+            const nextForPlanet = { ...current };
+            for (const [el, amt] of Object.entries(result.elementsProduced)) {
+              nextForPlanet[el] = (nextForPlanet[el] ?? 0) + amt;
+            }
+            return { ...prev, [planetId]: nextForPlanet };
+          });
           lifeSparkRefineryCounter.current += 1;
           const refinerySource = Object.keys(result.elementsProduced).some((el) => ['U', 'Th', 'Ra', 'Pu'].includes(el))
             ? 'centrifuge'
@@ -3800,9 +3880,23 @@ function AppInner() {
     });
 
     if (!check.canStart) {
+      let reasonMessage: string | null = null;
+      if (check.reason === 'building_required' && check.requiredBuilding) {
+        reasonMessage = tr('planet_missions.reason.building_required_named', { building: tr(`planet_missions.building.${check.requiredBuilding}`) });
+      } else if (check.reason === 'resources_required' && check.missingResources) {
+        const missing = Object.entries(check.missingResources)
+          .map(([resource, amount]) => `${resource} ${Math.ceil(Number(amount ?? 0))}`)
+          .join(', ');
+        reasonMessage = tr('planet_missions.reason.resources_required_named', { resources: missing });
+      } else if (check.reason === 'payload_required' && check.requiredPayload) {
+        reasonMessage = tr('planet_missions.reason.payload_required_named', { payload: tr(`planet_missions.payload.${check.requiredPayload}`) });
+      } else if (check.reason === 'carrier_required' && check.requiredCarrier) {
+        reasonMessage = tr('planet_missions.reason.carrier_required_named', { carrier: tr(`planet_missions.payload.${check.requiredCarrier}`) });
+      }
       const reasonKey = {
         already_revealed: 'planet_missions.reason.already_revealed',
         active_mission: 'planet_missions.reason.active_mission',
+        previous_tier_required: 'planet_missions.reason.previous_tier_required',
         building_required: 'planet_missions.reason.building_required',
         surface_unavailable: 'planet_missions.reason.surface_unavailable',
         resources_required: 'planet_missions.reason.resources_required',
@@ -3811,7 +3905,7 @@ function AppInner() {
         unknown: 'planet_missions.reason.unknown',
       } as const;
       playSfx('ui-error', 0.2);
-      setToastMessage(t(reasonKey[check.reason ?? 'unknown']));
+      setToastMessage(reasonMessage ?? tr(reasonKey[check.reason ?? 'unknown']));
       setTimeout(() => setToastMessage(null), 3200);
       return;
     }
@@ -3900,6 +3994,7 @@ function AppInner() {
     state.selectedSystem,
     surfaceTarget?.planet.id,
     t,
+    tr,
     totalResources,
   ]);
 
@@ -5188,6 +5283,14 @@ function AppInner() {
   // vault sat on the home colony. Scan every colony's persisted hex slots too.
   const hasGenesisVaultAnywhere = useMemo(() => {
     if (colonyState?.buildings?.some((b) => b.type === 'genesis_vault')) return true;
+    const gs = gameStateRef.current;
+    if (hasBuildingInHexSlots(gs.hex_slots, 'genesis_vault')) return true;
+    const byPlanet = gs.hex_slots_by_planet;
+    if (byPlanet && typeof byPlanet === 'object') {
+      for (const slots of Object.values(byPlanet as Record<string, unknown>)) {
+        if (hasBuildingInHexSlots(slots, 'genesis_vault')) return true;
+      }
+    }
     try {
       for (const key of Object.keys(localStorage)) {
         if (!key.startsWith('nebulife_hex_slots')) continue;
@@ -5198,12 +5301,11 @@ function AppInner() {
       }
     } catch { /* ignore */ }
     return false;
-  }, [colonyState, surfaceBuildingCount]);
+  }, [colonyState, serverHydrated, surfaceBuildingCount]);
 
-  // Cargo logistics can only unload where the target colony has a landing pad or
-  // spaceport. Resolves the target's buildings from the active colony when it's the
-  // one open, otherwise from that colony's persisted hex slots. (Terraform delivery
-  // is a separate path and intentionally needs no surface buildings on the target.)
+  // Cargo logistics can unload to a landing pad / spaceport, or to the target
+  // planet's orbital cache before that first receiving infrastructure exists.
+  // This helper only controls the informational cache notice in the planet menu.
   const getPlanetHasLandingPad = useCallback((planetId: string): boolean => {
     const active = colonyStateRef.current;
     const buildings = (active?.planetId === planetId && (active?.buildings?.length ?? 0) > 0)
@@ -5301,7 +5403,7 @@ function AppInner() {
     const keysToRemove = [
       'nebulife_player_xp', 'nebulife_player_level', 'nebulife_research_state',
       'nebulife_tech_tree', 'nebulife_player_stats', 'nebulife_research_data',
-      'nebulife_colony_resources', 'nebulife_colony_resources_updated_at', 'nebulife_chemical_inventory', 'nebulife_colony_state', 'nebulife_exodus_phase', 'nebulife_tutorial_step',
+      'nebulife_colony_resources', 'nebulife_colony_resources_updated_at', 'nebulife_chemical_inventory', 'nebulife_chemical_inventory_by_planet', 'nebulife_colony_state', 'nebulife_exodus_phase', 'nebulife_tutorial_step',
       'nebulife_log_entries', 'nebulife_onboarding_done', 'nebulife_scene',
       'nebulife_nav_system', 'nebulife_nav_planet', 'nebulife_destroyed_planets',
       'nebulife_favorite_planets', 'nebulife_favorite_planets_updated_at', 'nebulife_game_started_at', 'nebulife_time_multiplier',
@@ -5335,6 +5437,8 @@ function AppInner() {
       'nebulife_astra_quiz_answers',
       // Per-planet resources (Phase 7A)
       'nebulife_colony_resources_by_planet',
+      'nebulife_cosmic_event_research',
+      'nebulife_dna_spark_synthesis',
     ];
     keysToRemove.forEach(k => localStorage.removeItem(k));
     // Also remove all quiz answer keys
@@ -5735,6 +5839,22 @@ function AppInner() {
       setChemicalInventory(merged);
       try { localStorage.setItem('nebulife_chemical_inventory', JSON.stringify(merged)); } catch { /* ignore */ }
     }
+    if (gs.chemical_inventory_by_planet && typeof gs.chemical_inventory_by_planet === 'object') {
+      const localByPlanet = (() => { try { return JSON.parse(localStorage.getItem('nebulife_chemical_inventory_by_planet') ?? 'null'); } catch { return null; } })() as Record<string, Record<string, number>> | null;
+      const serverByPlanet = gs.chemical_inventory_by_planet as Record<string, Record<string, number>>;
+      const mergedByPlanet: Record<string, Record<string, number>> = {};
+      for (const planetId of new Set([...Object.keys(serverByPlanet), ...Object.keys(localByPlanet ?? {})])) {
+        const serverElements = serverByPlanet[planetId] ?? {};
+        const localElements = localByPlanet?.[planetId] ?? {};
+        const mergedElements: Record<string, number> = {};
+        for (const el of new Set([...Object.keys(serverElements), ...Object.keys(localElements)])) {
+          mergedElements[el] = Math.max(serverElements[el] ?? 0, localElements[el] ?? 0);
+        }
+        mergedByPlanet[planetId] = mergedElements;
+      }
+      setChemicalInventoryByPlanet(mergedByPlanet);
+      try { localStorage.setItem('nebulife_chemical_inventory_by_planet', JSON.stringify(mergedByPlanet)); } catch { /* ignore */ }
+    }
     if (gs.life_ingredients && typeof gs.life_ingredients === 'object') {
       const localLI = (() => { try { return JSON.parse(localStorage.getItem('nebulife_life_ingredients') ?? 'null'); } catch { return null; } })();
       const mergedLI: Record<string, number> = {};
@@ -5752,6 +5872,18 @@ function AppInner() {
       }
       setLifeSparks(mergedLS);
       try { localStorage.setItem('nebulife_life_sparks', JSON.stringify(mergedLS)); } catch { /* ignore */ }
+    }
+    if (gs.dna_spark_synthesis && typeof gs.dna_spark_synthesis === 'object') {
+      const serverDna = gs.dna_spark_synthesis;
+      const localDna = (() => { try { return JSON.parse(localStorage.getItem('nebulife_dna_spark_synthesis') ?? 'null'); } catch { return null; } })() as { spark?: LifeSparkType; chosenAt?: number; completedAt?: number } | null;
+      const candidates = [serverDna, localDna].filter((entry): entry is { spark: LifeSparkType; chosenAt: number; completedAt?: number } => (
+        Boolean(entry?.spark && typeof entry.chosenAt === 'number')
+      ));
+      const chosen = candidates.sort((a, b) => (b.completedAt ?? b.chosenAt) - (a.completedAt ?? a.chosenAt))[0];
+      if (chosen) {
+        setDnaSparkSynthesis(chosen);
+        try { localStorage.setItem('nebulife_dna_spark_synthesis', JSON.stringify(chosen)); } catch { /* ignore */ }
+      }
     }
     // Overlay the freshest harvest cooldown (lastHarvestedAt) per slot id onto the
     // server snapshot. Without this, the length-only "server is ahead" heuristic
@@ -7793,37 +7925,117 @@ function AppInner() {
   }, [completedModal, dismissCompletedModal, handleEnterSystem]);
 
   // ── Planet access checks ────────────────────────────────────────────
-  // Surface landing: blocked before first evacuation; after — home planet or level 50+
-  const canLandOnPlanet = useCallback((planet: Planet): { allowed: boolean; reason?: string; chaos?: boolean; hidden?: boolean } => {
+  const isGiantPlanet = useCallback((planet: Planet): boolean => (
+    planet.type === 'gas-giant' || planet.type === 'ice-giant'
+  ), []);
+
+  const isPlanetFullyExplored = useCallback((system: StarSystem | null | undefined, planet: Planet): boolean => (
+    getEffectivePlanetRevealLevel(planet, system ?? null) >= 3
+  ), [getEffectivePlanetRevealLevel]);
+
+  const getMissingPlanetResearchSteps = useCallback((system: StarSystem | null | undefined, planet: Planet): string => {
+    const revealLevel = getEffectivePlanetRevealLevel(planet, system ?? null);
+    const steps: string[] = [];
+    if (revealLevel < 1) {
+      steps.push(tr('planet_missions.type.orbital_scan'));
+    }
+    if (revealLevel < 2) {
+      steps.push(tr('planet_missions.type.orbital_probe'));
+    }
+    if (revealLevel < 3) {
+      steps.push(tr(`planet_missions.type.${isSolidPlanetForLanding(planet) ? 'surface_landing' : 'deep_atmosphere_probe'}`));
+    }
+    return steps.join(', ');
+  }, [getEffectivePlanetRevealLevel, tr]);
+
+  const isPlanetTerraformComplete = useCallback((system: StarSystem | null | undefined, planet: Planet): boolean => {
+    const stateForPlanet = system
+      ? getPlanetScopedValue(terraformStates, system.id, planet.id)
+      : terraformStates[planet.id];
+    return Boolean(stateForPlanet?.completedAt);
+  }, [terraformStates]);
+
+  const isPlanetHabitableForColony = useCallback((system: StarSystem | null | undefined, planet: Planet): boolean => (
+    planet.isColonizable || (planet.habitability?.overall ?? 0) >= 0.3 || isPlanetTerraformComplete(system, planet)
+  ), [isPlanetTerraformComplete]);
+
+  const getColonyShipStatusForPlanet = useCallback((planetId: string): 'none' | 'sent' | 'arrived' => {
+    let sent = false;
+    for (const ship of shipFleet.ships) {
+      if (ship.type !== 'colony_ship') continue;
+      if (ship.status === 'docked' && ship.currentPlanetId === planetId) return 'arrived';
+      if (ship.destinationPlanetId === planetId || ship.currentPlanetId === planetId) sent = true;
+    }
+    return sent ? 'sent' : 'none';
+  }, [shipFleet.ships]);
+
+  const isPlanetColonized = useCallback((system: StarSystem | null | undefined, planet: Planet): boolean => {
+    if (planet.isHomePlanet || planet.id === homeInfo?.planet.id) return true;
+    if (colonyState?.planetId === planet.id && colonyState.buildings.some((building) => building.type === 'colony_hub')) return true;
+    if (getColonyShipStatusForPlanet(planet.id) === 'arrived' && isPlanetHabitableForColony(system, planet)) return true;
+    return getColonyPlanets().some((colonyPlanet) => colonyPlanet.id === planet.id);
+  }, [colonyState, getColonyPlanets, getColonyShipStatusForPlanet, homeInfo?.planet.id, isPlanetHabitableForColony]);
+
+  const getSurfaceAccessForPlanet = useCallback((planet: Planet, system?: StarSystem | null): SurfaceAccessCheck => {
     const isHome = planet.isHomePlanet || (homeInfo != null && planet.id === homeInfo.planet.id);
 
-    // Level 50+ can access any planet's surface
-    if (playerLevel >= 50) {
-      // But home planet during pre-evacuation chaos is still blocked
-      if (isHome && isExodusPhase && evacuationPhase === 'idle') {
-        return { allowed: false, chaos: true };
-      }
-      return { allowed: true };
-    }
-
-    // Before level 50: only home planet (or colonizable after evacuation) shows the surface button
-    if (!isHome && !planet.isColonizable) {
-      return { allowed: false, hidden: true };
-    }
-
-    // Home planet during exodus-phase chaos — blocked but show chaos modal
     if (isHome && isExodusPhase && evacuationPhase === 'idle') {
-      return { allowed: false, chaos: true };
+      return { allowed: false, chaos: true, reason: tr('surface_gate.chaos') };
     }
 
-    // Home planet in non-exodus phase — surface accessible
-    if (isHome) return { allowed: true };
+    if (!isPlanetFullyExplored(system, planet)) {
+      return {
+        allowed: false,
+        reason: tr('surface_gate.need_full_exploration_with_steps', {
+          steps: getMissingPlanetResearchSteps(system, planet),
+        }),
+      };
+    }
 
-    // Colonizable planet — accessible only after evacuation is done
-    if (planet.isColonizable && evacuationPhase !== 'idle') return { allowed: true };
+    if (isGiantPlanet(planet)) {
+      return { allowed: true, mode: 'orbital' };
+    }
 
-    return { allowed: false, hidden: true };
-  }, [homeInfo, playerLevel, isExodusPhase, evacuationPhase]);
+    if (isPlanetColonized(system, planet)) {
+      return { allowed: true, mode: 'colony' };
+    }
+
+    return { allowed: true, mode: 'survey' };
+  }, [
+    evacuationPhase,
+    homeInfo,
+    isExodusPhase,
+    isGiantPlanet,
+    isPlanetColonized,
+    isPlanetFullyExplored,
+    getMissingPlanetResearchSteps,
+    tr,
+  ]);
+
+  const showSurfaceBlockedReason = useCallback((check: SurfaceAccessCheck): void => {
+    if (check.chaos) {
+      if (enqueueIfArena(() => setShowChaosModal(true))) return;
+      setShowChaosModal(true);
+      return;
+    }
+    setToastMessage(check.reason ?? tr('surface_gate.unavailable'));
+    window.setTimeout(() => setToastMessage(null), 3200);
+  }, [enqueueIfArena, tr]);
+
+  const canLandOnPlanet = useCallback((planet: Planet, system?: StarSystem | null): SurfaceAccessCheck => (
+    getSurfaceAccessForPlanet(planet, system)
+  ), [getSurfaceAccessForPlanet]);
+
+  const getSurfaceBuildBlockedReason = useCallback((planet: Planet, system?: StarSystem | null): string | undefined => {
+    const access = getSurfaceAccessForPlanet(planet, system);
+    if (access.mode !== 'survey') return undefined;
+    if (!isPlanetHabitableForColony(system, planet)) {
+      return tr('surface_gate.need_habitable_or_terraform');
+    }
+    const shipStatus = getColonyShipStatusForPlanet(planet.id);
+    if (shipStatus === 'sent') return tr('surface_gate.colony_ship_arriving');
+    return tr('surface_gate.colony_ship_required');
+  }, [getColonyShipStatusForPlanet, getSurfaceAccessForPlanet, isPlanetHabitableForColony, tr]);
 
   // Exosphere: always accessible if system is researched (menu only shows in researched systems)
   const handleViewPlanet = useCallback(() => {
@@ -9728,9 +9940,13 @@ function AppInner() {
     setSeparationJobs(remaining);
 
     const totals: Record<string, number> = {};
+    const totalsByPlanet: Record<string, Record<string, number>> = {};
     for (const job of done) {
       const elems = rollSeparation(job.group, job.amount, job.seed);
       for (const [el, amt] of Object.entries(elems)) totals[el] = (totals[el] ?? 0) + amt;
+      const planetTotals = totalsByPlanet[job.planetId] ?? {};
+      for (const [el, amt] of Object.entries(elems)) planetTotals[el] = (planetTotals[el] ?? 0) + amt;
+      totalsByPlanet[job.planetId] = planetTotals;
 
       // Per-job visual result → last-5 history + system-chat notification.
       const source = job.buildingType ?? 'quantum_separator';
@@ -9754,6 +9970,16 @@ function AppInner() {
     setChemicalInventory((prev) => {
       const next = { ...prev };
       for (const [el, amt] of Object.entries(totals)) next[el] = (next[el] ?? 0) + amt;
+      return next;
+    });
+    setChemicalInventoryByPlanet((prev) => {
+      const next = { ...prev };
+      for (const [planetId, planetTotals] of Object.entries(totalsByPlanet)) {
+        const current = next[planetId] ?? {};
+        const nextForPlanet = { ...current };
+        for (const [el, amt] of Object.entries(planetTotals)) nextForPlanet[el] = (nextForPlanet[el] ?? 0) + amt;
+        next[planetId] = nextForPlanet;
+      }
       return next;
     });
     const summary = Object.entries(totals)
@@ -9827,9 +10053,13 @@ function AppInner() {
     setExtractionJobs(remaining);
 
     const totals: Record<string, number> = {};
+    const totalsByPlanet: Record<string, Record<string, number>> = {};
     for (const job of done) {
       const elems = rollParticleExtraction(job.seed);
       for (const [el, amt] of Object.entries(elems)) totals[el] = (totals[el] ?? 0) + amt;
+      const planetTotals = totalsByPlanet[job.planetId] ?? {};
+      for (const [el, amt] of Object.entries(elems)) planetTotals[el] = (planetTotals[el] ?? 0) + amt;
+      totalsByPlanet[job.planetId] = planetTotals;
       const jobSummary = Object.entries(elems)
         .sort((a, b) => b[1] - a[1]).slice(0, 4).map(([el, amt]) => `${el} ${amt}`).join(', ');
       const result: ElementResult = {
@@ -9849,6 +10079,16 @@ function AppInner() {
       for (const [el, amt] of Object.entries(totals)) next[el] = (next[el] ?? 0) + amt;
       return next;
     });
+    setChemicalInventoryByPlanet((prev) => {
+      const next = { ...prev };
+      for (const [planetId, planetTotals] of Object.entries(totalsByPlanet)) {
+        const current = next[planetId] ?? {};
+        const nextForPlanet = { ...current };
+        for (const [el, amt] of Object.entries(planetTotals)) nextForPlanet[el] = (nextForPlanet[el] ?? 0) + amt;
+        next[planetId] = nextForPlanet;
+      }
+      return next;
+    });
     scheduleSyncToServer();
   }, [scheduleSyncToServer, tr, addLogEntry, addResultNotif, pushResultHistory]);
 
@@ -9859,22 +10099,43 @@ function AppInner() {
     return () => window.clearInterval(id);
   }, [completeReadyExtraction, extractionJobs.length]);
 
+  /** Lock the DNA constructor to one selected spark per player/account. */
+  const handleSparkSynthesisClaim = useCallback((sparkType: LifeSparkType): boolean => {
+    if (dnaSparkSynthesis) return dnaSparkSynthesis.spark === sparkType && !dnaSparkSynthesis.completedAt;
+    const chosen = { spark: sparkType, chosenAt: Date.now() };
+    setDnaSparkSynthesis(chosen);
+    try { localStorage.setItem('nebulife_dna_spark_synthesis', JSON.stringify(chosen)); } catch { /* ignore */ }
+    scheduleSyncToServer();
+    return true;
+  }, [dnaSparkSynthesis, scheduleSyncToServer]);
+
   /** Grant a spark after a successful DNA-constructor minigame. */
   const handleSparkSynthesisSuccess = useCallback((sparkType: LifeSparkType): void => {
+    if (dnaSparkSynthesis?.completedAt) {
+      setToastMessage(tr('lab.dna_already_completed', { spark: tr(`lab.spark.${dnaSparkSynthesis.spark}` as 'lab.spark.primordial') }));
+      window.setTimeout(() => setToastMessage(null), 3200);
+      return;
+    }
+    const now = Date.now();
+    setDnaSparkSynthesis((prev) => ({
+      spark: prev?.spark ?? sparkType,
+      chosenAt: prev?.chosenAt ?? now,
+      completedAt: now,
+    }));
     setLifeSparks((prev) => ({ ...prev, [sparkType]: (prev[sparkType] ?? 0) + 1 }));
     const result: ElementResult = {
-      id: `res-spark-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      id: `res-spark-${now}-${Math.random().toString(36).slice(2, 6)}`,
       kind: 'spark',
       source: 'research_lab',
       sparkType,
-      completedAt: Date.now(),
+      completedAt: now,
     };
     pushResultHistory(setExperimentHistory, result);
     const sparkName = tr(`lab.spark.${sparkType}` as 'lab.spark.primordial');
     addResultNotif(result, tr('lab.spark_notif', { spark: sparkName }));
     addLogEntry('science', tr('lab.spark_log', { spark: sparkName }));
     scheduleSyncToServer();
-  }, [scheduleSyncToServer, tr, addLogEntry, addResultNotif, pushResultHistory]);
+  }, [dnaSparkSynthesis, scheduleSyncToServer, tr, addLogEntry, addResultNotif, pushResultHistory]);
 
   // ── Retention systems: directives impl, comet event, ops hub ─────────────
 
@@ -10533,8 +10794,10 @@ function AppInner() {
       hex_slots: hexSlots,
       hex_slots_by_planet: hexSlotsByPlanet,
       chemical_inventory: chemicalInventory,
+      chemical_inventory_by_planet: chemicalInventoryByPlanet,
       life_ingredients: lifeIngredients,
       life_sparks: lifeSparks,
+      dna_spark_synthesis: dnaSparkSynthesis ?? undefined,
       exodus_phase: isExodusPhase,
       destroyed_planets: destroyedPlanets,
       onboarding_done: localStorage.getItem('nebulife_onboarding_done') === '1',
@@ -10711,7 +10974,7 @@ function AppInner() {
     if (!pid) return;
     if (isFirebaseConfigured && !serverHydrated) return;
     scheduleSyncToServer();
-  }, [serverHydrated, playerXP, playerLevel, researchState, isExodusPhase, colonyResources, colonyResourcesByPlanet, playerStats, arenaStats, researchData, techTreeState, logEntries, favoritePlanets, pinnedSystems, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet, shipFleet, planetRevealLevels, planetMissions, planetReports, explorationPayloads, explorationProductionQueue, separationJobs, observatoryState, astraQuizAnswers, planetOverrides, planetResourceStocks, dailyDirectives, cometClaims]);
+  }, [serverHydrated, playerXP, playerLevel, researchState, isExodusPhase, colonyResources, colonyResourcesByPlanet, playerStats, arenaStats, researchData, techTreeState, logEntries, favoritePlanets, pinnedSystems, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet, shipFleet, planetRevealLevels, planetMissions, planetReports, explorationPayloads, explorationProductionQueue, separationJobs, observatoryState, astraQuizAnswers, planetOverrides, planetResourceStocks, dailyDirectives, cometClaims, dnaSparkSynthesis, chemicalInventoryByPlanet]);
 
   // Sync on page hide / beforeunload (best-effort) + re-sync from server on foreground
   useEffect(() => {
@@ -10934,12 +11197,9 @@ function AppInner() {
   // ── Surface view handlers ─────────────────────────────────────────────
   const handleOpenSurface = useCallback(() => {
     if (!state.selectedPlanet || !state.selectedSystem) return;
-    const check = canLandOnPlanet(state.selectedPlanet);
+    const check = canLandOnPlanet(state.selectedPlanet, state.selectedSystem);
     if (!check.allowed) {
-      if (check.chaos) {
-        if (enqueueIfArena(() => setShowChaosModal(true))) return;
-        setShowChaosModal(true);
-      }
+      showSurfaceBlockedReason(check);
       return;
     }
     setShowCosmicArchive(false);
@@ -10949,7 +11209,7 @@ function AppInner() {
       star: state.selectedSystem.star,
       system: state.selectedSystem,
     });
-  }, [state.selectedPlanet, state.selectedSystem, canLandOnPlanet, enqueueIfArena]);
+  }, [state.selectedPlanet, state.selectedSystem, canLandOnPlanet, showSurfaceBlockedReason]);
 
   const handleCloseSurface = useCallback(() => {
     const target = surfaceTargetRef.current;
@@ -11017,6 +11277,11 @@ function AppInner() {
       }
     }
     if (!info) return;
+    const check = canLandOnPlanet(info.planet, info.system);
+    if (!check.allowed) {
+      showSurfaceBlockedReason(check);
+      return;
+    }
     setShowCosmicArchive(false);
     setState(prev => ({
       ...prev,
@@ -11029,14 +11294,18 @@ function AppInner() {
       star: info.system.star,
       system: info.system,
     });
-  }, [homeInfo]);
+  }, [canLandOnPlanet, homeInfo, showSurfaceBlockedReason]);
 
   // ── Globe double-click → spin + zoom → surface ────────────────────────
   const handleGlobeDoubleClick = useCallback(() => {
     const planet = state.scene === 'home-intro' ? homeInfo?.planet : state.selectedPlanet;
     if (!planet) return;
-    const check = canLandOnPlanet(planet);
-    if (!check.allowed) return;
+    const system = state.scene === 'home-intro' ? homeInfo?.system : state.selectedSystem;
+    const check = canLandOnPlanet(planet, system);
+    if (!check.allowed) {
+      showSurfaceBlockedReason(check);
+      return;
+    }
     globeRef.current?.spinAndZoom(() => {
       if (state.scene === 'home-intro') {
         handleGoToHomeSurface();
@@ -11044,7 +11313,7 @@ function AppInner() {
         handleOpenSurface();
       }
     });
-  }, [state.scene, state.selectedPlanet, homeInfo, canLandOnPlanet, handleGoToHomeSurface, handleOpenSurface]);
+  }, [state.scene, state.selectedPlanet, state.selectedSystem, homeInfo, canLandOnPlanet, handleGoToHomeSurface, handleOpenSurface, showSurfaceBlockedReason]);
 
   // ── Planet detail window handler ────────────────────────────────────────
   const handleViewPlanetDetail = useCallback((system: StarSystem, planetIndex: number, displayName?: string) => {
@@ -11668,6 +11937,31 @@ function AppInner() {
     scheduleSyncToServer();
   }, [addResources, createDockedShipFromProduction, scheduleSyncToServer, t]);
 
+  const resourceHudPlanet = (() => {
+    if (surfaceTarget) return surfaceTarget.planet;
+    if (showTerraformPlanet) return showTerraformPlanet;
+    if (planetReportTarget) return planetReportTarget.planet;
+    if (planetDetailTarget) return planetDetailTarget.system.planets[planetDetailTarget.planetIndex] ?? null;
+    if (state.scene === 'planet-view') {
+      if (state.selectedPlanet) return state.selectedPlanet;
+      try {
+        const persistedPlanetId = localStorage.getItem('nebulife_nav_planet');
+        return state.selectedSystem?.planets.find((planet) => planet.id === persistedPlanetId) ?? null;
+      } catch {
+        return null;
+      }
+    }
+    if (state.scene === 'home-intro') return homeInfo?.planet ?? null;
+    return null;
+  })();
+  const hudResources = resourceHudPlanet ? getResources(resourceHudPlanet.id) : totalResources();
+  const hudPlanetOverride = resourceHudPlanet
+    ? Object.values(planetOverrides).find((override) => override.planetId === resourceHudPlanet.id)
+    : undefined;
+  const hudResourceScopeLabel = resourceHudPlanet
+    ? (hudPlanetOverride?.customName ?? resourceHudPlanet.name ?? resourceHudPlanet.id)
+    : undefined;
+
   return (
     <>
       <style>{`
@@ -11701,11 +11995,12 @@ function AppInner() {
         researchData={Math.floor(researchData)}
         quarks={quarks}
         isExodusPhase={isExodusPhase}
-        minerals={colonyResources.minerals}
-        volatiles={colonyResources.volatiles}
-        isotopes={colonyResources.isotopes}
-        water={colonyResources.water}
-        totalsResources={totalResources()}
+        minerals={hudResources.minerals}
+        volatiles={hudResources.volatiles}
+        isotopes={hudResources.isotopes}
+        water={hudResources.water}
+        displayResources={hudResources}
+        resourceScopeLabel={hudResourceScopeLabel}
         onClick={() => { if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true); }}
         onObservatoriesClick={() => setShowResourceModal('observatories')}
         onResearchDataClick={() => setShowResourceModal('research_data')}
@@ -12119,17 +12414,15 @@ function AppInner() {
               active: favoritePlanets.has(state.selectedPlanet!.id),
             }];
 
-            if (!isExodusPhase && (state.selectedPlanet.type === 'rocky' || state.selectedPlanet.type === 'terrestrial' || state.selectedPlanet.type === 'dwarf')) {
-              const check = canLandOnPlanet(state.selectedPlanet);
-              if (!check.hidden) {
-                buttons.push({
+            if (!isExodusPhase && (state.selectedPlanet.type === 'rocky' || state.selectedPlanet.type === 'terrestrial' || state.selectedPlanet.type === 'dwarf' || state.selectedPlanet.type === 'gas-giant' || state.selectedPlanet.type === 'ice-giant')) {
+              const check = canLandOnPlanet(state.selectedPlanet, state.selectedSystem);
+              buttons.push({
               title: check.allowed ? t('nav.surface_btn') : (check.reason || t('common.unavailable')),
               icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M1 12 L4 8 L7 10 L11 5 L15 9 L15 14 L1 14Z" /><circle cx="12" cy="3" r="2" /></svg>,
               onClick: handleOpenSurface,
-              disabled: !check.allowed,
+              disabled: false,
               pulse: check.allowed,
-                });
-              }
+              });
             }
 
             return buttons;
@@ -12457,11 +12750,11 @@ function AppInner() {
             }
           }}
           onClose={handleClosePlanetMenu}
-          onSurface={isExodusPhase || canLandOnPlanet(state.selectedPlanet).hidden ? undefined : handleOpenSurface}
+          onSurface={isExodusPhase ? undefined : handleOpenSurface}
           isFavorite={favoritePlanets.has(state.selectedPlanet.id)}
           onToggleFavorite={toggleFavoritePlanet}
           isDestroyed={destroyedPlanetIdsSet.has(state.selectedPlanet.id)}
-          surfaceDisabledReason={canLandOnPlanet(state.selectedPlanet).reason}
+          surfaceDisabledReason={canLandOnPlanet(state.selectedPlanet, state.selectedSystem).allowed ? undefined : canLandOnPlanet(state.selectedPlanet, state.selectedSystem).reason}
           onTelescopePhoto={(photoKind) => handlePlanetTelescopePhoto(photoKind)}
           onGeneratePlanetSkin={handleGeneratePlanetSkin}
           planetSkinStatus={{
@@ -12469,7 +12762,7 @@ function AppInner() {
             exosphere: planetSkins.get(planetSkinKey(state.selectedSystem!.id, state.selectedPlanet.id, 'exosphere'))?.status as 'generating' | 'pending' | 'processing' | 'succeed' | 'failed' | undefined,
           }}
           canGenerateSurfacePhotos={
-            canLandOnPlanet(state.selectedPlanet).allowed && isSolidPlanetForLanding(state.selectedPlanet)
+            canLandOnPlanet(state.selectedPlanet, state.selectedSystem).allowed && isSolidPlanetForLanding(state.selectedPlanet)
           }
           isPhotoGenerating={
             systemPhotos.get(getPlanetPhotoKey(state.selectedSystem!.id, state.selectedPlanet.id, 'exosphere'))?.status === 'generating'
@@ -12551,11 +12844,7 @@ function AppInner() {
           carrierInventory={getAvailableMissionCarriers(surfaceTarget?.planet.id ?? homeInfo?.planet.id ?? colonyState?.planetId ?? '')}
           colonyBuildings={getExplorationBuildings()}
           onStartMission={handleStartPlanetMission}
-          explorationMissionsDisabled={Boolean(
-            state.selectedPlanet.isHomePlanet
-              || state.selectedPlanet.id === homeInfo?.planet.id
-              || state.selectedPlanet.id === colonyState?.planetId,
-          )}
+          explorationMissionsDisabled={false}
           reportSummary={getPlanetScopedValue(planetReports, state.selectedSystem!.id, state.selectedPlanet.id)}
           missionPhotoSaved={(() => {
             const report = getPlanetScopedValue(planetReports, state.selectedSystem!.id, state.selectedPlanet!.id);
@@ -12619,8 +12908,8 @@ function AppInner() {
         <PlanetInfoPanel
           planet={state.selectedPlanet}
           onClose={() => setState((prev) => ({ ...prev, showPlanetInfo: false, selectedPlanet: null }))}
-          onSurface={isExodusPhase || canLandOnPlanet(state.selectedPlanet).hidden ? undefined : handleOpenSurface}
-          surfaceDisabledReason={canLandOnPlanet(state.selectedPlanet).reason}
+          onSurface={isExodusPhase ? undefined : handleOpenSurface}
+          surfaceDisabledReason={canLandOnPlanet(state.selectedPlanet, state.selectedSystem).allowed ? undefined : canLandOnPlanet(state.selectedPlanet, state.selectedSystem).reason}
           terraformState={state.selectedSystem
             ? getPlanetScopedValue(terraformStates, state.selectedSystem.id, state.selectedPlanet.id)
             : terraformStates[state.selectedPlanet.id]}
@@ -13171,7 +13460,7 @@ function AppInner() {
           volatiles={getResources(surfaceTarget.planet.id).volatiles}
           isotopes={getResources(surfaceTarget.planet.id).isotopes}
           water={getResources(surfaceTarget.planet.id).water}
-          chemicalInventory={chemicalInventory}
+          chemicalInventory={getPlanetChemicalInventory(surfaceTarget.planet.id)}
           onElementChange={handleElementChange}
           onConsumeIsotopes={(amount) => {
             const pid = surfaceTarget.planet.id;
@@ -13195,7 +13484,14 @@ function AppInner() {
             setQuarks((prev) => Math.max(0, prev - amount));
           }}
           alphaHarvesterCount={0}
+          surfaceAccessMode={canLandOnPlanet(surfaceTarget.planet, surfaceTarget.system).mode ?? 'survey'}
+          buildBlockedReason={getSurfaceBuildBlockedReason(surfaceTarget.planet, surfaceTarget.system)}
           onOpenColonyCenter={(tab) => {
+            if ((canLandOnPlanet(surfaceTarget.planet, surfaceTarget.system).mode ?? 'survey') !== 'colony') {
+              setToastMessage(getSurfaceBuildBlockedReason(surfaceTarget.planet, surfaceTarget.system) ?? tr('surface_gate.colony_ship_required'));
+              window.setTimeout(() => setToastMessage(null), 3200);
+              return;
+            }
             setColonyCenterInitialTab(tab ?? 'overview');
             setShowColonyCenter(true);
           }}
@@ -13231,6 +13527,9 @@ function AppInner() {
           volatiles={getResources(surfaceTarget.planet.id).volatiles}
           isotopes={getResources(surfaceTarget.planet.id).isotopes}
           water={getResources(surfaceTarget.planet.id).water}
+          storageCapacity={getStorageCapacityForPlanet(surfaceTarget.planet.id)}
+          playerLevel={playerLevel}
+          chemicalInventory={getPlanetChemicalInventory(surfaceTarget.planet.id)}
           onRefsReady={setResourceRects}
         />
       )}
@@ -13670,11 +13969,7 @@ function AppInner() {
             setMissionPhotoViewer({ planetName: planet.name, photoUrl, photoKey: key, systemId: report.systemId, planetId: planet.id });
             setShowCosmicArchive(false);
           }}
-          explorationMissionsDisabled={(_system, planet) => Boolean(
-            planet.isHomePlanet
-              || planet.id === homeInfo?.planet.id
-              || planet.id === colonyState?.planetId,
-          )}
+          explorationMissionsDisabled={() => false}
           colonyStateByPlanet={colonyState ? { [colonyState.planetId]: colonyState } : undefined}
           getPlanetResources={getResources}
           planetResourceStocks={planetResourceStocks}
@@ -14262,6 +14557,9 @@ function AppInner() {
         <DnaConstructorGame
           onSuccess={handleSparkSynthesisSuccess}
           onClose={() => setShowDnaLab(false)}
+          claimedSpark={dnaSparkSynthesis?.spark ?? null}
+          completed={Boolean(dnaSparkSynthesis?.completedAt)}
+          onClaimSpark={handleSparkSynthesisClaim}
         />
       )}
 
@@ -14428,6 +14726,7 @@ function AppInner() {
             allColonies={allColonies}
             initialTab={colonyCenterInitialTab}
             colonyResources={activeResources}
+            chemicalInventory={getPlanetChemicalInventory(active.planet.id)}
             storageCapacity={storageCapacity}
             productionPerHour={displayedPerHour}
             extractionPerHour={hexExtractionPerHour}

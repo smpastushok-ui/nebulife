@@ -23,6 +23,7 @@ interface HexBuildMenuProps {
   colonyResources: { minerals: number; volatiles: number; isotopes: number; water: number };
   chemicalInventory?: Record<string, number>;
   planetType?: PlanetType;
+  surfaceAccessMode?: 'survey' | 'colony' | 'orbital';
   planetStocks?: PlanetResourceStocks;
   quarks?: number;
   alphaHarvesterCount?: number;
@@ -190,6 +191,7 @@ export function HexBuildMenu({
   colonyResources,
   chemicalInventory = {},
   planetType,
+  surfaceAccessMode = 'colony',
   planetStocks,
   quarks = 0,
   alphaHarvesterCount = 0,
@@ -211,8 +213,11 @@ export function HexBuildMenu({
     return () => document.removeEventListener('mousedown', handler);
   }, [onClose]);
 
-  // All buildings except colony_hub, grouped by category
-  const allBuildings = (Object.keys(BUILDING_DEFS) as BuildingType[]).filter(bt => bt !== 'colony_hub');
+  // All buildings except colony_hub, grouped by category. Orbital survey mode is
+  // intentionally narrow: gas/ice giants only support atmospheric collectors.
+  const allBuildings = (Object.keys(BUILDING_DEFS) as BuildingType[]).filter((bt) => (
+    surfaceAccessMode === 'orbital' ? bt === 'orbital_collector' : bt !== 'colony_hub'
+  ));
 
   const grouped = CATEGORY_ORDER.reduce<Partial<Record<string, BuildingType[]>>>((acc, cat) => {
     const items = allBuildings.filter((bt) => BUILDING_DEFS[bt].category === cat);
@@ -278,6 +283,20 @@ export function HexBuildMenu({
 
         {/* Building grid — 3 columns per category */}
         <div style={{ padding: '4px 8px 8px' }}>
+          {surfaceAccessMode === 'orbital' && (
+            <div style={{
+              margin: '6px 0 8px',
+              padding: '8px 10px',
+              border: '1px solid rgba(68,136,170,0.45)',
+              borderRadius: 5,
+              background: 'rgba(68,136,170,0.10)',
+              color: '#9fd0ff',
+              fontSize: 9,
+              lineHeight: 1.45,
+            }}>
+              {t('surface_gate.orbital_only')}
+            </div>
+          )}
           {Object.entries(grouped).map(([cat, types]) => (
             <div key={cat} style={{ marginBottom: 6 }}>
               {/* Category header */}
