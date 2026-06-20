@@ -3750,6 +3750,16 @@ function AppInner() {
   const getColonyPlanets = useCallback((): Planet[] => {
     const planets: Planet[] = [];
     const seen = new Set<string>();
+    const allSystems = engineRef.current?.getAllSystems?.() ?? [];
+
+    const addPlanetById = (planetId?: string | null) => {
+      if (!planetId || seen.has(planetId)) return;
+      const system = allSystems.find((candidate) => candidate.planets.some((planet) => planet.id === planetId));
+      const planet = system?.planets.find((candidate) => candidate.id === planetId);
+      if (!planet) return;
+      planets.push(planet);
+      seen.add(planet.id);
+    };
 
     // Check the current surface planet for colony_hub
     const surfCtx = surfaceTargetRef.current ?? colonyPlanetRef.current;
@@ -3775,6 +3785,10 @@ function AppInner() {
       seen.add(homeInfo.planet.id);
     }
 
+    for (const [planetId] of Object.entries(colonizedPlanetsRef.current)) {
+      addPlanetById(planetId);
+    }
+
     return planets;
   }, [isExodusPhase, homeInfo]);
 
@@ -3796,9 +3810,12 @@ function AppInner() {
     if (colonyState?.buildings?.some((building) => building.type === 'colony_hub')) {
       addPlanetSystem(colonyState.planetId);
     }
+    for (const planet of getColonyPlanets()) {
+      addPlanetSystem(planet.id);
+    }
 
     return systems;
-  }, [colonyState?.buildings, colonyState?.planetId, homeInfo?.planet.id]);
+  }, [colonyState?.buildings, colonyState?.planetId, getColonyPlanets, homeInfo?.planet.id]);
 
   const getResearchDistanceFromNearestColony = useCallback((targetSystem: StarSystem): number => {
     const colonySystems = getColonySystems();
@@ -14837,23 +14854,24 @@ function AppInner() {
           resourceType?: 'ore' | 'tree' | 'vent' | 'water';
           yieldPerHour?: number;
         };
-        let hexSlots: RawSlot[] = [];
-        try {
-          const scopedRaw = localStorage.getItem(`nebulife_hex_slots_${surfaceTarget.system.id}_${surfaceTarget.planet.id}`);
-          const raw = scopedRaw ?? (
-            localStorage.getItem('nebulife_hex_slots_system_id') === surfaceTarget.system.id &&
-            localStorage.getItem('nebulife_hex_slots_planet_id') === surfaceTarget.planet.id
-              ? localStorage.getItem('nebulife_hex_slots')
-              : null
-          );
-          if (raw) hexSlots = JSON.parse(raw) as RawSlot[];
-        } catch { /* ignore */ }
-
-        const liveBuildings: PlacedBuilding[] = hexSlots
+        const readHexSlotsForPlanet = (systemId: string, planetId: string): RawSlot[] => {
+          try {
+            const scopedRaw = localStorage.getItem(`nebulife_hex_slots_${systemId}_${planetId}`);
+            const raw = scopedRaw ?? (
+              localStorage.getItem('nebulife_hex_slots_system_id') === systemId &&
+              localStorage.getItem('nebulife_hex_slots_planet_id') === planetId
+                ? localStorage.getItem('nebulife_hex_slots')
+                : null
+            );
+            if (raw) return JSON.parse(raw) as RawSlot[];
+          } catch { /* ignore */ }
+          return [];
+        };
+        const toPlacedBuildings = (slots: RawSlot[], fallbackBuildings: PlacedBuilding[] = []): PlacedBuilding[] => slots
           .filter((s) => s.state === 'building' && s.buildingType)
           .map((s) => {
             const type = s.buildingType as BuildingType;
-            const fallback = colonyState?.buildings.find((b) => b.id === s.id || b.type === type);
+            const fallback = fallbackBuildings.find((b) => b.id === s.id || b.type === type);
             return {
               id: `${playerId.current}-${s.id}-${type}`,
               type,
@@ -14864,6 +14882,12 @@ function AppInner() {
               shutdown: fallback?.shutdown,
             };
           });
+        const findSystemForPlanetId = (planetId: string): StarSystem | null => {
+          const allSystems = engineRef.current?.getAllSystems?.() ?? [];
+          return allSystems.find((system) => system.planets.some((planet) => planet.id === planetId)) ?? null;
+        };
+        const hexSlots = readHexSlotsForPlanet(surfaceTarget.system.id, surfaceTarget.planet.id);
+        const liveBuildings = toPlacedBuildings(hexSlots, colonyState?.buildings ?? []);
 
         // Use the freshly-derived list when present; otherwise fall back to
         // whatever colonyState had (e.g. before any hex_slots were saved).
@@ -14883,9 +14907,6 @@ function AppInner() {
           habitability: surfaceTarget.planet.habitability?.overall ?? 0,
           active: true,
         };
-        // MVP: only 1 real colony (active surface). Multi-colony list pending
-        // server-side second-home-colony merge (migration 014).
-        const allColonies: ColonyCenterPlanet[] = [active];
 
         // Aggregate per-hour production from buildings. Tick amounts in
         // BUILDING_DEFS are per-minute → multiply by 60 for /h.
@@ -14934,6 +14955,53 @@ function AppInner() {
           current: Math.round(Math.min(currentPopulation, Math.max(populationCapacity, supportedPopulationCapacity))),
           capacity: Math.max(savedPopulation?.capacity ?? 0, supportedPopulationCapacity, populationCapacity),
         };
+
+        const allColonies: ColonyCenterPlanet[] = [];
+        const seenColonyIds = new Set<string>();
+        const addColonyToRoster = (planet: Planet) => {
+          if (seenColonyIds.has(planet.id)) return;
+          const sys = planet.id === surfaceTarget.planet.id
+            ? surfaceTarget.system
+            : findSystemForPlanetId(planet.id);
+          if (!sys) return;
+          const record = colonizedPlanetsRef.current[planet.id];
+          const slots = planet.id === surfaceTarget.planet.id
+            ? hexSlots
+            : readHexSlotsForPlanet(sys.id, planet.id);
+          let buildings = planet.id === surfaceTarget.planet.id
+            ? buildingsForUi
+            : toPlacedBuildings(slots);
+          if (buildings.length === 0 && record) {
+            buildings = [{
+              id: `${planet.id}-colony-hub`,
+              type: 'colony_hub',
+              x: 0,
+              y: 0,
+              level: 1,
+              builtAt: new Date(record.foundedAt).toISOString(),
+            }];
+          }
+          allColonies.push({
+            planet,
+            star: sys.star,
+            system: sys,
+            buildings,
+            colonyLevel: planet.id === surfaceTarget.planet.id ? active.colonyLevel : 1,
+            habitability: planet.habitability?.overall ?? 0,
+            population: planet.id === surfaceTarget.planet.id
+              ? active.population
+              : record
+                ? { current: record.population, capacity: Math.max(5000, record.population) }
+                : undefined,
+            distanceLY: homeInfo
+              ? Math.abs((sys.ringIndex ?? 0) - (homeInfo.system.ringIndex ?? 0)) * 5
+              : undefined,
+            active: planet.id === surfaceTarget.planet.id,
+          });
+          seenColonyIds.add(planet.id);
+        };
+        addColonyToRoster(surfaceTarget.planet);
+        for (const planet of getColonyPlanets()) addColonyToRoster(planet);
 
         // Resource hexes — passive extraction from natural deposits. Each
         // resource hex has a yieldPerHour (already /h, not /min) and maps
@@ -14989,7 +15057,12 @@ function AppInner() {
                 },
               }));
             }}
-            onTeleport={() => { /* TODO: multi-colony teleport */ }}
+            onTeleport={(colony) => {
+              playSfx('go-to-exosphera', 0.5);
+              setSurfaceTarget({ planet: colony.planet, star: colony.star, system: colony.system });
+              setColonyCenterInitialTab('colonies');
+              setShowColonyCenter(true);
+            }}
             onClose={() => setShowColonyCenter(false)}
             onOpenTopUp={() => {
               setShowColonyCenter(false);
