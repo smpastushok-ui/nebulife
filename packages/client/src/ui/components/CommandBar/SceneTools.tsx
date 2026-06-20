@@ -4,6 +4,7 @@ import type { ToolGroup, ExtendedScene } from './types.js';
 import {
   sectionCenter,
   toolButtonBase, toolButtonPrimary, toolButtonAccent, toolButtonTerminal, toolButtonActive,
+  toolButtonSuccessHighlight,
   zoomButtonStyle,
 } from './styles.js';
 
@@ -15,6 +16,7 @@ interface SceneToolsProps {
 function getButtonStyle(
   variant: 'default' | 'primary' | 'accent' | 'terminal' | undefined,
   active: boolean | undefined,
+  highlight: 'success' | undefined,
 ): React.CSSProperties {
   let base: React.CSSProperties;
 
@@ -27,6 +29,10 @@ function getButtonStyle(
 
   if (active) {
     return { ...base, ...toolButtonActive };
+  }
+
+  if (highlight === 'success') {
+    return { ...base, ...toolButtonSuccessHighlight };
   }
 
   return base;
@@ -78,7 +84,7 @@ export function SceneTools({ groups, scene }: SceneToolsProps) {
                 key={tool.id}
                 data-tutorial-id={tool.tutorialId}
                 style={{
-                  ...getButtonStyle(tool.variant, tool.active),
+                  ...getButtonStyle(tool.variant, tool.active, tool.highlight),
                   opacity: tool.disabled ? 0.4 : 1,
                   cursor: tool.disabled ? 'not-allowed' : 'pointer',
                 }}
@@ -92,7 +98,7 @@ export function SceneTools({ groups, scene }: SceneToolsProps) {
                 }}
                 onMouseLeave={(e) => {
                   if (!tool.active) {
-                    const s = getButtonStyle(tool.variant, false);
+                    const s = getButtonStyle(tool.variant, false, tool.highlight);
                     (e.target as HTMLElement).style.borderColor = s.borderColor as string ?? '';
                     (e.target as HTMLElement).style.color = s.color as string ?? '#8899aa';
                   }

@@ -1704,6 +1704,7 @@
 
     "my_cluster": "MY CLUSTER",
     "week_of": "week of {{week}}",
+    "week_range": "week {{week}} · from {{from}} to {{to}}",
     "rating_empty": "No active players in the cluster this week yet",
     "rating_error": "Failed to load the rating. Try again later.",
     "my_rank": "Your rank this week: #{{rank}}",
@@ -2646,7 +2647,7 @@
       "level": "Level {{n}}",
       "buildings_count": "{{n}} buildings",
       "teleport": "Teleport",
-      "new_slot_hint": "New colony — unlocks after evacuation"
+      "new_slot_hint": "New colony — unlocks after the next colonization"
     },
     "production": {
       "scope_this": "This colony",

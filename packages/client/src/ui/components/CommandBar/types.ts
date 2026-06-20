@@ -20,6 +20,7 @@ export interface ToolItem {
   variant?: 'default' | 'primary' | 'accent' | 'terminal';
   disabled?: boolean;
   active?: boolean;
+  highlight?: 'success';
   badge?: string;
   icon?: React.ReactNode;
   tooltip?: string;

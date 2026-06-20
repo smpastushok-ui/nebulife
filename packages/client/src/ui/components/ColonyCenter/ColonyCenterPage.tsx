@@ -2,7 +2,7 @@
 // ColonyCenterPage — hub management screen opened by tapping the `colony_hub`
 // building on the surface. 6 tabs: Overview, Colonies, Production, Buildings,
 // Events, Premium. All boosts are LOCAL to the colony shown by the `planet`
-// prop — multi-colony aggregation only appears on the Overview summary.
+// prop — multi-colony aggregation appears in the Overview and Production tabs.
 //
 // Perf model:
 //   - high / ultra tiers  → full fades, staggered mount anims, gradient bars
@@ -61,6 +61,22 @@ export interface ColonyCenterPlanet {
   active: boolean;
 }
 
+export interface ColonyProductionRates {
+  minerals: number;
+  volatiles: number;
+  isotopes: number;
+  water: number;
+  researchData: number;
+  energy: number;
+}
+
+export interface ColonyExtractionRates {
+  minerals: number;
+  volatiles: number;
+  isotopes: number;
+  water: number;
+}
+
 export interface ColonyCenterPageProps {
   /** The colony currently being viewed (tapped colony_hub). */
   active: ColonyCenterPlanet;
@@ -73,11 +89,17 @@ export interface ColonyCenterPageProps {
   /** Storage capacity per resource (computed from buildings + tech). */
   storageCapacity: number;
   /** Per-resource hourly production for the active colony. */
-  productionPerHour: { minerals: number; volatiles: number; isotopes: number; water: number; researchData: number; energy: number };
+  productionPerHour: ColonyProductionRates;
+  /** Per-planet hourly production, used by the "All colonies" production scope. */
+  productionPerHourByPlanet?: Record<string, ColonyProductionRates>;
   /** Passive extraction from resource hexes on the surface (already
    *  rolled into productionPerHour). Surfaced separately so the
    *  Production tab can show a "Добування" breakdown row. */
-  extractionPerHour?: { minerals: number; volatiles: number; isotopes: number; water: number };
+  extractionPerHour?: ColonyExtractionRates;
+  /** Per-planet passive extraction, used by the "All colonies" production scope. */
+  extractionPerHourByPlanet?: Record<string, ColonyExtractionRates>;
+  /** Per-planet storage capacity, used by the "All colonies" production scope. */
+  storageCapacityByPlanet?: Record<string, number>;
   /** Net energy balance — produced minus consumed. */
   energyBalance: { produced: number; consumed: number };
   /** researchData balance + hourly income. */
@@ -540,8 +562,11 @@ function ProductionTab({
   active,
   allColonies,
   productionPerHour,
+  productionPerHourByPlanet,
   extractionPerHour,
+  extractionPerHourByPlanet,
   storageCapacity,
+  storageCapacityByPlanet,
   colonyResources,
   colonyResourcesByPlanet,
   planetStocks,
@@ -569,6 +594,7 @@ function ProductionTab({
         resources: colonyResources,
         capacity: storageCapacity,
         perHour: productionPerHour,
+        extractionPerHour: extractionPerHour ?? { minerals: 0, volatiles: 0, isotopes: 0, water: 0 },
         buildings: active.buildings,
       };
     }
@@ -586,13 +612,50 @@ function ProductionTab({
     } else {
       totalResources = colonyResources;
     }
+    const totalPerHour: ColonyProductionRates = { minerals: 0, volatiles: 0, isotopes: 0, water: 0, researchData: 0, energy: 0 };
+    const totalExtraction: ColonyExtractionRates = { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
+    let totalCapacity = 0;
+    for (const colony of allColonies) {
+      const rates = productionPerHourByPlanet?.[colony.planet.id] ?? (colony.active ? productionPerHour : undefined);
+      if (rates) {
+        totalPerHour.minerals += rates.minerals;
+        totalPerHour.volatiles += rates.volatiles;
+        totalPerHour.isotopes += rates.isotopes;
+        totalPerHour.water += rates.water;
+        totalPerHour.researchData += rates.researchData;
+        totalPerHour.energy += rates.energy;
+      }
+
+      const extraction = extractionPerHourByPlanet?.[colony.planet.id] ?? (colony.active ? extractionPerHour : undefined);
+      if (extraction) {
+        totalExtraction.minerals += extraction.minerals;
+        totalExtraction.volatiles += extraction.volatiles;
+        totalExtraction.isotopes += extraction.isotopes;
+        totalExtraction.water += extraction.water;
+      }
+
+      totalCapacity += storageCapacityByPlanet?.[colony.planet.id] ?? (colony.active ? storageCapacity : 0);
+    }
     return {
       resources: totalResources,
-      capacity: storageCapacity * allColonies.length,
-      perHour: productionPerHour,
+      capacity: totalCapacity || storageCapacity * allColonies.length,
+      perHour: totalPerHour,
+      extractionPerHour: totalExtraction,
       buildings,
     };
-  }, [scope, active, allColonies, colonyResources, colonyResourcesByPlanet, storageCapacity, productionPerHour]);
+  }, [
+    scope,
+    active,
+    allColonies,
+    colonyResources,
+    colonyResourcesByPlanet,
+    storageCapacity,
+    storageCapacityByPlanet,
+    productionPerHour,
+    productionPerHourByPlanet,
+    extractionPerHour,
+    extractionPerHourByPlanet,
+  ]);
 
   const resourceKeys = ['minerals', 'volatiles', 'isotopes', 'water'] as const;
 
@@ -659,7 +722,7 @@ function ProductionTab({
               <BuildingBreakdown
                 buildings={scopeData.buildings}
                 resourceKey={key}
-                extractionPerHour={extractionPerHour?.[key] ?? 0}
+                extractionPerHour={scopeData.extractionPerHour[key] ?? 0}
               />
             )}
           </div>

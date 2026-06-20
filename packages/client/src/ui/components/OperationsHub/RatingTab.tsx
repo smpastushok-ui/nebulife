@@ -23,6 +23,32 @@ function displayName(row: { name: string; callsign: string | null }): string {
   return row.callsign?.trim() || row.name;
 }
 
+function parseWeekStartUtc(week: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(week);
+  if (!match) return null;
+  const [, y, m, d] = match;
+  return new Date(Date.UTC(Number(y), Number(m) - 1, Number(d)));
+}
+
+function formatWeekDateRange(week: string, language: string): { from: string; to: string } | null {
+  const start = parseWeekStartUtc(week);
+  if (!start || Number.isNaN(start.getTime())) return null;
+  const end = new Date(start);
+  end.setUTCDate(start.getUTCDate() + 6);
+
+  const formatter = new Intl.DateTimeFormat(language === 'uk' ? 'uk-UA' : 'en-US', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+
+  return {
+    from: formatter.format(start),
+    to: formatter.format(end),
+  };
+}
+
 function MedalRank({ rank }: { rank: number }) {
   const color = rank === 1 ? GOLD : rank === 2 ? SILVER : rank === 3 ? BRONZE : '#667788';
   return (
@@ -79,7 +105,7 @@ function Podium({ rows, myId }: { rows: GalaxyLeaderRow[]; myId: string }) {
 }
 
 export function RatingTab({ playerId }: RatingTabProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [data, setData] = useState<RatingData | null>(null);
   const [error, setError] = useState(false);
 
@@ -102,6 +128,8 @@ export function RatingTab({ playerId }: RatingTabProps) {
   const rows = galaxy.top;
   const restRows = rows.slice(3);
   const me = galaxy.me;
+  const galaxyWeekRange = formatWeekDateRange(data.week, i18n.language);
+  const hallOfFameWeekRange = hallOfFame.week ? formatWeekDateRange(hallOfFame.week, i18n.language) : null;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -112,7 +140,11 @@ export function RatingTab({ playerId }: RatingTabProps) {
           display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
         }}>
           <span style={{ color: '#aabbcc', fontSize: 11, letterSpacing: 1 }}>{t('ops.galaxy_top')}</span>
-          <span style={{ color: '#667788', fontSize: 9 }}>{t('ops.week_of', { week: data.week })}</span>
+          <span style={{ color: '#667788', fontSize: 9, textAlign: 'right' }}>
+            {galaxyWeekRange
+              ? t('ops.week_range', { week: data.week, from: galaxyWeekRange.from, to: galaxyWeekRange.to })
+              : t('ops.week_of', { week: data.week })}
+          </span>
         </div>
 
         <div style={{ padding: '6px 12px 2px', color: '#556677', fontSize: 9, lineHeight: 1.5 }}>
@@ -176,7 +208,13 @@ export function RatingTab({ playerId }: RatingTabProps) {
           display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
         }}>
           <span style={{ color: GOLD, fontSize: 11, letterSpacing: 1 }}>{t('ops.hall_of_fame')}</span>
-          {hallOfFame.week && <span style={{ color: '#667788', fontSize: 9 }}>{t('ops.week_of', { week: hallOfFame.week })}</span>}
+          {hallOfFame.week && (
+            <span style={{ color: '#667788', fontSize: 9, textAlign: 'right' }}>
+              {hallOfFameWeekRange
+                ? t('ops.week_range', { week: hallOfFame.week, from: hallOfFameWeekRange.from, to: hallOfFameWeekRange.to })
+                : t('ops.week_of', { week: hallOfFame.week })}
+            </span>
+          )}
         </div>
 
         {hallOfFame.top.length === 0 ? (

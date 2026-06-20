@@ -263,11 +263,6 @@ export function canStartPlanetMission(params: {
     return { canStart: false, reason: 'payload_required', requiredPayload: cost.payload };
   }
 
-  const requiredCarrier = getRequiredMissionCarrier(params.type);
-  if (requiredCarrier && (params.carrierInventory?.[requiredCarrier] ?? 0) < 1) {
-    return { canStart: false, reason: 'carrier_required', requiredCarrier };
-  }
-
   const missing: Partial<PlanetMissionResources> = {};
   for (const key of ['researchData', 'minerals', 'volatiles', 'isotopes', 'water'] as const) {
     const amount = cost[key] ?? 0;

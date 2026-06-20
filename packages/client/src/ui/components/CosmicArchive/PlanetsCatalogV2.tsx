@@ -1677,17 +1677,9 @@ function ExpandedDetailPanel({
       ? [isSolidPlanetForLanding(planet) ? 'surface_landing' as PlanetMissionType : 'deep_atmosphere_probe' as PlanetMissionType]
       : []),
   ];
-  const missionTypes: PlanetMissionType[] = explorationMissionsDisabled
-    ? []
-    : availableMissionTypes;
-  const unavailableSurfaceType: PlanetMissionType | null = (
-    !explorationMissionsDisabled
-    && !isSolidPlanetForLanding(planet)
-    && revealLevel < getTargetRevealLevel('surface_landing')
-  ) ? 'surface_landing' : null;
-  const getMissionDisabledReason = (type: PlanetMissionType): string | undefined => {
-    if (!missionResources) return t('planet_missions.reason.unknown');
-    const check = canStartPlanetMission({
+  const getMissionStartCheck = (type: PlanetMissionType) => {
+    if (!missionResources) return null;
+    return canStartPlanetMission({
       type,
       planet,
       revealLevel,
@@ -1698,6 +1690,19 @@ function ExpandedDetailPanel({
       carrierInventory,
       researchDataCost: missionResearchDataCost,
     });
+  };
+  const missionTypes: PlanetMissionType[] = explorationMissionsDisabled
+    ? []
+    : availableMissionTypes.filter((type) => getMissionStartCheck(type)?.reason !== 'already_revealed');
+  const unavailableSurfaceType: PlanetMissionType | null = (
+    !explorationMissionsDisabled
+    && !isSolidPlanetForLanding(planet)
+    && revealLevel < getTargetRevealLevel('surface_landing')
+  ) ? 'surface_landing' : null;
+  const getMissionDisabledReason = (type: PlanetMissionType): string | undefined => {
+    if (!missionResources) return t('planet_missions.reason.unknown');
+    const check = getMissionStartCheck(type);
+    if (!check) return t('planet_missions.reason.unknown');
     if (check.canStart) return undefined;
     if (check.reason === 'building_required' && check.requiredBuilding) {
       return t('planet_missions.reason.building_required_named', { building: t(`planet_missions.building.${check.requiredBuilding}`) });

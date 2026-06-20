@@ -2170,6 +2170,13 @@ function AppInner() {
   const [directiveStreak, setDirectiveStreak] = useState(0);
   const [directiveClaimedToday, setDirectiveClaimedToday] = useState(false);
   const [directiveClaiming, setDirectiveClaiming] = useState(false);
+  const [opsRewardSeenDate, setOpsRewardSeenDate] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('nebulife_ops_reward_seen_date');
+    } catch {
+      return null;
+    }
+  });
   const [showOpsHub, setShowOpsHub] = useState(false);
   const [opsHubTab, setOpsHubTab] = useState<OpsTab>('directives');
   /** Occurrence dates (YYYY-MM-DD) of already-claimed comet windows. */
@@ -10418,6 +10425,12 @@ function AppInner() {
   useEffect(() => {
     try { localStorage.setItem('nebulife_comet_claims', JSON.stringify(cometClaims)); } catch { /* ignore */ }
   }, [cometClaims]);
+  useEffect(() => {
+    try {
+      if (opsRewardSeenDate) localStorage.setItem('nebulife_ops_reward_seen_date', opsRewardSeenDate);
+      else localStorage.removeItem('nebulife_ops_reward_seen_date');
+    } catch { /* ignore */ }
+  }, [opsRewardSeenDate]);
 
   // Roll the directive day at UTC midnight + keep the comet schedule fresh.
   useEffect(() => {
@@ -10478,6 +10491,10 @@ function AppInner() {
   }, [awardXP, bumpDirective]);
 
   const cometClaimedForCurrent = cometClaims.includes(cometSchedule.occurrenceDate);
+  const allDirectivesDoneToday = todaysDirectives.length > 0
+    && todaysDirectives.every((d) => (dailyDirectives.progress[d.metric] ?? 0) >= d.target);
+  const directiveRewardReady = allDirectivesDoneToday && !directiveClaimedToday;
+  const shouldHighlightOpsReward = directiveRewardReady && opsRewardSeenDate !== dailyDirectives.date;
 
   /** Finish of the 30s tracking — server-validated claim, then local rewards. */
   const finishCometTracking = useCallback(() => {
@@ -11960,9 +11977,7 @@ function AppInner() {
   // live events. Badge pulses when the directive reward is claimable or the
   // comet window is open.
   {
-    const allDirectivesDone = todaysDirectives.length > 0
-      && todaysDirectives.every((d) => (dailyDirectives.progress[d.metric] ?? 0) >= d.target);
-    const opsBadge = (allDirectivesDone && !directiveClaimedToday)
+    const opsBadge = directiveRewardReady
       || (cometSchedule.active && !cometClaimedForCurrent);
     toolGroups.push({
       type: 'buttons',
@@ -11971,10 +11986,12 @@ function AppInner() {
         label: t('cmd.ops'),
         variant: 'terminal' as const,
         tooltip: t('cmd.ops_tooltip'),
+        highlight: shouldHighlightOpsReward ? 'success' as const : undefined,
         badge: opsBadge ? '!' : undefined,
         icon: <CommandModeIcon kind="ops" />,
         onClick: () => {
           playSfx('ui-click', 0.08);
+          if (directiveRewardReady) setOpsRewardSeenDate(dailyDirectives.date);
           setOpsHubTab(cometSchedule.active && !cometClaimedForCurrent ? 'event' : 'directives');
           setShowOpsHub(true);
         },
@@ -14898,9 +14915,6 @@ function AppInner() {
         const buildingsForUi = liveBuildings.length > 0 ? liveBuildings : (colonyState?.buildings ?? []);
         const storageCapacity = computeResourceStorageCapacity(buildingsForUi);
         const activeResources = getResources(surfaceTarget.planet.id);
-        const storageFullResourceKeys = new Set<ColonyResourceName>(
-          (['minerals', 'volatiles', 'isotopes', 'water'] as const).filter((key) => activeResources[key] >= storageCapacity),
-        );
 
         const active: ColonyCenterPlanet = {
           planet: surfaceTarget.planet,
@@ -15018,19 +15032,59 @@ function AppInner() {
           tree: 'isotopes',
           water: 'water',
         };
-        const hexExtractionPerHour = { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
-        for (const s of hexSlots) {
-          if (s.state !== 'resource' || !s.resourceType || !s.yieldPerHour) continue;
-          const colKey = HEX_RESOURCE_TO_COLONY[s.resourceType];
-          if (colKey) {
-            hexExtractionPerHour[colKey] += s.yieldPerHour;
-            perHour[colKey] += s.yieldPerHour;
+        const computeHexExtractionPerHour = (slots: RawSlot[]) => {
+          const extraction = { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
+          for (const s of slots) {
+            if (s.state !== 'resource' || !s.resourceType || !s.yieldPerHour) continue;
+            const colKey = HEX_RESOURCE_TO_COLONY[s.resourceType];
+            if (colKey) extraction[colKey] += s.yieldPerHour;
           }
+          return extraction;
+        };
+        const computeColonyProductionStats = (colony: ColonyCenterPlanet, slots: RawSlot[]) => {
+          const rates = { minerals: 0, volatiles: 0, isotopes: 0, water: 0, researchData: 0, energy: 0 };
+          for (const b of colony.buildings) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const def = (BUILDING_DEFS as Record<string, any>)[b.type];
+            if (!def || b.shutdown) continue;
+            const envMult = getBuildingEnergyMultiplier(
+              b.type,
+              colony.planet,
+              undefined,
+              colony.star.luminositySolar,
+            );
+            rates.energy += tickRateToHourly((def.energyOutput ?? 0) * energyOutMult * envMult);
+            for (const p of (def.production ?? []) as Array<{ resource: string; amount: number }>) {
+              if (p.resource in rates) (rates as any)[p.resource] += p.amount * 60;
+            }
+          }
+
+          const extraction = computeHexExtractionPerHour(slots);
+          rates.minerals += extraction.minerals;
+          rates.volatiles += extraction.volatiles;
+          rates.isotopes += extraction.isotopes;
+          rates.water += extraction.water;
+
+          const capacity = computeResourceStorageCapacity(colony.buildings);
+          const resources = getResources(colony.planet.id);
+          for (const key of ['minerals', 'volatiles', 'isotopes', 'water'] as const) {
+            if (resources[key] >= capacity) rates[key] = 0;
+          }
+
+          return { rates, extraction, capacity };
+        };
+        const productionPerHourByPlanet: Record<string, { minerals: number; volatiles: number; isotopes: number; water: number; researchData: number; energy: number }> = {};
+        const extractionPerHourByPlanet: Record<string, { minerals: number; volatiles: number; isotopes: number; water: number }> = {};
+        const storageCapacityByPlanet: Record<string, number> = {};
+        for (const colony of allColonies) {
+          const slots = colony.active ? hexSlots : readHexSlotsForPlanet(colony.system.id, colony.planet.id);
+          const stats = computeColonyProductionStats(colony, slots);
+          productionPerHourByPlanet[colony.planet.id] = stats.rates;
+          extractionPerHourByPlanet[colony.planet.id] = stats.extraction;
+          storageCapacityByPlanet[colony.planet.id] = stats.capacity;
         }
-        const displayedPerHour = { ...perHour };
-        for (const key of storageFullResourceKeys) {
-          displayedPerHour[key] = 0;
-        }
+        const displayedPerHour = productionPerHourByPlanet[active.planet.id] ?? perHour;
+        const hexExtractionPerHour = extractionPerHourByPlanet[active.planet.id] ?? computeHexExtractionPerHour(hexSlots);
 
         return (
           <ColonyCenterPage
@@ -15038,10 +15092,14 @@ function AppInner() {
             allColonies={allColonies}
             initialTab={colonyCenterInitialTab}
             colonyResources={activeResources}
+            colonyResourcesByPlanet={colonyResourcesByPlanet}
             chemicalInventory={getPlanetChemicalInventory(active.planet.id)}
             storageCapacity={storageCapacity}
+            storageCapacityByPlanet={storageCapacityByPlanet}
             productionPerHour={displayedPerHour}
+            productionPerHourByPlanet={productionPerHourByPlanet}
             extractionPerHour={hexExtractionPerHour}
+            extractionPerHourByPlanet={extractionPerHourByPlanet}
             energyBalance={{ produced: Math.round(energyProduced), consumed: Math.round(energyConsumed) }}
             researchData={Math.floor(researchData)}
             quarks={quarks}

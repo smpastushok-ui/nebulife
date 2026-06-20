@@ -25,6 +25,17 @@ export const KEYFRAMES_CSS = `
   50%      { border-color: rgba(120, 184, 255, 0.62); }
 }
 
+@keyframes cmdbar-success-glow {
+  0%, 100% {
+    border-color: rgba(68, 255, 136, 0.34);
+    box-shadow: 0 0 5px rgba(68, 255, 136, 0.12);
+  }
+  50% {
+    border-color: rgba(68, 255, 136, 0.62);
+    box-shadow: 0 0 12px rgba(68, 255, 136, 0.28);
+  }
+}
+
 /* Auth nudge: a short double-flash of light on the player badge for guests who
    haven't linked an account. Fired at random intervals (see PlayerPanel) so it
    reads as an occasional, attention-grabbing pulse rather than a constant glow. */
@@ -160,6 +171,13 @@ export const toolButtonActive: React.CSSProperties = {
   borderColor: 'rgba(120, 184, 255, 0.62)',
   color: '#aaccee',
   background: 'rgba(20, 38, 58, 0.5)',
+};
+
+export const toolButtonSuccessHighlight: React.CSSProperties = {
+  borderColor: 'rgba(68, 255, 136, 0.5)',
+  color: '#b8ffd0',
+  background: 'rgba(20, 55, 38, 0.42)',
+  animation: 'cmdbar-success-glow 2.4s ease-in-out infinite',
 };
 
 export const zoomButtonStyle: React.CSSProperties = {

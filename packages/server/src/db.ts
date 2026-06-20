@@ -221,6 +221,7 @@ export async function updatePlayer(
   const snapshotLevel = typeof gameState?.level === 'number' && Number.isFinite(gameState.level)
     ? Math.max(1, Math.floor(gameState.level))
     : updates.player_level;
+  const currentWeek = weekMondayString();
 
   const rows = await sql`
     UPDATE players
@@ -240,6 +241,20 @@ export async function updatePlayer(
         email_notifications = COALESCE(${updates.email_notifications !== undefined ? updates.email_notifications : null}, email_notifications),
         push_notifications = COALESCE(${updates.push_notifications !== undefined ? updates.push_notifications : null}, push_notifications),
         last_digest_seen = COALESCE(${updates.last_digest_seen ?? null}, last_digest_seen),
+        week_xp_base = CASE
+          WHEN ${snapshotXP ?? null}::integer IS NOT NULL
+            AND ${snapshotXP ?? null}::integer > player_xp
+            AND week_xp_base_week IS DISTINCT FROM ${currentWeek}
+          THEN player_xp
+          ELSE week_xp_base
+        END,
+        week_xp_base_week = CASE
+          WHEN ${snapshotXP ?? null}::integer IS NOT NULL
+            AND ${snapshotXP ?? null}::integer > player_xp
+            AND week_xp_base_week IS DISTINCT FROM ${currentWeek}
+          THEN ${currentWeek}
+          ELSE week_xp_base_week
+        END,
         player_xp = GREATEST(player_xp, COALESCE(${snapshotXP ?? null}, player_xp)),
         player_level = GREATEST(player_level, COALESCE(${snapshotLevel ?? null}, player_level)),
         last_seen_at = COALESCE(${updates.last_seen_at ?? null}, NOW())
@@ -4103,22 +4118,23 @@ export async function getClusterLeaderboard(playerId: string): Promise<{
   const clusterId = me[0]?.cluster_id ?? null;
   if (!clusterId) return { week, clusterId: null, rows: [], myRank: null };
 
-  // Roll stale bases into the current week (new week → everyone restarts at 0).
-  await sql`
-    UPDATE players
-    SET week_xp_base = player_xp, week_xp_base_week = ${week}
-    WHERE cluster_id = ${clusterId}
-      AND week_xp_base_week IS DISTINCT FROM ${week}
-  `;
-
   const rows = await sql`
     SELECT id AS player_id, name, callsign, player_level,
-           GREATEST(0, player_xp - week_xp_base) AS weekly_xp,
+           CASE
+             WHEN week_xp_base_week = ${week} THEN GREATEST(0, player_xp - week_xp_base)
+             ELSE 0
+           END AS weekly_xp,
            champion_weeks,
            (COALESCE(last_seen_at, last_login, created_at) > NOW() - INTERVAL '10 minutes') AS is_online
     FROM players
     WHERE cluster_id = ${clusterId}
-    ORDER BY weekly_xp DESC, player_level DESC, created_at ASC
+    ORDER BY
+      CASE
+        WHEN week_xp_base_week = ${week} THEN GREATEST(0, player_xp - week_xp_base)
+        ELSE 0
+      END DESC,
+      player_level DESC,
+      created_at ASC
     LIMIT 50
   ` as unknown as ClusterLeaderboardRow[];
 
@@ -4161,24 +4177,25 @@ export async function getGalaxyLeaderboard(playerId: string): Promise<{
   const sql = getSQL();
   const week = weekMondayString();
 
-  // New week → everyone restarts at 0. Cheap after the first call of the week
-  // (only rows whose anchor is stale are touched).
-  await sql`
-    UPDATE players
-    SET week_xp_base = player_xp, week_xp_base_week = ${week}
-    WHERE week_xp_base_week IS DISTINCT FROM ${week}
-  `;
-
   // Rank players within each cluster, keep the leaders, rank leaders globally.
   const leaders = await sql`
     WITH ranked AS (
       SELECT id, name, callsign, player_level, cluster_id,
-             GREATEST(0, player_xp - week_xp_base) AS weekly_xp,
+             CASE
+               WHEN week_xp_base_week = ${week} THEN GREATEST(0, player_xp - week_xp_base)
+               ELSE 0
+             END AS weekly_xp,
              champion_weeks,
              (COALESCE(last_seen_at, last_login, created_at) > NOW() - INTERVAL '10 minutes') AS is_online,
              ROW_NUMBER() OVER (
                PARTITION BY cluster_id
-               ORDER BY (player_xp - week_xp_base) DESC, player_level DESC, created_at ASC
+               ORDER BY
+                 CASE
+                   WHEN week_xp_base_week = ${week} THEN GREATEST(0, player_xp - week_xp_base)
+                   ELSE 0
+                 END DESC,
+                 player_level DESC,
+                 created_at ASC
              ) AS cluster_rn
       FROM players
       WHERE cluster_id IS NOT NULL
@@ -4195,10 +4212,19 @@ export async function getGalaxyLeaderboard(playerId: string): Promise<{
   const meRows = await sql`
     WITH ranked AS (
       SELECT id, cluster_id,
-             GREATEST(0, player_xp - week_xp_base) AS weekly_xp,
+             CASE
+               WHEN week_xp_base_week = ${week} THEN GREATEST(0, player_xp - week_xp_base)
+               ELSE 0
+             END AS weekly_xp,
              ROW_NUMBER() OVER (
                PARTITION BY cluster_id
-               ORDER BY (player_xp - week_xp_base) DESC, player_level DESC, created_at ASC
+               ORDER BY
+                 CASE
+                   WHEN week_xp_base_week = ${week} THEN GREATEST(0, player_xp - week_xp_base)
+                   ELSE 0
+                 END DESC,
+                 player_level DESC,
+                 created_at ASC
              ) AS cluster_rn
       FROM players
       WHERE cluster_id IS NOT NULL

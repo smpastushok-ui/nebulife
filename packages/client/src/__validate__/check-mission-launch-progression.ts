@@ -199,6 +199,19 @@ check(
   canStartPlanetMission({
     type: 'orbital_probe',
     planet: missionPlanet as never,
+    revealLevel: 1,
+    activeMissions: [],
+    buildings: missionBuildingInventory as never,
+    resources: missionResources,
+    payloadInventory: missionPayloadInventory,
+    carrierInventory: {},
+  }).canStart,
+  'mission launch: orbital probe does not require a reusable carrier',
+);
+check(
+  canStartPlanetMission({
+    type: 'orbital_probe',
+    planet: missionPlanet as never,
     revealLevel: 2,
     activeMissions: [],
     buildings: missionBuildingInventory as never,
@@ -220,6 +233,19 @@ check(
     carrierInventory: missionCarrierInventory,
   }).canStart,
   'mission launch: surface expedition is available at T2',
+);
+check(
+  canStartPlanetMission({
+    type: 'surface_landing',
+    planet: missionPlanet as never,
+    revealLevel: 2,
+    activeMissions: [],
+    buildings: missionBuildingInventory as never,
+    resources: missionResources,
+    payloadInventory: missionPayloadInventory,
+    carrierInventory: {},
+  }).canStart,
+  'mission launch: surface expedition does not require a reusable carrier',
 );
 
 console.log(`\nResult: ${passed} passed, ${failed} failed\n`);
