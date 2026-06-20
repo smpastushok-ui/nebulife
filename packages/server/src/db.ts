@@ -113,6 +113,84 @@ function rowToPremiumStatus(row: PlayerRow | null): PremiumStatus {
   };
 }
 
+type JsonRecord = Record<string, unknown>;
+
+function isJsonRecord(value: unknown): value is JsonRecord {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function mergeNumberField(
+  current: unknown,
+  incoming: unknown,
+  mode: 'min' | 'max',
+): unknown {
+  if (typeof current !== 'number') return incoming;
+  if (typeof incoming !== 'number') return current;
+  return mode === 'min' ? Math.min(current, incoming) : Math.max(current, incoming);
+}
+
+function mergePlanetResourceStock(current: unknown, incoming: unknown): unknown {
+  if (!isJsonRecord(current) || !isJsonRecord(incoming)) return deepMergeGameStateValue(current, incoming);
+  const merged = deepMergeGameStateValue(current, incoming);
+  if (!isJsonRecord(merged)) return merged;
+
+  const currentRemaining = current.remaining;
+  const incomingRemaining = incoming.remaining;
+  if (isJsonRecord(currentRemaining) && isJsonRecord(incomingRemaining)) {
+    const remaining: JsonRecord = { ...currentRemaining, ...incomingRemaining };
+    for (const key of new Set([...Object.keys(currentRemaining), ...Object.keys(incomingRemaining)])) {
+      remaining[key] = mergeNumberField(currentRemaining[key], incomingRemaining[key], 'min');
+    }
+    merged.remaining = remaining;
+  }
+
+  const currentInitial = current.initial;
+  const incomingInitial = incoming.initial;
+  if (isJsonRecord(currentInitial) && isJsonRecord(incomingInitial)) {
+    const initial: JsonRecord = { ...currentInitial, ...incomingInitial };
+    for (const key of new Set([...Object.keys(currentInitial), ...Object.keys(incomingInitial)])) {
+      initial[key] = mergeNumberField(currentInitial[key], incomingInitial[key], 'max');
+    }
+    merged.initial = initial;
+  }
+
+  return merged;
+}
+
+function mergePlanetResourceStocks(current: unknown, incoming: unknown): unknown {
+  if (!isJsonRecord(current) || !isJsonRecord(incoming)) return deepMergeGameStateValue(current, incoming);
+  const merged: JsonRecord = { ...current };
+  for (const [planetKey, incomingStock] of Object.entries(incoming)) {
+    merged[planetKey] = planetKey in current
+      ? mergePlanetResourceStock(current[planetKey], incomingStock)
+      : incomingStock;
+  }
+  return merged;
+}
+
+function deepMergeGameStateValue(current: unknown, incoming: unknown): unknown {
+  if (incoming === undefined) return current;
+  if (!isJsonRecord(current) || !isJsonRecord(incoming)) return incoming;
+
+  const merged: JsonRecord = { ...current };
+  for (const [key, value] of Object.entries(incoming)) {
+    if (key === 'planet_resource_stocks') {
+      merged[key] = mergePlanetResourceStocks(current[key], value);
+      continue;
+    }
+    merged[key] = key in current ? deepMergeGameStateValue(current[key], value) : value;
+  }
+  return merged;
+}
+
+export function mergeGameStateForPersistence(
+  current: Record<string, unknown> | null | undefined,
+  incoming: Record<string, unknown> | null | undefined,
+): Record<string, unknown> | undefined {
+  if (!incoming) return undefined;
+  return deepMergeGameStateValue(current ?? {}, incoming) as Record<string, unknown>;
+}
+
 export async function getPremiumStatus(playerId: string): Promise<PremiumStatus> {
   return rowToPremiumStatus(await getPlayer(playerId));
 }
@@ -214,7 +292,17 @@ export async function updatePlayer(
 
   if (Object.keys(updates).length === 0) return getPlayer(playerId);
 
-  const gameState = updates.game_state;
+  let mergedGameState: Record<string, unknown> | undefined;
+  if (updates.game_state) {
+    const currentRows = await sql`SELECT game_state FROM players WHERE id = ${playerId}`;
+    if (!currentRows[0]) return null;
+    mergedGameState = mergeGameStateForPersistence(
+      (currentRows[0] as { game_state?: Record<string, unknown> }).game_state ?? {},
+      updates.game_state,
+    );
+  }
+
+  const gameState = mergedGameState ?? updates.game_state;
   const snapshotXP = typeof gameState?.xp === 'number' && Number.isFinite(gameState.xp)
     ? Math.max(0, Math.floor(gameState.xp))
     : updates.player_xp;
@@ -230,8 +318,8 @@ export async function updatePlayer(
         login_streak = COALESCE(${updates.login_streak ?? null}, login_streak),
         last_login = COALESCE(${updates.last_login ?? null}, last_login),
         game_state = CASE
-          WHEN ${updates.game_state ? JSON.stringify(updates.game_state) : null}::jsonb IS NOT NULL
-          THEN game_state || ${JSON.stringify(updates.game_state ?? {})}::jsonb
+          WHEN ${mergedGameState ? JSON.stringify(mergedGameState) : null}::jsonb IS NOT NULL
+          THEN ${JSON.stringify(mergedGameState ?? {})}::jsonb
           ELSE game_state
         END,
         quarks = COALESCE(${updates.quarks ?? null}, quarks),

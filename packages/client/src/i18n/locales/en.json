@@ -979,7 +979,7 @@
     "spark_log": "Research lab synthesized a spark of life: {{spark}}",
     "dna_title": "Genome Constructor",
     "dna_subtitle": "Stabilize the living lattice",
-    "dna_choose": "Choose which spark to synthesize. Rarer sparks open larger lattices with catalysts, neural nodes, and unstable isotopes.",
+    "dna_choose": "Choose which spark to synthesize. The Genome Constructor is available 4 times per day. Rarer sparks open larger lattices with catalysts, neural nodes, and unstable isotopes.",
     "dna_pairs": "{{count}} pairs",
     "dna_bases": "{{count}} bases",
     "dna_nodes": "{{count}} nodes",
@@ -1579,6 +1579,7 @@
   "guest": {
     "reminder_prefix": "Dear President, to save your space exploration progress —",
     "reminder_register": "register",
+    "reminder_uninstall_warning": "Guest progress is tied to this installation. After deleting the app or clearing data it may become unreachable without Google or Apple sign-in.",
     "btn_apple": "Apple",
     "btn_google": "Google",
     "btn_later": "Later",

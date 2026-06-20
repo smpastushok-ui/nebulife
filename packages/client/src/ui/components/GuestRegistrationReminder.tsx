@@ -109,6 +109,18 @@ export function GuestRegistrationReminder({
           <span style={{ color: '#7bb8ff' }}> {t('guest.reminder_register')}</span>.
         </div>
 
+        <div
+          style={{
+            color: '#8899aa',
+            fontSize: 11,
+            lineHeight: '1.55',
+            margin: '-8px 0 18px',
+            textAlign: 'center',
+          }}
+        >
+          {t('guest.reminder_uninstall_warning')}
+        </div>
+
         {/* Buttons */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {/* Apple */}

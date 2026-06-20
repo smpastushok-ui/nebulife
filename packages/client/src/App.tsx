@@ -187,6 +187,8 @@ const SYNCED_UI_FLAG_KEYS = new Set<string>([
   'nebulife_first_lifeform_seen',
   'nebulife_last_lifeform_find_at',
   'nebulife_tutorial_main_done',
+  'nebulife_unlock_popups_baselined',
+  'nebulife_surface_prompts_baselined',
 ]);
 
 /** Bundled photo for the legendary "Comet Herald" live-event gallery entry.
@@ -219,6 +221,7 @@ function markLifeformFind(): void {
 const SYNCED_UI_FLAG_PREFIXES = [
   'nebulife_unlock_popup_',        // buildings/arena/raid/terraform unlock popups
   'nebulife_home_resource_floor_', // home-planet resource hint
+  'nebulife_building_seen_at',     // per-building result beacons / surface lesson state
 ];
 function isSyncedUiFlagKey(key: string): boolean {
   return SYNCED_UI_FLAG_KEYS.has(key)
@@ -507,6 +510,14 @@ function hasBuildingInHexSlots(slots: unknown, buildingType: BuildingType): bool
     });
 }
 
+function countUnlockedHexSlots(slots: unknown): number {
+  if (!Array.isArray(slots)) return 0;
+  return slots.filter((slot) => {
+    const entry = slot as { state?: unknown };
+    return entry.state === 'unlocked' || entry.state === 'resource' || entry.state === 'building';
+  }).length;
+}
+
 function clampResourceBundle(resources: ColonyResourceBundle, capacity: number): ColonyResourceBundle {
   return {
     minerals: Math.min(Math.max(0, resources.minerals), capacity),
@@ -603,6 +614,7 @@ interface SyncedGameState {
   colony_resources: { minerals: number; volatiles: number; isotopes: number; water: number };
   colony_resources_by_planet?: Record<string, { minerals: number; volatiles: number; isotopes: number; water: number }>;
   colony_resources_updated_at?: number;
+  colony_state?: PlanetColonyState | null;
   hex_slots?: unknown[];
   hex_slots_by_planet?: Record<string, unknown[]>;
   chemical_inventory: Record<string, number>;
@@ -815,6 +827,53 @@ function createColonyStateFromRecord(planetId: string, record: ColonizedPlanetRe
       builtAt: new Date(record.foundedAt).toISOString(),
     }],
     lastTickAt: record.foundedAt,
+  };
+}
+
+function normalizeColonyState(value: unknown): PlanetColonyState | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const state = value as Partial<PlanetColonyState>;
+  if (typeof state.planetId !== 'string') return null;
+  if (!state.population || typeof state.population !== 'object') return null;
+  const currentPopulation = Number(state.population.current ?? 0);
+  const capacityPopulation = Number(state.population.capacity ?? 0);
+  return {
+    ...createPlanetColonyState(state.planetId),
+    ...state,
+    population: {
+      current: Number.isFinite(currentPopulation) ? Math.max(0, currentPopulation) : 0,
+      capacity: Number.isFinite(capacityPopulation) ? Math.max(0, capacityPopulation) : 0,
+    },
+    buildings: Array.isArray(state.buildings) ? state.buildings : [],
+    lastTickAt: typeof state.lastTickAt === 'number' ? state.lastTickAt : 0,
+  } as PlanetColonyState;
+}
+
+function mergeColonyState(serverState: unknown, localState: unknown): PlanetColonyState | null {
+  const server = normalizeColonyState(serverState);
+  const local = normalizeColonyState(localState);
+  if (!server) return local;
+  if (!local) return server;
+  if (server.planetId !== local.planetId) {
+    return (local.lastTickAt ?? 0) >= (server.lastTickAt ?? 0) ? local : server;
+  }
+
+  const buildingsById = new Map<string, PlacedBuilding>();
+  for (const building of server.buildings ?? []) buildingsById.set(building.id, building);
+  for (const building of local.buildings ?? []) {
+    const existing = buildingsById.get(building.id);
+    buildingsById.set(building.id, existing && (existing.level ?? 1) > (building.level ?? 1) ? existing : building);
+  }
+
+  return {
+    ...server,
+    ...local,
+    buildings: [...buildingsById.values()],
+    population: {
+      current: Math.max(server.population.current, local.population.current),
+      capacity: Math.max(server.population.capacity, local.population.capacity),
+    },
+    lastTickAt: Math.max(server.lastTickAt ?? 0, local.lastTickAt ?? 0),
   };
 }
 
@@ -2825,6 +2884,79 @@ function AppInner() {
     playSfx('level-up', 0.32);
     return true;
   }, [unlockPopup]);
+
+  useEffect(() => {
+    if (needsOnboarding || needsCallsign || authLoading || !serverHydrated) return;
+    const baselineKey = 'nebulife_unlock_popups_baselined';
+    try {
+      if (localStorage.getItem(baselineKey) === '1') return;
+      if (playerLevel >= 10) localStorage.setItem(getUnlockPopupStorageKey(playerId.current, 'combat'), '1');
+      if (playerLevel >= 48) localStorage.setItem(getUnlockPopupStorageKey(playerId.current, 'terraform'), '1');
+      if ((colonyState?.buildings?.length ?? 0) > 0 || Object.keys(colonizedPlanets).length > 0 || !isExodusPhase) {
+        localStorage.setItem(getUnlockPopupStorageKey(playerId.current, 'buildings'), '1');
+      }
+      localStorage.setItem(baselineKey, '1');
+      scheduleSyncToServer();
+    } catch {
+      // If storage is unavailable, keep the old runtime behavior.
+    }
+  }, [
+    authLoading,
+    colonyState?.buildings?.length,
+    colonizedPlanets,
+    isExodusPhase,
+    needsCallsign,
+    needsOnboarding,
+    playerLevel,
+    scheduleSyncToServer,
+    serverHydrated,
+  ]);
+
+  useEffect(() => {
+    if (needsOnboarding || needsCallsign || authLoading || !serverHydrated) return;
+    const baselineKey = 'nebulife_surface_prompts_baselined';
+    try {
+      if (localStorage.getItem(baselineKey) === '1') return;
+
+      let unlockedHexCount = countUnlockedHexSlots(gameStateRef.current?.hex_slots);
+      const byPlanet = gameStateRef.current?.hex_slots_by_planet;
+      if (byPlanet && typeof byPlanet === 'object') {
+        for (const slots of Object.values(byPlanet as Record<string, unknown>)) {
+          unlockedHexCount = Math.max(unlockedHexCount, countUnlockedHexSlots(slots));
+        }
+      }
+      for (const key of Object.keys(localStorage)) {
+        if (key.startsWith('nebulife_hex_slots')) {
+          try {
+            unlockedHexCount = Math.max(unlockedHexCount, countUnlockedHexSlots(JSON.parse(localStorage.getItem(key) ?? 'null')));
+          } catch { /* ignore malformed local slots */ }
+        }
+      }
+
+      const hasSurfaceProgress =
+        (colonyState?.buildings?.length ?? 0) > 0
+        || Object.keys(colonizedPlanets).length > 0
+        || !isExodusPhase
+        || unlockedHexCount >= 5;
+      if (!hasSurfaceProgress) return;
+
+      localStorage.setItem('nebulife_surface_astra_lesson_seen', '1');
+      localStorage.setItem('nebulife_surface_5slots_hint_seen', '1');
+      localStorage.setItem(baselineKey, '1');
+      scheduleSyncToServer();
+    } catch {
+      // If storage is unavailable, leave first-run prompts unchanged.
+    }
+  }, [
+    authLoading,
+    colonyState?.buildings?.length,
+    colonizedPlanets,
+    isExodusPhase,
+    needsCallsign,
+    needsOnboarding,
+    scheduleSyncToServer,
+    serverHydrated,
+  ]);
 
   useEffect(() => {
     if (needsOnboarding || needsCallsign || authLoading || !serverHydrated) return;
@@ -6319,6 +6451,17 @@ function AppInner() {
       const hpid = homeInfoRef.current?.planet.id;
       if (hpid) {
         commitColonyResourcesByPlanet({ [hpid]: cr }, typeof gs.colony_resources_updated_at === 'number' ? gs.colony_resources_updated_at : Date.now());
+      }
+    }
+    if (gs.colony_state) {
+      const localColonyState = (() => {
+        try { return normalizeColonyState(JSON.parse(localStorage.getItem('nebulife_colony_state') ?? 'null')); }
+        catch { return null; }
+      })();
+      const mergedColonyState = mergeColonyState(gs.colony_state, localColonyState);
+      if (mergedColonyState) {
+        setColonyState(mergedColonyState);
+        try { localStorage.setItem('nebulife_colony_state', JSON.stringify(mergedColonyState)); } catch { /* ignore */ }
       }
     }
     if (gs.colonized_planets && typeof gs.colonized_planets === 'object') {
@@ -11402,6 +11545,7 @@ function AppInner() {
       colony_resources: syncedColonyResources,
       colony_resources_by_planet: syncedColonyResourcesByPlanet,
       colony_resources_updated_at: colonyResourcesUpdatedAtRef.current || 0,
+      colony_state: mergeColonyState(gameStateRef.current?.colony_state, colonyState) ?? colonyState ?? undefined,
       hex_slots: hexSlots,
       hex_slots_by_planet: hexSlotsByPlanet,
       chemical_inventory: chemicalInventory,
@@ -11593,7 +11737,7 @@ function AppInner() {
     if (!pid) return;
     if (isFirebaseConfigured && !serverHydrated) return;
     scheduleSyncToServer();
-  }, [serverHydrated, playerXP, playerLevel, researchState, isExodusPhase, colonyResources, colonyResourcesByPlanet, playerStats, arenaStats, researchData, techTreeState, logEntries, systemNotifs, favoritePlanets, pinnedSystems, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet, shipFleet, planetRevealLevels, planetMissions, planetReports, explorationPayloads, explorationProductionQueue, separationJobs, observatoryState, astraQuizAnswers, planetOverrides, planetResourceStocks, dailyDirectives, cometClaims, dnaSparkSynthesis, chemicalInventoryByPlanet]);
+  }, [serverHydrated, playerXP, playerLevel, researchState, isExodusPhase, colonyResources, colonyResourcesByPlanet, colonyState, colonizedPlanets, playerStats, arenaStats, researchData, techTreeState, logEntries, systemNotifs, favoritePlanets, pinnedSystems, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet, shipFleet, planetRevealLevels, planetMissions, planetReports, explorationPayloads, explorationProductionQueue, separationJobs, observatoryState, astraQuizAnswers, planetOverrides, planetResourceStocks, dailyDirectives, cometClaims, dnaSparkSynthesis, chemicalInventory, chemicalInventoryByPlanet, lifeIngredients, lifeSparks]);
 
   // Sync on page hide / beforeunload (best-effort) + re-sync from server on foreground
   useEffect(() => {

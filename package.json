@@ -17,7 +17,8 @@
     "release:combat": "node scripts/release-combat-qa.mjs",
     "release:catalog": "node scripts/release-catalog-sim.mjs",
     "release:economics": "node scripts/release-economics-model.mjs",
-    "release:qa": "npm run release:progression && npm run release:combat && npm run release:catalog && npm run release:economics"
+    "release:qa": "npm run release:progression && npm run release:combat && npm run release:catalog && npm run release:economics",
+    "verify:persistence": "tsx scripts/verify-persistence-hardening.ts"
   },
   "devDependencies": {
     "@gltf-transform/core": "^4.3.0",
