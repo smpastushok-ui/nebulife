@@ -114,6 +114,26 @@ export function MissionTracker({
   if (!open || (missions.length === 0 && activeCargoShipments.length === 0 && colonyShipMissions.length === 0)) return null;
 
   const now = Date.now();
+  const missionFeedItems = [
+    ...missions.map((mission) => ({
+      kind: 'terraform' as const,
+      key: `terraform:${mission.id}`,
+      timestamp: mission.phaseStartedAt,
+      mission,
+    })),
+    ...activeCargoShipments.map((shipment) => ({
+      kind: 'cargo' as const,
+      key: `cargo:${shipment.id}`,
+      timestamp: shipment.phaseStartedAt,
+      shipment,
+    })),
+    ...colonyShipMissions.map((mission) => ({
+      kind: 'colony' as const,
+      key: `colony:${mission.id}`,
+      timestamp: mission.departedAt ?? mission.arrivalAt ?? 0,
+      mission,
+    })),
+  ].sort((a, b) => b.timestamp - a.timestamp);
 
   const panelStyle: React.CSSProperties = {
     position: 'fixed',
@@ -125,14 +145,23 @@ export function MissionTracker({
     border: '1px solid #446688',
     borderRadius: 6,
     padding: '12px 14px',
-    width: 'min(300px, 92vw)',
-    maxHeight: '55vh',
-    overflowY: 'auto',
+    width: 'min(340px, calc(100vw - 24px))',
+    maxHeight: 'min(620px, calc(100dvh - 96px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)))',
+    overflow: 'hidden',
+    boxSizing: 'border-box',
     fontFamily: 'monospace',
     display: 'flex',
     flexDirection: 'column',
     gap: 10,
     boxShadow: '0 8px 28px rgba(0,0,0,0.6)',
+  };
+  const listStyle: React.CSSProperties = {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+    maxHeight: 'min(456px, calc(100dvh - 158px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)))',
+    overflowY: 'auto',
+    paddingRight: 2,
   };
 
   return (
@@ -164,129 +193,134 @@ export function MissionTracker({
           </button>
         </div>
 
-        {missions.map((m) => {
-          const progress = phaseProgress(m, now);
-          const phaseLabel = t(`terraform.phase.${m.phase}`);
-          const targetName = getPlanetName(m.targetPlanetId);
-          const isResource = RESOURCE_TYPES.has(m.resource);
+        <div style={listStyle}>
+          {missionFeedItems.map((item) => {
+            if (item.kind === 'terraform') {
+              const m = item.mission;
+              const progress = phaseProgress(m, now);
+              const phaseLabel = t(`terraform.phase.${m.phase}`);
+              const targetName = getPlanetName(m.targetPlanetId);
+              const isResource = RESOURCE_TYPES.has(m.resource);
 
-          return (
-            <div
-              key={m.id}
-              style={{
-                display: 'flex', flexDirection: 'column', gap: 4,
-                borderBottom: '1px solid #1a2233', paddingBottom: 8,
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10 }}>
-                <span style={{ color: '#aabbcc' }}>{targetName}</span>
-                <span style={{ color: '#7bb8ff' }}>
-                  {t(`terraform.param.${m.paramId}`)}
-                </span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 9, color: '#667788' }}>
-                <span>{phaseLabel}</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span style={{ color: isResource ? RESOURCE_COLORS[m.resource as ResourceType] : '#8899aa' }}>
-                    {m.amount.toLocaleString()}
-                  </span>
-                  {isResource && <ResourceIcon type={m.resource as ResourceType} size={12} />}
-                </span>
-              </div>
-              {/* Phase progress bar */}
-              <div style={{
-                height: 3,
-                background: '#1a2233',
-                borderRadius: 2,
-                overflow: 'hidden',
-              }}>
-                <div style={{
-                  height: '100%',
-                  width: `${Math.round(progress * 100)}%`,
-                  background: m.phase === 'idle'
-                    ? '#334455'
-                    : m.phase === 'repairing'
-                    ? '#ff8844'
-                    : '#446688',
-                  transition: 'width 1s linear',
-                }} />
-              </div>
-            </div>
-          );
-        })}
+              return (
+                <div
+                  key={item.key}
+                  style={{
+                    display: 'flex', flexDirection: 'column', gap: 4,
+                    borderBottom: '1px solid #1a2233', paddingBottom: 8,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10 }}>
+                    <span style={{ color: '#aabbcc' }}>{targetName}</span>
+                    <span style={{ color: '#7bb8ff' }}>
+                      {t(`terraform.param.${m.paramId}`)}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 9, color: '#667788' }}>
+                    <span>{phaseLabel}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ color: isResource ? RESOURCE_COLORS[m.resource as ResourceType] : '#8899aa' }}>
+                        {m.amount.toLocaleString()}
+                      </span>
+                      {isResource && <ResourceIcon type={m.resource as ResourceType} size={12} />}
+                    </span>
+                  </div>
+                  {/* Phase progress bar */}
+                  <div style={{
+                    height: 3,
+                    background: '#1a2233',
+                    borderRadius: 2,
+                    overflow: 'hidden',
+                  }}>
+                    <div style={{
+                      height: '100%',
+                      width: `${Math.round(progress * 100)}%`,
+                      background: m.phase === 'idle'
+                        ? '#334455'
+                        : m.phase === 'repairing'
+                        ? '#ff8844'
+                        : '#446688',
+                      transition: 'width 1s linear',
+                    }} />
+                  </div>
+                </div>
+              );
+            }
 
-        {activeCargoShipments.map((shipment) => {
-          const progress = cargoShipmentProgress(shipment, now);
-          const remaining = cargoShipmentRemaining(shipment, now);
-          const targetName = getPlanetName(shipment.toPlanetId);
-          const originName = getPlanetName(shipment.fromPlanetId);
-          return (
-            <div
-              key={shipment.id}
-              style={{
-                display: 'flex', flexDirection: 'column', gap: 4,
-                borderBottom: '1px solid #1a2233', paddingBottom: 8,
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10 }}>
-                <span style={{ color: '#aabbcc' }}>{targetName}</span>
-                <span style={{ color: '#7bb8ff' }}>{t('terraform.cargo_title')}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 9, color: '#667788' }}>
-                <span>{originName} -&gt; {targetName}</span>
-                <span>{t(`terraform.cargo_phase.${shipment.status}`)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 9, color: '#667788' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span style={{ color: RESOURCE_COLORS[shipment.resource as ResourceType] }}>
-                    {shipment.amount.toLocaleString()}
-                  </span>
-                  <ResourceIcon type={shipment.resource as ResourceType} size={12} />
-                </span>
-                <span>{t('terraform.mission_eta')}: {formatRemaining(remaining)}</span>
-              </div>
-              <div style={{ height: 3, background: '#1a2233', borderRadius: 2, overflow: 'hidden' }}>
-                <div style={{
-                  height: '100%',
-                  width: `${Math.round(progress * 100)}%`,
-                  background: shipment.status === 'returning' ? '#8866aa' : '#4488aa',
-                  transition: 'width 1s linear',
-                }} />
-              </div>
-            </div>
-          );
-        })}
+            if (item.kind === 'cargo') {
+              const shipment = item.shipment;
+              const progress = cargoShipmentProgress(shipment, now);
+              const remaining = cargoShipmentRemaining(shipment, now);
+              const targetName = getPlanetName(shipment.toPlanetId);
+              const originName = getPlanetName(shipment.fromPlanetId);
+              return (
+                <div
+                  key={item.key}
+                  style={{
+                    display: 'flex', flexDirection: 'column', gap: 4,
+                    borderBottom: '1px solid #1a2233', paddingBottom: 8,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10 }}>
+                    <span style={{ color: '#aabbcc' }}>{targetName}</span>
+                    <span style={{ color: '#7bb8ff' }}>{t('terraform.cargo_title')}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 9, color: '#667788' }}>
+                    <span>{originName} -&gt; {targetName}</span>
+                    <span>{t(`terraform.cargo_phase.${shipment.status}`)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 9, color: '#667788' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ color: RESOURCE_COLORS[shipment.resource as ResourceType] }}>
+                        {shipment.amount.toLocaleString()}
+                      </span>
+                      <ResourceIcon type={shipment.resource as ResourceType} size={12} />
+                    </span>
+                    <span>{t('terraform.mission_eta')}: {formatRemaining(remaining)}</span>
+                  </div>
+                  <div style={{ height: 3, background: '#1a2233', borderRadius: 2, overflow: 'hidden' }}>
+                    <div style={{
+                      height: '100%',
+                      width: `${Math.round(progress * 100)}%`,
+                      background: shipment.status === 'returning' ? '#8866aa' : '#4488aa',
+                      transition: 'width 1s linear',
+                    }} />
+                  </div>
+                </div>
+              );
+            }
 
-        {colonyShipMissions.map((mission) => {
-          const progress = colonyShipProgress(mission, now);
-          const remaining = mission.arrived || !mission.arrivalAt ? 0 : Math.max(0, mission.arrivalAt - now);
-          return (
-            <div
-              key={mission.id}
-              style={{
-                display: 'flex', flexDirection: 'column', gap: 4,
-                borderBottom: '1px solid #1a2233', paddingBottom: 8,
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10 }}>
-                <span style={{ color: '#aabbcc' }}>{mission.targetPlanetName}</span>
-                <span style={{ color: '#44ff88' }}>{t('terraform.colony_ship_title')}</span>
+            const mission = item.mission;
+            const progress = colonyShipProgress(mission, now);
+            const remaining = mission.arrived || !mission.arrivalAt ? 0 : Math.max(0, mission.arrivalAt - now);
+            return (
+              <div
+                key={item.key}
+                style={{
+                  display: 'flex', flexDirection: 'column', gap: 4,
+                  borderBottom: '1px solid #1a2233', paddingBottom: 8,
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10 }}>
+                  <span style={{ color: '#aabbcc' }}>{mission.targetPlanetName}</span>
+                  <span style={{ color: '#44ff88' }}>{t('terraform.colony_ship_title')}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 9, color: '#667788' }}>
+                  <span>{mission.shipName}</span>
+                  <span>{mission.arrived ? t('terraform.colony_ship_arrived') : `${t('terraform.mission_eta')}: ${formatRemaining(remaining)}`}</span>
+                </div>
+                <div style={{ height: 3, background: '#1a2233', borderRadius: 2, overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%',
+                    width: `${Math.round(progress * 100)}%`,
+                    background: '#44ff88',
+                    transition: 'width 1s linear',
+                  }} />
+                </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 9, color: '#667788' }}>
-                <span>{mission.shipName}</span>
-                <span>{mission.arrived ? t('terraform.colony_ship_arrived') : `${t('terraform.mission_eta')}: ${formatRemaining(remaining)}`}</span>
-              </div>
-              <div style={{ height: 3, background: '#1a2233', borderRadius: 2, overflow: 'hidden' }}>
-                <div style={{
-                  height: '100%',
-                  width: `${Math.round(progress * 100)}%`,
-                  background: '#44ff88',
-                  transition: 'width 1s linear',
-                }} />
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </>
   );

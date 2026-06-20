@@ -3151,6 +3151,28 @@ function AppInner() {
   }, []);
   const [arenaTeamMode, setArenaTeamMode] = useState(false);
 
+  const closeChatDeepLinkOverlays = useCallback(() => {
+    setSurfaceTarget(null);
+    setShowCosmicArchive(false);
+    setShowAcademy(false);
+    setShowEncyclopedia(false);
+    setShowPlayerPage(false);
+    setShowColonyCenter(false);
+    setShowTerraformPlanet(null);
+    setShowOpsHub(false);
+    setShowMissionsPanel(false);
+    setShowSurfaceAstraLesson(false);
+    setShowDnaLab(false);
+    setPlanetReportTarget(null);
+    setResultCard(null);
+    setMissionPhotoViewer(null);
+    setState((prev) => ({
+      ...prev,
+      showPlanetMenu: false,
+      showPlanetInfo: false,
+    }));
+  }, []);
+
   // Ref to showArena that stays current inside callbacks without re-creating them.
   const showArenaRef = useRef(false);
   useEffect(() => { showArenaRef.current = showArena || showRaid || showCosmicBattle; }, [showArena, showRaid, showCosmicBattle]);
@@ -8783,6 +8805,7 @@ function AppInner() {
     const planet = sys?.planets.find((entry) => entry.id === planetId);
     const report = getPlanetScopedValue(planetReports, systemId, planetId);
     if (!sys || !planet || !report) return false;
+    closeChatDeepLinkOverlays();
     setState((prev) => ({
       ...prev,
       scene: 'system' as const,
@@ -8794,7 +8817,7 @@ function AppInner() {
     engineRef.current?.showSystemScene(sys);
     setPlanetReportTarget({ planet, report });
     return true;
-  }, [planetReports]);
+  }, [closeChatDeepLinkOverlays, planetReports]);
 
   const handleSaveMissionProbePhoto = useCallback(async (planet: Planet, report: PlanetReportSummary): Promise<void> => {
     const sys = findSystemForPlanetReport(report);
@@ -14694,15 +14717,27 @@ function AppInner() {
           onSystemNotifRead={(id) =>
             setSystemNotifs((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n))
           }
-          onOpenLifeform={openLifeformCard}
-          onOpenObservatoryReport={handleOpenDiscoveryFromLog}
-          onOpenResult={(r) => { setResultCard(r); return true; }}
+          onOpenLifeform={(lifeformId) => {
+            closeChatDeepLinkOverlays();
+            return openLifeformCard(lifeformId);
+          }}
+          onOpenObservatoryReport={(discovery) => {
+            closeChatDeepLinkOverlays();
+            handleOpenDiscoveryFromLog(discovery);
+            return true;
+          }}
+          onOpenResult={(r) => {
+            closeChatDeepLinkOverlays();
+            setResultCard(r);
+            return true;
+          }}
           onAwardXP={awardXP}
           onNavigateToPlanet={(systemId, planetId) => {
             const allSystems = engineRef.current?.getAllSystems() ?? [];
             const sys = allSystems.find((s) => s.id === systemId);
             const planet = sys?.planets.find((p) => p.id === planetId);
             if (sys && planet) {
+              closeChatDeepLinkOverlays();
               engineRef.current?.showPlanetViewScene(sys, planet);
               setState((prev) => ({ ...prev, scene: 'planet-view' as const, selectedSystem: sys, selectedPlanet: planet }));
               return true;
@@ -14712,6 +14747,7 @@ function AppInner() {
           onNavigateToSystem={(systemId) => {
             const sys = engineRef.current?.findSystemById(systemId) ?? null;
             if (sys) {
+              closeChatDeepLinkOverlays();
               engineRef.current?.showSystemScene(sys);
               setState((prev) => ({ ...prev, scene: 'system' as const, selectedSystem: sys, selectedPlanet: null }));
               return true;
@@ -14723,6 +14759,7 @@ function AppInner() {
             const sys = engineRef.current?.findSystemById(systemId) ?? null;
             const research = researchState.systems[systemId];
             if (sys && research) {
+              closeChatDeepLinkOverlays();
               setCompletedModalQueue(q => [{ system: sys, research }, ...q]);
               return true;
             }
@@ -14730,6 +14767,7 @@ function AppInner() {
           }}
           onOpenLogDiscovery={(entry) => {
             if (!entry.discoveryRef) return false;
+            closeChatDeepLinkOverlays();
             handleOpenDiscoveryFromLog(entry.discoveryRef);
             return true;
           }}

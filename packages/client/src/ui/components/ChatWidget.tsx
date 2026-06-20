@@ -397,6 +397,33 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
     },
     [logEntries, systemMessages, systemNotifs],
   );
+  const systemFeedItems = React.useMemo(() => {
+    const toMs = (value: string | number) => {
+      const ms = typeof value === 'number' ? value : new Date(value).getTime();
+      return Number.isFinite(ms) ? ms : 0;
+    };
+
+    return [
+      ...systemMessages.map((message) => ({
+        kind: 'message' as const,
+        key: `message:${message.id}`,
+        timestamp: toMs(message.created_at),
+        message,
+      })),
+      ...systemNotifs.map((notif) => ({
+        kind: 'notif' as const,
+        key: `notif:${notif.id}`,
+        timestamp: toMs(notif.timestamp),
+        notif,
+      })),
+      ...visibleLogEntries.map((entry) => ({
+        kind: 'log' as const,
+        key: `log:${entry.id}`,
+        timestamp: toMs(entry.timestamp),
+        entry,
+      })),
+    ].sort((a, b) => a.timestamp - b.timestamp);
+  }, [systemMessages, systemNotifs, visibleLogEntries]);
   useEffect(() => {
     if (collapsed || tab !== 'system') return;
 
@@ -768,7 +795,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
       return;
     }
     jumpToBottom(systemScrollRef);
-  }, [jumpToBottom, systemMessages, systemNotifs, visibleLogEntries]);
+  }, [jumpToBottom, systemFeedItems]);
 
   // ── Collapsed state ──
   if (collapsed) {
@@ -1028,115 +1055,186 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
         {/* System notifications tab */}
         {tab === 'system' && (
           <div ref={systemScrollRef} style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {/* DB system messages (fun facts, moderation notices) */}
-            {systemMessages.map((msg) => {
-              const msgTime = fmtTime(msg.created_at);
-              if (msg.sender_id === WEAVER_SENDER_ID) {
-                return <WeaverMessage key={msg.id} senderName={msg.sender_name} content={msg.content} time={msgTime} />;
+            {systemFeedItems.map((item) => {
+              if (item.kind === 'message') {
+                const msg = item.message;
+                const msgTime = fmtTime(msg.created_at);
+                if (msg.sender_id === WEAVER_SENDER_ID) {
+                  return <WeaverMessage key={item.key} senderName={msg.sender_name} content={msg.content} time={msgTime} />;
+                }
+                return (
+                  <div key={item.key} style={{
+                    background: 'rgba(0,30,20,0.3)',
+                    border: '1px solid #336655',
+                    borderRadius: 4,
+                    padding: '8px 10px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 6,
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                      <span style={{ color: '#44ffaa', fontSize: 9, fontFamily: 'monospace', letterSpacing: '0.05em' }}>
+                        {msg.sender_name}
+                      </span>
+                      <span style={{ color: '#445566', fontSize: 9, fontFamily: 'monospace' }}>{msgTime}</span>
+                    </div>
+                    <div style={{ color: '#aabbcc', fontSize: 11, fontFamily: 'monospace', lineHeight: '1.4' }}>
+                      {msg.content}
+                    </div>
+                  </div>
+                );
               }
-              return (
-                <div key={msg.id} style={{
-                  background: 'rgba(0,30,20,0.3)',
-                  border: '1px solid #336655',
-                  borderRadius: 4,
-                  padding: '8px 10px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 6,
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                    <span style={{ color: '#44ffaa', fontSize: 9, fontFamily: 'monospace', letterSpacing: '0.05em' }}>
-                      {msg.sender_name}
-                    </span>
-                    <span style={{ color: '#445566', fontSize: 9, fontFamily: 'monospace' }}>{msgTime}</span>
-                  </div>
-                  <div style={{ color: '#aabbcc', fontSize: 11, fontFamily: 'monospace', lineHeight: '1.4' }}>
-                    {msg.content}
-                  </div>
-                </div>
-              );
-            })}
 
-            {/* In-memory system notifs (research complete, etc.) */}
-            {[...systemNotifs].reverse().map((notif) => {
-              const notifTime = fmtTime(notif.timestamp);
+              if (item.kind === 'notif') {
+                const notif = item.notif;
+                const notifTime = fmtTime(notif.timestamp);
+                return (
+                  <div key={item.key} style={{
+                    background: notif.read ? 'rgba(10,20,35,0.4)' : 'rgba(20,40,70,0.6)',
+                    border: `1px solid ${notif.read ? '#223344' : '#446688'}`,
+                    borderRadius: 4,
+                    padding: '8px 10px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 6,
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                      <span style={{ color: '#4488aa', fontSize: 9, fontFamily: 'monospace', letterSpacing: '0.05em' }}>
+                        {t('chat.system_header')}
+                      </span>
+                      <span style={{ color: '#445566', fontSize: 9, fontFamily: 'monospace' }}>{notifTime}</span>
+                    </div>
+                    <div style={{ color: '#aabbcc', fontSize: 11, fontFamily: 'monospace', lineHeight: '1.4' }}>
+                      {notif.text}
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {notif.discovery && onOpenObservatoryReport ? (
+                        <button
+                          onClick={() => {
+                            onSystemNotifRead?.(notif.id);
+                            runSystemAction(() => onOpenObservatoryReport(notif.discovery!));
+                          }}
+                          style={SYSTEM_ACTION_BUTTON_STYLE}
+                        >
+                          {t('observatory.view_report')}
+                        </button>
+                      ) : notif.result && onOpenResult ? (
+                        <button
+                          onClick={() => {
+                            onSystemNotifRead?.(notif.id);
+                            runSystemAction(() => onOpenResult(notif.result!));
+                          }}
+                          style={SYSTEM_ACTION_BUTTON_STYLE}
+                        >
+                          {t('observatory.view_report')}
+                        </button>
+                      ) : notif.lifeformId && onOpenLifeform ? (
+                        <button
+                          onClick={() => {
+                            onSystemNotifRead?.(notif.id);
+                            runSystemAction(() => onOpenLifeform(notif.lifeformId!));
+                          }}
+                          style={SYSTEM_ACTION_BUTTON_STYLE}
+                        >
+                          {t('chat.view_specimen')}
+                        </button>
+                      ) : (
+                        <>
+                          {onOpenPlanetMissionReport && (
+                            <button
+                              onClick={() => {
+                                onSystemNotifRead?.(notif.id);
+                                runSystemAction(() => onOpenPlanetMissionReport(notif.systemId, notif.planetId));
+                              }}
+                              style={SYSTEM_ACTION_BUTTON_STYLE}
+                            >
+                              {t('chat.view_report')}
+                            </button>
+                          )}
+                          {onNavigateToSystem && (
+                            <button
+                              onClick={() => {
+                                onSystemNotifRead?.(notif.id);
+                                runSystemAction(() => onNavigateToSystem(notif.systemId));
+                              }}
+                              style={SYSTEM_ACTION_BUTTON_STYLE}
+                            >
+                              {t('chat.go_to_system')}
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
+
+              const entry = item.entry;
+              const entryTime = fmtTime(entry.timestamp);
+              const catColor = LOG_CATEGORY_COLORS[entry.category];
               return (
-                <div key={notif.id} style={{
-                  background: notif.read ? 'rgba(10,20,35,0.4)' : 'rgba(20,40,70,0.6)',
-                  border: `1px solid ${notif.read ? '#223344' : '#446688'}`,
+                <div key={item.key} style={{
+                  background: 'rgba(10,20,35,0.34)',
+                  border: '1px solid rgba(34,51,68,0.65)',
                   borderRadius: 4,
-                  padding: '8px 10px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 6,
+                  padding: '7px 9px',
+                  display: 'grid',
+                  gap: 4,
+                  opacity: 0.92,
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                    <span style={{ color: '#4488aa', fontSize: 9, fontFamily: 'monospace', letterSpacing: '0.05em' }}>
-                      {t('chat.system_header')}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
+                    <span style={{ color: catColor, fontSize: 9, fontFamily: 'monospace', letterSpacing: '0.05em' }}>
+                      {t(LOG_CATEGORY_I18N_KEYS[entry.category])}
                     </span>
-                    <span style={{ color: '#445566', fontSize: 9, fontFamily: 'monospace' }}>{notifTime}</span>
+                    <span style={{ color: '#445566', fontSize: 9, fontFamily: 'monospace' }}>{entryTime}</span>
                   </div>
-                  <div style={{ color: '#aabbcc', fontSize: 11, fontFamily: 'monospace', lineHeight: '1.4' }}>
-                    {notif.text}
+                  <div style={{ color: '#8899aa', fontSize: 10, fontFamily: 'monospace', lineHeight: '1.4' }}>
+                    {entry.text}
                   </div>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {notif.discovery && onOpenObservatoryReport ? (
-                      <button
-                        onClick={() => {
-                          onSystemNotifRead?.(notif.id);
-                          runSystemAction(() => onOpenObservatoryReport(notif.discovery!));
-                        }}
-                        style={SYSTEM_ACTION_BUTTON_STYLE}
-                      >
-                        {t('observatory.view_report')}
-                      </button>
-                    ) : notif.result && onOpenResult ? (
-                      <button
-                        onClick={() => {
-                          onSystemNotifRead?.(notif.id);
-                          runSystemAction(() => onOpenResult(notif.result!));
-                        }}
-                        style={SYSTEM_ACTION_BUTTON_STYLE}
-                      >
-                        {t('observatory.view_report')}
-                      </button>
-                    ) : notif.lifeformId && onOpenLifeform ? (
-                      <button
-                        onClick={() => {
-                          onSystemNotifRead?.(notif.id);
-                          runSystemAction(() => onOpenLifeform(notif.lifeformId!));
-                        }}
-                        style={SYSTEM_ACTION_BUTTON_STYLE}
-                      >
-                        {t('chat.view_specimen')}
-                      </button>
-                    ) : (
-                      <>
-                        {onOpenPlanetMissionReport && (
-                          <button
-                            onClick={() => {
-                              onSystemNotifRead?.(notif.id);
-                              runSystemAction(() => onOpenPlanetMissionReport(notif.systemId, notif.planetId));
-                            }}
-                            style={SYSTEM_ACTION_BUTTON_STYLE}
-                          >
-                            {t('chat.view_report')}
-                          </button>
-                        )}
-                        {onNavigateToSystem && (
-                          <button
-                            onClick={() => {
-                              onSystemNotifRead?.(notif.id);
-                              runSystemAction(() => onNavigateToSystem(notif.systemId));
-                            }}
-                            style={SYSTEM_ACTION_BUTTON_STYLE}
-                          >
-                            {t('chat.go_to_system')}
-                          </button>
-                        )}
-                      </>
-                    )}
-                  </div>
+                  {(entry.systemId || entry.discoveryRef) && (
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {entry.objectType === 'planet_mission_report' && entry.systemId && entry.planetId && onOpenPlanetMissionReport && (
+                        <button
+                          onClick={() => {
+                            runSystemAction(() => onOpenPlanetMissionReport(entry.systemId!, entry.planetId!));
+                          }}
+                          style={SYSTEM_ACTION_BUTTON_STYLE}
+                        >
+                          {t('chat.view_report')}
+                        </button>
+                      )}
+                      {entry.systemId && onNavigateToSystem && (
+                        <button
+                          onClick={() => {
+                            runSystemAction(() => onNavigateToSystem(entry.systemId!));
+                          }}
+                          style={SYSTEM_ACTION_BUTTON_STYLE}
+                        >
+                          {t('chat.go_to_system')}
+                        </button>
+                      )}
+                      {entry.objectType === 'system_research' && entry.systemId && onOpenSystemReport && (
+                        <button
+                          onClick={() => {
+                            runSystemAction(() => onOpenSystemReport(entry.systemId!));
+                          }}
+                          style={SYSTEM_ACTION_BUTTON_STYLE}
+                        >
+                          {t('chat.view_report')}
+                        </button>
+                      )}
+                      {entry.discoveryRef && onOpenLogDiscovery && (
+                        <button
+                          onClick={() => {
+                            runSystemAction(() => onOpenLogDiscovery(entry));
+                          }}
+                          style={SYSTEM_ACTION_BUTTON_STYLE}
+                        >
+                          {t('chat.view_report')}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -1156,101 +1254,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
               </div>
             )}
 
-            {visibleLogEntries.length > 0 && (
-              <div style={{
-                marginTop: 2,
-                borderTop: '1px solid rgba(51,68,85,0.35)',
-                paddingTop: 8,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 5,
-              }}>
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'baseline',
-                  color: '#445566',
-                  fontSize: 9,
-                  fontFamily: 'monospace',
-                  letterSpacing: 1.2,
-                  textTransform: 'uppercase',
-                }}>
-                  <span>{t('log.ship_log')}</span>
-                  <span>{t('log.entries_count', { count: logEntries.length })}</span>
-                </div>
-                {visibleLogEntries.map((entry) => {
-                  const entryTime = fmtTime(entry.timestamp);
-                  const catColor = LOG_CATEGORY_COLORS[entry.category];
-                  return (
-                    <div key={entry.id} style={{
-                      background: 'rgba(10,20,35,0.34)',
-                      border: '1px solid rgba(34,51,68,0.65)',
-                      borderRadius: 4,
-                      padding: '7px 9px',
-                      display: 'grid',
-                      gap: 4,
-                      opacity: 0.92,
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
-                        <span style={{ color: catColor, fontSize: 9, fontFamily: 'monospace', letterSpacing: '0.05em' }}>
-                          {t(LOG_CATEGORY_I18N_KEYS[entry.category])}
-                        </span>
-                        <span style={{ color: '#445566', fontSize: 9, fontFamily: 'monospace' }}>{entryTime}</span>
-                      </div>
-                      <div style={{ color: '#8899aa', fontSize: 10, fontFamily: 'monospace', lineHeight: '1.4' }}>
-                        {entry.text}
-                      </div>
-                      {(entry.systemId || (entry.systemId && entry.planetId) || entry.discoveryRef) && (
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          {entry.objectType === 'planet_mission_report' && entry.systemId && entry.planetId && onOpenPlanetMissionReport && (
-                            <button
-                              onClick={() => {
-                                runSystemAction(() => onOpenPlanetMissionReport(entry.systemId!, entry.planetId!));
-                              }}
-                              style={SYSTEM_ACTION_BUTTON_STYLE}
-                            >
-                              {t('chat.view_report')}
-                            </button>
-                          )}
-                          {entry.systemId && onNavigateToSystem && (
-                            <button
-                              onClick={() => {
-                                runSystemAction(() => onNavigateToSystem(entry.systemId!));
-                              }}
-                              style={SYSTEM_ACTION_BUTTON_STYLE}
-                            >
-                              {t('chat.go_to_system')}
-                            </button>
-                          )}
-                          {entry.objectType === 'system_research' && entry.systemId && onOpenSystemReport && (
-                            <button
-                              onClick={() => {
-                                runSystemAction(() => onOpenSystemReport(entry.systemId!));
-                              }}
-                              style={SYSTEM_ACTION_BUTTON_STYLE}
-                            >
-                              {t('chat.view_report')}
-                            </button>
-                          )}
-                          {entry.discoveryRef && onOpenLogDiscovery && (
-                            <button
-                              onClick={() => {
-                                runSystemAction(() => onOpenLogDiscovery(entry));
-                              }}
-                              style={SYSTEM_ACTION_BUTTON_STYLE}
-                            >
-                              {t('chat.view_report')}
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {systemMessages.length === 0 && systemNotifs.length === 0 && visibleLogEntries.length === 0 && (
+            {systemFeedItems.length === 0 && (
               <div style={{ color: '#445566', fontSize: 10, textAlign: 'center', marginTop: 40, fontFamily: 'monospace' }}>
                 {t('chat.no_system_notifs')}
               </div>
