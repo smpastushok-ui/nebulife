@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Planet, Star, ResourceGroup, PlanetMission, PlanetMissionType, PlanetRevealLevel, PlacedBuilding, ProducibleType, PlanetReportSummary, Ship, PlanetTerraformState, CargoShipment } from '@nebulife/core';
 import {
@@ -38,7 +38,6 @@ function QuarkIcon() {
 // ---------------------------------------------------------------------------
 
 const MENU_WIDTH = 300;
-const MENU_HEIGHT_APPROX = 360;
 
 type TabId = 'actions' | 'logistics' | 'characteristics' | 'terraform' | 'resources' | 'alpha';
 type PlanetPhotoKind = 'exosphere' | 'biosphere' | 'aerial';
@@ -57,7 +56,7 @@ const backdropStyle: React.CSSProperties = {
 };
 
 const menuStyle: React.CSSProperties = {
-  position: 'absolute',
+  position: 'fixed',
   width: MENU_WIDTH,
   background: 'rgba(10,15,25,0.97)',
   border: '1px solid #334455',
@@ -69,6 +68,16 @@ const menuStyle: React.CSSProperties = {
   pointerEvents: 'auto',
   boxShadow: '0 6px 24px rgba(0,0,0,0.7)',
   overflow: 'hidden',
+};
+
+const centeredMenuStyle: React.CSSProperties = {
+  ...menuStyle,
+  left: '50%',
+  top: '50%',
+  transform: 'translate(-50%, -50%)',
+  width: `min(${MENU_WIDTH}px, calc(100vw - 16px))`,
+  maxHeight: 'calc(100vh - 16px)',
+  overflowY: 'auto',
 };
 
 const itemStyle: React.CSSProperties = {
@@ -979,7 +988,7 @@ export function LogisticsTab({
 /* ────────── Main component ────────── */
 
 export function PlanetContextMenu({
-  planet, star, screenPosition, quarks,
+  planet, star, quarks,
   onViewPlanet, onClose,
   onSurface,
   onTelescopePhoto,
@@ -1095,36 +1104,6 @@ export function PlanetContextMenu({
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
-  // Ref to the menu container — used by useLayoutEffect to measure actual
-  // rendered height and recompute clamped position on every render.
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [menuPos, setMenuPos] = useState<{ left: number; top: number } | null>(null);
-
-  const isDesktop = window.innerWidth >= 768;
-
-  useLayoutEffect(() => {
-    if (!menuRef.current) return;
-    const measuredHeight = menuRef.current.offsetHeight || MENU_HEIGHT_APPROX;
-    const MARGIN = 8;
-
-    // Horizontal: center on mobile, near click on desktop
-    let left: number;
-    if (isDesktop) {
-      const maxX = window.innerWidth - MENU_WIDTH - MARGIN;
-      left = Math.max(MARGIN, Math.min(screenPosition.x + 8, maxX));
-    } else {
-      left = (window.innerWidth - MENU_WIDTH) / 2;
-      left = Math.max(MARGIN, left);
-    }
-
-    // Vertical: try to center around click point, then clamp
-    const idealTop = screenPosition.y - measuredHeight / 2;
-    const maxTop = Math.max(MARGIN, window.innerHeight - Math.min(measuredHeight, window.innerHeight - MARGIN * 2) - MARGIN);
-    const top = Math.max(MARGIN, Math.min(idealTop, maxTop));
-
-    setMenuPos({ left, top });
-  }, [activeTab, expandedGroup, reportsOpen, screenPosition, isDesktop]);
-
   const isSurfacePlanet = planet.type === 'rocky' || planet.type === 'terrestrial' || planet.type === 'dwarf';
   const hasSurfaceOrOrbitalView = isSurfacePlanet || planet.type === 'gas-giant' || planet.type === 'ice-giant';
   const isSystemAccessible = systemResearchProgress >= 100;
@@ -1206,18 +1185,10 @@ export function PlanetContextMenu({
 
   // Destroyed planets — minimal UI
   if (isDestroyed) {
-    const dLeft = isDesktop
-      ? Math.max(8, Math.min(screenPosition.x + 8, window.innerWidth - MENU_WIDTH - 8))
-      : (window.innerWidth - MENU_WIDTH) / 2;
-    const dTop  = Math.max(8, Math.min(screenPosition.y - 20, window.innerHeight - MENU_HEIGHT_APPROX - 8));
     return (
       <>
         <div style={backdropStyle} onClick={backdropActive ? onClose : undefined} />
-        <div style={{
-          ...menuStyle,
-          left: dLeft,
-          top: dTop,
-        }}>
+        <div style={centeredMenuStyle}>
           <div style={{
             padding: '10px 14px 8px', fontSize: 13, color: '#ccddee',
             borderBottom: '1px solid rgba(50,60,80,0.4)',
@@ -1232,14 +1203,6 @@ export function PlanetContextMenu({
       </>
     );
   }
-
-  // Initial position estimate (before first layout measurement).
-  // After the first render useLayoutEffect will compute the exact clamped pos.
-  const MARGIN = 8;
-  const left = menuPos?.left ?? (isDesktop
-    ? Math.max(MARGIN, Math.min(screenPosition.x + 8, window.innerWidth - MENU_WIDTH - MARGIN))
-    : (window.innerWidth - MENU_WIDTH) / 2);
-  const top = menuPos?.top ?? Math.max(MARGIN, Math.min(screenPosition.y - MENU_HEIGHT_APPROX / 2, window.innerHeight - MENU_HEIGHT_APPROX - MARGIN));
 
   const exosphereCost = getPhotoCost('exosphere');
   const biosphereCost = getPhotoCost('biosphere');
@@ -1259,7 +1222,7 @@ export function PlanetContextMenu({
   return (
     <>
       <div style={backdropStyle} onClick={backdropActive ? onClose : undefined} />
-      <div ref={menuRef} style={{ ...menuStyle, left, top, maxHeight: `calc(100vh - ${MARGIN * 2}px)`, overflowY: 'auto' }}>
+      <div style={centeredMenuStyle}>
         {/* ── Header: name + HOME tag ── */}
         <div style={{
           padding: '10px 14px 6px', fontSize: 13, color: '#ccddee',

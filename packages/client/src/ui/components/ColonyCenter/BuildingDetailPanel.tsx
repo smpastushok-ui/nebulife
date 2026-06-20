@@ -766,10 +766,10 @@ const LANDING_PAD_RESEARCH_UNITS: ProducibleType[] = [
 ];
 
 const SPACEPORT_PRODUCIBLES: ProducibleType[] = [
-  'lander',
-  'research_station_kit',
   'transport_small',
   'transport_large',
+  'lander',
+  'research_station_kit',
   'terraform_freighter',
   'colony_ship',
 ];

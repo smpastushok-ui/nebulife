@@ -182,10 +182,10 @@ export const ONE_SHOT_PAYLOAD_TYPES: ProducibleType[] = [
 ];
 
 export const HEAVY_SHIP_TYPES: ProducibleType[] = [
-  'lander',
-  'research_station_kit',
   'transport_small',
   'transport_large',
+  'lander',
+  'research_station_kit',
   'terraform_freighter',
   'colony_ship',
 ];

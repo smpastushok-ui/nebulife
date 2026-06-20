@@ -50,10 +50,10 @@ const earlyExplorationPayloads: ProducibleType[] = [
 ];
 
 const heavyLogisticsPayloads: ProducibleType[] = [
-  'lander',
-  'research_station_kit',
   'transport_small',
   'transport_large',
+  'lander',
+  'research_station_kit',
   'terraform_freighter',
   'colony_ship',
 ];
