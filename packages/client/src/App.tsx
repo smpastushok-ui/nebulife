@@ -11937,15 +11937,30 @@ function AppInner() {
     scheduleSyncToServer();
   }, [addResources, createDockedShipFromProduction, scheduleSyncToServer, t]);
 
-  const hudResources = (() => {
-    const planetId = surfaceTarget?.planet.id
-      ?? state.selectedPlanet?.id
-      ?? showTerraformPlanet?.id
-      ?? planetReportTarget?.planet.id
-      ?? (planetDetailTarget ? planetDetailTarget.system.planets[planetDetailTarget.planetIndex]?.id : undefined)
-      ?? (state.scene === 'home-intro' ? homeInfo?.planet.id : undefined);
-    return planetId ? getResources(planetId) : totalResources();
+  const resourceHudPlanet = (() => {
+    if (surfaceTarget) return surfaceTarget.planet;
+    if (showTerraformPlanet) return showTerraformPlanet;
+    if (planetReportTarget) return planetReportTarget.planet;
+    if (planetDetailTarget) return planetDetailTarget.system.planets[planetDetailTarget.planetIndex] ?? null;
+    if (state.scene === 'planet-view') {
+      if (state.selectedPlanet) return state.selectedPlanet;
+      try {
+        const persistedPlanetId = localStorage.getItem('nebulife_nav_planet');
+        return state.selectedSystem?.planets.find((planet) => planet.id === persistedPlanetId) ?? null;
+      } catch {
+        return null;
+      }
+    }
+    if (state.scene === 'home-intro') return homeInfo?.planet ?? null;
+    return null;
   })();
+  const hudResources = resourceHudPlanet ? getResources(resourceHudPlanet.id) : totalResources();
+  const hudPlanetOverride = resourceHudPlanet
+    ? Object.values(planetOverrides).find((override) => override.planetId === resourceHudPlanet.id)
+    : undefined;
+  const hudResourceScopeLabel = resourceHudPlanet
+    ? (hudPlanetOverride?.customName ?? resourceHudPlanet.name ?? resourceHudPlanet.id)
+    : undefined;
 
   return (
     <>
@@ -11984,7 +11999,8 @@ function AppInner() {
         volatiles={hudResources.volatiles}
         isotopes={hudResources.isotopes}
         water={hudResources.water}
-        totalsResources={hudResources}
+        displayResources={hudResources}
+        resourceScopeLabel={hudResourceScopeLabel}
         onClick={() => { if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true); }}
         onObservatoriesClick={() => setShowResourceModal('observatories')}
         onResearchDataClick={() => setShowResourceModal('research_data')}

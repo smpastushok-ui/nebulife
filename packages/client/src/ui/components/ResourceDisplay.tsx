@@ -7,8 +7,8 @@ import { ResourceIcon, RESOURCE_COLORS } from './ResourceIcon.js';
 // ---------------------------------------------------------------------------
 // ResourceDisplay -- two HUD elements:
 //   1. Timer — fixed bottom-center (doomsday clock)
-//   2. Global resources — fixed top-center. Planet-local bulk resources are
-//      shown by ResourceWidget on the surface view.
+//   2. Resource counters — fixed top-center. The caller decides whether the
+//      four bulk resources are global totals or the active planet's local store.
 // ---------------------------------------------------------------------------
 
 interface ColonyResourceValues {
@@ -31,18 +31,16 @@ interface ResourceDisplayProps {
   onVolatilesClick?: () => void;
   onIsotopesClick?: () => void;
   onQuarksClick?: () => void;
-  /** Legacy flat props kept for callers that don't pass totalsResources. */
+  /** Legacy flat props kept for callers that don't pass displayResources. */
   minerals?: number;
   volatiles?: number;
   isotopes?: number;
   water?: number;
   onWaterClick?: () => void;
-  /**
-   * Aggregated totals across all colonies (Phase 7B+).
-   * When provided, these values are always displayed (no toggle).
-   * Legacy flat props are used as fallback when totalsResources is absent.
-   */
-  totalsResources?: ColonyResourceValues;
+  /** Explicit resource bundle to display in the top HUD. */
+  displayResources?: ColonyResourceValues;
+  /** Human-readable scope for titles, e.g. planet name or "global". */
+  resourceScopeLabel?: string;
   /**
    * Doomsday clock params. When all four are non-null AND `showCountdown`
    * is true, we render a `<LiveCountdown>` that self-updates via ref — no
@@ -201,7 +199,8 @@ export function ResourceDisplay({
   onObservatoriesClick, onResearchDataClick,
   onMineralsClick, onVolatilesClick, onIsotopesClick, onQuarksClick, onWaterClick,
   minerals = 0, volatiles = 0, isotopes = 0, water = 0,
-  totalsResources,
+  displayResources,
+  resourceScopeLabel,
   showCountdown = false, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel,
   isCountdownPaused, onTimerClick,
   observatoryUsed = 0, observatoryTotal = 0,
@@ -214,11 +213,15 @@ export function ResourceDisplay({
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const iconSize = useIconSize();
 
-  // Always use totals when available; fall back to legacy flat props otherwise.
-  const displayMinerals  = totalsResources ? totalsResources.minerals  : minerals;
-  const displayVolatiles = totalsResources ? totalsResources.volatiles : volatiles;
-  const displayIsotopes  = totalsResources ? totalsResources.isotopes  : isotopes;
-  const displayWater     = totalsResources ? totalsResources.water     : water;
+  const displayMinerals  = displayResources ? displayResources.minerals  : minerals;
+  const displayVolatiles = displayResources ? displayResources.volatiles : volatiles;
+  const displayIsotopes  = displayResources ? displayResources.isotopes  : isotopes;
+  const displayWater     = displayResources ? displayResources.water     : water;
+  const scopedTitle = (label: string, amount: number) => (
+    resourceScopeLabel
+      ? `${label} (${resourceScopeLabel}): ${Math.floor(amount)}`
+      : `${label}: ${Math.floor(amount)}`
+  );
 
   const makeItemClick = (handler?: () => void) => (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -275,8 +278,7 @@ export function ResourceDisplay({
         </div>
       )}
 
-      {/* Resources — fixed top-center. Bulk colony resources are optional because
-          the surface has its own planet-local ResourceWidget. */}
+      {/* Resources — fixed top-center. */}
       {showResources && (
       <div
         style={{
@@ -334,7 +336,7 @@ export function ResourceDisplay({
           <>
             <div
               style={itemHoverStyle('min')}
-              title={`${t('resource_display.minerals_title')}: ${Math.floor(displayMinerals)}`}
+              title={scopedTitle(t('resource_display.minerals_title'), displayMinerals)}
               onClick={makeItemClick(onMineralsClick)}
               onMouseEnter={() => setHoveredItem('min')}
               onMouseLeave={() => setHoveredItem(null)}
@@ -345,7 +347,7 @@ export function ResourceDisplay({
             <div style={dividerStyle} />
             <div
               style={itemHoverStyle('vol')}
-              title={`${t('resource_display.volatiles_title')}: ${Math.floor(displayVolatiles)}`}
+              title={scopedTitle(t('resource_display.volatiles_title'), displayVolatiles)}
               onClick={makeItemClick(onVolatilesClick)}
               onMouseEnter={() => setHoveredItem('vol')}
               onMouseLeave={() => setHoveredItem(null)}
@@ -356,7 +358,7 @@ export function ResourceDisplay({
             <div style={dividerStyle} />
             <div
               style={itemHoverStyle('iso')}
-              title={`${t('resource_display.isotopes_title')}: ${Math.floor(displayIsotopes)}`}
+              title={scopedTitle(t('resource_display.isotopes_title'), displayIsotopes)}
               onClick={makeItemClick(onIsotopesClick)}
               onMouseEnter={() => setHoveredItem('iso')}
               onMouseLeave={() => setHoveredItem(null)}
@@ -367,7 +369,7 @@ export function ResourceDisplay({
             <div style={dividerStyle} />
             <div
               style={itemHoverStyle('wat')}
-              title={`${t('resource_display.water_title', 'Water')}: ${Math.floor(displayWater)}`}
+              title={scopedTitle(t('resource_display.water_title', 'Water'), displayWater)}
               onClick={makeItemClick(onWaterClick)}
               onMouseEnter={() => setHoveredItem('wat')}
               onMouseLeave={() => setHoveredItem(null)}
