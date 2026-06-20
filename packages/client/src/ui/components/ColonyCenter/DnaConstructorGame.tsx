@@ -122,11 +122,34 @@ function generateLatticePuzzle(spark: LifeSparkType, session: number): LatticeTi
     y: Math.floor(i / config.width),
   }));
   const coreId = tileKey(config.core.x, config.core.y);
-  const blockerIds = new Set(
-    shuffle(allCells.filter((cell) => tileKey(cell.x, cell.y) !== coreId), rng)
-      .slice(0, config.blockerCount)
-      .map((cell) => tileKey(cell.x, cell.y)),
-  );
+  const blockerCandidates = allCells.filter((cell) => tileKey(cell.x, cell.y) !== coreId);
+  let blockerIds = new Set<string>();
+  for (let attempt = 0; attempt < 80; attempt++) {
+    const candidateIds = new Set(
+      shuffle(blockerCandidates, rng)
+        .slice(0, config.blockerCount)
+        .map((cell) => tileKey(cell.x, cell.y)),
+    );
+    const candidateActiveIds = new Set(allCells
+      .filter((cell) => !candidateIds.has(tileKey(cell.x, cell.y)))
+      .map((cell) => tileKey(cell.x, cell.y)));
+    const connected = new Set<string>([coreId]);
+    const queue = [config.core];
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      for (const dir of DIRS) {
+        const delta = DIR_DELTA[dir];
+        const id = tileKey(current.x + delta.dx, current.y + delta.dy);
+        if (!candidateActiveIds.has(id) || connected.has(id)) continue;
+        connected.add(id);
+        queue.push({ x: current.x + delta.dx, y: current.y + delta.dy });
+      }
+    }
+    if (connected.size === candidateActiveIds.size) {
+      blockerIds = candidateIds;
+      break;
+    }
+  }
 
   const activeCells = allCells.filter((cell) => !blockerIds.has(tileKey(cell.x, cell.y)));
   const activeIds = new Set(activeCells.map((cell) => tileKey(cell.x, cell.y)));
@@ -154,7 +177,7 @@ function generateLatticePuzzle(spark: LifeSparkType, session: number): LatticeTi
     }
   }
 
-  const nonCoreActive = activeCells.filter((cell) => tileKey(cell.x, cell.y) !== coreId);
+  const nonCoreActive = activeCells.filter((cell) => visited.has(tileKey(cell.x, cell.y)) && tileKey(cell.x, cell.y) !== coreId);
   const specialCells = shuffle(nonCoreActive, rng);
   const catalystIds = new Set(specialCells.splice(0, config.catalystCount).map((cell) => tileKey(cell.x, cell.y)));
   const neuralIds = new Set(specialCells.splice(0, config.neuralCount).map((cell) => tileKey(cell.x, cell.y)));
@@ -440,15 +463,20 @@ export function DnaConstructorGame({
   const config = spark ? configForSpark(spark) : null;
   const activeCount = tiles.filter((tile) => tile.required && tile.kind !== 'blocker').length;
   const poweredCount = tiles.filter((tile) => tile.required && analysis.powered.has(tile.id)).length;
+  const stellarNearlyStable = spark === 'stellar'
+    && activeCount > 0
+    && analysis.openEnds.size === 0
+    && poweredCount >= activeCount - 1;
+  const latticeComplete = analysis.complete || stellarNearlyStable;
   const stabilityPct = activeCount > 0
-    ? Math.round((poweredCount / activeCount) * 100 - Math.min(18, analysis.openEnds.size * 3))
+    ? (latticeComplete ? 100 : Math.round((poweredCount / activeCount) * 100 - Math.min(18, analysis.openEnds.size * 3)))
     : 0;
   const stability = Math.max(0, Math.min(100, stabilityPct));
   const stabilityColor = stability > 80 ? '#44ff88' : stability > 45 ? '#ffcf66' : '#ff8844';
   const sparkName = spark ? t(`lab.spark.${spark}` as 'lab.spark.primordial') : '';
 
   useEffect(() => {
-    if (!spark || status !== 'play' || !analysis.complete || successRef.current) return;
+    if (!spark || status !== 'play' || !latticeComplete || successRef.current) return;
     successRef.current = true;
     setStatus('igniting');
     const id = window.setTimeout(() => {
@@ -456,7 +484,7 @@ export function DnaConstructorGame({
       onSuccess(spark);
     }, 900);
     return () => window.clearTimeout(id);
-  }, [analysis.complete, onSuccess, spark, status]);
+  }, [latticeComplete, onSuccess, spark, status]);
 
   function startSpark(s: LifeSparkType) {
     if (completed) return;
