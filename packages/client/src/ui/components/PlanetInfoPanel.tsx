@@ -300,14 +300,13 @@ export function PlanetInfoPanel({ planet, onClose, onSurface, surfaceDisabledRea
         )}
       </Section>
 
-      {/* --- Surface button (home planet / colonized) --- */}
-      {onSurface && (planet.isHomePlanet || planet.isColonizable) && (
+      {/* --- Surface / orbital operations button --- */}
+      {onSurface && (
         <div style={{ marginTop: 8 }}>
           {/* Коментар українською: Додаємо ідентифікатор для туторіалу висадки на поверхню */}
           <button
             data-tutorial-id="planet-surface-btn"
-            onClick={surfaceDisabledReason ? undefined : onSurface}
-            disabled={!!surfaceDisabledReason}
+            onClick={onSurface}
             title={surfaceDisabledReason}
             style={{
               width: '100%',
@@ -318,7 +317,7 @@ export function PlanetInfoPanel({ planet, onClose, onSurface, surfaceDisabledRea
               color: surfaceDisabledReason ? '#556677' : '#88ccaa',
               fontFamily: 'monospace',
               fontSize: 12,
-              cursor: surfaceDisabledReason ? 'not-allowed' : 'pointer',
+              cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',

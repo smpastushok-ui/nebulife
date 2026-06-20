@@ -1034,7 +1034,12 @@
     "timing_only": "Telemetry only",
     "image_ready": "Image received",
     "video_ready": "Video received",
-    "telemetry_only": "Awaiting visualization"
+    "telemetry_only": "Awaiting visualization",
+    "research_start": "Conduct research",
+    "research_available_in": "Available in {{time}}",
+    "research_window": "Window closes in {{time}}",
+    "research_logged": "Research logged",
+    "research_inactive": "Event inactive"
   },
   "observatory": {
     "title": "Nebulife Observatory",
@@ -1394,6 +1399,7 @@
       "unknown": "mission unavailable",
       "already_revealed": "this data tier is already revealed",
       "active_mission": "a mission is already active for this planet",
+      "previous_tier_required": "complete the previous research tier first",
       "building_required": "launch building required",
       "building_required_named": "requires: {{building}}",
       "surface_unavailable": "landing is not possible here",
@@ -1787,6 +1793,24 @@
       "water_name": "Water",
       "water_desc": "Liquid water extracted from surface deposits and underground reservoirs. Essential for crew sustenance, food production, and chemical processes in colony domes."
     }
+  },
+  "resource_widget": {
+    "storage_title": "Planet storage",
+    "limit_label": "Limit",
+    "elements_title": "Separated elements",
+    "elements_count": "{{count}} shown",
+    "elements_locked": "Separated element inventory unlocks at L{{level}} after advanced chemistry."
+  },
+  "surface_gate": {
+    "chaos": "Surface operations are blocked until the evacuation crisis is resolved.",
+    "need_full_exploration": "Complete Tier 3 planet exploration before opening surface or orbital operations.",
+    "need_full_exploration_with_steps": "Complete Tier 3 planet exploration before opening surface or orbital operations. Required: {{steps}}.",
+    "unavailable": "Surface operations are unavailable for this planet.",
+    "survey_only": "Survey mode only: unlock hexes and harvest resources. Send a colony ship before construction.",
+    "colony_ship_required": "A colony ship must arrive at this planet before colony structures can be built.",
+    "colony_ship_arriving": "Colony ship is en route. Construction unlocks after docking.",
+    "need_habitable_or_terraform": "Construction requires a habitable planet or completed terraforming before the colony ship can establish a hub.",
+    "orbital_only": "Orbital-only planet: unlock atmospheric layers, harvest volatiles, and build orbital collectors only."
   },
   "scientific_report": {
     "title": "Scientific Report for the President"

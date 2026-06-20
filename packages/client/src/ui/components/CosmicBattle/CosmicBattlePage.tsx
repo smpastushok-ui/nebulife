@@ -22,9 +22,9 @@ interface CosmicBattlePageProps {
 type ShotVisual = { side: 'player' | 'enemy'; x: number; y: number; hit: boolean } | null;
 
 const ASSET = {
-  background: '/cosmic-battle/tactical-nebula.svg',
-  ally: '/cosmic-battle/ally-fleet.svg',
-  enemy: '/cosmic-battle/enemy-fleet.svg',
+  background: '/cosmic-battle/tactical-nebula.webp',
+  ally: '/cosmic-battle/ally-fleet.webp',
+  enemy: '/cosmic-battle/enemy-fleet.webp',
 };
 
 function boardSize(): number {

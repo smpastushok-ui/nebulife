@@ -1108,6 +1108,7 @@ export function PlanetContextMenu({
   }, [activeTab, expandedGroup, reportsOpen, screenPosition, isDesktop]);
 
   const isSurfacePlanet = planet.type === 'rocky' || planet.type === 'terrestrial' || planet.type === 'dwarf';
+  const hasSurfaceOrOrbitalView = isSurfacePlanet || planet.type === 'gas-giant' || planet.type === 'ice-giant';
   const isSystemAccessible = systemResearchProgress >= 100;
   const unlockedTabs = useMemo(() => {
     const tabs = new Set<TabId>(['actions', 'alpha']);
@@ -1140,7 +1141,7 @@ export function PlanetContextMenu({
   ];
   const missionTypes: PlanetMissionType[] = explorationMissionsDisabled
     ? []
-    : availableMissionTypes.filter((type) => type === 'drone_recon' || getTargetRevealLevel(type) > revealLevel);
+    : availableMissionTypes;
   const unavailableSurfaceType: PlanetMissionType | null = (
     !explorationMissionsDisabled
     && !isSolidPlanetForLanding(planet)
@@ -1268,9 +1269,9 @@ export function PlanetContextMenu({
                   color={isFavorite ? '#7bb8ff' : '#8899aa'}
                 />
               )}
-              {isSurfacePlanet && onSurface && (
+              {hasSurfaceOrOrbitalView && onSurface && (
                 surfaceDisabledReason
-                  ? <MenuItem icon="▲" label={t('nav.surface_btn')} disabled title={surfaceDisabledReason} right="50+" />
+                  ? <MenuItem icon="▲" label={t('nav.surface_btn')} disabled title={surfaceDisabledReason} right="!" />
                   : <MenuItem icon="▲" label={t('nav.surface_btn')} onClick={itemsActive ? onSurface : undefined} color="#88ccaa" />
               )}
               {isSystemAccessible && (

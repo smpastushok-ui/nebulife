@@ -233,6 +233,16 @@ export function canStartPlanetMission(params: {
     return { canStart: false, reason: 'active_mission' };
   }
 
+  if (params.type === 'orbital_probe' && params.revealLevel < 1) {
+    return { canStart: false, reason: 'previous_tier_required' };
+  }
+  if ((params.type === 'surface_landing' || params.type === 'deep_atmosphere_probe') && params.revealLevel < 2) {
+    return { canStart: false, reason: 'previous_tier_required' };
+  }
+  if (params.type === 'drone_recon' && params.revealLevel < 2) {
+    return { canStart: false, reason: 'previous_tier_required' };
+  }
+
   if (params.type === 'surface_landing' && !isSolidPlanetForLanding(params.planet)) {
     return { canStart: false, reason: 'surface_unavailable' };
   }

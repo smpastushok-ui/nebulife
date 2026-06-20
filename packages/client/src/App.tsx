@@ -483,6 +483,14 @@ function readHexSlotBuildingsFromStorage(
   }
 }
 
+function hasBuildingInHexSlots(slots: unknown, buildingType: BuildingType): boolean {
+  return Array.isArray(slots)
+    && slots.some((slot) => {
+      const entry = slot as { state?: unknown; buildingType?: unknown };
+      return entry.state === 'building' && entry.buildingType === buildingType;
+    });
+}
+
 function clampResourceBundle(resources: ColonyResourceBundle, capacity: number): ColonyResourceBundle {
   return {
     minerals: Math.min(Math.max(0, resources.minerals), capacity),
@@ -643,6 +651,15 @@ interface SyncedGameState {
   // Metadata
   synced_at: number;
   last_regen_time?: number;
+}
+
+type SurfaceAccessMode = 'survey' | 'colony' | 'orbital';
+
+interface SurfaceAccessCheck {
+  allowed: boolean;
+  mode?: SurfaceAccessMode;
+  reason?: string;
+  chaos?: boolean;
 }
 
 interface ArenaStats {
@@ -3800,9 +3817,23 @@ function AppInner() {
     });
 
     if (!check.canStart) {
+      let reasonMessage: string | null = null;
+      if (check.reason === 'building_required' && check.requiredBuilding) {
+        reasonMessage = tr('planet_missions.reason.building_required_named', { building: tr(`planet_missions.building.${check.requiredBuilding}`) });
+      } else if (check.reason === 'resources_required' && check.missingResources) {
+        const missing = Object.entries(check.missingResources)
+          .map(([resource, amount]) => `${resource} ${Math.ceil(Number(amount ?? 0))}`)
+          .join(', ');
+        reasonMessage = tr('planet_missions.reason.resources_required_named', { resources: missing });
+      } else if (check.reason === 'payload_required' && check.requiredPayload) {
+        reasonMessage = tr('planet_missions.reason.payload_required_named', { payload: tr(`planet_missions.payload.${check.requiredPayload}`) });
+      } else if (check.reason === 'carrier_required' && check.requiredCarrier) {
+        reasonMessage = tr('planet_missions.reason.carrier_required_named', { carrier: tr(`planet_missions.payload.${check.requiredCarrier}`) });
+      }
       const reasonKey = {
         already_revealed: 'planet_missions.reason.already_revealed',
         active_mission: 'planet_missions.reason.active_mission',
+        previous_tier_required: 'planet_missions.reason.previous_tier_required',
         building_required: 'planet_missions.reason.building_required',
         surface_unavailable: 'planet_missions.reason.surface_unavailable',
         resources_required: 'planet_missions.reason.resources_required',
@@ -3811,7 +3842,7 @@ function AppInner() {
         unknown: 'planet_missions.reason.unknown',
       } as const;
       playSfx('ui-error', 0.2);
-      setToastMessage(t(reasonKey[check.reason ?? 'unknown']));
+      setToastMessage(reasonMessage ?? tr(reasonKey[check.reason ?? 'unknown']));
       setTimeout(() => setToastMessage(null), 3200);
       return;
     }
@@ -3900,6 +3931,7 @@ function AppInner() {
     state.selectedSystem,
     surfaceTarget?.planet.id,
     t,
+    tr,
     totalResources,
   ]);
 
@@ -5188,6 +5220,14 @@ function AppInner() {
   // vault sat on the home colony. Scan every colony's persisted hex slots too.
   const hasGenesisVaultAnywhere = useMemo(() => {
     if (colonyState?.buildings?.some((b) => b.type === 'genesis_vault')) return true;
+    const gs = gameStateRef.current;
+    if (hasBuildingInHexSlots(gs.hex_slots, 'genesis_vault')) return true;
+    const byPlanet = gs.hex_slots_by_planet;
+    if (byPlanet && typeof byPlanet === 'object') {
+      for (const slots of Object.values(byPlanet as Record<string, unknown>)) {
+        if (hasBuildingInHexSlots(slots, 'genesis_vault')) return true;
+      }
+    }
     try {
       for (const key of Object.keys(localStorage)) {
         if (!key.startsWith('nebulife_hex_slots')) continue;
@@ -5198,7 +5238,7 @@ function AppInner() {
       }
     } catch { /* ignore */ }
     return false;
-  }, [colonyState, surfaceBuildingCount]);
+  }, [colonyState, serverHydrated, surfaceBuildingCount]);
 
   // Cargo logistics can only unload where the target colony has a landing pad or
   // spaceport. Resolves the target's buildings from the active colony when it's the
@@ -5335,6 +5375,7 @@ function AppInner() {
       'nebulife_astra_quiz_answers',
       // Per-planet resources (Phase 7A)
       'nebulife_colony_resources_by_planet',
+      'nebulife_cosmic_event_research',
     ];
     keysToRemove.forEach(k => localStorage.removeItem(k));
     // Also remove all quiz answer keys
@@ -7793,37 +7834,117 @@ function AppInner() {
   }, [completedModal, dismissCompletedModal, handleEnterSystem]);
 
   // ── Planet access checks ────────────────────────────────────────────
-  // Surface landing: blocked before first evacuation; after — home planet or level 50+
-  const canLandOnPlanet = useCallback((planet: Planet): { allowed: boolean; reason?: string; chaos?: boolean; hidden?: boolean } => {
+  const isGiantPlanet = useCallback((planet: Planet): boolean => (
+    planet.type === 'gas-giant' || planet.type === 'ice-giant'
+  ), []);
+
+  const isPlanetFullyExplored = useCallback((system: StarSystem | null | undefined, planet: Planet): boolean => (
+    getEffectivePlanetRevealLevel(planet, system ?? null) >= 3
+  ), [getEffectivePlanetRevealLevel]);
+
+  const getMissingPlanetResearchSteps = useCallback((system: StarSystem | null | undefined, planet: Planet): string => {
+    const revealLevel = getEffectivePlanetRevealLevel(planet, system ?? null);
+    const steps: string[] = [];
+    if (revealLevel < 1) {
+      steps.push(tr('planet_missions.type.orbital_scan'));
+    }
+    if (revealLevel < 2) {
+      steps.push(tr('planet_missions.type.orbital_probe'));
+    }
+    if (revealLevel < 3) {
+      steps.push(tr(`planet_missions.type.${isSolidPlanetForLanding(planet) ? 'surface_landing' : 'deep_atmosphere_probe'}`));
+    }
+    return steps.join(', ');
+  }, [getEffectivePlanetRevealLevel, tr]);
+
+  const isPlanetTerraformComplete = useCallback((system: StarSystem | null | undefined, planet: Planet): boolean => {
+    const stateForPlanet = system
+      ? getPlanetScopedValue(terraformStates, system.id, planet.id)
+      : terraformStates[planet.id];
+    return Boolean(stateForPlanet?.completedAt);
+  }, [terraformStates]);
+
+  const isPlanetHabitableForColony = useCallback((system: StarSystem | null | undefined, planet: Planet): boolean => (
+    planet.isColonizable || (planet.habitability?.overall ?? 0) >= 0.3 || isPlanetTerraformComplete(system, planet)
+  ), [isPlanetTerraformComplete]);
+
+  const getColonyShipStatusForPlanet = useCallback((planetId: string): 'none' | 'sent' | 'arrived' => {
+    let sent = false;
+    for (const ship of shipFleet.ships) {
+      if (ship.type !== 'colony_ship') continue;
+      if (ship.status === 'docked' && ship.currentPlanetId === planetId) return 'arrived';
+      if (ship.destinationPlanetId === planetId || ship.currentPlanetId === planetId) sent = true;
+    }
+    return sent ? 'sent' : 'none';
+  }, [shipFleet.ships]);
+
+  const isPlanetColonized = useCallback((system: StarSystem | null | undefined, planet: Planet): boolean => {
+    if (planet.isHomePlanet || planet.id === homeInfo?.planet.id) return true;
+    if (colonyState?.planetId === planet.id && colonyState.buildings.some((building) => building.type === 'colony_hub')) return true;
+    if (getColonyShipStatusForPlanet(planet.id) === 'arrived' && isPlanetHabitableForColony(system, planet)) return true;
+    return getColonyPlanets().some((colonyPlanet) => colonyPlanet.id === planet.id);
+  }, [colonyState, getColonyPlanets, getColonyShipStatusForPlanet, homeInfo?.planet.id, isPlanetHabitableForColony]);
+
+  const getSurfaceAccessForPlanet = useCallback((planet: Planet, system?: StarSystem | null): SurfaceAccessCheck => {
     const isHome = planet.isHomePlanet || (homeInfo != null && planet.id === homeInfo.planet.id);
 
-    // Level 50+ can access any planet's surface
-    if (playerLevel >= 50) {
-      // But home planet during pre-evacuation chaos is still blocked
-      if (isHome && isExodusPhase && evacuationPhase === 'idle') {
-        return { allowed: false, chaos: true };
-      }
-      return { allowed: true };
-    }
-
-    // Before level 50: only home planet (or colonizable after evacuation) shows the surface button
-    if (!isHome && !planet.isColonizable) {
-      return { allowed: false, hidden: true };
-    }
-
-    // Home planet during exodus-phase chaos — blocked but show chaos modal
     if (isHome && isExodusPhase && evacuationPhase === 'idle') {
-      return { allowed: false, chaos: true };
+      return { allowed: false, chaos: true, reason: tr('surface_gate.chaos') };
     }
 
-    // Home planet in non-exodus phase — surface accessible
-    if (isHome) return { allowed: true };
+    if (!isPlanetFullyExplored(system, planet)) {
+      return {
+        allowed: false,
+        reason: tr('surface_gate.need_full_exploration_with_steps', {
+          steps: getMissingPlanetResearchSteps(system, planet),
+        }),
+      };
+    }
 
-    // Colonizable planet — accessible only after evacuation is done
-    if (planet.isColonizable && evacuationPhase !== 'idle') return { allowed: true };
+    if (isGiantPlanet(planet)) {
+      return { allowed: true, mode: 'orbital' };
+    }
 
-    return { allowed: false, hidden: true };
-  }, [homeInfo, playerLevel, isExodusPhase, evacuationPhase]);
+    if (isPlanetColonized(system, planet)) {
+      return { allowed: true, mode: 'colony' };
+    }
+
+    return { allowed: true, mode: 'survey' };
+  }, [
+    evacuationPhase,
+    homeInfo,
+    isExodusPhase,
+    isGiantPlanet,
+    isPlanetColonized,
+    isPlanetFullyExplored,
+    getMissingPlanetResearchSteps,
+    tr,
+  ]);
+
+  const showSurfaceBlockedReason = useCallback((check: SurfaceAccessCheck): void => {
+    if (check.chaos) {
+      if (enqueueIfArena(() => setShowChaosModal(true))) return;
+      setShowChaosModal(true);
+      return;
+    }
+    setToastMessage(check.reason ?? tr('surface_gate.unavailable'));
+    window.setTimeout(() => setToastMessage(null), 3200);
+  }, [enqueueIfArena, tr]);
+
+  const canLandOnPlanet = useCallback((planet: Planet, system?: StarSystem | null): SurfaceAccessCheck => (
+    getSurfaceAccessForPlanet(planet, system)
+  ), [getSurfaceAccessForPlanet]);
+
+  const getSurfaceBuildBlockedReason = useCallback((planet: Planet, system?: StarSystem | null): string | undefined => {
+    const access = getSurfaceAccessForPlanet(planet, system);
+    if (access.mode !== 'survey') return undefined;
+    if (!isPlanetHabitableForColony(system, planet)) {
+      return tr('surface_gate.need_habitable_or_terraform');
+    }
+    const shipStatus = getColonyShipStatusForPlanet(planet.id);
+    if (shipStatus === 'sent') return tr('surface_gate.colony_ship_arriving');
+    return tr('surface_gate.colony_ship_required');
+  }, [getColonyShipStatusForPlanet, getSurfaceAccessForPlanet, isPlanetHabitableForColony, tr]);
 
   // Exosphere: always accessible if system is researched (menu only shows in researched systems)
   const handleViewPlanet = useCallback(() => {
@@ -10934,12 +11055,9 @@ function AppInner() {
   // ── Surface view handlers ─────────────────────────────────────────────
   const handleOpenSurface = useCallback(() => {
     if (!state.selectedPlanet || !state.selectedSystem) return;
-    const check = canLandOnPlanet(state.selectedPlanet);
+    const check = canLandOnPlanet(state.selectedPlanet, state.selectedSystem);
     if (!check.allowed) {
-      if (check.chaos) {
-        if (enqueueIfArena(() => setShowChaosModal(true))) return;
-        setShowChaosModal(true);
-      }
+      showSurfaceBlockedReason(check);
       return;
     }
     setShowCosmicArchive(false);
@@ -10949,7 +11067,7 @@ function AppInner() {
       star: state.selectedSystem.star,
       system: state.selectedSystem,
     });
-  }, [state.selectedPlanet, state.selectedSystem, canLandOnPlanet, enqueueIfArena]);
+  }, [state.selectedPlanet, state.selectedSystem, canLandOnPlanet, showSurfaceBlockedReason]);
 
   const handleCloseSurface = useCallback(() => {
     const target = surfaceTargetRef.current;
@@ -11017,6 +11135,11 @@ function AppInner() {
       }
     }
     if (!info) return;
+    const check = canLandOnPlanet(info.planet, info.system);
+    if (!check.allowed) {
+      showSurfaceBlockedReason(check);
+      return;
+    }
     setShowCosmicArchive(false);
     setState(prev => ({
       ...prev,
@@ -11029,14 +11152,18 @@ function AppInner() {
       star: info.system.star,
       system: info.system,
     });
-  }, [homeInfo]);
+  }, [canLandOnPlanet, homeInfo, showSurfaceBlockedReason]);
 
   // ── Globe double-click → spin + zoom → surface ────────────────────────
   const handleGlobeDoubleClick = useCallback(() => {
     const planet = state.scene === 'home-intro' ? homeInfo?.planet : state.selectedPlanet;
     if (!planet) return;
-    const check = canLandOnPlanet(planet);
-    if (!check.allowed) return;
+    const system = state.scene === 'home-intro' ? homeInfo?.system : state.selectedSystem;
+    const check = canLandOnPlanet(planet, system);
+    if (!check.allowed) {
+      showSurfaceBlockedReason(check);
+      return;
+    }
     globeRef.current?.spinAndZoom(() => {
       if (state.scene === 'home-intro') {
         handleGoToHomeSurface();
@@ -11044,7 +11171,7 @@ function AppInner() {
         handleOpenSurface();
       }
     });
-  }, [state.scene, state.selectedPlanet, homeInfo, canLandOnPlanet, handleGoToHomeSurface, handleOpenSurface]);
+  }, [state.scene, state.selectedPlanet, state.selectedSystem, homeInfo, canLandOnPlanet, handleGoToHomeSurface, handleOpenSurface, showSurfaceBlockedReason]);
 
   // ── Planet detail window handler ────────────────────────────────────────
   const handleViewPlanetDetail = useCallback((system: StarSystem, planetIndex: number, displayName?: string) => {
@@ -12119,17 +12246,15 @@ function AppInner() {
               active: favoritePlanets.has(state.selectedPlanet!.id),
             }];
 
-            if (!isExodusPhase && (state.selectedPlanet.type === 'rocky' || state.selectedPlanet.type === 'terrestrial' || state.selectedPlanet.type === 'dwarf')) {
-              const check = canLandOnPlanet(state.selectedPlanet);
-              if (!check.hidden) {
-                buttons.push({
+            if (!isExodusPhase && (state.selectedPlanet.type === 'rocky' || state.selectedPlanet.type === 'terrestrial' || state.selectedPlanet.type === 'dwarf' || state.selectedPlanet.type === 'gas-giant' || state.selectedPlanet.type === 'ice-giant')) {
+              const check = canLandOnPlanet(state.selectedPlanet, state.selectedSystem);
+              buttons.push({
               title: check.allowed ? t('nav.surface_btn') : (check.reason || t('common.unavailable')),
               icon: <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M1 12 L4 8 L7 10 L11 5 L15 9 L15 14 L1 14Z" /><circle cx="12" cy="3" r="2" /></svg>,
               onClick: handleOpenSurface,
-              disabled: !check.allowed,
+              disabled: false,
               pulse: check.allowed,
-                });
-              }
+              });
             }
 
             return buttons;
@@ -12457,11 +12582,11 @@ function AppInner() {
             }
           }}
           onClose={handleClosePlanetMenu}
-          onSurface={isExodusPhase || canLandOnPlanet(state.selectedPlanet).hidden ? undefined : handleOpenSurface}
+          onSurface={isExodusPhase ? undefined : handleOpenSurface}
           isFavorite={favoritePlanets.has(state.selectedPlanet.id)}
           onToggleFavorite={toggleFavoritePlanet}
           isDestroyed={destroyedPlanetIdsSet.has(state.selectedPlanet.id)}
-          surfaceDisabledReason={canLandOnPlanet(state.selectedPlanet).reason}
+          surfaceDisabledReason={canLandOnPlanet(state.selectedPlanet, state.selectedSystem).allowed ? undefined : canLandOnPlanet(state.selectedPlanet, state.selectedSystem).reason}
           onTelescopePhoto={(photoKind) => handlePlanetTelescopePhoto(photoKind)}
           onGeneratePlanetSkin={handleGeneratePlanetSkin}
           planetSkinStatus={{
@@ -12469,7 +12594,7 @@ function AppInner() {
             exosphere: planetSkins.get(planetSkinKey(state.selectedSystem!.id, state.selectedPlanet.id, 'exosphere'))?.status as 'generating' | 'pending' | 'processing' | 'succeed' | 'failed' | undefined,
           }}
           canGenerateSurfacePhotos={
-            canLandOnPlanet(state.selectedPlanet).allowed && isSolidPlanetForLanding(state.selectedPlanet)
+            canLandOnPlanet(state.selectedPlanet, state.selectedSystem).allowed && isSolidPlanetForLanding(state.selectedPlanet)
           }
           isPhotoGenerating={
             systemPhotos.get(getPlanetPhotoKey(state.selectedSystem!.id, state.selectedPlanet.id, 'exosphere'))?.status === 'generating'
@@ -12551,11 +12676,7 @@ function AppInner() {
           carrierInventory={getAvailableMissionCarriers(surfaceTarget?.planet.id ?? homeInfo?.planet.id ?? colonyState?.planetId ?? '')}
           colonyBuildings={getExplorationBuildings()}
           onStartMission={handleStartPlanetMission}
-          explorationMissionsDisabled={Boolean(
-            state.selectedPlanet.isHomePlanet
-              || state.selectedPlanet.id === homeInfo?.planet.id
-              || state.selectedPlanet.id === colonyState?.planetId,
-          )}
+          explorationMissionsDisabled={false}
           reportSummary={getPlanetScopedValue(planetReports, state.selectedSystem!.id, state.selectedPlanet.id)}
           missionPhotoSaved={(() => {
             const report = getPlanetScopedValue(planetReports, state.selectedSystem!.id, state.selectedPlanet!.id);
@@ -12619,8 +12740,8 @@ function AppInner() {
         <PlanetInfoPanel
           planet={state.selectedPlanet}
           onClose={() => setState((prev) => ({ ...prev, showPlanetInfo: false, selectedPlanet: null }))}
-          onSurface={isExodusPhase || canLandOnPlanet(state.selectedPlanet).hidden ? undefined : handleOpenSurface}
-          surfaceDisabledReason={canLandOnPlanet(state.selectedPlanet).reason}
+          onSurface={isExodusPhase ? undefined : handleOpenSurface}
+          surfaceDisabledReason={canLandOnPlanet(state.selectedPlanet, state.selectedSystem).allowed ? undefined : canLandOnPlanet(state.selectedPlanet, state.selectedSystem).reason}
           terraformState={state.selectedSystem
             ? getPlanetScopedValue(terraformStates, state.selectedSystem.id, state.selectedPlanet.id)
             : terraformStates[state.selectedPlanet.id]}
@@ -13195,7 +13316,14 @@ function AppInner() {
             setQuarks((prev) => Math.max(0, prev - amount));
           }}
           alphaHarvesterCount={0}
+          surfaceAccessMode={canLandOnPlanet(surfaceTarget.planet, surfaceTarget.system).mode ?? 'survey'}
+          buildBlockedReason={getSurfaceBuildBlockedReason(surfaceTarget.planet, surfaceTarget.system)}
           onOpenColonyCenter={(tab) => {
+            if ((canLandOnPlanet(surfaceTarget.planet, surfaceTarget.system).mode ?? 'survey') !== 'colony') {
+              setToastMessage(getSurfaceBuildBlockedReason(surfaceTarget.planet, surfaceTarget.system) ?? tr('surface_gate.colony_ship_required'));
+              window.setTimeout(() => setToastMessage(null), 3200);
+              return;
+            }
             setColonyCenterInitialTab(tab ?? 'overview');
             setShowColonyCenter(true);
           }}
@@ -13231,6 +13359,9 @@ function AppInner() {
           volatiles={getResources(surfaceTarget.planet.id).volatiles}
           isotopes={getResources(surfaceTarget.planet.id).isotopes}
           water={getResources(surfaceTarget.planet.id).water}
+          storageCapacity={getStorageCapacityForPlanet(surfaceTarget.planet.id)}
+          playerLevel={playerLevel}
+          chemicalInventory={chemicalInventory}
           onRefsReady={setResourceRects}
         />
       )}
@@ -13670,11 +13801,7 @@ function AppInner() {
             setMissionPhotoViewer({ planetName: planet.name, photoUrl, photoKey: key, systemId: report.systemId, planetId: planet.id });
             setShowCosmicArchive(false);
           }}
-          explorationMissionsDisabled={(_system, planet) => Boolean(
-            planet.isHomePlanet
-              || planet.id === homeInfo?.planet.id
-              || planet.id === colonyState?.planetId,
-          )}
+          explorationMissionsDisabled={() => false}
           colonyStateByPlanet={colonyState ? { [colonyState.planetId]: colonyState } : undefined}
           getPlanetResources={getResources}
           planetResourceStocks={planetResourceStocks}

@@ -22,7 +22,7 @@ import { useTranslation } from 'react-i18next';
 import type { Planet, Star, BuildingType, SurfaceObjectType, TechTreeState, PlacedBuilding, PlanetResourceStocks, ProducibleType, FleetState, ObservatoryState, ObservatorySearchDuration, ObservatorySearchProgram, SeparationJob, SeparationGroup, Discovery, ExtractionJob, CosmicEvent } from '@nebulife/core';
 import { getPlanetSize, RARITY_COLORS } from '@nebulife/core';
 
-import { useHexState } from './useHexState.js';
+import { useHexState, type SurfaceAccessMode } from './useHexState.js';
 import { HexGrid } from './HexGrid.js';
 import { getHexPositions, HEX_RADIUS, type HexPlanetSize, type ResourceType } from './hex-utils.js';
 import { HexBuildMenu, getAlphaHarvesterPrice } from './HexBuildMenu.js';
@@ -108,6 +108,8 @@ interface HexSurfaceProps {
   upcomingEvents?: CosmicEvent[];
   onOpenSignals?: () => void;
   isPremium?: boolean;
+  surfaceAccessMode?: SurfaceAccessMode;
+  buildBlockedReason?: string;
   /** Opens the Colony Center hub page — fired when the player inspects the
    *  `colony_hub` building. Parent wires this to setShowColonyCenter(true). */
   onOpenColonyCenter?:    (tab?: 'overview' | 'production') => void;
@@ -240,11 +242,15 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       onOpenDnaLab,
       upcomingEvents,
       onOpenSignals,
-  isPremium = false,
+      isPremium = false,
+      surfaceAccessMode = 'colony',
+      buildBlockedReason,
       onOpenColonyCenter,
     },
     ref,
   ) {
+    const { t } = useTranslation();
+
     // ── Preload most common hex images on mount ──────────────────────────────
     useEffect(() => {
       PRELOAD_HEX_IMAGES.forEach(src => {
@@ -260,7 +266,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
     // Initial zoom: computed once so the full grid fits the viewport width.
     // Prevents left/right hex tile clipping on narrow mobile screens.
     const zoomRef = useRef((() => {
-      const pSize = getPlanetSize(planet.radiusEarth);
+      const pSize = getPlanetSize(planet);
       const desktop = window.innerWidth >= 900;
       const positions = getHexPositions(pSize);
       const gridW = desktop
@@ -281,6 +287,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       screenY: number;
     } | null>(null);
     const [detailSlotId, setDetailSlotId] = useState<string | null>(null);
+    const [buildBlockedToast, setBuildBlockedToast] = useState<string | null>(null);
 
     // ── Drag / pan tracking ─────────────────────────────────────────────────
     const rAFRef = useRef<number | null>(null);
@@ -368,6 +375,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       star,
       playerId,
       systemId,
+      surfaceAccessMode,
       colonyResources,
       handleResourceChange,
       (type) => {
@@ -516,13 +524,18 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
 
     const handleBuild = useCallback(
       (slotId: string) => {
+        if (surfaceAccessMode === 'survey') {
+          setBuildBlockedToast(buildBlockedReason ?? t('surface_gate.survey_only'));
+          window.setTimeout(() => setBuildBlockedToast(null), 3200);
+          return;
+        }
         // Show build menu centered on screen (simpler than computing hex screen pos)
         const cx = window.innerWidth / 2;
         const cy = window.innerHeight / 2;
         setBuildMenu({ slotId, screenX: cx, screenY: cy - 150 });
         onBuildPanelChange?.(true);
       },
-      [onBuildPanelChange],
+      [buildBlockedReason, onBuildPanelChange, surfaceAccessMode, t],
     );
 
     const buildingsForDetail = useMemo<PlacedBuilding[]>(() => (
@@ -886,12 +899,37 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
             colonyResources={colonyResources}
             chemicalInventory={chemicalInventory}
             planetType={planet.type}
+            surfaceAccessMode={surfaceAccessMode}
             planetStocks={planetStocks}
             quarks={quarks}
             alphaHarvesterCount={alphaHarvesterCount}
             onSelect={handleBuildSelect}
             onClose={handleBuildClose}
           />
+        )}
+
+        {buildBlockedToast && (
+          <div style={{
+            position: 'absolute',
+            left: '50%',
+            bottom: 92,
+            transform: 'translateX(-50%)',
+            zIndex: 9100,
+            maxWidth: 'min(520px, calc(100vw - 32px))',
+            padding: '10px 14px',
+            border: '1px solid rgba(255,136,68,0.62)',
+            borderRadius: 6,
+            background: 'rgba(10,15,25,0.94)',
+            color: '#ffb68a',
+            fontFamily: 'monospace',
+            fontSize: 11,
+            lineHeight: 1.45,
+            textAlign: 'center',
+            boxShadow: '0 0 24px rgba(255,136,68,0.16)',
+            pointerEvents: 'none',
+          }}>
+            {buildBlockedToast}
+          </div>
         )}
 
         {detailBuilding && (

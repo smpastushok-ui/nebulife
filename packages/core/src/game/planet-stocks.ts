@@ -13,6 +13,7 @@
 
 import type { Planet } from '../types/planet.js';
 import type { PlanetResourceStocks } from '../types/colony.js';
+import { TF_BASE_COSTS, TF_SIZE_MULT, planetSizeBucket } from '../constants/terraform.js';
 
 // ---------------------------------------------------------------------------
 // Conversion constants
@@ -74,6 +75,115 @@ const ICE_EQUIVALENT_DEPTH_KM  = 10.0;  // km of ice/snow equivalent depth
  */
 const SUBSURFACE_OCEAN_BONUS = 15_000;  // U
 
+type ResourceKey = 'minerals' | 'volatiles' | 'isotopes' | 'water';
+
+const RESOURCE_KEYS: ResourceKey[] = ['minerals', 'volatiles', 'isotopes', 'water'];
+
+/**
+ * Terraform economy reserve:
+ * A newly surveyed solid planet should usually contain more extractable value
+ * than it costs to terraform, but not in a direct 1:1 refund shape. The average
+ * uplift is ~+50%; per-planet and per-resource variance makes target selection
+ * meaningful instead of "terraform everything".
+ */
+const TERRAFORM_STOCK_RETURN_TARGET = 1.5;
+const TERRAFORM_RETURN_VARIANCE = 0.35; // 0.65x..1.35x around the 1.5x target
+const TERRAFORM_RESOURCE_VARIANCE = 1.25;
+const TERRAFORM_STOCK_SOFT_CAP = 1.0;
+
+function seededUnit(seed: number, salt: string): number {
+  let h = (Math.floor(seed) ^ 0x9e3779b9) >>> 0;
+  for (let i = 0; i < salt.length; i++) {
+    h = Math.imul(h ^ salt.charCodeAt(i), 0x85ebca6b) >>> 0;
+    h ^= h >>> 13;
+  }
+  return (h >>> 0) / 0xffffffff;
+}
+
+function weightedTerraformCostEstimate(planet: Planet): Record<ResourceKey, number> {
+  const sizeMult = TF_SIZE_MULT[planetSizeBucket(planet)];
+  const difficultyMult = 1 + (planet.terraformDifficulty ?? 0);
+  const habitability = planet.habitability;
+  const progressByParam = {
+    magneticField: Math.max(0, Math.min(100, habitability.magneticField * 100)),
+    atmosphere: Math.max(0, Math.min(100, habitability.atmosphere * 100)),
+    ozone: planet.atmosphere?.hasOzone === true ? 80 : 0,
+    temperature: Math.max(0, Math.min(100, habitability.temperature * 100)),
+    pressure: planet.atmosphere ? Math.max(0, Math.min(100, habitability.atmosphere * 100)) : 0,
+    water: Math.max(0, Math.min(100, habitability.water * 100)),
+  };
+
+  const out: Record<ResourceKey, number> = { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
+  for (const [paramId, costs] of Object.entries(TF_BASE_COSTS)) {
+    const progress = progressByParam[paramId as keyof typeof progressByParam] ?? 0;
+    const remaining = Math.max(0, Math.min(1, (100 - progress) / 100));
+    const scale = sizeMult * difficultyMult * remaining;
+    for (const [resource, amount] of Object.entries(costs)) {
+      out[resource as ResourceKey] += amount * scale;
+    }
+  }
+  return out;
+}
+
+function planetResourceBias(planet: Planet, key: ResourceKey): number {
+  const hyd = planet.hydrosphere;
+  const atmospherePressure = planet.atmosphere?.surfacePressureAtm ?? 0;
+  const habitability = planet.habitability;
+
+  switch (key) {
+    case 'minerals':
+      return planet.type === 'dwarf' ? 1.15 : planet.densityGCm3 >= 4.5 ? 1.25 : 1.0;
+    case 'volatiles':
+      return (atmospherePressure > 0.5 ? 1.25 : 0.9) * (planet.zone === 'outer' || planet.zone === 'far' ? 1.18 : 1.0);
+    case 'isotopes':
+      return planet.magneticField.hasMagnetosphere || habitability.magneticField > 0.5 ? 1.2 : 0.92;
+    case 'water':
+      return hyd && (hyd.waterCoverageFraction > 0 || hyd.iceCapFraction > 0 || hyd.hasSubsurfaceOcean)
+        ? 1.35
+        : 0.65;
+  }
+}
+
+function applyTerraformEconomyFloor(
+  planet: Planet,
+  stocks: Record<ResourceKey, number>,
+): Record<ResourceKey, number> {
+  if (planet.isHomePlanet || planet.type === 'gas-giant' || planet.type === 'ice-giant') return stocks;
+  if (planet.isColonizable || (planet.habitability?.overall ?? 0) >= 0.3) return stocks;
+
+  const cost = weightedTerraformCostEstimate(planet);
+  const totalCost = RESOURCE_KEYS.reduce((sum, key) => sum + cost[key], 0);
+  if (totalCost <= 0) return stocks;
+
+  const worldRoll = (1 - TERRAFORM_RETURN_VARIANCE) + seededUnit(planet.seed, 'tf-return') * (TERRAFORM_RETURN_VARIANCE * 2);
+  const targetTotal = totalCost * TERRAFORM_STOCK_RETURN_TARGET * worldRoll;
+
+  const weights = RESOURCE_KEYS.map((key) => {
+    const costWeight = Math.max(0.08, cost[key] / totalCost);
+    const naturalBias = planetResourceBias(planet, key);
+    const resourceRoll = 0.45 + seededUnit(planet.seed, `tf-resource-${key}`) * TERRAFORM_RESOURCE_VARIANCE;
+    return { key, weight: costWeight * naturalBias * resourceRoll };
+  });
+  const weightTotal = weights.reduce((sum, entry) => sum + entry.weight, 0);
+  if (weightTotal <= 0) return stocks;
+
+  const next = { ...stocks };
+  for (const { key, weight } of weights) {
+    const floor = Math.round(targetTotal * (weight / weightTotal));
+    next[key] = Math.max(next[key], floor);
+  }
+
+  const totalAfterFloor = RESOURCE_KEYS.reduce((sum, key) => sum + next[key], 0);
+  const softCap = targetTotal * TERRAFORM_STOCK_SOFT_CAP;
+  if (totalAfterFloor > softCap && softCap > 0) {
+    const scale = softCap / totalAfterFloor;
+    for (const key of RESOURCE_KEYS) {
+      next[key] = Math.max(0, Math.round(next[key] * scale));
+    }
+  }
+  return next;
+}
+
 // ---------------------------------------------------------------------------
 // Generation
 // ---------------------------------------------------------------------------
@@ -92,9 +202,9 @@ export function generatePlanetStocks(planet: Planet): PlanetResourceStocks {
   const rawVolatiles = tr?.volatiles ?? 0;
   const rawIsotopes  = tr?.isotopes  ?? 0;
 
-  const minerals  = Math.round(Math.max(0, rawMinerals  * STOCK_SCALE.minerals));
-  const volatiles = Math.round(Math.max(0, rawVolatiles * STOCK_SCALE.volatiles));
-  const isotopes  = Math.round(Math.max(0, rawIsotopes  * STOCK_SCALE.isotopes));
+  let minerals  = Math.round(Math.max(0, rawMinerals  * STOCK_SCALE.minerals));
+  let volatiles = Math.round(Math.max(0, rawVolatiles * STOCK_SCALE.volatiles));
+  let isotopes  = Math.round(Math.max(0, rawIsotopes  * STOCK_SCALE.isotopes));
 
   // ── Water ─────────────────────────────────────────────────────────────────
   // Water stock is REAL extractable water by physical type:
@@ -152,6 +262,12 @@ export function generatePlanetStocks(planet: Planet): PlanetResourceStocks {
     // No hydrosphere at all → water stays 0
   }
 
+  const balanced = applyTerraformEconomyFloor(planet, { minerals, volatiles, isotopes, water });
+  minerals = balanced.minerals;
+  volatiles = balanced.volatiles;
+  isotopes = balanced.isotopes;
+  water = balanced.water;
+
   const stocks: PlanetResourceStocks = {
     initial: { minerals, volatiles, isotopes, water },
     remaining: { minerals, volatiles, isotopes, water },
@@ -162,8 +278,6 @@ export function generatePlanetStocks(planet: Planet): PlanetResourceStocks {
 // ---------------------------------------------------------------------------
 // Depletion helpers
 // ---------------------------------------------------------------------------
-
-type ResourceKey = 'minerals' | 'volatiles' | 'isotopes' | 'water';
 
 /**
  * Deplete a stock for one tick of extraction.
