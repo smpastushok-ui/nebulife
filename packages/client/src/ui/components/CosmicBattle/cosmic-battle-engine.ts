@@ -1,7 +1,7 @@
 import type { LifeSparkType, ProducibleType } from '@nebulife/core';
 
 export type CosmicBattleSide = 'player' | 'enemy';
-export type CosmicBattlePhase = 'player_turn' | 'ai_turn' | 'animating' | 'won' | 'lost';
+export type CosmicBattlePhase = 'player_turn' | 'commander_turn' | 'animating' | 'won' | 'lost';
 export type CosmicBattleCellState = 'unknown' | 'miss' | 'hit' | 'sunk';
 export type CosmicBattleResource = 'minerals' | 'volatiles' | 'isotopes' | 'water';
 
@@ -196,7 +196,7 @@ function neighbors(point: BattlePoint, size: number): BattlePoint[] {
   ].filter((p) => p.x >= 0 && p.y >= 0 && p.x < size && p.y < size);
 }
 
-export function chooseAiShot(board: BattleBoard, rng: () => number): BattlePoint {
+export function chooseCommanderShot(board: BattleBoard, rng: () => number): BattlePoint {
   const knownHits = Object.entries(board.shots)
     .filter(([, state]) => state === 'hit')
     .map(([key]) => {

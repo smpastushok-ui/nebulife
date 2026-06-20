@@ -212,7 +212,7 @@
   },
   "cosmic_battle": {
     "title": "Cosmic Battle",
-    "subtitle": "A tactical grid battle against AI: locate the hostile fleet, survive the counterstrike and claim a combat trophy.",
+    "subtitle": "A tactical grid battle against another commander: locate the hostile fleet, survive the counterstrike and claim a combat trophy.",
     "back": "Back",
     "enemy_grid": "Enemy sector",
     "ally_grid": "Our fleet",
@@ -220,11 +220,11 @@
     "enemy_fleet": "Hostile signature",
     "integrity": "Fleet integrity: {{value}}%",
     "target_hint": "Choose a sector for missile strike",
-    "defense_hint": "AI is scanning your defense grid",
+    "defense_hint": "Commander is scanning your defense grid",
     "victory_title": "Enemy fleet destroyed",
     "victory_body": "Tactical sector cleared. The Colony Council transferred the trophy package to your stores.",
     "defeat_title": "Fleet lost",
-    "defeat_body": "The AI read your targeting pattern. Regroup the fleet and try again.",
+    "defeat_body": "The opposing commander read your targeting pattern. Regroup the fleet and try again.",
     "play_again": "Play again",
     "return_hangar": "Return to Hangar",
     "reward_line": "+{{quarks}} quark · {{reward}}",
@@ -232,7 +232,7 @@
     "reward_toast": "Cosmic Battle trophies added",
     "status": {
       "player_turn": "Your turn",
-      "ai_turn": "AI turn",
+      "commander_turn": "Commander turn",
       "animating": "Missile strike",
       "victory": "Victory",
       "defeat": "Defeat"
@@ -240,8 +240,8 @@
     "outcome": {
       "hit": "Hit confirmed",
       "miss": "Miss. Sector empty",
-      "enemy_hit": "AI hit our ship",
-      "enemy_miss": "AI missed"
+      "enemy_hit": "Commander hit our ship",
+      "enemy_miss": "Commander missed"
     },
     "ship": {
       "carrier": "Carrier",
@@ -2898,6 +2898,16 @@
     "btn_dispatch": "Dispatch",
     "tracker_title": "Active missions",
     "tracker_chip": "missions",
+    "cargo_title": "Cargo flight",
+    "colony_ship_title": "Colony ship",
+    "colony_ship_arrived": "Arrived · ready to colonize",
+    "cargo_phase": {
+      "loading": "Loading",
+      "outbound": "Outbound",
+      "unloading": "Unloading",
+      "returning": "Returning",
+      "completed": "Completed"
+    },
     "no_donors": "No available colonies",
     "no_missions": "No active missions",
     "coverage_pct": "Covers {{pct}}% of requirement",

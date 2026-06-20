@@ -110,7 +110,7 @@ export const en: Record<TranslationKey, string> = {
   'hangar.mode_select.arena_desc': 'The current hangar with ship selection, training, carrier raid and combat statistics.',
   'hangar.mode_select.cosmic_kicker': 'Tactical protocol',
   'hangar.mode_select.cosmic_title': 'Cosmic Battle',
-  'hangar.mode_select.cosmic_desc': 'A grid battle against medium AI inspired by Battleship: scan sectors, launch missiles, sink the fleet and claim a reward drop.',
+  'hangar.mode_select.cosmic_desc': 'A grid battle against another commander inspired by Battleship: scan sectors, launch missiles, sink the fleet and claim a reward drop.',
   'hangar.mode_select.enter': 'Enter',
   'hangar.bay_ready':         'Docking bay online',
   'hangar.chassis_status':    'Chassis status',

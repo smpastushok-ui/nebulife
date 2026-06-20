@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { CosmicBattleRewardBundle, ShotOutcome } from './cosmic-battle-engine';
 import {
   allShipsSunk,
-  chooseAiShot,
+  chooseCommanderShot,
   createBattleRng,
   createInitialBoards,
   fireAt,
@@ -27,6 +27,16 @@ const ASSET = {
   enemy: '/cosmic-battle/enemy-fleet.webp',
 };
 
+function commanderThinkingDelay(rng: () => number): number {
+  const base = 720 + Math.floor(rng() * 980);
+  const hesitation = rng() > 0.78 ? 420 + Math.floor(rng() * 720) : 0;
+  return base + hesitation;
+}
+
+function commanderLaunchDelay(rng: () => number): number {
+  return 480 + Math.floor(rng() * 520);
+}
+
 function boardSize(): number {
   if (typeof window === 'undefined') return 10;
   return window.innerWidth < 760 ? 8 : 10;
@@ -48,7 +58,7 @@ export const CosmicBattlePage: React.FC<CosmicBattlePageProps> = ({ seed, onExit
   const [shotVisual, setShotVisual] = useState<ShotVisual>(null);
   const [lastOutcome, setLastOutcome] = useState<ShotOutcome | null>(null);
   const [rewardResult, setRewardResult] = useState<CosmicBattleRewardBundle | null>(null);
-  const aiRngRef = useRef(createBattleRng(`${seed}:ai`));
+  const commanderRngRef = useRef(createBattleRng(`${seed}:commander`));
   const playerBoardRef = useRef(playerBoard);
   const enemyBoardRef = useRef(enemyBoard);
   const rewardGrantedRef = useRef(false);
@@ -71,8 +81,9 @@ export const CosmicBattlePage: React.FC<CosmicBattlePageProps> = ({ seed, onExit
     onReward(reward);
   }, [onReward, seed]);
 
-  const runAiTurn = useCallback(() => {
-    const target = chooseAiShot(playerBoardRef.current, aiRngRef.current);
+  const runCommanderTurn = useCallback(() => {
+    const target = chooseCommanderShot(playerBoardRef.current, commanderRngRef.current);
+    const launchDelay = commanderLaunchDelay(commanderRngRef.current);
     setShotVisual({ side: 'enemy', x: target.x, y: target.y, hit: false });
     setPhase('animating');
     schedule(() => {
@@ -88,7 +99,7 @@ export const CosmicBattlePage: React.FC<CosmicBattlePageProps> = ({ seed, onExit
           setPhase('player_turn');
         }, 700);
       }
-    }, 620);
+    }, launchDelay);
   }, [schedule]);
 
   const handleEnemyCell = useCallback((x: number, y: number) => {
@@ -104,15 +115,19 @@ export const CosmicBattlePage: React.FC<CosmicBattlePageProps> = ({ seed, onExit
         setPhase('won');
         grantVictory();
       } else {
-        schedule(runAiTurn, 850);
+        schedule(() => {
+          setShotVisual(null);
+          setPhase('commander_turn');
+          schedule(runCommanderTurn, commanderThinkingDelay(commanderRngRef.current));
+        }, 520 + Math.floor(commanderRngRef.current() * 420));
       }
     }, 620);
-  }, [enemyBoard.shots, grantVictory, phase, runAiTurn, schedule]);
+  }, [enemyBoard.shots, grantVictory, phase, runCommanderTurn, schedule]);
 
   const restart = useCallback(() => {
     const nextSeed = `${seed}:retry:${Date.now()}`;
     const boards = createInitialBoards(size, nextSeed);
-    aiRngRef.current = createBattleRng(`${nextSeed}:ai`);
+    commanderRngRef.current = createBattleRng(`${nextSeed}:commander`);
     rewardGrantedRef.current = false;
     setPlayerBoard(boards.player);
     setEnemyBoard(boards.enemy);
@@ -124,8 +139,8 @@ export const CosmicBattlePage: React.FC<CosmicBattlePageProps> = ({ seed, onExit
 
   const statusKey = phase === 'player_turn'
     ? 'cosmic_battle.status.player_turn'
-    : phase === 'ai_turn' || (phase === 'animating' && shotVisual?.side === 'enemy')
-      ? 'cosmic_battle.status.ai_turn'
+    : phase === 'commander_turn' || (phase === 'animating' && shotVisual?.side === 'enemy')
+      ? 'cosmic_battle.status.commander_turn'
       : phase === 'won'
         ? 'cosmic_battle.status.victory'
         : phase === 'lost'

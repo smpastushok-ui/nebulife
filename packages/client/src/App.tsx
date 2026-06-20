@@ -196,6 +196,13 @@ const COMET_PHOTO_URL = '/events/comet-herald.webp';
  *  window, persisted (and synced) so harvest-spamming or reinstalling cannot
  *  burn through the 28-form set in days. */
 const LIFEFORM_FIND_AT_KEY = 'nebulife_last_lifeform_find_at';
+const COLONY_SHIP_ASSIGNMENT_PREFIX = 'colony-';
+const COLONY_CENTER_POPULATION = 5000;
+
+function isColonyShipAssignment(assignmentId?: string | null): boolean {
+  return Boolean(assignmentId?.startsWith(COLONY_SHIP_ASSIGNMENT_PREFIX));
+}
+
 function lifeformFindOnCooldown(): boolean {
   try {
     const raw = localStorage.getItem(LIFEFORM_FIND_AT_KEY);
@@ -630,6 +637,7 @@ interface SyncedGameState {
   terraform_states?: Record<string, unknown>;
   fleet?: unknown[];
   fleet_state?: FleetState;
+  colonized_planets?: Record<string, ColonizedPlanetRecord>;
   // Planet overrides (type/habitability after successful terraform — Phase 7C)
   planet_overrides?: Record<string, unknown>;
   // Planet resource stocks — finite extraction budgets (v168)
@@ -653,6 +661,12 @@ interface SyncedGameState {
   // Metadata
   synced_at: number;
   last_regen_time?: number;
+}
+
+interface ColonizedPlanetRecord {
+  systemId: string;
+  foundedAt: number;
+  population: number;
 }
 
 type SurfaceAccessMode = 'survey' | 'colony' | 'orbital';
@@ -1751,6 +1765,22 @@ function AppInner() {
     try { localStorage.setItem('nebulife_fleet_state', JSON.stringify(shipFleet)); }
     catch { /* ignore quota */ }
   }, [shipFleet]);
+
+  /** Planets where the player has pressed Colonize after a colony ship arrived. */
+  const [colonizedPlanets, setColonizedPlanets] = useState<Record<string, ColonizedPlanetRecord>>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_colonized_planets');
+      if (saved) return JSON.parse(saved) as Record<string, ColonizedPlanetRecord>;
+    } catch { /* ignore */ }
+    return {};
+  });
+  const colonizedPlanetsRef = useRef(colonizedPlanets);
+  colonizedPlanetsRef.current = colonizedPlanets;
+
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_colonized_planets', JSON.stringify(colonizedPlanets)); }
+    catch { /* ignore quota */ }
+  }, [colonizedPlanets]);
 
   // ── Planet exploration missions ───────────────────────────────────────────
   const [planetRevealLevels, setPlanetRevealLevels] = useState<Record<string, PlanetRevealLevel>>(() => {
@@ -2985,6 +3015,31 @@ function AppInner() {
 
   const [showPlayerPage, setShowPlayerPage] = useState(false);
   const [showMissionsPanel, setShowMissionsPanel] = useState(false);
+  const [colonyFoundingTarget, setColonyFoundingTarget] = useState<{ system: StarSystem; planet: Planet; shipId: string } | null>(null);
+  const [colonyWelcome, setColonyWelcome] = useState<{ planetName: string; colonyNumber: number; totalPopulation: number } | null>(null);
+  const colonyShipMissions = useMemo(() => {
+    const allSystems = engineRef.current?.getAllSystems?.() ?? [];
+    return shipFleet.ships
+      .filter((ship) => ship.type === 'colony_ship' && isColonyShipAssignment(ship.assignmentId))
+      .filter((ship) => {
+        const targetPlanetId = ship.destinationPlanetId ?? ship.currentPlanetId;
+        return Boolean(targetPlanetId && !colonizedPlanets[targetPlanetId]);
+      })
+      .map((ship) => {
+        const targetPlanetId = ship.destinationPlanetId ?? ship.currentPlanetId ?? '';
+        const system = allSystems.find((candidate) => candidate.planets.some((planet) => planet.id === targetPlanetId));
+        const planet = system?.planets.find((entry) => entry.id === targetPlanetId);
+        return {
+          id: ship.assignmentId ?? ship.id,
+          shipName: ship.name,
+          targetPlanetId,
+          targetPlanetName: planet?.name ?? targetPlanetId,
+          departedAt: ship.departedAt,
+          arrivalAt: ship.arrivalAt,
+          arrived: ship.status === 'docked' && ship.currentPlanetId === targetPlanetId,
+        };
+      });
+  }, [colonizedPlanets, shipFleet.ships]);
   // Cross-cutting terraform missions button for the left SceneControlsPanel
   // (shown only when the player has a fleet). Last button in the column.
   const missionButtonProps = useMemo(
@@ -2992,15 +3047,17 @@ function AppInner() {
       // Only count missions still in flight — idle (completed) missions are
       // dropped from the fleet, so the badge shrinks as ships free up.
       const active = fleet.filter((m) => m.phase !== 'idle');
-      return active.length > 0
+      const activeCargo = (shipFleet.cargoShipments ?? []).filter((shipment) => shipment.status !== 'completed');
+      const totalActive = active.length + colonyShipMissions.length + activeCargo.length;
+      return totalActive > 0
         ? {
-            activeCount: active.length,
-            total: active.length,
+            activeCount: totalActive,
+            total: totalActive,
             onClick: () => setShowMissionsPanel((v) => !v),
           }
         : null;
     },
-    [fleet],
+    [colonyShipMissions.length, fleet, shipFleet.cargoShipments],
   );
   const [showChaosModal, setShowChaosModal] = useState(false);
   const [showCosmicArchive, setShowCosmicArchive] = useState(false);
@@ -4143,6 +4200,68 @@ function AppInner() {
     }
     return planetId;
   }, []);
+
+  const getAvailableColonyShipForTarget = useCallback((targetPlanetId: string): Ship | null => {
+    const colonyPlanetIds = new Set(getColonyPlanets().map((planet) => planet.id));
+    return shipFleetRef.current.ships.find((ship) => (
+      ship.type === 'colony_ship'
+      && ship.status === 'docked'
+      && !ship.assignmentId
+      && Boolean(ship.currentPlanetId)
+      && ship.currentPlanetId !== targetPlanetId
+      && colonyPlanetIds.has(ship.currentPlanetId!)
+    )) ?? null;
+  }, [getColonyPlanets]);
+
+  const handleOpenColonyFounding = useCallback((system: StarSystem, planet: Planet): void => {
+    const ship = shipFleetRef.current.ships.find((candidate) => (
+      candidate.type === 'colony_ship'
+      && candidate.status === 'docked'
+      && candidate.currentPlanetId === planet.id
+      && isColonyShipAssignment(candidate.assignmentId)
+    ));
+    if (!ship) {
+      playSfx('ui-error', 0.2);
+      setToastMessage(tr('colony.launch_ship_not_arrived'));
+      window.setTimeout(() => setToastMessage(null), 3200);
+      return;
+    }
+    setState((prev) => ({ ...prev, showPlanetMenu: false }));
+    setColonyFoundingTarget({ system, planet, shipId: ship.id });
+  }, [tr]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      const now = Date.now();
+      let changed = false;
+      setShipFleet((prev) => {
+        const nextShips = prev.ships.map((ship) => {
+          if (
+            ship.type !== 'colony_ship'
+            || ship.status !== 'in_transit'
+            || !isColonyShipAssignment(ship.assignmentId)
+            || !ship.arrivalAt
+            || now < ship.arrivalAt
+            || !ship.destinationPlanetId
+          ) {
+            return ship;
+          }
+          changed = true;
+          return {
+            ...ship,
+            status: 'docked' as const,
+            currentPlanetId: ship.destinationPlanetId,
+            destinationPlanetId: null,
+            departedAt: null,
+            arrivalAt: null,
+          };
+        });
+        return changed ? { ...prev, ships: nextShips } : prev;
+      });
+      if (changed) scheduleSyncToServer();
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [scheduleSyncToServer]);
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -7963,18 +8082,29 @@ function AppInner() {
     let sent = false;
     for (const ship of shipFleet.ships) {
       if (ship.type !== 'colony_ship') continue;
-      if (ship.status === 'docked' && ship.currentPlanetId === planetId) return 'arrived';
-      if (ship.destinationPlanetId === planetId || ship.currentPlanetId === planetId) sent = true;
+      const assignedToColony = isColonyShipAssignment(ship.assignmentId);
+      if (ship.status === 'docked' && ship.currentPlanetId === planetId && assignedToColony) return 'arrived';
+      if (ship.destinationPlanetId === planetId || (assignedToColony && ship.currentPlanetId === planetId)) sent = true;
     }
     return sent ? 'sent' : 'none';
   }, [shipFleet.ships]);
 
+  const getColonyShipEtaForPlanet = useCallback((planetId: string): number | null => {
+    const now = Date.now();
+    for (const ship of shipFleet.ships) {
+      if (ship.type !== 'colony_ship') continue;
+      if (!isColonyShipAssignment(ship.assignmentId)) continue;
+      if (ship.destinationPlanetId === planetId && ship.arrivalAt) return Math.max(0, ship.arrivalAt - now);
+    }
+    return null;
+  }, [shipFleet.ships]);
+
   const isPlanetColonized = useCallback((system: StarSystem | null | undefined, planet: Planet): boolean => {
     if (planet.isHomePlanet || planet.id === homeInfo?.planet.id) return true;
+    if (colonizedPlanets[planet.id]) return true;
     if (colonyState?.planetId === planet.id && colonyState.buildings.some((building) => building.type === 'colony_hub')) return true;
-    if (getColonyShipStatusForPlanet(planet.id) === 'arrived' && isPlanetHabitableForColony(system, planet)) return true;
     return getColonyPlanets().some((colonyPlanet) => colonyPlanet.id === planet.id);
-  }, [colonyState, getColonyPlanets, getColonyShipStatusForPlanet, homeInfo?.planet.id, isPlanetHabitableForColony]);
+  }, [colonizedPlanets, colonyState, getColonyPlanets, homeInfo?.planet.id]);
 
   const getSurfaceAccessForPlanet = useCallback((planet: Planet, system?: StarSystem | null): SurfaceAccessCheck => {
     const isHome = planet.isHomePlanet || (homeInfo != null && planet.id === homeInfo.planet.id);
@@ -8036,6 +8166,70 @@ function AppInner() {
     if (shipStatus === 'sent') return tr('surface_gate.colony_ship_arriving');
     return tr('surface_gate.colony_ship_required');
   }, [getColonyShipStatusForPlanet, getSurfaceAccessForPlanet, isPlanetHabitableForColony, tr]);
+
+  const getColonyLaunchBlockedReason = useCallback((system: StarSystem | null | undefined, planet: Planet): string | undefined => {
+    if (isGiantPlanet(planet)) return tr('colony.launch_giant_blocked');
+    if (!isPlanetFullyExplored(system, planet)) return tr('surface_gate.need_full_exploration_with_steps', {
+      steps: getMissingPlanetResearchSteps(system, planet),
+    });
+    if (!isPlanetHabitableForColony(system, planet)) return tr('surface_gate.need_habitable_or_terraform');
+    if (isPlanetColonized(system, planet)) return tr('colony.launch_already_colonized');
+    const status = getColonyShipStatusForPlanet(planet.id);
+    if (status === 'sent') return tr('colony.launch_already_sent');
+    if (status === 'arrived') return undefined;
+    if (!getAvailableColonyShipForTarget(planet.id)) return tr('colony.launch_no_ship');
+    return undefined;
+  }, [
+    getAvailableColonyShipForTarget,
+    getColonyShipStatusForPlanet,
+    getMissingPlanetResearchSteps,
+    isGiantPlanet,
+    isPlanetColonized,
+    isPlanetFullyExplored,
+    isPlanetHabitableForColony,
+    tr,
+  ]);
+
+  const handleLaunchColonyShip = useCallback((system: StarSystem, planet: Planet): void => {
+    const blockedReason = getColonyLaunchBlockedReason(system, planet);
+    if (blockedReason) {
+      playSfx('ui-error', 0.2);
+      setToastMessage(blockedReason);
+      window.setTimeout(() => setToastMessage(null), 3200);
+      return;
+    }
+
+    const ship = getAvailableColonyShipForTarget(planet.id);
+    if (!ship?.currentPlanetId) return;
+    const now = Date.now();
+    const flightMs = estimateShipFlightMs(ship, ship.currentPlanetId, planet.id);
+    const assignmentId = `${COLONY_SHIP_ASSIGNMENT_PREFIX}${planet.id}-${now}`;
+    setShipFleet((prev) => ({
+      ...prev,
+      ships: prev.ships.map((candidate) => candidate.id === ship.id
+        ? {
+            ...candidate,
+            status: 'in_transit',
+            currentPlanetId: null,
+            destinationPlanetId: planet.id,
+            departedAt: now,
+            arrivalAt: now + flightMs,
+            assignmentId,
+            cargo: { ...candidate.cargo, colonists: COLONY_CENTER_POPULATION },
+          }
+        : candidate),
+    }));
+    setState((prev) => ({ ...prev, showPlanetMenu: false }));
+    setToastMessage(tr('colony.launch_started', { planet: planet.name }));
+    window.setTimeout(() => setToastMessage(null), 3200);
+    scheduleSyncToServer();
+  }, [
+    estimateShipFlightMs,
+    getAvailableColonyShipForTarget,
+    getColonyLaunchBlockedReason,
+    scheduleSyncToServer,
+    tr,
+  ]);
 
   // Exosphere: always accessible if system is researched (menu only shows in researched systems)
   const handleViewPlanet = useCallback(() => {
@@ -14567,6 +14761,8 @@ function AppInner() {
       {!authLoading && !needsOnboarding && !needsCallsign && !showArena && !showRaid && !showHangar && (
         <MissionTracker
           missions={fleet.filter((m) => m.phase !== 'idle')}
+          cargoShipments={shipFleet.cargoShipments ?? []}
+          colonyShipMissions={colonyShipMissions}
           open={showMissionsPanel}
           onClose={() => setShowMissionsPanel(false)}
           getPlanetName={(planetId) => {

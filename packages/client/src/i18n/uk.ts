@@ -108,7 +108,7 @@ export const uk = {
   'hangar.mode_select.arena_desc': 'Поточний ангар з вибором корабля, тренуванням, рейдом на носій та бойовою статистикою.',
   'hangar.mode_select.cosmic_kicker': 'Тактичний протокол',
   'hangar.mode_select.cosmic_title': 'Космічний бій',
-  'hangar.mode_select.cosmic_desc': 'Grid-битва проти AI за патерном морського бою: скануй сектор, запускай ракети, добивай флот і забирай reward drop.',
+  'hangar.mode_select.cosmic_desc': 'Grid-битва проти іншого командора за патерном морського бою: скануй сектор, запускай ракети, добивай флот і забирай reward drop.',
   'hangar.mode_select.enter': 'Увійти',
   'hangar.bay_ready':         'Док-камера активна',
   'hangar.chassis_status':    'Статус корпусу',
