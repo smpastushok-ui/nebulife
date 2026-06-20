@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { StarSystem, Planet, PlanetResourceStocks, Ship, CargoShipment, PlanetReportSummary, PlanetRevealLevel, PlanetColonyState, PlanetMission, PlanetMissionType, ProducibleType } from '@nebulife/core';
-import type { PlanetTerraformState, TerraformParamId, TechTreeState } from '@nebulife/core';
+import type { PlanetTerraformState, TerraformParamId, TechTreeState, Mission, ShipTier } from '@nebulife/core';
 import {
   isTerraformable,
   nearestColonyDistance,
@@ -16,7 +16,7 @@ import {
   getTargetRevealLevel,
   isSolidPlanetForLanding,
 } from '@nebulife/core';
-import type { ColonyResources } from '../Terraform/MissionDispatchModal.js';
+import { MissionDispatchModal, type ColonyResources } from '../Terraform/MissionDispatchModal.js';
 import type { PlacedBuilding } from '@nebulife/core';
 import { ResourceIcon, RESOURCE_COLORS } from '../ResourceIcon.js';
 import { LogisticsTab } from '../PlanetContextMenu.js';
@@ -74,11 +74,8 @@ interface PlanetsCatalogV2Props {
   onlyFavorites?: boolean;
   /** Per-planet resource getter — used by the detail panel stock rows. */
   getPlanetResources?: (planetId: string) => ColonyResources;
-  /**
-   * Opens MissionDispatchModal for the given target planet + paramId.
-   * Parent (CosmicArchive → App) should close catalog and wire onStartParam.
-   */
-  onSendTerraformDelivery?: (targetPlanet: Planet, paramId: TerraformParamId) => void;
+  /** Starts a terraform delivery mission from the inline Terminal dispatch modal. */
+  onSendTerraformDelivery?: (system: StarSystem, targetPlanet: Planet, mission: Omit<Mission, 'id' | 'startedAt' | 'phaseStartedAt'>) => void;
   /** Manually trigger terraform completion for a planet that has reached >=95%. */
   onCompleteTerraform?: (planet: Planet) => void;
   /** Colony planets that can act as donors (for dispatch-gate check). */
@@ -1206,7 +1203,7 @@ function TerraformParamDetailRow({
   terraformState,
   donorPlanets,
   techTreeState,
-  shipTier,
+  availableShips = [],
   hasGenesisVault = false,
   getPlanetResources,
   onSendTerraformDelivery,
@@ -1216,7 +1213,7 @@ function TerraformParamDetailRow({
   terraformState: PlanetTerraformState;
   donorPlanets: Planet[];
   techTreeState: TechTreeState | undefined;
-  shipTier: number;
+  availableShips?: Ship[];
   colonyBuildings?: PlacedBuilding[];
   hasGenesisVault?: boolean;
   getPlanetResources?: (planetId: string) => ColonyResources;
@@ -1255,7 +1252,7 @@ function TerraformParamDetailRow({
   }, [terraformState, paramId, planet, techTreeState, hasGenesisVault]);
 
   const hasDonors = donorPlanets.length > 0;
-  const hasShip = shipTier >= 1;
+  const hasShip = availableShips.length > 0;
 
   // Check resource availability on any donor
   const hasEnoughResource = useMemo(() => {
@@ -1519,7 +1516,7 @@ interface ExpandedDetailPanelProps {
   /** Whether a target planet has a landing pad / spaceport to receive cargo. */
   getPlanetHasLandingPad?: (planetId: string) => boolean;
   getPlanetResources?: (planetId: string) => ColonyResources;
-  onSendTerraformDelivery?: (targetPlanet: Planet, paramId: TerraformParamId) => void;
+  onSendTerraformDelivery?: (system: StarSystem, targetPlanet: Planet, mission: Omit<Mission, 'id' | 'startedAt' | 'phaseStartedAt'>) => void;
   onCompleteTerraform?: (planet: Planet) => void;
   /** Callback when user saves a custom name for the planet */
   onRenamePlanet?: (planetId: string, newName: string) => void;
@@ -1611,6 +1608,7 @@ function ExpandedDetailPanel({
 }: ExpandedDetailPanelProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TerminalPlanetTab>('research');
+  const [dispatchTarget, setDispatchTarget] = useState<TerraformParamId | null>(null);
 
   // Inline rename state
   const [renaming, setRenaming] = useState(false);
@@ -1635,6 +1633,13 @@ function ExpandedDetailPanel({
   const overallPct = tfState ? Math.round(getOverallProgress(tfState)) : 0;
   const showTerraformSection = isTerraformable(planet) && !!tfState;
   const showCompleteButton = showTerraformSection && overallPct >= 95;
+  const effectiveShipTier = (shipTier >= 1 ? shipTier : 1) as ShipTier;
+  const availableTerraformShips = useMemo(() => (
+    cargoShips.filter((ship) => ship.status === 'docked' && !ship.assignmentId)
+  ), [cargoShips]);
+  const getTerraformDispatchDistance = useCallback((donorPlanetId: string): number => (
+    Math.max(0, getCargoRouteLY?.(donorPlanetId, planet.id) ?? 0)
+  ), [getCargoRouteLY, planet.id]);
 
   // Resource stocks — prefer finite planet stocks (v168); fall back to colony inventory
   const stocksForDisplay: { minerals: number; volatiles: number; isotopes: number; water: number } | null = useMemo(() => {
@@ -2105,10 +2110,10 @@ function ExpandedDetailPanel({
                     terraformState={tfState}
                     donorPlanets={donorPlanets}
                     techTreeState={techTreeState}
-                    shipTier={shipTier}
+                    availableShips={availableTerraformShips}
                     hasGenesisVault={hasGenesisVault}
                     getPlanetResources={getPlanetResources}
-                    onSendTerraformDelivery={onSendTerraformDelivery}
+                    onSendTerraformDelivery={(_targetPlanet, targetParamId) => setDispatchTarget(targetParamId)}
                   />
                 ))}
               </div>
@@ -2122,6 +2127,23 @@ function ExpandedDetailPanel({
               >
                 {t('planets_catalog.btn_terraform_complete')}
               </button>
+            )}
+            {dispatchTarget && tfState && getPlanetResources && (
+              <MissionDispatchModal
+                targetPlanet={planet}
+                paramId={dispatchTarget}
+                donorPlanets={donorPlanets}
+                getResources={getPlanetResources}
+                tier={effectiveShipTier}
+                availableShips={availableTerraformShips}
+                distanceLY={getTerraformDispatchDistance}
+                currentProgress={tfState.params[dispatchTarget]?.progress ?? 0}
+                onDispatch={(mission) => {
+                  onSendTerraformDelivery?.(system, planet, mission);
+                  setDispatchTarget(null);
+                }}
+                onClose={() => setDispatchTarget(null)}
+              />
             )}
           </>
         )}

@@ -4128,7 +4128,21 @@ function AppInner() {
     if (!system) return;
 
     const revealLevel = getEffectivePlanetRevealLevel(planet, system);
-    const originPlanetId = surfaceTarget?.planet.id ?? homeInfo?.planet.id ?? colonyState?.planetId;
+    const carrierType = getRequiredMissionCarrier(type);
+    const preferredOrigins = new Set<string>();
+    if (surfaceTarget?.planet.id) preferredOrigins.add(surfaceTarget.planet.id);
+    if (homeInfo?.planet.id) preferredOrigins.add(homeInfo.planet.id);
+    if (colonyState?.planetId) preferredOrigins.add(colonyState.planetId);
+    for (const colonyPlanet of getColonyPlanets()) preferredOrigins.add(colonyPlanet.id);
+    const originPlanetId = carrierType
+      ? (shipFleetRef.current.ships.find((ship) => (
+          ship.type === carrierType
+          && ship.status === 'docked'
+          && !ship.assignmentId
+          && Boolean(ship.currentPlanetId)
+          && preferredOrigins.has(ship.currentPlanetId!)
+        ))?.currentPlanetId ?? [...preferredOrigins][0])
+      : [...preferredOrigins][0];
     if (!originPlanetId) return;
     const explorationBuildings = getExplorationBuildings();
     const missionResearchDataCost = getPlanetMissionResearchDataCost(system);
@@ -4178,7 +4192,6 @@ function AppInner() {
     }
 
     const now = Date.now();
-    const carrierType = getRequiredMissionCarrier(type);
     const carrierShip = carrierType
       ? shipFleetRef.current.ships.find((ship) => (
           ship.type === carrierType
@@ -4252,6 +4265,7 @@ function AppInner() {
     getAvailableMissionCarriers,
     getPlanetMissionResearchDataCost,
     getExplorationBuildings,
+    getColonyPlanets,
     explorationPayloads,
     homeInfo?.planet.id,
     planetMissions,
@@ -4266,14 +4280,6 @@ function AppInner() {
   ]);
 
   const handleStartPlanetMissionFromArchive = useCallback((system: StarSystem, planet: Planet, type: PlanetMissionType): void => {
-    setShowCosmicArchive(false);
-    setState((prev) => ({
-      ...prev,
-      scene: 'system',
-      selectedSystem: system,
-      selectedPlanet: planet,
-      showPlanetMenu: false,
-    }));
     handleStartPlanetMission(planet, type, system);
   }, [handleStartPlanetMission]);
 
@@ -5749,7 +5755,29 @@ function AppInner() {
       }
     } catch { /* ignore */ }
     return false;
-  }, [colonyState, serverHydrated, surfaceBuildingCount]);
+  }, [colonyState, serverHydrated, surfaceBuildingCount, showCosmicArchive, showTerraformPlanet]);
+
+  const detectGenesisVaultNow = useCallback((): boolean => {
+    if (hasGenesisVaultAnywhere) return true;
+    if (colonyStateRef.current?.buildings?.some((b) => b.type === 'genesis_vault')) return true;
+    const gs = gameStateRef.current;
+    if (hasBuildingInHexSlots(gs.hex_slots, 'genesis_vault')) return true;
+    const byPlanet = gs.hex_slots_by_planet;
+    if (byPlanet && typeof byPlanet === 'object') {
+      for (const slots of Object.values(byPlanet as Record<string, unknown>)) {
+        if (hasBuildingInHexSlots(slots, 'genesis_vault')) return true;
+      }
+    }
+    try {
+      for (const key of Object.keys(localStorage)) {
+        if (!key.startsWith('nebulife_hex_slots')) continue;
+        const parsed = JSON.parse(localStorage.getItem(key) ?? 'null') as unknown;
+        if (hasBuildingInHexSlots(parsed, 'genesis_vault')) return true;
+        if (Array.isArray(parsed) && parsed.some((slot) => (slot as { buildingType?: string })?.buildingType === 'genesis_vault')) return true;
+      }
+    } catch { /* ignore */ }
+    return false;
+  }, [hasGenesisVaultAnywhere]);
 
   // Cargo logistics can unload to a landing pad / spaceport, or to the target
   // planet's orbital cache before that first receiving infrastructure exists.
@@ -6406,13 +6434,18 @@ function AppInner() {
     }
     if (gs.hex_slots_by_planet && typeof gs.hex_slots_by_planet === 'object') {
       for (const [key, slots] of Object.entries(gs.hex_slots_by_planet)) {
-        if (!key.startsWith('nebulife_hex_slots_') || !Array.isArray(slots)) continue;
+        if (!Array.isArray(slots)) continue;
+        const storageKey = key.startsWith('nebulife_hex_slots_')
+          ? key
+          : key.includes('::')
+            ? `nebulife_hex_slots_${key.replace('::', '_')}`
+            : `nebulife_hex_slots_${key}`;
         try {
-          const localRaw = localStorage.getItem(key);
+          const localRaw = localStorage.getItem(storageKey);
           const localSlots = localRaw ? JSON.parse(localRaw) as unknown[] : [];
-          localStorage.setItem(key, JSON.stringify(mergeHexSlotsById(slots, localSlots)));
+          localStorage.setItem(storageKey, JSON.stringify(mergeHexSlotsById(slots, localSlots)));
         } catch {
-          try { localStorage.setItem(key, JSON.stringify(slots)); } catch { /* ignore */ }
+          try { localStorage.setItem(storageKey, JSON.stringify(slots)); } catch { /* ignore */ }
         }
       }
     }
@@ -13340,7 +13373,7 @@ function AppInner() {
               || systemPhotos.get(`planet-biosphere-${state.selectedPlanet.id}`)?.status === 'generating'
               || systemPhotos.get(`planet-aerial-${state.selectedPlanet.id}`)?.status === 'generating'
           }
-          hasGenesisVault={hasGenesisVaultAnywhere}
+          hasGenesisVault={detectGenesisVaultNow()}
           onShowTerraform={onShowTerraform}
           targetHasLandingPad={(() => {
             const sel = state.selectedPlanet;
@@ -13358,7 +13391,7 @@ function AppInner() {
               ?? allSystems.find((s) => s.planets.some((p) => p.id === tfPlanet.id));
             const tfState = getPlanetScopedValue(terraformStates, targetSys?.id, tfPlanet.id)
               ?? getInitialTerraformState(tfPlanet);
-            const hasGenVault = hasGenesisVaultAnywhere;
+            const hasGenVault = detectGenesisVaultNow();
             const donors = getColonyPlanets();
             const donorDistMap = new Map<string, number>();
             if (targetSys) {
@@ -13409,7 +13442,26 @@ function AppInner() {
           missionResources={{ researchData: Math.floor(researchData), ...totalResources() }}
           missionResearchDataCost={state.selectedSystem ? getPlanetMissionResearchDataCost(state.selectedSystem) : 1}
           payloadInventory={explorationPayloads}
-          carrierInventory={getAvailableMissionCarriers(surfaceTarget?.planet.id ?? homeInfo?.planet.id ?? colonyState?.planetId ?? '')}
+          carrierInventory={(() => {
+            const origins = new Set<string>();
+            if (surfaceTarget?.planet.id) origins.add(surfaceTarget.planet.id);
+            if (homeInfo?.planet.id) origins.add(homeInfo.planet.id);
+            if (colonyState?.planetId) origins.add(colonyState.planetId);
+            for (const planet of getColonyPlanets()) origins.add(planet.id);
+            const carriers: Partial<Record<ProducibleType, number>> = {};
+            for (const ship of shipFleet.ships) {
+              if (
+                ship.status !== 'docked'
+                || ship.assignmentId
+                || !ship.currentPlanetId
+                || !origins.has(ship.currentPlanetId)
+              ) continue;
+              if (ship.type === 'research_shuttle' || ship.type === 'rover_dropcraft' || ship.type === 'atmo_probe_carrier') {
+                carriers[ship.type] = (carriers[ship.type] ?? 0) + 1;
+              }
+            }
+            return carriers;
+          })()}
           colonyBuildings={getExplorationBuildings()}
           onStartMission={handleStartPlanetMission}
           explorationMissionsDisabled={false}
@@ -13587,7 +13639,7 @@ function AppInner() {
           );
         }
         const tfState = getPlanetScopedValue(terraformStates, targetSys?.id, tfPlanet.id) ?? getInitialTerraformState(tfPlanet);
-        const hasGenVault = hasGenesisVaultAnywhere;
+        const hasGenVault = detectGenesisVaultNow();
         const donors = getColonyPlanets();
         // Compute donor distances: find the StarSystem for target and each donor,
         // then compute distance using systemDistanceLY.
@@ -14582,7 +14634,7 @@ function AppInner() {
           planetResourceStocks={planetResourceStocks}
           donorPlanets={getColonyPlanets()}
           colonyBuildings={colonyState?.buildings ?? []}
-          hasGenesisVault={hasGenesisVaultAnywhere}
+          hasGenesisVault={detectGenesisVaultNow()}
           getPlanetHasLandingPad={getPlanetHasLandingPad}
           cargoShips={shipFleet.ships.filter((ship) => {
             const def = PRODUCIBLE_DEFS[ship.type];
@@ -14612,11 +14664,19 @@ function AppInner() {
             setState((prev) => ({ ...prev, selectedSystem: system, selectedPlanet: planet }));
             handleGeneratePlanetSkin(kind, system, planet);
           }}
-          onSendTerraformDelivery={(targetPlanet, paramId) => {
-            // Open terraform panel for this planet, pre-targeting the given param.
-            // For now, we open the full TerraformPanel which handles dispatch.
-            setShowCosmicArchive(false);
-            setShowTerraformPlanet(targetPlanet);
+          onSendTerraformDelivery={(system, targetPlanet, mission) => {
+            onStartTerraformParam(
+              targetPlanet.id,
+              mission.paramId,
+              mission.donorPlanetId,
+              mission.resource,
+              mission.amount,
+              mission.tier,
+              mission.flightHours,
+              mission.repairCostMinerals,
+              mission.shipId,
+              system.id,
+            );
           }}
           onCompleteTerraform={(planet) => {
             // Manual completion trigger — apply if overall progress >= 95

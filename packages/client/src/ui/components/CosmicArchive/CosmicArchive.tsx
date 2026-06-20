@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { StarSystem, CatalogEntry, Discovery, TechTreeState, TechBranch, Planet, PlacedBuilding, Ship, CargoShipment, PlanetMission, PlanetMissionType, ProducibleType } from '@nebulife/core';
+import type { StarSystem, CatalogEntry, Discovery, TechTreeState, TechBranch, Planet, PlacedBuilding, Ship, CargoShipment, PlanetMission, PlanetMissionType, ProducibleType, Mission } from '@nebulife/core';
 import type { PlanetTerraformState, PlanetColonyState, TerraformParamId } from '@nebulife/core';
 import type { ColonyResources } from '../Terraform/MissionDispatchModal.js';
 import { PlaceholderTab } from './PlaceholderTab';
@@ -203,7 +203,7 @@ export interface CosmicArchiveProps {
   /** Finite planet resource stocks (v168) — passed to PlanetsCatalogV2 detail panel. */
   planetResourceStocks?: Record<string, import('@nebulife/core').PlanetResourceStocks>;
   /** Opens MissionDispatchModal for the given target planet + paramId. */
-  onSendTerraformDelivery?: (targetPlanet: Planet, paramId: TerraformParamId) => void;
+  onSendTerraformDelivery?: (system: StarSystem, targetPlanet: Planet, mission: Omit<Mission, 'id' | 'startedAt' | 'phaseStartedAt'>) => void;
   /** Manually trigger terraform completion for a planet. */
   onCompleteTerraform?: (planet: Planet) => void;
   /** Colony planets that can act as donors — passed to dispatch gate checks. */
