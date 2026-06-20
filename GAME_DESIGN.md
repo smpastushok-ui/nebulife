@@ -59,9 +59,10 @@
 
 ### Planet Exploration Missions
 - Після повного research зоряної системи планети відкриваються тільки до Tier 1: базова орбіта, тип, температура, rough water/atmosphere signal.
-- `orbital_probe` через `landing_pad` відкриває Tier 2: повна атмосфера, гідросфера, магнітне поле, moons, групові ресурси і habitability factors.
-- `surface_landing` через `landing_pad` відкриває Tier 3 для solid planets: життя, детальні ресурси, surface report і підтвердження колонізації.
-- Для `gas-giant` / `ice-giant` Tier 3 замінюється `deep_atmosphere_probe` через `landing_pad`: глибокі шари атмосфери, storms і magnetic science без surface deposits.
+- `orbital_probe` з орбітальним payload + дослідницьким шатлом відкриває Tier 2: повна атмосфера, гідросфера, магнітне поле, moons, групові ресурси і habitability factors.
+- `surface_landing` з surface payload + rover dropcraft відкриває Tier 3 для solid planets: життя, детальні ресурси, surface report і підтвердження колонізації.
+- Для `gas-giant` / `ice-giant` Tier 3 замінюється `deep_atmosphere_probe` з atmosphere payload + carrier: глибокі шари атмосфери, storms і magnetic science без surface deposits.
+- Запуск дослідницьких місій не витрачає minerals / volatiles / isotopes / water / research data. Ресурси витрачаються на виробництво готових payload/carrier. `landing_pad` не є вимогою запуску; він потрібен для логістики, доставки ресурсів і виробництва кораблів/вантажів на колонії.
 - Місії мають фази `preparing` → `outbound` → `orbital_insertion` → `scan_or_landing` → `data_downlink` → `report_ready`, з видимим progress arc у `SystemScene`.
 
 > Source: `packages/core/src/game/planet-exploration.ts`, `packages/client/src/game/scenes/SystemScene.ts`, `packages/client/src/ui/components/PlanetInfoPanel.tsx`

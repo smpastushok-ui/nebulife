@@ -5,8 +5,8 @@
  *
  *   npx tsx packages/client/src/__validate__/check-mission-launch-progression.ts
  *
- * This verifies the early exploration loop: Landing Pad at L10 builds and
- * launches small exploration payloads, while Spaceport remains heavy logistics.
+ * This verifies the early exploration loop: payloads/carriers are produced by
+ * colony infrastructure, while mission launch itself does not spend resources.
  */
 
 import {
@@ -20,6 +20,7 @@ import {
   createEmptyManifest,
   isShipProducible,
   getRequiredMissionBuilding,
+  getRequiredMissionCarrier,
 } from '@nebulife/core';
 import type { CargoShipment, FleetState, PlanetMissionType, ProducibleType, Ship } from '@nebulife/core';
 
@@ -86,18 +87,23 @@ for (const type of heavyLogisticsPayloads) {
 
 const missionBuildings: Record<PlanetMissionType, 'landing_pad' | 'spaceport' | null> = {
   orbital_scan: null,
-  orbital_probe: 'landing_pad',
-  drone_recon: 'landing_pad',
-  surface_landing: 'landing_pad',
-  deep_atmosphere_probe: 'landing_pad',
+  orbital_probe: null,
+  drone_recon: null,
+  surface_landing: null,
+  deep_atmosphere_probe: null,
 };
 
 for (const [type, expectedBuilding] of Object.entries(missionBuildings) as Array<[PlanetMissionType, 'landing_pad' | 'spaceport' | null]>) {
   check(
     getRequiredMissionBuilding(type) === expectedBuilding,
-    `${type}: requires ${expectedBuilding ?? 'payload only'}`,
+    `${type}: requires ${expectedBuilding ?? 'no launch building'}`,
   );
 }
+
+check(getRequiredMissionCarrier('orbital_probe') === 'research_shuttle', 'orbital_probe: requires research shuttle carrier');
+check(getRequiredMissionCarrier('drone_recon') === 'research_shuttle', 'drone_recon: requires research shuttle carrier');
+check(getRequiredMissionCarrier('surface_landing') === 'rover_dropcraft', 'surface_landing: requires rover dropcraft carrier');
+check(getRequiredMissionCarrier('deep_atmosphere_probe') === 'atmo_probe_carrier', 'deep_atmosphere_probe: requires atmosphere probe carrier');
 
 const thrustNode = ALL_NODES.find((node) => node.id === 'phy-thrust-1');
 
@@ -149,11 +155,11 @@ const missionPlanet = {
   surfaceGravityG: 1,
 } as const;
 const missionResources = {
-  researchData: 100,
-  minerals: 1000,
-  volatiles: 1000,
-  isotopes: 1000,
-  water: 1000,
+  researchData: 0,
+  minerals: 0,
+  volatiles: 0,
+  isotopes: 0,
+  water: 0,
 };
 const missionBuildingInventory = [{ id: 'pad-1', type: 'landing_pad', x: 0, y: 0, level: 1, builtAt: new Date(0).toISOString() }];
 const missionPayloadInventory = {
@@ -201,12 +207,25 @@ check(
     planet: missionPlanet as never,
     revealLevel: 1,
     activeMissions: [],
-    buildings: missionBuildingInventory as never,
+    buildings: [],
     resources: missionResources,
     payloadInventory: missionPayloadInventory,
     carrierInventory: {},
+  }).reason === 'carrier_required',
+  'mission launch: orbital probe requires research shuttle carrier',
+);
+check(
+  canStartPlanetMission({
+    type: 'orbital_probe',
+    planet: missionPlanet as never,
+    revealLevel: 1,
+    activeMissions: [],
+    buildings: [],
+    resources: missionResources,
+    payloadInventory: missionPayloadInventory,
+    carrierInventory: missionCarrierInventory,
   }).canStart,
-  'mission launch: orbital probe does not require a reusable carrier',
+  'mission launch: orbital probe requires payload and carrier, not resources or landing pad',
 );
 check(
   canStartPlanetMission({
@@ -240,12 +259,25 @@ check(
     planet: missionPlanet as never,
     revealLevel: 2,
     activeMissions: [],
-    buildings: missionBuildingInventory as never,
+    buildings: [],
     resources: missionResources,
     payloadInventory: missionPayloadInventory,
     carrierInventory: {},
+  }).reason === 'carrier_required',
+  'mission launch: surface expedition requires dropcraft carrier',
+);
+check(
+  canStartPlanetMission({
+    type: 'surface_landing',
+    planet: missionPlanet as never,
+    revealLevel: 2,
+    activeMissions: [],
+    buildings: [],
+    resources: missionResources,
+    payloadInventory: missionPayloadInventory,
+    carrierInventory: missionCarrierInventory,
   }).canStart,
-  'mission launch: surface expedition does not require a reusable carrier',
+  'mission launch: surface expedition requires payload and carrier, not resources or landing pad',
 );
 
 console.log(`\nResult: ${passed} passed, ${failed} failed\n`);

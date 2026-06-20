@@ -43,64 +43,45 @@ export function getTargetRevealLevel(type: PlanetMissionType): PlanetRevealLevel
 
 export function getRequiredMissionBuilding(type: PlanetMissionType): 'landing_pad' | 'spaceport' | null {
   if (type === 'orbital_scan') return null;
-  if (type === 'orbital_probe' || type === 'drone_recon' || type === 'surface_landing' || type === 'deep_atmosphere_probe') return 'landing_pad';
+  if (type === 'orbital_probe') return null;
+  if (type === 'drone_recon' || type === 'surface_landing' || type === 'deep_atmosphere_probe') return null;
   return 'spaceport';
 }
 
-export function computePlanetMissionCost(type: PlanetMissionType, planet: Planet, researchDataCost: number = 1): PlanetMissionCost {
-  const distance = Math.max(0.2, planet.orbit.semiMajorAxisAU);
-  const giantMult = planet.type === 'gas-giant' || planet.type === 'ice-giant' ? 1.35 : 1;
-
+export function computePlanetMissionCost(type: PlanetMissionType, _planet: Planet, _researchDataCost: number = 1): PlanetMissionCost {
   if (type === 'orbital_scan') {
     return {
-      researchData: researchDataCost,
-      isotopes: Math.ceil(2 + distance * 0.5),
       payload: 'survey_probe',
     };
   }
 
   if (type === 'orbital_probe') {
     return {
-      researchData: researchDataCost,
-      minerals: Math.ceil(30 * giantMult),
-      volatiles: Math.ceil(18 * giantMult),
-      isotopes: Math.ceil(8 + distance * 1.5 * giantMult),
       payload: 'orbital_satellite',
     };
   }
 
   if (type === 'deep_atmosphere_probe') {
     return {
-      researchData: researchDataCost,
-      minerals: 45,
-      volatiles: Math.ceil(45 + distance * 2),
-      isotopes: Math.ceil(25 + distance * 2),
       payload: 'atmosphere_probe',
     };
   }
 
   if (type === 'drone_recon') {
     return {
-      researchData: researchDataCost,
-      minerals: 28,
-      volatiles: 14,
-      isotopes: Math.ceil(10 + distance),
       payload: 'scout_drone',
     };
   }
 
   return {
-    researchData: researchDataCost,
-    minerals: 55,
-    volatiles: 28,
-    isotopes: Math.ceil(18 + distance * 1.5),
-    water: Math.ceil(8 + Math.max(0, planet.surfaceTempK - 320) / 60),
     payload: 'surface_rover',
   };
 }
 
 export function getRequiredMissionCarrier(type: PlanetMissionType): ProducibleType | null {
+  if (type === 'orbital_scan') return 'research_shuttle';
   if (type === 'orbital_probe') return 'research_shuttle';
+  if (type === 'drone_recon') return 'research_shuttle';
   if (type === 'surface_landing') return 'rover_dropcraft';
   if (type === 'deep_atmosphere_probe') return 'atmo_probe_carrier';
   return null;
@@ -263,13 +244,9 @@ export function canStartPlanetMission(params: {
     return { canStart: false, reason: 'payload_required', requiredPayload: cost.payload };
   }
 
-  const missing: Partial<PlanetMissionResources> = {};
-  for (const key of ['researchData', 'minerals', 'volatiles', 'isotopes', 'water'] as const) {
-    const amount = cost[key] ?? 0;
-    if (params.resources[key] < amount) missing[key] = amount - params.resources[key];
-  }
-  if (Object.keys(missing).length > 0) {
-    return { canStart: false, reason: 'resources_required', missingResources: missing };
+  const requiredCarrier = getRequiredMissionCarrier(params.type);
+  if (requiredCarrier && (params.carrierInventory?.[requiredCarrier] ?? 0) < 1) {
+    return { canStart: false, reason: 'carrier_required', requiredCarrier };
   }
 
   return { canStart: true, requiredBuilding: requiredBuilding ?? undefined };

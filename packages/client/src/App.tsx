@@ -330,6 +330,14 @@ function getPlanetScopedValue<T>(
   return systemId ? values[planetObjectKey(systemId, planetId)] ?? values[planetId] : values[planetId];
 }
 
+function getStrictPlanetScopedValue<T>(
+  values: Record<string, T>,
+  systemId: string | null | undefined,
+  planetId: string,
+): T | undefined {
+  return systemId ? values[planetObjectKey(systemId, planetId)] : values[planetId];
+}
+
 export type SceneType = 'universe' | 'cluster' | 'galaxy' | 'system' | 'home-intro' | 'planet-view';
 
 type ColonyResourceName = 'minerals' | 'volatiles' | 'isotopes' | 'water';
@@ -3930,8 +3938,7 @@ function AppInner() {
     if (planet.isHomePlanet || (homeInfo?.planet.id && planet.id === homeInfo.planet.id)) return 3;
     const scopedKey = system?.id ? planetObjectKey(system.id, planet.id) : null;
     const scoped = scopedKey ? planetRevealLevels[scopedKey] : undefined;
-    const hasScopedForPlanet = Object.keys(planetRevealLevels).some((key) => key.endsWith(`::${planet.id}`));
-    const stored = scoped ?? (hasScopedForPlanet ? 0 : planetRevealLevels[planet.id] ?? 0);
+    const stored = scoped ?? (system?.id ? 0 : planetRevealLevels[planet.id] ?? 0);
     const systemResearched = system?.id ? isSystemFullyResearched(researchState, system.id) : false;
     return Math.max(stored, systemResearched ? 1 : 0) as PlanetRevealLevel;
   }, [homeInfo?.planet.id, planetRevealLevels, researchState]);
@@ -4867,9 +4874,8 @@ function AppInner() {
     const systemId = state.selectedSystem.id;
     const statuses = state.selectedSystem.planets.map((planet) => {
       const planetKey = planetObjectKey(systemId, planet.id);
-      const hasScopedForPlanet = Object.keys(planetRevealLevels).some((key) => key.endsWith(`::${planet.id}`));
-      const revealLevel = planetRevealLevels[planetKey] ?? (hasScopedForPlanet ? 0 : planetRevealLevels[planet.id] ?? 0);
-      const report = planetReports[planetKey] ?? planetReports[planet.id];
+      const revealLevel = planetRevealLevels[planetKey] ?? 0;
+      const report = getStrictPlanetScopedValue(planetReports, systemId, planet.id);
       const colonyStateForPlanet = colonyState?.planetId === planet.id ? colonyState : undefined;
       const tfState = terraformStates[planetKey] ?? terraformStates[planet.id];
       return {
@@ -13168,9 +13174,9 @@ function AppInner() {
           colonyBuildings={getExplorationBuildings()}
           onStartMission={handleStartPlanetMission}
           explorationMissionsDisabled={false}
-          reportSummary={getPlanetScopedValue(planetReports, state.selectedSystem!.id, state.selectedPlanet.id)}
+          reportSummary={getStrictPlanetScopedValue(planetReports, state.selectedSystem!.id, state.selectedPlanet.id)}
           missionPhotoSaved={(() => {
-            const report = getPlanetScopedValue(planetReports, state.selectedSystem!.id, state.selectedPlanet!.id);
+            const report = getStrictPlanetScopedValue(planetReports, state.selectedSystem!.id, state.selectedPlanet!.id);
             if (!report) return false;
             const key = getMissionPhotoKey(state.selectedPlanet!.id, report);
             const alphaKey = getMissionAlphaPhotoKey(report);
@@ -13183,7 +13189,7 @@ function AppInner() {
             );
           })()}
           missionPhotoUrl={(() => {
-            const report = getPlanetScopedValue(planetReports, state.selectedSystem!.id, state.selectedPlanet!.id);
+            const report = getStrictPlanetScopedValue(planetReports, state.selectedSystem!.id, state.selectedPlanet!.id);
             if (!report) return null;
             const key = getMissionPhotoKey(state.selectedPlanet!.id, report);
             const alphaKey = getMissionAlphaPhotoKey(report);

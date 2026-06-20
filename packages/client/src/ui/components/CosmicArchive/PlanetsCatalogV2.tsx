@@ -2378,8 +2378,8 @@ export function PlanetsCatalogV2({
         {visiblePairs.map(({ system, planet }) => {
           const planetKey = `${system.id}::${planet.id}`;
           const tfState = terraformStates?.[planetKey] ?? terraformStates?.[planet.id];
-          const reportSummary = planetReports?.[planetKey] ?? planetReports?.[planet.id];
-          const revealLevel = planetRevealLevels?.[planetKey] ?? planetRevealLevels?.[planet.id] ?? 0;
+          const reportSummary = planetReports?.[planetKey];
+          const revealLevel = planetRevealLevels?.[planetKey] ?? 1;
           const filterStat = getFilterStatLabel(planet, selectedFilter, tfState, t as (key: string) => string, planetResourceStocks, colonyPlanetIds);
           const distLY = colonySystemIds.length > 0
             ? (systemDistances.get(system.id) ?? null)
