@@ -91,6 +91,14 @@ export function runColonyTicks(
     currentStocks = result.updatedStocks;
   }
 
+  // Resource/energy catch-up is capped to one hour, but population should not
+  // look frozen after a player was away for days. Apply food/housing growth for
+  // the remaining offline ticks without producing extra resources.
+  const populationCatchupTicks = Math.min(Math.max(0, tickCount - effectiveTicks), 1440);
+  for (let t = 0; t < populationCatchupTicks; t++) {
+    updatePopulationCapacityFromSupport(colony, techState);
+  }
+
   colony.lastTickAt = colony.lastTickAt + tickCount * COLONY_TICK_INTERVAL_MS;
 
   return {
@@ -297,11 +305,6 @@ function updatePopulationCapacityFromSupport(colony: PlanetColonyState, techStat
   const foodSupport = baseLifeSupport + activeBuildings
     .reduce((sum, b) => {
       const def = BUILDING_DEFS[b.type];
-      const hasLifeSupportInputs = def.consumption.every((con) => {
-        if (con.resource !== 'minerals' && con.resource !== 'volatiles' && con.resource !== 'isotopes' && con.resource !== 'water') return true;
-        return (colony.resources[con.resource] ?? 0) > 0;
-      });
-      if (!hasLifeSupportInputs) return sum;
       const foodPerTick = BUILDING_DEFS[b.type].production
         .filter((prod) => prod.resource === 'food')
         .reduce((total, prod) => total + prod.amount, 0);
@@ -321,8 +324,9 @@ function updatePopulationCapacityFromSupport(colony: PlanetColonyState, techStat
 
   const current = Math.min(colony.population.current, Math.max(housingCapacity, supportedCapacity));
   if (current < supportedCapacity) {
-    // Surplus food grows population gradually: roughly 4% of the gap per day.
-    const growth = Math.max(1 / 1440, (supportedCapacity - current) * (0.04 / 1440));
+    // Surplus food grows population visibly once housing exists: roughly 4% of
+    // the gap per day, with at least one colonist per colony tick.
+    const growth = Math.max(1, (supportedCapacity - current) * (0.04 / 1440));
     colony.population.current = Math.min(supportedCapacity, current + growth);
   } else if (current > supportedCapacity) {
     // Food deficit causes a faster controlled decline until support catches up.

@@ -762,6 +762,7 @@ export interface PlanetDetailWindowProps {
   systemDisplayName?: string;
   initialPlanetIndex: number; // index in sorted-by-orbit array
   onClose: () => void;
+  onOpenSystem?: (system: StarSystem) => void;
   /** IDs of planets that have been destroyed */
   destroyedPlanetIds?: Set<string>;
 }
@@ -771,6 +772,7 @@ export function PlanetDetailWindow({
   systemDisplayName,
   initialPlanetIndex,
   onClose,
+  onOpenSystem,
   destroyedPlanetIds,
 }: PlanetDetailWindowProps) {
   ensureStyles();
@@ -1054,6 +1056,32 @@ export function PlanetDetailWindow({
             >
               {t(planetTypeKey(p.type)).toUpperCase()} &nbsp;·&nbsp; {p.zone?.toUpperCase() ?? ''}
             </div>
+            {onOpenSystem && (
+              <button
+                type="button"
+                onClick={() => onOpenSystem(system)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minHeight: 34,
+                  marginBottom: 18,
+                  padding: '7px 12px',
+                  border: '1px solid #446688',
+                  borderRadius: 4,
+                  background: 'rgba(40,70,100,0.28)',
+                  color: '#7bb8ff',
+                  fontFamily: 'monospace',
+                  fontSize: 10,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  cursor: 'pointer',
+                  animation: 'pdwSlide 0.3s ease-out 90ms both',
+                }}
+              >
+                {t('planet_detail.to_system_named', { name: sysName })}
+              </button>
+            )}
 
             {/* Physical */}
             <Section label={t('planet_detail.section_physical')} delay={100} />

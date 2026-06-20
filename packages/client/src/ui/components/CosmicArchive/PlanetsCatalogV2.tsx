@@ -51,7 +51,7 @@ interface PlanetsCatalogV2Props {
   terraformStates?: Record<string, PlanetTerraformState>;
   planetRevealLevels?: Record<string, PlanetRevealLevel>;
   planetReports?: Record<string, PlanetReportSummary>;
-  activeMissionForPlanet?: (planetId: string) => PlanetMission | null;
+  activeMissionForPlanet?: (planetId: string, systemId?: string | null) => PlanetMission | null;
   planetMissionClock?: number;
   missionResources?: { researchData: number; minerals: number; volatiles: number; isotopes: number; water: number };
   missionResearchDataCost?: (system: StarSystem) => number;
@@ -2018,6 +2018,16 @@ function ExpandedDetailPanel({
                       title={disabledReason}
                       right={disabledReason ? (payload ? `${payloadCount}` : undefined) : t('planet_missions.start')}
                     />
+                    {disabledReason && (
+                      <div style={{
+                        color: '#cc8844',
+                        fontSize: 9,
+                        lineHeight: 1.35,
+                        padding: '0 2px 2px',
+                      }}>
+                        {disabledReason}
+                      </div>
+                    )}
                     {activeTypeProgress && (
                       <div style={{ color: '#7bb8ff', fontSize: 10 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -2034,12 +2044,29 @@ function ExpandedDetailPanel({
               })}
               {unavailableSurfaceType && (
                 <div style={{ marginTop: 6 }}>
+                  {(() => {
+                    const disabledReason = getMissionDisabledReason(unavailableSurfaceType);
+                    return (
+                      <>
                   <ArchiveActionButton
                     label={t('planet_missions.type.surface_landing')}
                     disabled
-                    title={getMissionDisabledReason(unavailableSurfaceType)}
+                    title={disabledReason}
                     right={t('planet_missions.reason.surface_unavailable')}
                   />
+                        {disabledReason && (
+                          <div style={{
+                            color: '#cc8844',
+                            fontSize: 9,
+                            lineHeight: 1.35,
+                            padding: '5px 2px 2px',
+                          }}>
+                            {disabledReason}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               )}
             </div>
@@ -2483,7 +2510,7 @@ export function PlanetsCatalogV2({
                   onViewPlanet={onViewPlanet}
                   onOpenSurface={onOpenSurface}
                   revealLevel={revealLevel}
-                  activeMission={activeMissionForPlanet?.(planet.id) ?? null}
+                  activeMission={activeMissionForPlanet?.(planet.id, system.id) ?? null}
                   planetMissionClock={planetMissionClock}
                   missionResources={missionResources}
                   missionResearchDataCost={missionResearchDataCost?.(system) ?? 1}

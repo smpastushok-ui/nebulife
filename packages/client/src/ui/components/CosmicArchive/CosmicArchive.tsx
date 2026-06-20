@@ -180,7 +180,7 @@ export interface CosmicArchiveProps {
   planetRevealLevels?: Record<string, import('@nebulife/core').PlanetRevealLevel>;
   /** Mission reports keyed by planet ID. */
   planetReports?: Record<string, import('@nebulife/core').PlanetReportSummary>;
-  activeMissionForPlanet?: (planetId: string) => PlanetMission | null;
+  activeMissionForPlanet?: (planetId: string, systemId?: string | null) => PlanetMission | null;
   planetMissionClock?: number;
   missionResources?: { researchData: number; minerals: number; volatiles: number; isotopes: number; water: number };
   missionResearchDataCost?: (system: StarSystem) => number;

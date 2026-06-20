@@ -3557,7 +3557,18 @@ function AppInner() {
       const isoD = Math.max(0, after.isotopes  - before.isotopes);
       const watD = Math.max(0, after.water     - before.water);
       const hadResourceDelta = minD + volD + isoD + watD > 0;
-      if (result.researchDataProduced > 0 || result.shutdownIds.length > 0 || Object.keys(result.elementsProduced).length > 0 || hadResourceDelta) {
+      const hadPopulationDelta =
+        result.colony.population.current !== colony.population.current
+        || result.colony.population.capacity !== colony.population.capacity;
+      const hadTickProgress = result.colony.lastTickAt !== colony.lastTickAt;
+      if (
+        result.researchDataProduced > 0
+        || result.shutdownIds.length > 0
+        || Object.keys(result.elementsProduced).length > 0
+        || hadResourceDelta
+        || hadPopulationDelta
+        || hadTickProgress
+      ) {
         if (result.researchDataProduced > 0) {
           setResearchData(prev => prev + result.researchDataProduced);
         }
@@ -3598,6 +3609,7 @@ function AppInner() {
           }
         }
         setColonyState(result.colony);
+        if (hadPopulationDelta || hadTickProgress) scheduleSyncToServer();
         // Persist updated stocks after depletion
         if (result.updatedStocks) {
           setPlanetResourceStocks(prev => ({ ...prev, [planetKey]: result.updatedStocks! }));
@@ -4055,9 +4067,12 @@ function AppInner() {
     return Math.max(stored, systemResearched ? 1 : 0) as PlanetRevealLevel;
   }, [homeInfo?.planet.id, planetRevealLevels, researchState]);
 
-  const getActivePlanetMission = useCallback((planetId: string): PlanetMission | null => {
+  const getActivePlanetMission = useCallback((planetId: string, systemId?: string | null): PlanetMission | null => {
     return Object.values(planetMissions).find((mission) => (
-      mission.planetId === planetId && mission.status !== 'completed' && mission.status !== 'report_ready'
+      mission.planetId === planetId
+      && (!systemId || mission.systemId === systemId)
+      && mission.status !== 'completed'
+      && mission.status !== 'report_ready'
     )) ?? null;
   }, [planetMissions]);
 
@@ -4152,7 +4167,7 @@ function AppInner() {
       type,
       planet,
       revealLevel,
-      activeMissions: Object.values(planetMissions),
+      activeMissions: Object.values(planetMissions).filter((mission) => mission.systemId === system.id),
       buildings: explorationBuildings,
       resources,
       payloadInventory: explorationPayloads,
@@ -13437,7 +13452,7 @@ function AppInner() {
             );
           })()}
           revealLevel={getEffectivePlanetRevealLevel(state.selectedPlanet, state.selectedSystem)}
-          activeMission={getActivePlanetMission(state.selectedPlanet.id)}
+          activeMission={getActivePlanetMission(state.selectedPlanet.id, state.selectedSystem?.id)}
           planetMissionClock={planetMissionClock}
           missionResources={{ researchData: Math.floor(researchData), ...totalResources() }}
           missionResearchDataCost={state.selectedSystem ? getPlanetMissionResearchDataCost(state.selectedSystem) : 1}
@@ -15114,6 +15129,12 @@ function AppInner() {
               setShowCosmicArchive(true);
               setReturnToArchiveAfterPlanetDetail(false);
             }
+          }}
+          onOpenSystem={(system) => {
+            setPlanetDetailTarget(null);
+            setReturnToArchiveAfterPlanetDetail(false);
+            setShowCosmicArchive(false);
+            handleEnterSystem(system);
           }}
           destroyedPlanetIds={getDestroyedPlanetIdsForSystem(planetDetailTarget.system.id)}
         />

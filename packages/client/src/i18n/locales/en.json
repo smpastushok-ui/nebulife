@@ -1481,6 +1481,7 @@
     "category_landscapes": "Landscapes"
   },
   "planet_detail": {
+    "to_system_named": "To system {{name}}",
     "section_physical": "PHYSICAL PARAMETERS",
     "section_temperature": "TEMPERATURE",
     "section_orbit": "ORBIT",

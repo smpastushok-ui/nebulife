@@ -1479,6 +1479,7 @@
     "category_landscapes": "Ландшафти"
   },
   "planet_detail": {
+    "to_system_named": "До системи {{name}}",
     "section_physical": "ФІЗИЧНІ ПАРАМЕТРИ",
     "section_temperature": "ТЕМПЕРАТУРА",
     "section_orbit": "ОРБІТА",
