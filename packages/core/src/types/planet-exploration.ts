@@ -72,6 +72,7 @@ export interface PlanetReportSummary {
   missionType: PlanetMissionType;
   revealLevel: PlanetRevealLevel;
   generatedAt: number;
+  viewedAt?: number;
   headlineKey: string;
 }
 

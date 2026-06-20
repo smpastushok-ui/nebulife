@@ -4216,7 +4216,12 @@ function AppInner() {
 
     const systemId = state.selectedSystem.id;
     const visuals = Object.values(missions)
-      .filter((mission) => mission.systemId === systemId && mission.status !== 'completed')
+      .filter((mission) => {
+        if (mission.systemId !== systemId || mission.status === 'completed') return false;
+        if (mission.status !== 'report_ready') return true;
+        const report = getPlanetScopedValue(planetReports, mission.systemId, mission.planetId);
+        return !report?.viewedAt;
+      })
       .map((mission) => {
         const progress = getPlanetMissionProgress(mission, clock);
         return {
@@ -4229,7 +4234,7 @@ function AppInner() {
         };
       });
     engineRef.current?.setSystemPlanetMissionVisuals(visuals);
-  }, [state.scene, state.selectedSystem]);
+  }, [planetReports, state.scene, state.selectedSystem]);
 
   const markPlanetMissionReportViewed = useCallback((report: PlanetReportSummary): void => {
     const completedAt = Date.now();
@@ -4256,8 +4261,19 @@ function AppInner() {
       syncSystemPlanetMissionVisuals(next, completedAt);
       return next;
     });
+    setPlanetReports((prev) => {
+      const key = planetObjectKey(report.systemId, report.planetId);
+      const existing = prev[key] ?? getPlanetScopedValue(prev, report.systemId, report.planetId) ?? report;
+      return {
+        ...prev,
+        [key]: {
+          ...existing,
+          viewedAt: Math.max(existing.viewedAt ?? 0, completedAt),
+        },
+      };
+    });
     scheduleSyncToServer();
-  }, [scheduleSyncToServer, syncSystemPlanetMissionVisuals]);
+  }, [planetReports, scheduleSyncToServer, syncSystemPlanetMissionVisuals]);
 
   const getAvailableMissionCarriers = useCallback((originPlanetId: string): Partial<Record<ProducibleType, number>> => {
     const carriers: Partial<Record<ProducibleType, number>> = {};
@@ -6865,8 +6881,13 @@ function AppInner() {
         const merged: Record<string, PlanetReportSummary> = { ...localReports };
         for (const [planetId, serverReport] of Object.entries(serverReports)) {
           const localReport = localReports[planetId];
-          if (!localReport || serverReport.generatedAt >= localReport.generatedAt) {
+          if (!localReport) {
             merged[planetId] = serverReport;
+          } else if (serverReport.generatedAt >= localReport.generatedAt) {
+            merged[planetId] = {
+              ...serverReport,
+              viewedAt: Math.max(serverReport.viewedAt ?? 0, localReport.viewedAt ?? 0) || undefined,
+            };
           }
         }
         return merged;
@@ -9337,9 +9358,10 @@ function AppInner() {
       showPlanetInfo: false,
     }));
     engineRef.current?.showSystemScene(sys);
+    markPlanetMissionReportViewed(report);
     setPlanetReportTarget({ planet, report });
     return true;
-  }, [closeChatDeepLinkOverlays, planetReports]);
+  }, [closeChatDeepLinkOverlays, markPlanetMissionReportViewed, planetReports]);
 
   const handleSaveMissionProbePhoto = useCallback(async (planet: Planet, report: PlanetReportSummary): Promise<void> => {
     const sys = findSystemForPlanetReport(report);
