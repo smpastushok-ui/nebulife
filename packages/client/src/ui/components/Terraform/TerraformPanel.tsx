@@ -152,6 +152,7 @@ function ParamRow({
 
   const paramState = terraformState.params[paramId];
   const pct = Math.round(paramState.progress);
+  const isComplete = paramState.progress >= 100;
   const gate = canStartParam(terraformState, paramId, hasGenesisVault, planet, techState);
   const hasDonors = donorPlanets.length > 0;
   const actionLabelKey = primaryActionKey(paramId);
@@ -170,7 +171,7 @@ function ParamRow({
     reasonText = t('terraform.no_donors_msg');
   }
 
-  const canDispatch = gate.allowed && hasDonors && !activeMission;
+  const canDispatch = !isComplete && gate.allowed && hasDonors && !activeMission;
   const requirement = computeParamRequirement(planet, paramId, paramState.progress);
   const resourceBudget = (['minerals', 'volatiles', 'isotopes', 'water'] as const)
     .map((key) => {
@@ -290,7 +291,17 @@ function ParamRow({
         padding: '0 18px',
         justifyContent: 'flex-end',
       }}>
-        {activeMission ? (
+        {isComplete ? (
+          <span style={{
+            fontSize: 9,
+            color: '#44ff88',
+            marginRight: 'auto',
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+          }}>
+            {t('terraform.param_complete')}
+          </span>
+        ) : activeMission ? (
           <>
             <span style={{
               fontSize: 9,

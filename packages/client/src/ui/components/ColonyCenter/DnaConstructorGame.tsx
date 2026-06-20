@@ -1,44 +1,239 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { SPARK_DIFFICULTY, type LifeSparkType } from '@nebulife/core';
 import { SPARK_COLOR } from './ElementResultCard.js';
 
-const BASES = ['A', 'T', 'G', 'C'] as const;
-const BASE_COLOR: Record<string, string> = {
-  A: '#44ff88', T: '#4ac6e8', G: '#ffcf66', C: '#ff7d9b',
-};
-const COMPLEMENT: Record<string, string> = { A: 'T', T: 'A', G: 'C', C: 'G' };
-/** Hydrogen bonds per pair — A=T is a double bond, G≡C a triple. */
-const BOND_COUNT: Record<string, number> = { A: 2, T: 2, G: 3, C: 3 };
-
 const SPARK_ORDER: LifeSparkType[] = ['primordial', 'adaptive', 'neural', 'stellar'];
+const DIRS = ['n', 'e', 's', 'w'] as const;
+type Dir = typeof DIRS[number];
+type TileKind = 'core' | 'helix' | 'catalyst' | 'neural' | 'stellar' | 'blocker';
+type GameStatus = 'select' | 'play' | 'igniting' | 'won';
 
-const ROW = 40;
-const AMP = 30;
-const CENTER_X = 150;
+interface LatticeTile {
+  id: string;
+  x: number;
+  y: number;
+  kind: TileKind;
+  ports: Dir[];
+  rotation: number;
+  solutionRotation: number;
+  required: boolean;
+  locked: boolean;
+}
+
+interface PuzzleConfig {
+  width: number;
+  height: number;
+  core: { x: number; y: number };
+  catalystCount: number;
+  neuralCount: number;
+  stellarCount: number;
+  blockerCount: number;
+}
+
+interface LatticeAnalysis {
+  powered: Set<string>;
+  openEnds: Set<string>;
+  complete: boolean;
+}
 
 // Scoped keyframes (injected once with the modal). Procedural, no assets.
 const DNAC_CSS = `
-@keyframes dnac-pulse { 0%,100%{box-shadow:0 0 0 0 transparent} 50%{box-shadow:0 0 13px 1px var(--dnac-accent)} }
-@keyframes dnac-snap { 0%{transform:translate(-50%,-50%) scale(0.3);opacity:0} 55%{transform:translate(-50%,-50%) scale(1.22)} 100%{transform:translate(-50%,-50%) scale(1);opacity:1} }
-@keyframes dnac-bond { from{opacity:0;transform:scaleX(0.15)} to{opacity:1;transform:scaleX(1)} }
-@keyframes dnac-shake { 0%,100%{transform:translateX(0)} 18%{transform:translateX(-7px)} 38%{transform:translateX(7px)} 58%{transform:translateX(-5px)} 78%{transform:translateX(4px)} }
-@keyframes dnac-flow { to { stroke-dashoffset: -42 } }
-@keyframes dnac-ignite { 0%,100%{filter:drop-shadow(0 0 5px var(--dnac-accent))} 50%{filter:drop-shadow(0 0 20px var(--dnac-accent))} }
-@keyframes dnac-weave { 0%,100%{opacity:0.5} 50%{opacity:1} }
+@keyframes dnac-flow { to { stroke-dashoffset: -34 } }
+@keyframes dnac-core { 0%,100%{filter:drop-shadow(0 0 8px var(--dnac-accent));opacity:.86} 50%{filter:drop-shadow(0 0 24px var(--dnac-accent));opacity:1} }
+@keyframes dnac-rotate { 0%{filter:brightness(1.7)} 100%{filter:brightness(1)} }
+@keyframes dnac-ignite { 0%{transform:scale(.94);opacity:.55} 55%{transform:scale(1.08);opacity:1} 100%{transform:scale(1);opacity:.92} }
+@keyframes dnac-rise { 0%{transform:translateY(12px) scale(.9);opacity:0} 100%{transform:translateY(0) scale(1);opacity:1} }
 `;
 
-function randomTemplate(length: number, baseCount: number): string[] {
-  const pool = BASES.slice(0, baseCount);
-  const out: string[] = [];
-  for (let i = 0; i < length; i++) out.push(pool[Math.floor(Math.random() * pool.length)]);
+const OPPOSITE: Record<Dir, Dir> = { n: 's', e: 'w', s: 'n', w: 'e' };
+const DIR_DELTA: Record<Dir, { dx: number; dy: number }> = {
+  n: { dx: 0, dy: -1 },
+  e: { dx: 1, dy: 0 },
+  s: { dx: 0, dy: 1 },
+  w: { dx: -1, dy: 0 },
+};
+const KIND_COLOR: Record<TileKind, string> = {
+  core: '#44ff88',
+  helix: '#7bb8ff',
+  catalyst: '#ff8844',
+  neural: '#b78cff',
+  stellar: '#ffcf66',
+  blocker: '#334455',
+};
+
+function hashString(value: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < value.length; i++) {
+    h ^= value.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function createRng(seed: number): () => number {
+  let t = seed >>> 0;
+  return () => {
+    t += 0x6d2b79f5;
+    let x = t;
+    x = Math.imul(x ^ (x >>> 15), x | 1);
+    x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function rotateDir(dir: Dir, rotation: number): Dir {
+  return DIRS[(DIRS.indexOf(dir) + rotation + 4) % 4];
+}
+
+function rotatePorts(ports: Dir[], rotation: number): Dir[] {
+  return ports.map((dir) => rotateDir(dir, rotation));
+}
+
+function tileKey(x: number, y: number): string {
+  return `${x}:${y}`;
+}
+
+function configForSpark(spark: LifeSparkType): PuzzleConfig {
+  if (spark === 'primordial') return { width: 3, height: 3, core: { x: 1, y: 1 }, catalystCount: 1, neuralCount: 0, stellarCount: 0, blockerCount: 0 };
+  if (spark === 'adaptive') return { width: 4, height: 4, core: { x: 1, y: 1 }, catalystCount: 2, neuralCount: 1, stellarCount: 0, blockerCount: 1 };
+  if (spark === 'neural') return { width: 5, height: 4, core: { x: 2, y: 1 }, catalystCount: 2, neuralCount: 3, stellarCount: 0, blockerCount: 2 };
+  return { width: 5, height: 5, core: { x: 2, y: 2 }, catalystCount: 2, neuralCount: 3, stellarCount: 3, blockerCount: 3 };
+}
+
+function shuffle<T>(items: T[], rng: () => number): T[] {
+  const out = items.slice();
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
   return out;
 }
 
-/** Helix x-offset for rung i (the side-on double-helix weave). */
-function weaveOffset(i: number): number {
-  return AMP * Math.sin(i * 0.7);
+function generateLatticePuzzle(spark: LifeSparkType, session: number): LatticeTile[] {
+  const config = configForSpark(spark);
+  const rng = createRng(hashString(`${spark}:${session}:genome-lattice`));
+  const allCells = Array.from({ length: config.width * config.height }, (_, i) => ({
+    x: i % config.width,
+    y: Math.floor(i / config.width),
+  }));
+  const coreId = tileKey(config.core.x, config.core.y);
+  const blockerIds = new Set(
+    shuffle(allCells.filter((cell) => tileKey(cell.x, cell.y) !== coreId), rng)
+      .slice(0, config.blockerCount)
+      .map((cell) => tileKey(cell.x, cell.y)),
+  );
+
+  const activeCells = allCells.filter((cell) => !blockerIds.has(tileKey(cell.x, cell.y)));
+  const activeIds = new Set(activeCells.map((cell) => tileKey(cell.x, cell.y)));
+  const visited = new Set<string>([coreId]);
+  const edges = new Map<string, Set<Dir>>();
+  const frontier = [config.core];
+
+  for (const cell of activeCells) edges.set(tileKey(cell.x, cell.y), new Set());
+
+  while (frontier.length > 0) {
+    const current = frontier.pop()!;
+    const currentId = tileKey(current.x, current.y);
+    const neighbors = shuffle(DIRS.map((dir) => {
+      const delta = DIR_DELTA[dir];
+      return { dir, x: current.x + delta.dx, y: current.y + delta.dy };
+    }).filter((next) => activeIds.has(tileKey(next.x, next.y))), rng);
+
+    for (const next of neighbors) {
+      const nextId = tileKey(next.x, next.y);
+      if (visited.has(nextId)) continue;
+      visited.add(nextId);
+      edges.get(currentId)!.add(next.dir);
+      edges.get(nextId)!.add(OPPOSITE[next.dir]);
+      frontier.push({ x: next.x, y: next.y });
+    }
+  }
+
+  const nonCoreActive = activeCells.filter((cell) => tileKey(cell.x, cell.y) !== coreId);
+  const specialCells = shuffle(nonCoreActive, rng);
+  const catalystIds = new Set(specialCells.splice(0, config.catalystCount).map((cell) => tileKey(cell.x, cell.y)));
+  const neuralIds = new Set(specialCells.splice(0, config.neuralCount).map((cell) => tileKey(cell.x, cell.y)));
+  const stellarIds = new Set(specialCells.splice(0, config.stellarCount).map((cell) => tileKey(cell.x, cell.y)));
+
+  return allCells.map((cell) => {
+    const id = tileKey(cell.x, cell.y);
+    if (blockerIds.has(id)) {
+      return { id, x: cell.x, y: cell.y, kind: 'blocker', ports: [], rotation: 0, solutionRotation: 0, required: false, locked: true };
+    }
+    const solutionRotation = 0;
+    let rotation = Math.floor(rng() * 4);
+    if (id === coreId) rotation = solutionRotation;
+    const ports = Array.from(edges.get(id) ?? []) as Dir[];
+    const kind: TileKind = id === coreId
+      ? 'core'
+      : stellarIds.has(id)
+        ? 'stellar'
+        : neuralIds.has(id)
+          ? 'neural'
+          : catalystIds.has(id)
+            ? 'catalyst'
+            : 'helix';
+    return {
+      id,
+      x: cell.x,
+      y: cell.y,
+      kind,
+      ports,
+      rotation,
+      solutionRotation,
+      required: true,
+      locked: id === coreId,
+    };
+  });
+}
+
+function analyzeLattice(tiles: LatticeTile[]): LatticeAnalysis {
+  const byId = new Map(tiles.map((tile) => [tile.id, tile]));
+  const core = tiles.find((tile) => tile.kind === 'core');
+  const powered = new Set<string>();
+  const openEnds = new Set<string>();
+  if (!core) return { powered, openEnds, complete: false };
+
+  const queue = [core.id];
+  powered.add(core.id);
+
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    const tile = byId.get(id);
+    if (!tile) continue;
+    const ports = rotatePorts(tile.ports, tile.rotation);
+    for (const port of ports) {
+      const delta = DIR_DELTA[port];
+      const neighbor = byId.get(tileKey(tile.x + delta.dx, tile.y + delta.dy));
+      const neighborPorts = neighbor ? rotatePorts(neighbor.ports, neighbor.rotation) : [];
+      const connectsBack = Boolean(neighbor && neighbor.kind !== 'blocker' && neighborPorts.includes(OPPOSITE[port]));
+      if (!connectsBack) {
+        openEnds.add(`${id}:${port}`);
+        continue;
+      }
+      if (!powered.has(neighbor!.id)) {
+        powered.add(neighbor!.id);
+        queue.push(neighbor!.id);
+      }
+    }
+  }
+
+  for (const tile of tiles) {
+    if (!tile.required || tile.kind === 'blocker') continue;
+    const ports = rotatePorts(tile.ports, tile.rotation);
+    for (const port of ports) {
+      const delta = DIR_DELTA[port];
+      const neighbor = byId.get(tileKey(tile.x + delta.dx, tile.y + delta.dy));
+      const connectsBack = Boolean(neighbor && neighbor.kind !== 'blocker' && rotatePorts(neighbor.ports, neighbor.rotation).includes(OPPOSITE[port]));
+      if (!connectsBack) openEnds.add(`${tile.id}:${port}`);
+    }
+  }
+
+  const requiredTiles = tiles.filter((tile) => tile.required && tile.kind !== 'blocker');
+  const complete = requiredTiles.every((tile) => powered.has(tile.id)) && openEnds.size === 0;
+  return { powered, openEnds, complete };
 }
 
 /** Small decorative double-helix with energy flowing along the strands. */
@@ -70,25 +265,100 @@ function MiniHelix({ color }: { color: string }) {
   );
 }
 
-function BaseTile({ base, dim, size = 28 }: { base: string; dim?: boolean; size?: number }) {
-  const c = BASE_COLOR[base] ?? '#667788';
+function portPath(port: Dir, size: number): string {
+  const c = size / 2;
+  if (port === 'n') return `M ${c} ${c} L ${c} 6`;
+  if (port === 'e') return `M ${c} ${c} L ${size - 6} ${c}`;
+  if (port === 's') return `M ${c} ${c} L ${c} ${size - 6}`;
+  return `M ${c} ${c} L 6 ${c}`;
+}
+
+function TileGlyph({
+  tile,
+  powered,
+  open,
+  accent,
+  onRotate,
+}: {
+  tile: LatticeTile;
+  powered: boolean;
+  open: boolean;
+  accent: string;
+  onRotate: () => void;
+}) {
+  const size = 54;
+  const color = tile.kind === 'core' ? accent : KIND_COLOR[tile.kind];
+  const clickable = !tile.locked && tile.kind !== 'blocker';
+  const ports = rotatePorts(tile.ports, tile.rotation);
+
   return (
-    <span style={{
-      width: size, height: size, display: 'flex', alignItems: 'center', justifyContent: 'center',
-      borderRadius: 5, border: `1px solid ${dim ? '#33414f' : c}`,
-      background: dim ? 'rgba(5,10,20,0.6)' : `${c}26`,
-      color: dim ? '#33414f' : c, fontWeight: 700, fontSize: size * 0.5,
-    }}>{dim ? '?' : base}</span>
+    <button
+      type="button"
+      disabled={!clickable}
+      onClick={onRotate}
+      aria-label={tile.kind}
+      style={{
+        width: size,
+        height: size,
+        padding: 0,
+        border: 'none',
+        background: 'transparent',
+        cursor: clickable ? 'pointer' : 'default',
+        fontFamily: 'monospace',
+        position: 'relative',
+      }}
+    >
+      <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} style={{ overflow: 'visible' }}>
+        <rect
+          x="5"
+          y="5"
+          width={size - 10}
+          height={size - 10}
+          rx="8"
+          fill={tile.kind === 'blocker' ? 'rgba(20,30,45,0.55)' : powered ? `${color}20` : 'rgba(5,10,20,0.58)'}
+          stroke={open ? '#cc4444' : powered ? color : '#334455'}
+          strokeWidth={powered ? 1.7 : 1}
+          strokeDasharray={tile.kind === 'blocker' ? '4 4' : undefined}
+          style={{ transition: 'fill .18s, stroke .18s', animation: powered ? 'dnac-rotate .28s ease-out' : undefined }}
+        />
+        {tile.kind !== 'blocker' && ports.map((port) => (
+          <path
+            key={port}
+            d={portPath(port, size)}
+            fill="none"
+            stroke={powered ? color : '#556677'}
+            strokeWidth="5"
+            strokeLinecap="round"
+            strokeDasharray={powered ? '8 7' : undefined}
+            style={{ animation: powered ? 'dnac-flow 1.2s linear infinite' : undefined }}
+          />
+        ))}
+        {tile.kind !== 'blocker' && (
+          <>
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={tile.kind === 'core' ? 10 : 7}
+              fill={powered ? color : '#162333'}
+              stroke={color}
+              strokeWidth="1.2"
+              style={{ animation: tile.kind === 'core' ? 'dnac-core 1.8s ease-in-out infinite' : undefined }}
+            />
+            {tile.kind !== 'helix' && tile.kind !== 'core' && (
+              <text x={size / 2} y={size / 2 + 4} textAnchor="middle" fontFamily="monospace" fontSize="9" fill="#020510" fontWeight="700">
+                {tile.kind === 'catalyst' ? 'CAT' : tile.kind === 'neural' ? 'NR' : 'ST'}
+              </text>
+            )}
+          </>
+        )}
+      </svg>
+    </button>
   );
 }
 
 /**
- * Spark-of-life DNA constructor minigame — a side-on double helix the player
- * splices rung by rung. For each base pair they must select the *complementary*
- * nucleotide (A↔T, G↔C). Difficulty scales with spark rarity: longer strands,
- * more base types, and a memorisation window after which the template hides and
- * the strand must be completed from memory. Mistakes erode genome stability;
- * a full correct strand ignites the spark. Procedural / monospace, no sprites.
+ * Spark-of-life Genome Lattice constructor — the player rotates molecular
+ * segments until the spark core can power the full living circuit.
  */
 export function DnaConstructorGame({
   onSuccess,
@@ -99,77 +369,53 @@ export function DnaConstructorGame({
 }) {
   const { t } = useTranslation();
   const [spark, setSpark] = useState<LifeSparkType | null>(null);
-  const [template, setTemplate] = useState<string[]>([]);
-  const [built, setBuilt] = useState<(string | null)[]>([]);
-  const [activeIdx, setActiveIdx] = useState(0);
-  const [hideTemplate, setHideTemplate] = useState(false);
-  const [status, setStatus] = useState<'play' | 'memorize' | 'won' | 'lost'>('play');
-  const [mistakes, setMistakes] = useState(0);
-  const [memLeft, setMemLeft] = useState(0);
-  const [shake, setShake] = useState(false);
+  const [tiles, setTiles] = useState<LatticeTile[]>([]);
+  const [status, setStatus] = useState<GameStatus>('select');
+  const [moves, setMoves] = useState(0);
+  const [session, setSession] = useState(1);
+  const successRef = useRef(false);
 
-  const diff = spark ? SPARK_DIFFICULTY[spark] : null;
   const accent = spark ? SPARK_COLOR[spark] : '#7bb8ff';
-  const target = useMemo(() => template.map((b) => COMPLEMENT[b]), [template]);
-  const maxMistakes = diff ? Math.max(3, Math.ceil(diff.length / 3)) : 3;
-  const stabilityPct = Math.max(0, Math.round((1 - mistakes / maxMistakes) * 100));
-  const stabilityColor = stabilityPct > 60 ? '#44ff88' : stabilityPct > 30 ? '#ffb454' : '#ff6b6b';
+  const analysis = useMemo(() => analyzeLattice(tiles), [tiles]);
+  const config = spark ? configForSpark(spark) : null;
+  const activeCount = tiles.filter((tile) => tile.required && tile.kind !== 'blocker').length;
+  const poweredCount = tiles.filter((tile) => tile.required && analysis.powered.has(tile.id)).length;
+  const stabilityPct = activeCount > 0
+    ? Math.round((poweredCount / activeCount) * 100 - Math.min(18, analysis.openEnds.size * 3))
+    : 0;
+  const stability = Math.max(0, Math.min(100, stabilityPct));
+  const stabilityColor = stability > 80 ? '#44ff88' : stability > 45 ? '#ffcf66' : '#ff8844';
 
-  // Memorisation countdown — hide the template once it elapses.
   useEffect(() => {
-    if (status !== 'memorize') return;
-    if (memLeft <= 0) { setHideTemplate(true); setStatus('play'); return; }
-    const id = window.setTimeout(() => setMemLeft((s) => s - 1), 1000);
-    return () => window.clearTimeout(id);
-  }, [status, memLeft]);
-
-  function startSpark(s: LifeSparkType) {
-    const d = SPARK_DIFFICULTY[s];
-    setSpark(s);
-    setTemplate(randomTemplate(d.length, d.bases));
-    setBuilt(Array(d.length).fill(null));
-    setActiveIdx(0);
-    setMistakes(0);
-    if (d.memorizeSeconds > 0) {
-      setHideTemplate(false);
-      setMemLeft(d.memorizeSeconds);
-      setStatus('memorize');
-    } else {
-      setHideTemplate(false);
-      setStatus('play');
-    }
-  }
-
-  function triggerShake() {
-    setShake(true);
-    window.setTimeout(() => setShake(false), 440);
-  }
-
-  function placeBase(base: string) {
-    if (status !== 'play' || !spark) return;
-    const idx = activeIdx;
-    if (idx >= target.length) return;
-    if (base !== target[idx]) {
-      const m = mistakes + 1;
-      setMistakes(m);
-      triggerShake();
-      if (m >= maxMistakes) setStatus('lost');
-      return;
-    }
-    const next = built.slice();
-    next[idx] = base;
-    setBuilt(next);
-    const nextIdx = idx + 1;
-    setActiveIdx(nextIdx);
-    if (nextIdx >= target.length) {
+    if (!spark || status !== 'play' || !analysis.complete || successRef.current) return;
+    successRef.current = true;
+    setStatus('igniting');
+    const id = window.setTimeout(() => {
       setStatus('won');
       onSuccess(spark);
-    }
+    }, 900);
+    return () => window.clearTimeout(id);
+  }, [analysis.complete, onSuccess, spark, status]);
+
+  function startSpark(s: LifeSparkType) {
+    const nextSession = session + 1;
+    setSession(nextSession);
+    setSpark(s);
+    setTiles(generateLatticePuzzle(s, nextSession));
+    setMoves(0);
+    successRef.current = false;
+    setStatus('play');
   }
 
-  // Reveal the template base for a rung only when memorisation is over OR the
-  // rung is already solved (positive feedback when recalling from memory).
-  const showTemplateAt = (i: number) => !hideTemplate || i < activeIdx || status !== 'play';
+  function rotateTile(tileId: string) {
+    if (status !== 'play') return;
+    setTiles((prev) => prev.map((tile) => (
+      tile.id === tileId && !tile.locked && tile.kind !== 'blocker'
+        ? { ...tile, rotation: (tile.rotation + 1) % 4 }
+        : tile
+    )));
+    setMoves((prev) => prev + 1);
+  }
 
   return createPortal((
     <div
@@ -185,7 +431,7 @@ export function DnaConstructorGame({
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: 'min(460px, 96vw)', maxHeight: '92vh', overflowY: 'auto',
+          width: 'min(620px, 96vw)', maxHeight: '92vh', overflowY: 'auto',
           background: 'rgba(10,15,25,0.97)', border: `1px solid ${accent}`,
           borderRadius: 6, boxShadow: `0 0 32px ${accent}33`, padding: 18,
           // CSS var consumed by the keyframes.
@@ -203,21 +449,6 @@ export function DnaConstructorGame({
           <button onClick={onClose} style={{ background: 'transparent', border: '1px solid #334455', color: '#8899aa', borderRadius: 3, width: 24, height: 24, cursor: 'pointer', lineHeight: 1, alignSelf: 'flex-start' }}>×</button>
         </div>
 
-        {/* Pairing legend */}
-        <div style={{ display: 'flex', gap: 8, margin: '10px 0 14px' }}>
-          {[['A', 'T'], ['G', 'C']].map(([a, b]) => (
-            <span key={a} style={{
-              display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#8899aa',
-              border: '1px solid #2a3645', borderRadius: 4, padding: '3px 8px',
-            }}>
-              <span style={{ color: BASE_COLOR[a], fontWeight: 700 }}>{a}</span>
-              <span style={{ color: '#556677', letterSpacing: -1 }}>{BOND_COUNT[a] === 3 ? '≡' : '='}</span>
-              <span style={{ color: BASE_COLOR[b], fontWeight: 700 }}>{b}</span>
-            </span>
-          ))}
-          <span style={{ flex: 1 }} />
-        </div>
-
         {!spark ? (
           <>
             <div style={{ color: '#8899aa', fontSize: 11, marginBottom: 12, lineHeight: 1.5 }}>{t('lab.dna_choose')}</div>
@@ -225,6 +456,7 @@ export function DnaConstructorGame({
               {SPARK_ORDER.map((s) => {
                 const c = SPARK_COLOR[s];
                 const d = SPARK_DIFFICULTY[s];
+                const puzzle = configForSpark(s);
                 return (
                   <button
                     key={s}
@@ -238,10 +470,10 @@ export function DnaConstructorGame({
                     <span style={{ width: 12, height: 12, borderRadius: '50%', background: c, boxShadow: `0 0 10px ${c}`, flexShrink: 0 }} />
                     <span style={{ flex: 1, color: '#cfe3ff', fontSize: 12 }}>{t(`lab.spark.${s}` as 'lab.spark.primordial')}</span>
                     <span style={{ display: 'flex', gap: 6, color: '#8899aa', fontSize: 9 }}>
-                      <span>{t('lab.dna_pairs', { count: d.length })}</span>
+                      <span>{puzzle.width}x{puzzle.height}</span>
                       <span style={{ color: '#556677' }}>·</span>
-                      <span>{t('lab.dna_bases', { count: d.bases })}</span>
-                      {d.memorizeSeconds > 0 && <><span style={{ color: '#556677' }}>·</span><span style={{ color: '#ffb454' }}>{t('lab.dna_memory_tag')}</span></>}
+                      <span>{t('lab.dna_nodes', { count: d.length })}</span>
+                      {puzzle.blockerCount > 0 && <><span style={{ color: '#556677' }}>·</span><span style={{ color: '#ffb454' }}>{t('lab.dna_blockers', { count: puzzle.blockerCount })}</span></>}
                     </span>
                   </button>
                 );
@@ -250,142 +482,64 @@ export function DnaConstructorGame({
           </>
         ) : (
           <>
-            {/* Progress + genome stability */}
+            {/* Signal integrity */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
-              <span style={{ color: '#8899aa', fontSize: 10 }}>{t('lab.dna_progress', { done: activeIdx, total: target.length })}</span>
+              <span style={{ color: '#8899aa', fontSize: 10 }}>{t('lab.dna_progress', { done: poweredCount, total: activeCount })}</span>
               <span style={{ color: stabilityColor, fontSize: 9.5, letterSpacing: 0.5 }}>{t('lab.dna_stability')} {stabilityPct}%</span>
             </div>
             <div style={{ height: 4, borderRadius: 2, background: 'rgba(5,10,20,0.7)', overflow: 'hidden', marginBottom: 12 }}>
-              <div style={{ width: `${stabilityPct}%`, height: '100%', background: stabilityColor, transition: 'width 0.3s, background 0.3s' }} />
+              <div style={{ width: `${stability}%`, height: '100%', background: stabilityColor, transition: 'width 0.3s, background 0.3s' }} />
             </div>
 
-            {/* Phase banner */}
-            {status === 'memorize' ? (
-              <div style={{ color: '#ffcf66', fontSize: 11, marginBottom: 10, textAlign: 'center' }}>
-                {t('lab.dna_memorize', { seconds: memLeft })}
-              </div>
-            ) : status === 'play' && hideTemplate ? (
-              <div style={{ color: '#7d93ab', fontSize: 10.5, marginBottom: 10, textAlign: 'center' }}>{t('lab.dna_recall')}</div>
-            ) : (
-              <div style={{ color: '#7d93ab', fontSize: 10.5, marginBottom: 10, textAlign: 'center' }}>{t('lab.dna_select')}</div>
-            )}
+            <div style={{ color: '#7d93ab', fontSize: 10.5, marginBottom: 10, textAlign: 'center' }}>
+              {status === 'igniting' || status === 'won' ? t('lab.dna_igniting') : t('lab.dna_select')}
+            </div>
 
-            {/* Helix ladder */}
             <div style={{
-              position: 'relative', width: '100%', height: target.length * ROW + 8,
-              margin: '0 auto 14px',
-              animation: shake ? 'dnac-shake 0.44s' : status === 'won' ? 'dnac-ignite 1.6s ease-in-out infinite' : undefined,
+              display: 'grid',
+              gridTemplateColumns: config ? `repeat(${config.width}, 54px)` : undefined,
+              justifyContent: 'center',
+              gap: 9,
+              padding: 14,
+              borderRadius: 8,
+              border: `1px solid ${accent}33`,
+              background: `radial-gradient(80% 90% at 50% 40%, ${accent}10, rgba(5,10,20,0.74))`,
+              boxShadow: `inset 0 0 34px ${accent}0f`,
             }}>
-              {/* Backbone rails (decorative weave) */}
-              <svg width="100%" height={target.length * ROW + 8} viewBox={`0 0 ${CENTER_X * 2} ${target.length * ROW + 8}`} preserveAspectRatio="none" style={{ position: 'absolute', inset: 0 }}>
-                {(() => {
-                  const ptsL: string[] = [];
-                  const ptsR: string[] = [];
-                  for (let i = 0; i <= target.length; i++) {
-                    const y = i * ROW + 4;
-                    const o = weaveOffset(i - 0.5);
-                    ptsL.push(`${CENTER_X + o},${y}`);
-                    ptsR.push(`${CENTER_X - o},${y}`);
-                  }
-                  return (
-                    <>
-                      <polyline points={ptsL.join(' ')} fill="none" stroke={`${accent}55`} strokeWidth={2} />
-                      <polyline points={ptsR.join(' ')} fill="none" stroke={`${accent}55`} strokeWidth={2} />
-                    </>
-                  );
-                })()}
-              </svg>
-
-              {target.map((_, i) => {
-                const o = weaveOffset(i);
-                const tplX = CENTER_X + o;
-                const compX = CENTER_X - o;
-                const y = i * ROW + ROW / 2 + 2;
-                const filled = built[i];
-                const isActive = status === 'play' && i === activeIdx;
-                const bonds = BOND_COUNT[template[i]] ?? 2;
-                const minX = Math.min(tplX, compX);
-                const maxX = Math.max(tplX, compX);
+              {tiles.map((tile) => {
+                const open = DIRS.some((dir) => analysis.openEnds.has(`${tile.id}:${dir}`));
                 return (
-                  <div key={i}>
-                    {/* Bond connector */}
-                    <div style={{
-                      position: 'absolute', top: y, left: minX, width: maxX - minX, height: 0,
-                      transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column',
-                      justifyContent: 'center', gap: 2, pointerEvents: 'none',
-                    }}>
-                      {Array.from({ length: bonds }).map((_, b) => (
-                        <div key={b} style={{
-                          height: 1.5, borderRadius: 1,
-                          background: filled ? `${BASE_COLOR[filled]}cc` : 'rgba(80,100,120,0.35)',
-                          transformOrigin: 'center',
-                          animation: filled ? 'dnac-bond 0.35s ease-out' : undefined,
-                        }} />
-                      ))}
-                    </div>
-                    {/* Template nucleotide */}
-                    <div style={{ position: 'absolute', top: y, left: tplX, transform: 'translate(-50%,-50%)' }}>
-                      <BaseTile base={template[i]} dim={!showTemplateAt(i)} />
-                    </div>
-                    {/* Complement slot */}
-                    <div style={{
-                      position: 'absolute', top: y, left: compX, transform: 'translate(-50%,-50%)',
-                      borderRadius: 6,
-                      animation: isActive ? 'dnac-pulse 1.1s ease-in-out infinite' : undefined,
-                    }}>
-                      {filled ? (
-                        <span style={{
-                          width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          borderRadius: 5, border: `1px solid ${BASE_COLOR[filled]}`, background: `${BASE_COLOR[filled]}26`,
-                          color: BASE_COLOR[filled], fontWeight: 700, fontSize: 14,
-                          position: 'absolute', top: '50%', left: '50%',
-                          animation: 'dnac-snap 0.3s ease-out',
-                        }}>{filled}</span>
-                      ) : (
-                        <span style={{
-                          width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          borderRadius: 5, border: `1px dashed ${isActive ? accent : '#33414f'}`,
-                          background: isActive ? `${accent}14` : 'rgba(5,10,20,0.5)',
-                          color: isActive ? accent : '#33414f', fontWeight: 700, fontSize: 13,
-                        }}>{isActive ? '+' : '·'}</span>
-                      )}
-                    </div>
-                  </div>
+                  <TileGlyph
+                    key={tile.id}
+                    tile={tile}
+                    powered={analysis.powered.has(tile.id)}
+                    open={open}
+                    accent={accent}
+                    onRotate={() => rotateTile(tile.id)}
+                  />
                 );
               })}
             </div>
 
-            {/* Nucleotide tray */}
-            {(status === 'play' || status === 'memorize') && (
-              <div style={{ display: 'flex', gap: 8 }}>
-                {BASES.slice(0, diff?.bases ?? 2).map((b) => (
-                  <button
-                    key={b}
-                    disabled={status !== 'play'}
-                    onClick={() => placeBase(b)}
-                    style={{
-                      flex: 1, padding: '13px 0', borderRadius: 6,
-                      cursor: status === 'play' ? 'pointer' : 'default',
-                      opacity: status === 'play' ? 1 : 0.4,
-                      background: `${BASE_COLOR[b]}1f`, border: `1px solid ${BASE_COLOR[b]}`,
-                      color: BASE_COLOR[b], fontFamily: 'monospace', fontSize: 17, fontWeight: 700,
-                    }}
-                  >{b}</button>
-                ))}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 12 }}>
+              <div style={{ border: '1px solid #2a3a4a', borderRadius: 5, padding: 8, color: '#8899aa', fontSize: 9 }}>
+                <div style={{ color: '#667788', textTransform: 'uppercase', letterSpacing: 1 }}>{t('lab.dna_moves')}</div>
+                <div style={{ color: '#cfe3ff', fontSize: 14, marginTop: 4 }}>{moves}</div>
               </div>
-            )}
+              <div style={{ border: '1px solid #2a3a4a', borderRadius: 5, padding: 8, color: '#8899aa', fontSize: 9 }}>
+                <div style={{ color: '#667788', textTransform: 'uppercase', letterSpacing: 1 }}>{t('lab.dna_open_ends')}</div>
+                <div style={{ color: analysis.openEnds.size === 0 ? '#44ff88' : '#ff8844', fontSize: 14, marginTop: 4 }}>{analysis.openEnds.size}</div>
+              </div>
+              <div style={{ border: '1px solid #2a3a4a', borderRadius: 5, padding: 8, color: '#8899aa', fontSize: 9 }}>
+                <div style={{ color: '#667788', textTransform: 'uppercase', letterSpacing: 1 }}>{t('lab.dna_powered')}</div>
+                <div style={{ color: '#cfe3ff', fontSize: 14, marginTop: 4 }}>{poweredCount}/{activeCount}</div>
+              </div>
+            </div>
 
             {status === 'won' && (
               <div style={{ textAlign: 'center', padding: '6px 0' }}>
-                <div style={{ color: accent, fontSize: 13, fontWeight: 700, marginBottom: 10 }}>{t('lab.dna_won')}</div>
+                <div style={{ color: accent, fontSize: 13, fontWeight: 700, margin: '12px 0 10px', animation: 'dnac-rise .55s ease-out' }}>{t('lab.dna_won')}</div>
                 <button onClick={onClose} style={{ background: `${accent}22`, border: `1px solid ${accent}`, color: '#eafff2', borderRadius: 6, padding: '10px 18px', cursor: 'pointer', fontFamily: 'monospace', letterSpacing: 1 }}>{t('lab.dna_collect')}</button>
-              </div>
-            )}
-
-            {status === 'lost' && (
-              <div style={{ textAlign: 'center', padding: '6px 0' }}>
-                <div style={{ color: '#cc7777', fontSize: 12, marginBottom: 10 }}>{t('lab.dna_lost')}</div>
-                <button onClick={() => spark && startSpark(spark)} style={{ background: 'rgba(204,119,119,0.16)', border: '1px solid #cc7777', color: '#ffd0d0', borderRadius: 6, padding: '9px 16px', cursor: 'pointer', fontFamily: 'monospace', letterSpacing: 1 }}>{t('lab.dna_retry')}</button>
               </div>
             )}
           </>

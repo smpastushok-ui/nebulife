@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { BuildingType, Discovery, FleetState, ObservatorySearchDuration, ObservatorySearchProgram, ObservatoryState, PlacedBuilding, Planet, PlanetResourceStocks, ProducibleType, SeparationJob, SeparationGroup, ExtractionJob, CosmicEvent } from '@nebulife/core';
 import { BUILDING_DEFS, PRODUCIBLE_ASSET_PATHS, PRODUCIBLE_DEFS, RARITY_COLORS, getAvailableObservatoryPrograms, getCatalogEntry, getCatalogName, getObservatoryLevel, getObservatoryMaxActiveSearches, getObservatorySearchChance, getObservatoryXpProgress, isShipProducible, SEPARATION_BATCH, SEPARATION_DURATION_MS, SEPARATION_RESEARCH_DATA_COST, getSeparationElements, EXTRACTION_BATCH, EXTRACTION_RESEARCH_DATA_COST, getExtractionElements } from '@nebulife/core';
@@ -24,7 +25,7 @@ type ColonyResources = Record<ColonyResourceKey, number>;
 // Visible build marker so we can tell at a glance whether a given client is
 // actually running the latest deploy (shown in the building-detail subtitle).
 // Bump on each deploy that touches this panel.
-const PANEL_BUILD_STAMP = 'B35';
+const PANEL_BUILD_STAMP = 'B36';
 
 export interface BuildingDetailPanelProps {
   planet: Planet;
@@ -81,6 +82,19 @@ const SEPARATION_GROUP_LIST: { group: SeparationGroup; resource: ResourceType }[
   { group: 'volatile', resource: 'volatiles' },
 ];
 
+const MANUAL_SEPARATION_BUILDINGS = new Set<BuildingType>([
+  'quantum_separator',
+  'gas_fractionator',
+  'isotope_centrifuge',
+]);
+
+function separationGroupsForBuilding(type?: BuildingType): { group: SeparationGroup; resource: ResourceType }[] {
+  if (type === 'gas_fractionator') return SEPARATION_GROUP_LIST.filter((item) => item.group === 'volatile');
+  if (type === 'isotope_centrifuge') return SEPARATION_GROUP_LIST.filter((item) => item.group === 'isotope');
+  if (type === 'quantum_separator') return SEPARATION_GROUP_LIST;
+  return [];
+}
+
 /**
  * Reusable mission carriers are not cargo haulers — they deliver a specific
  * exploration module. Map each carrier to the payload module(s) it carries so
@@ -125,6 +139,151 @@ function EventCountdown({ untilMs, color }: { untilMs: number; color: string }) 
   );
 }
 
+function eventText(event: CosmicEvent, language: string): { title: string; desc: string } {
+  const uk = language?.startsWith('uk');
+  return {
+    title: uk ? event.titleUk : event.titleEn,
+    desc: (uk ? event.descriptionUk : event.descriptionEn) ?? '',
+  };
+}
+
+function CosmicEventVisual({ event, imageless, accent }: { event: CosmicEvent; imageless?: boolean; accent: string }) {
+  const { title } = eventText(event, 'uk');
+  if (!imageless && event.videoUrl) {
+    return (
+      <video
+        src={event.videoUrl}
+        autoPlay
+        loop
+        muted
+        playsInline
+        style={{ width: '100%', aspectRatio: '16 / 7', objectFit: 'cover', borderRadius: 7, border: `1px solid ${accent}55` }}
+      />
+    );
+  }
+  if (!imageless && event.photoUrl) {
+    return (
+      <img
+        src={event.photoUrl}
+        alt={title}
+        style={{ width: '100%', aspectRatio: '16 / 7', objectFit: 'cover', borderRadius: 7, border: `1px solid ${accent}55` }}
+      />
+    );
+  }
+  return (
+    <div style={{
+      position: 'relative',
+      height: 88,
+      borderRadius: 7,
+      overflow: 'hidden',
+      border: `1px solid ${accent}44`,
+      background: `radial-gradient(circle at 72% 42%, ${accent}44 0 3px, transparent 4px),
+        radial-gradient(circle at 25% 35%, rgba(255,255,255,0.42) 0 1px, transparent 2px),
+        radial-gradient(circle at 46% 68%, rgba(255,255,255,0.26) 0 1px, transparent 2px),
+        linear-gradient(135deg, rgba(7,18,35,0.96), rgba(2,5,16,0.98))`,
+    }}>
+      <svg viewBox="0 0 320 88" width="100%" height="100%" role="img" aria-label={title} style={{ position: 'absolute', inset: 0 }}>
+        <circle cx="246" cy="38" r="20" fill="none" stroke={accent} strokeOpacity="0.36" strokeWidth="1.2" />
+        <circle cx="246" cy="38" r="34" fill="none" stroke={accent} strokeOpacity="0.16" strokeWidth="1" />
+        <path d="M22 70 C82 18, 140 104, 204 38 S286 20, 306 56" fill="none" stroke={accent} strokeOpacity="0.34" strokeWidth="1.5" strokeDasharray="5 6" />
+        <path d="M38 20 H126 M74 12 V28 M240 38 H298" stroke={accent} strokeOpacity="0.22" strokeWidth="1" />
+        <circle cx="90" cy="48" r="2.2" fill={accent} opacity="0.7" />
+        <circle cx="178" cy="32" r="1.6" fill="#cfe3ff" opacity="0.72" />
+      </svg>
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        background: 'linear-gradient(90deg, rgba(2,5,16,0.15), rgba(2,5,16,0.72))',
+      }} />
+    </div>
+  );
+}
+
+function CosmicEventDetailModal({ event, imageless, onClose }: { event: CosmicEvent; imageless?: boolean; onClose: () => void }) {
+  const { t, i18n } = useTranslation();
+  const accent = imageless ? '#8899aa' : '#7bb8ff';
+  const { title, desc } = eventText(event, i18n.language);
+  const eventDate = new Intl.DateTimeFormat(i18n.language?.startsWith('uk') ? 'uk-UA' : 'en-US', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(event.eventTime));
+
+  return createPortal((
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 12000,
+        background: 'rgba(2,5,16,0.82)',
+        backdropFilter: 'blur(7px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16,
+        fontFamily: 'monospace',
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: 'min(560px, 96vw)',
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          background: 'linear-gradient(180deg, rgba(13,22,36,0.98), rgba(5,10,20,0.98))',
+          border: `1px solid ${accent}`,
+          borderRadius: 8,
+          boxShadow: `0 0 36px ${accent}33, 0 22px 60px rgba(0,0,0,0.5)`,
+          padding: 16,
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
+          <div style={{ display: 'grid', gap: 5 }}>
+            <div style={{ color: accent, fontSize: 10, letterSpacing: 2, textTransform: 'uppercase' }}>{t('events.about_title')}</div>
+            <div style={{ color: '#e6f0ff', fontSize: 16, letterSpacing: 0.5, lineHeight: 1.35 }}>{title}</div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              width: 26,
+              height: 26,
+              flexShrink: 0,
+              background: 'rgba(5,10,20,0.6)',
+              border: '1px solid #334455',
+              color: '#8899aa',
+              borderRadius: 4,
+              cursor: 'pointer',
+              fontFamily: 'monospace',
+            }}
+          >
+            x
+          </button>
+        </div>
+
+        <CosmicEventVisual event={event} imageless={imageless} accent={accent} />
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'center', marginTop: 14, padding: 11, borderRadius: 7, background: 'rgba(5,10,20,0.48)', border: `1px solid ${accent}33` }}>
+          <div style={{ display: 'grid', gap: 3 }}>
+            <span style={{ color: '#667788', fontSize: 9, letterSpacing: 1.5, textTransform: 'uppercase' }}>{t('events.event_time')}</span>
+            <span style={{ color: '#cfe3ff', fontSize: 11 }}>{eventDate}</span>
+          </div>
+          <EventCountdown untilMs={event.eventTime} color={accent} />
+        </div>
+
+        <div style={{ marginTop: 14, color: '#aabbcc', fontSize: 12, lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>
+          {desc || t('events.no_description')}
+        </div>
+
+        {imageless && (
+          <div style={{ marginTop: 14, color: '#ffb080', fontSize: 10.5, lineHeight: 1.5, padding: 10, borderRadius: 6, background: 'rgba(255,136,68,0.08)', border: '1px solid rgba(255,136,68,0.25)' }}>
+            {t('events.need_telescope')}
+          </div>
+        )}
+      </div>
+    </div>
+  ), document.body);
+}
+
 /**
  * Full cosmic-event card for the orbital telescope: bilingual title, optional
  * photo/video, live countdown. When `imageless` (observatory fallback) the
@@ -132,30 +291,85 @@ function EventCountdown({ untilMs, color }: { untilMs: number; color: string }) 
  */
 function CosmicEventCard({ event, imageless }: { event: CosmicEvent; imageless?: boolean }) {
   const { t, i18n } = useTranslation();
-  const uk = i18n.language?.startsWith('uk');
-  const title = uk ? event.titleUk : event.titleEn;
-  const desc = uk ? event.descriptionUk : event.descriptionEn;
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const { title, desc } = eventText(event, i18n.language);
   const accent = imageless ? '#8899aa' : '#7bb8ff';
   return (
-    <div style={{
-      display: 'grid', gap: 8, padding: 11, borderRadius: 7,
-      background: 'rgba(5,10,20,0.45)', border: `1px solid ${accent}40`,
-      opacity: imageless ? 0.82 : 1,
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-        <span style={{ color: '#cfe3ff', fontSize: 11.5, letterSpacing: 0.3 }}>{title}</span>
-        <EventCountdown untilMs={event.eventTime} color={accent} />
+    <>
+      <div style={{
+        position: 'relative',
+        display: 'grid',
+        gap: 10,
+        padding: 11,
+        borderRadius: 8,
+        background: `radial-gradient(120% 160% at 100% 0%, ${accent}18, rgba(5,10,20,0.56) 54%)`,
+        border: `1px solid ${accent}45`,
+        opacity: imageless ? 0.86 : 1,
+        boxShadow: `inset 0 0 30px ${accent}0f`,
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: 'none',
+          background: 'linear-gradient(90deg, rgba(255,255,255,0.04) 0 1px, transparent 1px), linear-gradient(rgba(255,255,255,0.035) 0 1px, transparent 1px)',
+          backgroundSize: '42px 42px',
+          opacity: 0.18,
+        }} />
+
+        <CosmicEventVisual event={event} imageless={imageless} accent={accent} />
+
+        <div style={{ position: 'relative', display: 'grid', gap: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+            <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
+              <span style={{ color: accent, fontSize: 8.5, letterSpacing: 1.7, textTransform: 'uppercase' }}>{t('events.live_marker')}</span>
+              <span style={{ color: '#e6f0ff', fontSize: 12.5, letterSpacing: 0.35, lineHeight: 1.35 }}>{title}</span>
+            </div>
+            <div style={{ display: 'grid', gap: 2, justifyItems: 'end', flexShrink: 0 }}>
+              <span style={{ color: '#667788', fontSize: 8, letterSpacing: 1.4, textTransform: 'uppercase' }}>{t('events.countdown')}</span>
+              <EventCountdown untilMs={event.eventTime} color={accent} />
+            </div>
+          </div>
+
+          {desc && <div style={{ color: '#8c9cad', fontSize: 10, lineHeight: 1.52 }}>{desc.length > 150 ? `${desc.slice(0, 150).trim()}...` : desc}</div>}
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, alignItems: 'center' }}>
+            <span style={{
+              color: imageless ? '#ffb080' : '#9fd0ff',
+              border: `1px solid ${imageless ? 'rgba(255,176,128,0.35)' : `${accent}55`}`,
+              background: imageless ? 'rgba(255,136,68,0.08)' : `${accent}14`,
+              borderRadius: 999,
+              padding: '4px 9px',
+              fontSize: 9,
+              letterSpacing: 0.6,
+            }}>
+              {imageless ? t('events.timing_only') : event.videoUrl ? t('events.video_ready') : event.photoUrl ? t('events.image_ready') : t('events.telemetry_only')}
+            </span>
+            <span style={{ flex: 1 }} />
+            <button
+              type="button"
+              onClick={() => setDetailsOpen(true)}
+              style={{
+                background: `linear-gradient(180deg, ${accent}26, ${accent}10)`,
+                border: `1px solid ${accent}88`,
+                color: '#e6f0ff',
+                borderRadius: 5,
+                fontFamily: 'monospace',
+                fontSize: 9.5,
+                letterSpacing: 1.1,
+                textTransform: 'uppercase',
+                padding: '7px 10px',
+                cursor: 'pointer',
+                boxShadow: `0 0 14px ${accent}22`,
+              }}
+            >
+              {t('events.about_button')}
+            </button>
+          </div>
+        </div>
       </div>
-      {!imageless && event.videoUrl ? (
-        <video src={event.videoUrl} autoPlay loop muted playsInline style={{ width: '100%', borderRadius: 5, border: `1px solid ${accent}33` }} />
-      ) : !imageless && event.photoUrl ? (
-        <img src={event.photoUrl} alt={title} style={{ width: '100%', borderRadius: 5, border: `1px solid ${accent}33` }} />
-      ) : null}
-      {desc && <div style={{ color: '#8c9cad', fontSize: 9.5, lineHeight: 1.5 }}>{desc}</div>}
-      {imageless && (
-        <div style={{ color: '#ffb080', fontSize: 9.5, lineHeight: 1.45 }}>{t('events.need_telescope')}</div>
-      )}
-    </div>
+      {detailsOpen && <CosmicEventDetailModal event={event} imageless={imageless} onClose={() => setDetailsOpen(false)} />}
+    </>
   );
 }
 
@@ -1053,6 +1267,12 @@ export function BuildingDetailPanel({
     (separationJobs ?? []).find((j) => j.buildingId === building?.id)?.id ?? null;
   const activeExtractionJobId =
     (extractionJobs ?? []).find((j) => j.buildingId === building?.id)?.id ?? null;
+  const separationGroupOptions = useMemo(() => separationGroupsForBuilding(type), [type]);
+  const selectedSeparationGroup = useMemo<SeparationGroup>(() => {
+    return separationGroupOptions.some((item) => item.group === separationGroup)
+      ? separationGroup
+      : (separationGroupOptions[0]?.group ?? separationGroup);
+  }, [separationGroup, separationGroupOptions]);
 
   useEffect(() => {
     if (activeObservatorySessionCount === 0) return;
@@ -1071,6 +1291,12 @@ export function BuildingDetailPanel({
     const id = window.setInterval(() => setExtractionNow(Date.now()), 1000);
     return () => window.clearInterval(id);
   }, [activeExtractionJobId]);
+
+  useEffect(() => {
+    if (separationGroupOptions.length === 0) return;
+    if (separationGroupOptions.some((item) => item.group === separationGroup)) return;
+    setSeparationGroup(separationGroupOptions[0].group);
+  }, [separationGroup, separationGroupOptions]);
 
   if (!type || !def || !stats) return null;
 
@@ -1140,7 +1366,7 @@ export function BuildingDetailPanel({
     ? observatoryProgram
     : observatoryPrograms[observatoryPrograms.length - 1] ?? 'routine_sky_watch';
 
-  // ── Quantum separator batch state ──
+  // ── Manual element separation batch state ──
   const activeSeparationJob = (separationJobs ?? []).find((j) => j.buildingId === building?.id) ?? null;
   const separationElapsed = activeSeparationJob ? separationNow - activeSeparationJob.startedAt : 0;
   const separationPct = activeSeparationJob
@@ -1149,12 +1375,12 @@ export function BuildingDetailPanel({
   const separationSecondsLeft = activeSeparationJob
     ? Math.max(0, Math.ceil((activeSeparationJob.durationMs - separationElapsed) / 1000))
     : 0;
-  // The group shown/used: an active job's locked group, otherwise the selection.
-  const effectiveSeparationGroup: SeparationGroup = activeSeparationJob?.group ?? separationGroup;
+  // The group shown/used: an active job's locked group, otherwise the building's allowed selection.
+  const effectiveSeparationGroup: SeparationGroup = activeSeparationJob?.group ?? selectedSeparationGroup;
   const SEPARATION_GROUP_RESOURCE: Record<SeparationGroup, ColonyResourceKey> = {
     mineral: 'minerals', volatile: 'volatiles', isotope: 'isotopes', water: 'water',
   };
-  const separationResourceKey = SEPARATION_GROUP_RESOURCE[separationGroup];
+  const separationResourceKey = SEPARATION_GROUP_RESOURCE[selectedSeparationGroup];
   const separationAvailable = colonyResources[separationResourceKey] ?? 0;
   const canAffordSeparation =
     separationAvailable >= SEPARATION_BATCH && researchData >= SEPARATION_RESEARCH_DATA_COST;
@@ -1248,7 +1474,7 @@ export function BuildingDetailPanel({
         flexDirection: 'column',
         gap: compact ? 10 : 14,
       }}>
-        {type === 'quantum_separator' && building && (() => {
+        {MANUAL_SEPARATION_BUILDINGS.has(type) && building && (() => {
           const groupColor = RESOURCE_COLORS[SEPARATION_GROUP_RESOURCE[effectiveSeparationGroup]];
           const blocked = stats.isShutdown || !canAffordSeparation || !onStartSeparation;
           return (
@@ -1308,7 +1534,7 @@ export function BuildingDetailPanel({
                   {t('separation.choose_group')}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 7 }}>
-                  {SEPARATION_GROUP_LIST.map(({ group, resource }) => {
+                  {separationGroupOptions.map(({ group, resource }) => {
                     const selected = effectiveSeparationGroup === group;
                     const color = RESOURCE_COLORS[resource];
                     const avail = Math.floor(colonyResources[SEPARATION_GROUP_RESOURCE[group]] ?? 0);
@@ -1317,7 +1543,7 @@ export function BuildingDetailPanel({
                       <button
                         key={group}
                         type="button"
-                        disabled={!!activeSeparationJob}
+                        disabled={!!activeSeparationJob || separationGroupOptions.length === 1}
                         onClick={() => setSeparationGroup(group)}
                         style={{
                           display: 'flex', alignItems: 'center', gap: 8,
@@ -1326,7 +1552,7 @@ export function BuildingDetailPanel({
                           border: `1px solid ${selected ? color : 'rgba(51,68,85,0.6)'}`,
                           borderRadius: 6,
                           padding: '8px 10px',
-                          cursor: activeSeparationJob ? 'default' : 'pointer',
+                          cursor: activeSeparationJob || separationGroupOptions.length === 1 ? 'default' : 'pointer',
                           opacity: activeSeparationJob && !selected ? 0.4 : 1,
                           boxShadow: selected ? `0 0 14px ${color}3a` : 'none',
                           transition: 'all 0.15s ease',
@@ -1401,7 +1627,7 @@ export function BuildingDetailPanel({
                 <button
                   type="button"
                   disabled={blocked}
-                  onClick={() => onStartSeparation?.(building.id, planet.id, separationGroup, type)}
+                  onClick={() => onStartSeparation?.(building.id, planet.id, selectedSeparationGroup, type)}
                   style={{
                     background: blocked ? 'rgba(20,30,45,0.45)' : `linear-gradient(180deg, ${groupColor}33, ${groupColor}18)`,
                     border: `1px solid ${blocked ? BORDER : groupColor}`,

@@ -529,6 +529,10 @@ function readPlanetResources(map: Record<string, ColonyResourceBundle>, planetId
   return acc ?? ZERO_RESOURCE_BUNDLE;
 }
 
+function hasPlanetResourceEntry(map: Record<string, ColonyResourceBundle>, planetId: string): boolean {
+  return Object.keys(map).some((key) => barePlanetKey(key) === planetId);
+}
+
 /**
  * Collapse a resource map so every entry is keyed by the bare planetId, merging any
  * scoped/bare duplicates by per-resource MAX (never SUM — summing identical copies is
@@ -1476,6 +1480,13 @@ function AppInner() {
   const colonyResourcesByPlanetRef = useRef(colonyResourcesByPlanet);
   colonyResourcesByPlanetRef.current = colonyResourcesByPlanet;
 
+  const commitColonyResourcesByPlanet = useCallback((next: Record<string, ColonyResourceBundle>) => {
+    colonyResourcesByPlanetRef.current = next;
+    try { localStorage.setItem('nebulife_colony_resources_by_planet', JSON.stringify(next)); }
+    catch { /* ignore quota */ }
+    setColonyResourcesByPlanet(next);
+  }, []);
+
   useEffect(() => {
     try { localStorage.setItem('nebulife_colony_resources_by_planet', JSON.stringify(colonyResourcesByPlanet)); }
     catch { /* ignore quota */ }
@@ -1838,23 +1849,22 @@ function AppInner() {
    *  Writes the canonical bare-planetId key and removes any legacy scoped duplicate so
    *  no double-count can re-form. */
   const addResources = useCallback((planetId: string, delta: Partial<{ minerals: number; volatiles: number; isotopes: number; water: number }>) => {
-    setColonyResourcesByPlanet(prev => {
-      const cur = readPlanetResources(prev, planetId);
-      const capacity = getStorageCapacityForPlanet(planetId);
-      const next = { ...prev };
-      // Drop any legacy scoped variant of this planet — bare id is canonical.
-      for (const key of Object.keys(next)) {
-        if (key !== planetId && barePlanetKey(key) === planetId) delete next[key];
-      }
-      next[planetId] = {
-        minerals:  Math.min(capacity, Math.max(0, cur.minerals  + (delta.minerals  ?? 0))),
-        volatiles: Math.min(capacity, Math.max(0, cur.volatiles + (delta.volatiles ?? 0))),
-        isotopes:  Math.min(capacity, Math.max(0, cur.isotopes  + (delta.isotopes  ?? 0))),
-        water:     Math.min(capacity, Math.max(0, cur.water     + (delta.water     ?? 0))),
-      };
-      return next;
-    });
-  }, [getStorageCapacityForPlanet]);
+    const prev = colonyResourcesByPlanetRef.current;
+    const cur = readPlanetResources(prev, planetId);
+    const capacity = getStorageCapacityForPlanet(planetId);
+    const next = { ...prev };
+    // Drop any legacy scoped variant of this planet — bare id is canonical.
+    for (const key of Object.keys(next)) {
+      if (key !== planetId && barePlanetKey(key) === planetId) delete next[key];
+    }
+    next[planetId] = {
+      minerals:  Math.min(capacity, Math.max(0, cur.minerals  + (delta.minerals  ?? 0))),
+      volatiles: Math.min(capacity, Math.max(0, cur.volatiles + (delta.volatiles ?? 0))),
+      isotopes:  Math.min(capacity, Math.max(0, cur.isotopes  + (delta.isotopes  ?? 0))),
+      water:     Math.min(capacity, Math.max(0, cur.water     + (delta.water     ?? 0))),
+    };
+    commitColonyResourcesByPlanet(next);
+  }, [commitColonyResourcesByPlanet, getStorageCapacityForPlanet]);
 
   /** Spend from the shared colony pool, preferring the active planet first.
    *  All keys are the canonical bare planetId. */
@@ -1863,34 +1873,32 @@ function AppInner() {
     delta: Partial<{ minerals: number; volatiles: number; isotopes: number; water: number }>,
   ) => {
     const keys = ['minerals', 'volatiles', 'isotopes', 'water'] as const;
-    setColonyResourcesByPlanet(prev => {
-      // Normalize to bare keys first so a single planet can never appear twice
-      // (which previously stranded resources: a debit drained the scoped entry
-      // while a stale bare entry kept the old amount → "spend 1000, stays 1000").
-      const { map: normalized } = normalizeResourceMap(prev);
-      const next = { ...normalized };
-      for (const key of keys) {
-        let remaining = Math.max(0, -(delta[key] ?? 0));
-        if (remaining <= 0) continue;
+    // Normalize to bare keys first so a single planet can never appear twice
+    // (which previously stranded resources: a debit drained the scoped entry
+    // while a stale bare entry kept the old amount → "spend 1000, stays 1000").
+    const { map: normalized } = normalizeResourceMap(colonyResourcesByPlanetRef.current);
+    const next = { ...normalized };
+    for (const key of keys) {
+      let remaining = Math.max(0, -(delta[key] ?? 0));
+      if (remaining <= 0) continue;
 
-        const spendFrom = (planetId: string) => {
-          if (remaining <= 0) return;
-          const cur = next[planetId] ?? { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
-          const available = Math.max(0, cur[key] ?? 0);
-          const spent = Math.min(available, remaining);
-          if (spent <= 0) return;
-          next[planetId] = { ...cur, [key]: available - spent };
-          remaining -= spent;
-        };
+      const spendFrom = (planetId: string) => {
+        if (remaining <= 0) return;
+        const cur = next[planetId] ?? { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
+        const available = Math.max(0, cur[key] ?? 0);
+        const spent = Math.min(available, remaining);
+        if (spent <= 0) return;
+        next[planetId] = { ...cur, [key]: available - spent };
+        remaining -= spent;
+      };
 
-        spendFrom(preferredPlanetId);
-        for (const planetId of Object.keys(next)) {
-          if (planetId !== preferredPlanetId) spendFrom(planetId);
-        }
+      spendFrom(preferredPlanetId);
+      for (const planetId of Object.keys(next)) {
+        if (planetId !== preferredPlanetId) spendFrom(planetId);
       }
-      return next;
-    });
-  }, []);
+    }
+    commitColonyResourcesByPlanet(next);
+  }, [commitColonyResourcesByPlanet]);
 
   /** Sum resources across all planet stores. Normalizes to bare keys first so a
    *  transient scoped/bare duplicate (pre-normalization window) can't double the total. */
@@ -2092,17 +2100,15 @@ function AppInner() {
       const targetId = targetCtx.planet.id;
       const cur = readPlanetResources(colonyResourcesByPlanetRef.current, targetId);
       const next = typeof updater === 'function' ? updater(cur) : updater;
-      setColonyResourcesByPlanet(prev => {
-        const out = { ...prev };
-        // Canonical bare key only — purge any legacy scoped duplicate.
-        for (const key of Object.keys(out)) {
-          if (key !== targetId && barePlanetKey(key) === targetId) delete out[key];
-        }
-        out[targetId] = clampResourceBundle(next, getStorageCapacityForPlanet(targetId));
-        return out;
-      });
+      const out = { ...colonyResourcesByPlanetRef.current };
+      // Canonical bare key only — purge any legacy scoped duplicate.
+      for (const key of Object.keys(out)) {
+        if (key !== targetId && barePlanetKey(key) === targetId) delete out[key];
+      }
+      out[targetId] = clampResourceBundle(next, getStorageCapacityForPlanet(targetId));
+      commitColonyResourcesByPlanet(out);
     },
-    [getStorageCapacityForPlanet],
+    [commitColonyResourcesByPlanet, getStorageCapacityForPlanet],
   );
 
   /**
@@ -2626,7 +2632,7 @@ function AppInner() {
       };
       // Only migrate if there's actually something to migrate
       if (migrated.minerals + migrated.volatiles + migrated.isotopes + migrated.water > 0) {
-        setColonyResourcesByPlanet({ [homeInfo.planet.id]: migrated });
+        commitColonyResourcesByPlanet({ [homeInfo.planet.id]: migrated });
       }
     } catch { /* ignore */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2640,20 +2646,15 @@ function AppInner() {
     } catch { /* ignore */ }
 
     ensureHomePlanetStockFloor(homeInfo.planet);
-    setColonyResourcesByPlanet((prev) => {
-      const existing = prev[homeInfo.planet.id] ?? { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
-      return {
+    const prev = colonyResourcesByPlanetRef.current;
+    if (!hasPlanetResourceEntry(prev, homeInfo.planet.id)) {
+      commitColonyResourcesByPlanet({
         ...prev,
-        [homeInfo.planet.id]: {
-          minerals: Math.max(existing.minerals, POST_EVACUATION_RESOURCE_RESERVE.minerals),
-          volatiles: Math.max(existing.volatiles, POST_EVACUATION_RESOURCE_RESERVE.volatiles),
-          isotopes: Math.max(existing.isotopes, POST_EVACUATION_RESOURCE_RESERVE.isotopes),
-          water: Math.max(existing.water, POST_EVACUATION_RESOURCE_RESERVE.water),
-        },
-      };
-    });
+        [homeInfo.planet.id]: { ...POST_EVACUATION_RESOURCE_RESERVE },
+      });
+    }
     try { localStorage.setItem(flag, '1'); } catch { /* ignore */ }
-  }, [ensureHomePlanetStockFloor, homeInfo, isExodusPhase]);
+  }, [commitColonyResourcesByPlanet, ensureHomePlanetStockFloor, homeInfo, isExodusPhase]);
 
   useEffect(() => {
     if (!homeInfo) return;
@@ -2868,41 +2869,13 @@ function AppInner() {
 
   // Canonicalize colony storage: every entry keyed by the bare planetId, legacy
   // scoped/duplicate entries collapsed by per-resource MAX (NOT sum — summing
-  // identical copies is what doubled stockpiles), then clamp known colonies to
-  // their storage capacity. Idempotent: returns the same reference once canonical,
-  // so this never loops. Also repairs already-corrupted saves on load/hydration.
+  // identical copies is what doubled stockpiles). Do not clamp here: on refresh
+  // building/storage context can still be incomplete, and using the base 1000 cap
+  // would erase legitimate stored resources.
   useEffect(() => {
-    const activeSurface = surfaceTargetRef.current;
-    const activeColony = colonyStateRef.current;
-    const activeHome = homeInfoRef.current;
-
-    setColonyResourcesByPlanet((prev) => {
-      const { map: normalized, changed: collapsed } = normalizeResourceMap(prev);
-      let changed = collapsed;
-      const next = collapsed ? { ...normalized } : { ...prev };
-
-      for (const [planetId, resources] of Object.entries(next)) {
-        const canComputeCapacity = activeSurface?.planet.id === planetId
-          || activeColony?.planetId === planetId
-          || barePlanetKey(activeColony?.planetId ?? '') === planetId
-          || activeHome?.planet.id === planetId;
-        if (!canComputeCapacity) continue;
-
-        const clamped = clampResourceBundle(resources, getStorageCapacityForPlanet(planetId));
-        if (
-          clamped.minerals !== resources.minerals ||
-          clamped.volatiles !== resources.volatiles ||
-          clamped.isotopes !== resources.isotopes ||
-          clamped.water !== resources.water
-        ) {
-          next[planetId] = clamped;
-          changed = true;
-        }
-      }
-
-      return changed ? next : prev;
-    });
-  }, [colonyResourcesByPlanet, colonyState, getStorageCapacityForPlanet, homeInfo?.planet.id, surfaceTarget?.planet.id]);
+    const { map: normalized, changed } = normalizeResourceMap(colonyResourcesByPlanetRef.current);
+    if (changed) commitColonyResourcesByPlanet(normalized);
+  }, [colonyResourcesByPlanet, commitColonyResourcesByPlanet]);
 
   /** Quarks (in-game currency) */
   const [quarks, setQuarks] = useState<number>(0);
@@ -10443,6 +10416,14 @@ function AppInner() {
       }
     } catch { /* ignore */ }
 
+    const { map: syncedColonyResourcesByPlanet } = normalizeResourceMap(colonyResourcesByPlanetRef.current);
+    const syncedColonyResources = Object.values(syncedColonyResourcesByPlanet).reduce<ColonyResourceBundle>((acc, resources) => ({
+      minerals: acc.minerals + resources.minerals,
+      volatiles: acc.volatiles + resources.volatiles,
+      isotopes: acc.isotopes + resources.isotopes,
+      water: acc.water + resources.water,
+    }), { minerals: 0, volatiles: 0, isotopes: 0, water: 0 });
+
     return {
       xp: playerXP,
       level: playerLevel,
@@ -10450,8 +10431,8 @@ function AppInner() {
       player_stats: playerStats,
       research_data: Math.floor(researchData),
       last_regen_time: Date.now(),
-      colony_resources: colonyResources,
-      colony_resources_by_planet: colonyResourcesByPlanet,
+      colony_resources: syncedColonyResources,
+      colony_resources_by_planet: syncedColonyResourcesByPlanet,
       hex_slots: hexSlots,
       hex_slots_by_planet: hexSlotsByPlanet,
       chemical_inventory: chemicalInventory,
@@ -11602,6 +11583,7 @@ function AppInner() {
         observatoryTotal={researchState.slots.length}
         highlightResearchData={showGetResearchData}
         showResources={topBarMode === 'resources'}
+        showColonyResources={!surfaceTarget}
       />
       )}
 

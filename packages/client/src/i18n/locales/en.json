@@ -376,7 +376,7 @@
     },
     "deep_drill": {
       "name": "Deep Drill",
-      "desc": "Accesses deep deposits. Strong passive mining and a chance for rare elements."
+      "desc": "Accesses deep deposits. Strong passive mineral extraction."
     },
     "orbital_collector": {
       "name": "Orbital Collector",
@@ -428,11 +428,11 @@
     },
     "gas_fractionator": {
       "name": "Gas Fractionator",
-      "desc": "L50 volatile fractionator. Extracts H/He/N/C/S for biosphere, reactors, and synthesis."
+      "desc": "L50 volatile fractionator. Manually separates volatile batches into H/He/N/C/S."
     },
     "isotope_centrifuge": {
       "name": "Isotope Centrifuge",
-      "desc": "L50 isotope enrichment. Produces U/Th for fusion, Genesis Vault, and endgame construction."
+      "desc": "L50 isotope enrichment. Manually separates isotope batches into U/Th for endgame construction."
     },
     "genesis_vault": {
       "name": "Genesis Vault",
@@ -862,7 +862,7 @@
   },
   "separation": {
     "section": "Quantum Separation",
-    "explainer": "Load {{amount}} bulk minerals — over 1 hour the separator breaks them down into discrete elements. Simple elements appear more often and in larger amounts, rare ones less often. Consumes energy and research data.",
+    "explainer": "Load {{amount}} units of a bulk resource — over 1 hour the station breaks it down into discrete elements. Simple elements appear more often and in larger amounts, rare ones less often. Consumes energy and research data.",
     "input": "Input",
     "research_cost": "Research",
     "duration": "Time",
@@ -871,7 +871,7 @@
     "in_progress": "Separating...",
     "start": "Start separation",
     "no_power": "No power",
-    "need_bulk": "Need {{amount}} minerals",
+    "need_bulk": "Need {{amount}} units of the selected resource",
     "need_research": "Need {{amount}} research data",
     "busy": "Separator already busy",
     "done": "Separation complete: {{summary}}",
@@ -909,24 +909,30 @@
     "extraction_notif": "Extraction complete — particles collected: {{summary}}",
     "extraction_log": "Research lab distilled unique particles: {{summary}}",
     "spark_title": "Spark of life",
-    "spark_desc": "Assemble a DNA strand to ignite a spark of life. Rarer sparks demand a harder strand.",
-    "spark_start": "Open DNA constructor",
+    "spark_desc": "Assemble a genome lattice from molecular segments to ignite a spark of life.",
+    "spark_start": "Open genome constructor",
     "spark_notif": "Spark of life synthesized: {{spark}}",
     "spark_log": "Research lab synthesized a spark of life: {{spark}}",
-    "dna_title": "DNA Constructor",
-    "dna_subtitle": "Splice the double helix",
-    "dna_choose": "Choose which spark to synthesize. Rarer sparks require a longer, harder strand.",
+    "dna_title": "Genome Constructor",
+    "dna_subtitle": "Stabilize the living lattice",
+    "dna_choose": "Choose which spark to synthesize. Rarer sparks open larger lattices with catalysts, neural nodes, and unstable isotopes.",
     "dna_pairs": "{{count}} pairs",
     "dna_bases": "{{count}} bases",
+    "dna_nodes": "{{count}} nodes",
+    "dna_blockers": "{{count}} blk.",
     "dna_memory_tag": "memory",
-    "dna_template": "Template strand",
-    "dna_build": "Assemble the complementary strand (A↔T, G↔C)",
-    "dna_select": "Tap the base that pairs with the highlighted rung.",
+    "dna_template": "Lattice schematic",
+    "dna_build": "Rotate segments to route flow from the core into every node.",
+    "dna_select": "Tap segments to rotate them and connect open valences.",
     "dna_memorize": "Memorize the template — {{seconds}}s",
     "dna_recall": "Template hidden — pair each rung from memory.",
-    "dna_stability": "Genome stability",
-    "dna_progress": "{{done}} / {{total}} pairs spliced",
-    "dna_won": "DNA strand stabilized — spark ignited!",
+    "dna_stability": "Lattice stability",
+    "dna_progress": "{{done}} / {{total}} nodes powered",
+    "dna_igniting": "Genome lattice resonating — spark ignition in progress...",
+    "dna_moves": "Rotations",
+    "dna_open_ends": "Breaks",
+    "dna_powered": "Flow",
+    "dna_won": "Genome lattice stabilized — spark ignited!",
     "dna_collect": "Collect spark",
     "dna_lost": "Genome destabilized — the strand collapsed.",
     "dna_retry": "Try again",
@@ -949,7 +955,17 @@
     "observatory_section": "Nearest Event",
     "observatory_tagline": "Timing only — imagery needs an orbital telescope",
     "radar_section": "Radar Tower",
-    "radar_tagline": "Cosmic events feed and signal decoding"
+    "radar_tagline": "Cosmic events feed and signal decoding",
+    "live_marker": "Observatory signal",
+    "countdown": "Until event",
+    "about_button": "About this event",
+    "about_title": "Event dossier",
+    "event_time": "Event time",
+    "no_description": "Detailed description has not been uploaded yet. The observatory only has baseline signal telemetry.",
+    "timing_only": "Telemetry only",
+    "image_ready": "Image received",
+    "video_ready": "Video received",
+    "telemetry_only": "Awaiting visualization"
   },
   "observatory": {
     "title": "Nebulife Observatory",
@@ -2824,6 +2840,7 @@
     "action_deliver": "Deliver",
     "action_stabilize": "Stabilize",
     "action_activate": "Activate",
+    "param_complete": "Parameter complete",
     "cancel_mission": "Cancel",
     "no_donors_msg": "No colonies with ships",
     "mission_eta": "ETA",

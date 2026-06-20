@@ -353,8 +353,6 @@ function DepositBar({
 function OverviewTab({
   active,
   allColonies,
-  colonyResources,
-  storageCapacity,
   productionPerHour,
   energyBalance,
   researchData,
@@ -385,17 +383,6 @@ function OverviewTab({
         <StatCard label={t('colony_center.overview.colonies')} value={agg.totalColonies} accent="#7bb8ff" />
         <StatCard label={t('colony_center.overview.buildings')} value={agg.totalBuildings} accent="#aabbcc" />
         <StatCard label={t('colony_center.overview.research')} value={`${researchData}`} accent={RES_COLOR.researchData} sub={`+${productionPerHour.researchData.toFixed(1)}/h`} />
-      </div>
-
-      {/* Local resources — current colony */}
-      <div style={{ fontSize: 10, color: '#556677', letterSpacing: 2, textTransform: 'uppercase', paddingTop: 4 }}>
-        {t('colony_center.overview.local_resources', { planet: active.planet.name })}
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-        <ResourceBar resourceKey="minerals" accent={RES_COLOR.minerals} current={colonyResources.minerals} capacity={storageCapacity} perHour={productionPerHour.minerals} />
-        <ResourceBar resourceKey="volatiles" accent={RES_COLOR.volatiles} current={colonyResources.volatiles} capacity={storageCapacity} perHour={productionPerHour.volatiles} />
-        <ResourceBar resourceKey="isotopes" accent={RES_COLOR.isotopes} current={colonyResources.isotopes} capacity={storageCapacity} perHour={productionPerHour.isotopes} />
-        <ResourceBar resourceKey="water" accent={RES_COLOR.water} current={colonyResources.water} capacity={storageCapacity} perHour={productionPerHour.water} />
       </div>
 
       {/* Deposit bars — planet finite stocks (v168) */}

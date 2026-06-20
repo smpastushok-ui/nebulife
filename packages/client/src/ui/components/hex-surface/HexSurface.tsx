@@ -585,6 +585,21 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       return out;
     }, [observatoryState, elementYieldHistory, experimentHistory, seenAt]);
 
+    const latestResultTimestampForBuilding = useCallback((buildingType: string): number => {
+      let latest = 0;
+      if (buildingType === 'research_lab') {
+        for (const e of experimentHistory ?? []) {
+          if (e.completedAt > latest) latest = e.completedAt;
+        }
+        return latest;
+      }
+      for (const e of elementYieldHistory ?? []) {
+        const src = e.source || 'quantum_separator';
+        if (src === buildingType && e.completedAt > latest) latest = e.completedAt;
+      }
+      return latest;
+    }, [elementYieldHistory, experimentHistory]);
+
     // Opening a building marks its type's results as seen (clears the beacon).
     useEffect(() => {
       if (!detailSlotId) return;
@@ -592,11 +607,16 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       const bt = slot?.buildingType;
       if (!bt) return;
       setSeenAt((prev) => {
-        const next = { ...prev, [bt]: Date.now() };
+        // Use the newest known result timestamp too. This prevents the beacon
+        // from reappearing if client clocks/timers put completedAt slightly
+        // ahead of the modal-open time.
+        const seenTime = Math.max(Date.now(), latestResultTimestampForBuilding(bt));
+        if ((prev[bt] ?? 0) >= seenTime) return prev;
+        const next = { ...prev, [bt]: seenTime };
         try { localStorage.setItem('nebulife_building_seen_at', JSON.stringify(next)); } catch { /* ignore */ }
         return next;
       });
-    }, [detailSlotId, hexState]);
+    }, [detailSlotId, hexState, latestResultTimestampForBuilding]);
 
     // ── Cosmic-event countdown overlay (telescope first, observatory fallback) ─
     // Shows a small countdown pill above the relevant building tile. The pill

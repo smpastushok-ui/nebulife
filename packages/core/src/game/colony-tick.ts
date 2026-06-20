@@ -4,7 +4,7 @@
 
 import type { PlanetColonyState, PlanetEnergyState, PlanetResourceStocks } from '../types/colony.js';
 import { getStorageCapacity } from '../types/colony.js';
-import type { BuildingType, PlacedBuilding, UniquePlanetResource } from '../types/surface.js';
+import type { BuildingType, PlacedBuilding } from '../types/surface.js';
 import { BUILDING_DEFS } from '../types/surface.js';
 import { BASE_ENERGY_STORAGE, COLONY_TICK_INTERVAL_MS } from '../constants/balance.js';
 import type { TechTreeState } from './tech-tree.js';
@@ -14,7 +14,6 @@ import type { Planet } from '../types/planet.js';
 import { getTerrainBonus, getSolarEnergyMultiplier, getWindMultiplier, getAtmoMultiplier } from './planet-rules.js';
 import type { SurfaceTile } from '../types/surface.js';
 import { depleteStock } from './planet-stocks.js';
-import { SeededRNG } from '../math/rng.js';
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -28,7 +27,7 @@ export interface ColonyTickResult {
   restoredIds: string[];
   /** Research data generated this tick */
   researchDataProduced: number;
-  /** Elements produced by refinery buildings this tick */
+  /** Elements produced by passive ticks. Kept for API shape; manual jobs own element output. */
   elementsProduced: Record<string, number>;
   /** Updated planet resource stocks after depletion (undefined if no stocks were passed in) */
   updatedStocks?: PlanetResourceStocks;
@@ -81,13 +80,8 @@ export function runColonyTicks(
   // Stocks are carried through tick by tick so each tick sees the latest remaining
   let currentStocks: PlanetResourceStocks | undefined = planetStocks;
 
-  // Base tick index: derive from planet seed and current time bucket so that
-  // refinery element selection is deterministic given the same inputs.
-  const baseTick = Math.floor(colony.lastTickAt / COLONY_TICK_INTERVAL_MS);
-
   for (let t = 0; t < effectiveTicks; t++) {
-    const tickIndex = baseTick + t;
-    const result = runSingleTick(colony, planet, techState, tileAt, currentStocks, tickIndex, starLuminosityLSun);
+    const result = runSingleTick(colony, planet, techState, tileAt, currentStocks, starLuminosityLSun);
     totalShutdownIds = [...totalShutdownIds, ...result.shutdownIds];
     totalRestoredIds = [...totalRestoredIds, ...result.restoredIds];
     totalResearchData += result.researchDataProduced;
@@ -112,23 +106,6 @@ export function runColonyTicks(
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/**
- * Stable deterministic hash of a planet ID string (djb2 variant).
- *
- * Used as a fallback seed for legacy Planet objects where `seed === 0`
- * (planets generated before the `seed` field was introduced in v167).
- * This guarantees deterministic refinery element selection for any planet
- * regardless of its age, without ever resorting to Date.now() or Math.random().
- */
-function hashPlanetId(id: string): number {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) {
-    h = ((h << 5) - h + id.charCodeAt(i)) | 0;
-  }
-  // >>> 0 converts to unsigned 32-bit int — safe positive seed for SeededRNG
-  return h >>> 0;
-}
 
 // ---------------------------------------------------------------------------
 // Single tick
@@ -196,7 +173,6 @@ function runSingleTick(
   techState: TechTreeState,
   tileAt: (x: number, y: number) => SurfaceTile | undefined,
   planetStocks?: PlanetResourceStocks,
-  tickIndex: number = 0,
   starLuminosityLSun = 1,
 ): { shutdownIds: string[]; restoredIds: string[]; researchDataProduced: number; elementsProduced: Record<string, number>; updatedStocks?: PlanetResourceStocks } {
   const buildings = colony.buildings;
@@ -302,52 +278,14 @@ function runSingleTick(
     }
   }
 
-  // 5. Refinery batch processing: quantum_separator, gas_fractionator, isotope_centrifuge
-  // Seeded RNG: planet.seed × tickIndex × buildingIndex → deterministic element selection.
-  // Determinism is critical: NEVER use Date.now() / Math.random() here.
-  // Legacy planets may have seed=0 (e.g. planets generated before v167 seed field was
-  // added). In that case we derive a stable seed from planet.id via djb2 hash, which
-  // is deterministic for a given planet and survives server restarts / reloads.
-  const planetSeed = (planet.seed ?? 0) !== 0
-    ? (planet.seed as number)
-    : hashPlanetId(planet.id);
-  for (let bi = 0; bi < buildings.length; bi++) {
-    const b = buildings[bi];
-    if (b.shutdown) continue;
-    // Unique seed per (planet, tick, building position in array)
-    const refinerySeed = ((planetSeed * 1000003) ^ (tickIndex * 65537) ^ (bi * 16777619)) >>> 0;
-    const refineryRng = new SeededRNG(refinerySeed);
-    const elems = processRefineryBuilding(b, colony, refineryRng);
-    for (const [el, amt] of Object.entries(elems)) {
-      elementsProduced[el] = (elementsProduced[el] ?? 0) + amt;
-    }
-  }
-
-  // 6. Extract unique planet resources (deep_drill)
-  if (colony.uniqueResources) {
-    for (const b of buildings) {
-      if (b.shutdown || b.type !== 'deep_drill') continue;
-      for (const ur of colony.uniqueResources) {
-        if (ur.remaining <= 0) continue;
-        const extracted = Math.min(ur.extractionRate, ur.remaining);
-        ur.remaining -= extracted;
-        colony.chemicalInventory[ur.element] = (colony.chemicalInventory[ur.element] ?? 0) + extracted;
-        elementsProduced[ur.element] = (elementsProduced[ur.element] ?? 0) + extracted;
-      }
-    }
-  }
+  // Element-level output is deliberately absent from passive colony ticks.
+  // Bulk resources are refined into discrete elements only by manual batch jobs
+  // (quantum separator / fractionator / centrifuge) in game/separation.ts.
 
   updatePopulationCapacityFromSupport(colony, techState);
 
   return { shutdownIds: energyResult.shutdownIds, restoredIds, researchDataProduced, elementsProduced, updatedStocks: currentStocks };
 }
-
-// ---------------------------------------------------------------------------
-// Refinery processing
-// ---------------------------------------------------------------------------
-
-/** Element pools that refineries can produce */
-const VOLATILE_ELEMENTS = ['H', 'He', 'N', 'C', 'S'];  // O removed: it is now a mineral element
 
 function updatePopulationCapacityFromSupport(colony: PlanetColonyState, techState: TechTreeState): void {
   const activeBuildings = colony.buildings.filter((b) => !b.shutdown);
@@ -395,47 +333,3 @@ function updatePopulationCapacityFromSupport(colony: PlanetColonyState, techStat
   }
 }
 
-/**
- * Process one refinery building for a single tick.
- *
- * @param b      - the placed building to process
- * @param colony - mutable colony state; chemicalInventory is updated in-place
- * @param rng    - SeededRNG instance seeded from (planetSeed × tickIndex × buildingIndex).
- *   Element selection is fully deterministic: the same inputs always produce the
- *   same element. There is no Math.random() fallback — determinism is a hard
- *   requirement. Seed derivation is handled by the caller (runSingleTick).
- */
-function processRefineryBuilding(
-  b: PlacedBuilding,
-  colony: PlanetColonyState,
-  rng: SeededRNG,
-): Record<string, number> {
-  const produced: Record<string, number> = {};
-
-  // Each refinery produces an element ONLY if the consumption side actually
-  // had enough resource. Previously elements were emitted unconditionally —
-  // mineral=0 colonies still received Ti/Cu/Fe etc., gas_fractionator with
-  // 0 volatiles produced H/He, isotope_centrifuge with 0 isotopes produced U.
-  if (b.type === 'quantum_separator') {
-    // Quantum separator no longer auto-separates per tick — it now runs explicit
-    // 100-unit batch jobs (see game/separation.ts + client handler) so that
-    // elements only ever appear as the result of a deliberate separation.
-    return produced;
-  } else if (b.type === 'gas_fractionator') {
-    if ((colony.resources.volatiles ?? 0) < 2) return produced;
-    const idx = rng.nextInt(0, VOLATILE_ELEMENTS.length - 1);
-    const el = VOLATILE_ELEMENTS[idx];
-    colony.chemicalInventory[el] = (colony.chemicalInventory[el] ?? 0) + 1;
-    produced[el] = (produced[el] ?? 0) + 1;
-  } else if (b.type === 'isotope_centrifuge') {
-    if ((colony.resources.isotopes ?? 0) < 1) return produced;
-    // Deterministic enrichment: mostly U, sometimes Th for late-game chains.
-    const el = rng.next() < 0.75 ? 'U' : 'Th';
-    if (rng.next() < 0.45) {
-      colony.chemicalInventory[el] = (colony.chemicalInventory[el] ?? 0) + 1;
-      produced[el] = (produced[el] ?? 0) + 1;
-    }
-  }
-
-  return produced;
-}

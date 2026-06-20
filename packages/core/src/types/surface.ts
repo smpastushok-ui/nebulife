@@ -420,7 +420,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
   deep_drill: {
     type: 'deep_drill', category: 'extraction',
     name: 'Глибинний бур',
-    description: 'Доступ до глибоких покладів. Дає сильний пасивний видобуток мінералів і шанс рідкісних елементів.',
+    description: 'Доступ до глибоких покладів. Дає сильний пасивний видобуток мінералів.',
     size: 1, sizeW: 1, sizeH: 1,
     requiresTerrain: HIGH_TERRAIN,
     cost: [{ resource: 'minerals', amount: 25 }, { resource: 'volatiles', amount: 12 }, { resource: 'isotopes', amount: 3 }],
@@ -620,8 +620,8 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     cost: [{ resource: 'minerals', amount: 30 }, { resource: 'volatiles', amount: 15 }, { resource: 'isotopes', amount: 5 }],
     levelRequired: 50, techRequired: 'chem-q-sep', maxPerPlanet: 2,
     energyOutput: 0, energyConsumption: 12, energyStorageAdd: 0,
-    production: [], // batch processing, handled by production.ts
-    consumption: [{ resource: 'minerals', amount: 4 }, { resource: 'water', amount: 0.03 }],
+    production: [], // manual batch processing, handled by game/separation.ts
+    consumption: [],
     allowedPlanetTypes: ROCKY_DWARF, requiresAtmosphere: false,
     storageCapacityAdd: 0, populationCapacityAdd: 0, fogRevealRadius: 0,
   },
@@ -629,14 +629,14 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
   gas_fractionator: {
     type: 'gas_fractionator', category: 'chemistry',
     name: 'Газовий фракціонатор',
-    description: 'L50-фракціонатор летких речовин. Витягує H/He/N/C/S для біосфери, реакторів і синтезу.',
+    description: 'L50-фракціонатор летких речовин. Ручними партіями розділяє леткі ресурси на H/He/N/C/S.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: LAND_TERRAIN,
     cost: [{ resource: 'minerals', amount: 35 }, { resource: 'volatiles', amount: 20 }, { resource: 'isotopes', amount: 5 }],
     levelRequired: 50, techRequired: 'chem-fraction', maxPerPlanet: 2,
     energyOutput: 0, energyConsumption: 14, energyStorageAdd: 0,
     production: [],
-    consumption: [{ resource: 'volatiles', amount: 4 }, { resource: 'water', amount: 0.02 }],
+    consumption: [],
     allowedPlanetTypes: ROCKY_DWARF, requiresAtmosphere: false,
     storageCapacityAdd: 0, populationCapacityAdd: 0, fogRevealRadius: 0,
   },
@@ -644,7 +644,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
   isotope_centrifuge: {
     type: 'isotope_centrifuge', category: 'chemistry',
     name: 'Ізотопна центрифуга',
-    description: 'L50-збагачення ізотопів. Дає U/Th для термоядерної енергетики, Ковчега Генезису й ендгейм-будівництва.',
+    description: 'L50-збагачення ізотопів. Ручними партіями розділяє ізотопи на U/Th для ендгейму.',
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: LAND_TERRAIN,
     // No U in cost — the centrifuge is what *produces* U, so requiring it to
@@ -653,10 +653,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     levelRequired: 50, techRequired: 'chem-isotope', maxPerPlanet: 2,
     energyOutput: 0, energyConsumption: 16, energyStorageAdd: 0,
     production: [],
-    // Consumption rebalanced 1.0 → 0.4/tick (60 → 24 ISO/hr) so 3× isotope
-    // collectors (now 45 ISO/hr) cover one centrifuge with surplus instead
-    // of starving it. U output stays ~10/hr (24 ISO × 0.4 chance).
-    consumption: [{ resource: 'isotopes', amount: 0.6 }, { resource: 'water', amount: 0.02 }],
+    consumption: [],
     allowedPlanetTypes: ROCKY_DWARF, requiresAtmosphere: false,
     storageCapacityAdd: 0, populationCapacityAdd: 0, fogRevealRadius: 0,
   },

@@ -7,7 +7,8 @@ import { ResourceIcon, RESOURCE_COLORS } from './ResourceIcon.js';
 // ---------------------------------------------------------------------------
 // ResourceDisplay -- two HUD elements:
 //   1. Timer — fixed bottom-center (doomsday clock)
-//   2. Resources — fixed top-center, always shows TOTALS across all colonies
+//   2. Global resources — fixed top-center. Planet-local bulk resources are
+//      shown by ResourceWidget on the surface view.
 // ---------------------------------------------------------------------------
 
 interface ColonyResourceValues {
@@ -68,6 +69,8 @@ interface ResourceDisplayProps {
    * App.tsx topBarMode). Defaults to true.
    */
   showResources?: boolean;
+  /** When false, hide the four planet-local bulk resources from this global HUD. */
+  showColonyResources?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -204,6 +207,7 @@ export function ResourceDisplay({
   observatoryUsed = 0, observatoryTotal = 0,
   highlightResearchData = false,
   showResources = true,
+  showColonyResources = true,
 }: ResourceDisplayProps) {
   const { t } = useTranslation();
   const [hoverTimer, setHoverTimer] = useState(false);
@@ -271,7 +275,8 @@ export function ResourceDisplay({
         </div>
       )}
 
-      {/* Resources — fixed top-center. Always shows totals across all colonies. */}
+      {/* Resources — fixed top-center. Bulk colony resources are optional because
+          the surface has its own planet-local ResourceWidget. */}
       {showResources && (
       <div
         style={{
@@ -324,8 +329,8 @@ export function ResourceDisplay({
         </div>
         <div style={dividerStyle} />
 
-        {/* Colony resources (Phase 2+) — always totals */}
-        {!isExodusPhase && (
+        {/* Colony resources (Phase 2+) — global totals, hidden on surface. */}
+        {!isExodusPhase && showColonyResources && (
           <>
             <div
               style={itemHoverStyle('min')}
