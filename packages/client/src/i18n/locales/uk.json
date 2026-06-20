@@ -1570,7 +1570,8 @@
     "label_habitability": "ПРИДАТНIСТЬ",
     "label_type": "ТИП",
     "label_temperature": "ТЕМПЕРАТУРА",
-    "found_colony_btn": "ЗАСНУВАТИ КОЛОНIЮ"
+    "found_colony_btn": "ЗАСНУВАТИ КОЛОНIЮ",
+    "founded_arrival": "Колонізаційний корабель прибув на {{planet}}. Колонію засновано, центр колонії розгорнуто."
   },
   "guest": {
     "reminder_prefix": "Шановний Президенте, щоб зберегти ваш прогрес в освоєнні космосу —",
@@ -2697,6 +2698,7 @@
     "depleted": "Вичерпано",
     "planet_richness": "Багатство планети",
     "stock_pct": "{{pct}}% вiд початкового",
+    "stock_units": "{{remaining}} / {{initial}} од. · {{status}}",
     "deposit_minerals": "Мiнерали",
     "deposit_volatiles": "Леткі речовини",
     "deposit_isotopes": "Iзотопи",

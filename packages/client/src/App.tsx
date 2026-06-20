@@ -11,6 +11,7 @@ import {
   sendHeartbeat,
   recordDestruction,
   getDestroyedPlanetIds,
+  claimPlanet,
 } from './multiplayer/cluster-state.js';
 import { QuarkToastRenderer, enqueueQuarkToast } from './ui/components/QuarkToastQueue.js';
 import { WarpTransition } from './ui/components/WarpTransition.js';
@@ -2218,6 +2219,7 @@ function AppInner() {
   dailyDirectivesRef.current = dailyDirectives;
   const [directiveStreak, setDirectiveStreak] = useState(0);
   const [directiveClaimedToday, setDirectiveClaimedToday] = useState(false);
+  const [directiveClaimStatusLoaded, setDirectiveClaimStatusLoaded] = useState(false);
   const [directiveClaiming, setDirectiveClaiming] = useState(false);
   const [opsRewardSeenDate, setOpsRewardSeenDate] = useState<string | null>(() => {
     try {
@@ -4328,10 +4330,99 @@ function AppInner() {
     setColonyFoundingTarget({ system, planet, shipId: ship.id });
   }, [tr]);
 
+  const ensureColonyHubInHexSlots = useCallback((systemId: string, planetId: string): void => {
+    try {
+      const scopedKey = `nebulife_hex_slots_${systemId}_${planetId}`;
+      const raw = localStorage.getItem(scopedKey);
+      if (!raw) return;
+      const slots = JSON.parse(raw) as Array<{
+        id: string;
+        ring?: number;
+        index?: number;
+        state?: string;
+        buildingType?: string;
+        buildingLevel?: number;
+      }>;
+      if (!Array.isArray(slots) || slots.some((slot) => slot.buildingType === 'colony_hub')) return;
+      const hubIndex = slots.findIndex((slot) => slot.ring === 0 || slot.id === 'ring0-0' || slot.id === 'd4-2');
+      const targetIndex = hubIndex >= 0 ? hubIndex : 0;
+      if (!slots[targetIndex]) return;
+      slots[targetIndex] = {
+        ...slots[targetIndex],
+        state: 'building',
+        buildingType: 'colony_hub',
+        buildingLevel: Math.max(1, slots[targetIndex].buildingLevel ?? 1),
+      };
+      const serialized = JSON.stringify(slots);
+      localStorage.setItem(scopedKey, serialized);
+      if (
+        localStorage.getItem('nebulife_hex_slots_system_id') === systemId
+        && localStorage.getItem('nebulife_hex_slots_planet_id') === planetId
+      ) {
+        localStorage.setItem('nebulife_hex_slots', serialized);
+      }
+    } catch { /* ignore malformed legacy surface slots */ }
+  }, []);
+
+  const foundColonyFromShipArrival = useCallback((system: StarSystem, planet: Planet, now: number): boolean => {
+    if (colonizedPlanetsRef.current[planet.id]) return false;
+
+    const record: ColonizedPlanetRecord = {
+      systemId: system.id,
+      foundedAt: now,
+      population: COLONY_CENTER_POPULATION,
+    };
+    const nextColonies = mergeColonizedPlanets(colonizedPlanetsRef.current, { [planet.id]: record });
+    colonizedPlanetsRef.current = nextColonies;
+    setColonizedPlanets(nextColonies);
+    try { localStorage.setItem('nebulife_colonized_planets', JSON.stringify(nextColonies)); } catch { /* ignore */ }
+
+    ensureColonyHubInHexSlots(system.id, planet.id);
+
+    if (surfaceTargetRef.current?.system.id === system.id && surfaceTargetRef.current?.planet.id === planet.id) {
+      const existing = colonyStateRef.current?.planetId === planet.id
+        ? colonyStateRef.current
+        : createPlanetColonyState(planet.id);
+      const hasHub = existing.buildings.some((building) => building.type === 'colony_hub');
+      const hub: PlacedBuilding = {
+        id: `${planet.id}-colony-hub`,
+        type: 'colony_hub',
+        x: 0,
+        y: 0,
+        level: 1,
+        builtAt: new Date(now).toISOString(),
+      };
+      setColonyState(runImmediateEnergyCheck({
+        ...existing,
+        population: {
+          current: Math.max(existing.population.current, COLONY_CENTER_POPULATION),
+          capacity: Math.max(existing.population.capacity, COLONY_CENTER_POPULATION),
+        },
+        buildings: hasHub ? existing.buildings : [hub, ...existing.buildings],
+        lastTickAt: now,
+      }));
+    }
+
+    void claimPlanet({ systemId: system.id, planetId: planet.id, colonyLevel: 1 }).catch((err) => {
+      console.warn('[colony] failed to persist planet claim:', err);
+    });
+    void trackEvent('colony_founded', {
+      system_id: system.id,
+      planet_id: planet.id,
+      habitability: Number((planet.habitability?.overall ?? 0).toFixed(3)),
+      source: 'colony_ship_arrival',
+    });
+    awardXP(XP_REWARDS.COLONY_FOUNDED, 'colony_founded');
+    setToastMessage(tr('colony.founded_arrival', { planet: planet.name }));
+    window.setTimeout(() => setToastMessage(null), 4500);
+    return true;
+  }, [awardXP, ensureColonyHubInHexSlots, runImmediateEnergyCheck, tr]);
+
   useEffect(() => {
     const id = window.setInterval(() => {
       const now = Date.now();
       let changed = false;
+      const arrivedColonies: Array<{ system: StarSystem; planet: Planet }> = [];
       setShipFleet((prev) => {
         const nextShips = prev.ships.map((ship) => {
           if (
@@ -4344,22 +4435,36 @@ function AppInner() {
           ) {
             return ship;
           }
+          const system = engineRef.current?.getAllSystems?.()
+            .find((candidateSystem) => candidateSystem.planets.some((candidatePlanet) => candidatePlanet.id === ship.destinationPlanetId));
+          const planet = system?.planets.find((candidatePlanet) => candidatePlanet.id === ship.destinationPlanetId);
+          if (system && planet) arrivedColonies.push({ system, planet });
           changed = true;
+          const canAutoFound = Boolean(system && planet);
           return {
             ...ship,
             status: 'docked' as const,
             currentPlanetId: ship.destinationPlanetId,
             destinationPlanetId: null,
+            cargo: canAutoFound ? { ...ship.cargo, colonists: 0 } : ship.cargo,
             departedAt: null,
             arrivalAt: null,
+            assignmentId: canAutoFound ? null : ship.assignmentId,
           };
         });
         return changed ? { ...prev, ships: nextShips } : prev;
       });
-      if (changed) scheduleSyncToServer();
+      let founded = false;
+      for (const arrival of arrivedColonies) {
+        founded = foundColonyFromShipArrival(arrival.system, arrival.planet, now) || founded;
+      }
+      if (changed) {
+        if (founded) syncNowToServer();
+        else scheduleSyncToServer();
+      }
     }, 1000);
     return () => window.clearInterval(id);
-  }, [scheduleSyncToServer]);
+  }, [foundColonyFromShipArrival, scheduleSyncToServer, syncNowToServer]);
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -10504,6 +10609,7 @@ function AppInner() {
         dailyDirectivesRef.current = normalized;
         setDailyDirectives(normalized);
         setDirectiveClaimedToday(false);
+        setDirectiveClaimStatusLoaded(false);
       }
       setCometSchedule((prev) => {
         const next = getCometSchedule(playerId.current || 'local', now);
@@ -10518,16 +10624,18 @@ function AppInner() {
     return () => clearInterval(id);
   }, [serverHydrated]);
 
-  // Streak info from the server when the hub opens.
+  // Streak info from the server once player state is ready, then refresh when
+  // the hub opens. Until this resolves, don't show a false claimable reward.
   useEffect(() => {
-    if (!showOpsHub || !playerId.current) return;
+    if (!serverHydrated || !playerId.current) return;
     getDirectiveStreakInfo()
       .then((info) => {
         setDirectiveStreak(info.streak);
         setDirectiveClaimedToday(info.claimedToday);
+        setDirectiveClaimStatusLoaded(true);
       })
       .catch(() => { /* offline-tolerant */ });
-  }, [showOpsHub]);
+  }, [serverHydrated, showOpsHub, dailyDirectives.date]);
 
   const handleClaimDirectives = useCallback(() => {
     if (directiveClaiming) return;
@@ -10536,6 +10644,7 @@ function AppInner() {
       .then((result) => {
         setDirectiveStreak(result.streak);
         setDirectiveClaimedToday(true);
+        setDirectiveClaimStatusLoaded(true);
         if (result.credited > 0) {
           window.dispatchEvent(new CustomEvent('nebulife:quark-balance', { detail: result.newBalance }));
           enqueueQuarkToast({ amount: result.credited, reason: 'gift' });
@@ -10556,7 +10665,10 @@ function AppInner() {
   const cometClaimedForCurrent = cometClaims.includes(cometSchedule.occurrenceDate);
   const allDirectivesDoneToday = todaysDirectives.length > 0
     && todaysDirectives.every((d) => (dailyDirectives.progress[d.metric] ?? 0) >= d.target);
-  const directiveRewardReady = allDirectivesDoneToday && !directiveClaimedToday;
+  const directiveRewardReady = serverHydrated
+    && directiveClaimStatusLoaded
+    && allDirectivesDoneToday
+    && !directiveClaimedToday;
   const shouldHighlightOpsReward = directiveRewardReady && opsRewardSeenDate !== dailyDirectives.date;
 
   /** Finish of the 30s tracking — server-validated claim, then local rewards. */
@@ -12042,11 +12154,9 @@ function AppInner() {
   }
 
   // Operations Center — daily directives, cluster rating, signal minigames and
-  // live events. Badge pulses when the directive reward is claimable or the
-  // comet window is open.
+  // live events. Use only the soft green glow for claimable rewards; the old
+  // "!" badge was too noisy and could flash before claim status finished loading.
   {
-    const opsBadge = directiveRewardReady
-      || (cometSchedule.active && !cometClaimedForCurrent);
     toolGroups.push({
       type: 'buttons',
       items: [{
@@ -12055,7 +12165,6 @@ function AppInner() {
         variant: 'terminal' as const,
         tooltip: t('cmd.ops_tooltip'),
         highlight: shouldHighlightOpsReward ? 'success' as const : undefined,
-        badge: opsBadge ? '!' : undefined,
         icon: <CommandModeIcon kind="ops" />,
         onClick: () => {
           playSfx('ui-click', 0.08);
@@ -13913,7 +14022,7 @@ function AppInner() {
           directiveState={dailyDirectives}
           directives={todaysDirectives}
           directiveStreak={directiveStreak}
-          claimedToday={directiveClaimedToday}
+          claimedToday={!directiveClaimStatusLoaded || directiveClaimedToday}
           claiming={directiveClaiming}
           onClaimDirectives={handleClaimDirectives}
           onSignalDecodeWin={handleSignalDecodeWin}

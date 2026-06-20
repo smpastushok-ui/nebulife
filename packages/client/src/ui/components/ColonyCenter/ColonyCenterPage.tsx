@@ -327,6 +327,8 @@ function DepositBar({
   const color = depositColor(pct);
   const isDepleted = remaining <= 0;
   const accentColor = RESOURCE_COLORS[resourceType];
+  const remainingUnits = Math.max(0, Math.floor(remaining));
+  const initialUnits = Math.max(0, Math.floor(initial));
 
   const labelKeyMap: Record<string, string> = {
     minerals:  'colony_center.deposit_minerals',
@@ -351,7 +353,12 @@ function DepositBar({
           </span>
         </div>
         <span style={{ fontSize: 9, color: isDepleted ? '#cc4444' : '#8899aa' }}>
-          {isDepleted ? t('colony_center.depleted') : t('colony_center.stock_pct', { pct })}
+          {t('colony_center.stock_units', {
+            remaining: remainingUnits.toLocaleString(),
+            initial: initialUnits.toLocaleString(),
+            pct,
+            status: isDepleted ? t('colony_center.depleted') : t('colony_center.stock_pct', { pct }),
+          })}
         </span>
       </div>
       <div style={{

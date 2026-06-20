@@ -1572,7 +1572,8 @@
     "label_habitability": "HABITABILITY",
     "label_type": "TYPE",
     "label_temperature": "TEMPERATURE",
-    "found_colony_btn": "FOUND COLONY"
+    "found_colony_btn": "FOUND COLONY",
+    "founded_arrival": "The colony ship has arrived at {{planet}}. Colony founded and Colony Center deployed."
   },
   "guest": {
     "reminder_prefix": "Dear President, to save your space exploration progress —",
@@ -2696,6 +2697,7 @@
     "depleted": "Depleted",
     "planet_richness": "Planet richness",
     "stock_pct": "{{pct}}% of initial",
+    "stock_units": "{{remaining}} / {{initial}} U · {{status}}",
     "deposit_minerals": "Minerals",
     "deposit_volatiles": "Volatiles",
     "deposit_isotopes": "Isotopes",
