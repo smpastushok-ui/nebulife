@@ -1670,10 +1670,12 @@ function ExpandedDetailPanel({
   const hasDroneReport = reportSummary?.missionType === 'drone_recon' || reportSummary?.missionType === 'surface_landing';
   const activeMissionProgress = activeMission ? getPlanetMissionProgress(activeMission, planetMissionClock) : null;
   const availableMissionTypes: PlanetMissionType[] = [
-    'orbital_scan',
-    'orbital_probe',
+    ...(revealLevel < 1 ? ['orbital_scan' as PlanetMissionType] : []),
+    ...(revealLevel >= 1 && revealLevel < 2 ? ['orbital_probe' as PlanetMissionType] : []),
     ...(isSolidPlanetForLanding(planet) && revealLevel >= 2 && revealLevel < 3 && !hasDroneReport ? ['drone_recon' as PlanetMissionType] : []),
-    isSolidPlanetForLanding(planet) ? 'surface_landing' : 'deep_atmosphere_probe',
+    ...(revealLevel >= 2 && revealLevel < 3
+      ? [isSolidPlanetForLanding(planet) ? 'surface_landing' as PlanetMissionType : 'deep_atmosphere_probe' as PlanetMissionType]
+      : []),
   ];
   const missionTypes: PlanetMissionType[] = explorationMissionsDisabled
     ? []

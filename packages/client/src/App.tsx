@@ -3880,7 +3880,10 @@ function AppInner() {
 
   const getEffectivePlanetRevealLevel = useCallback((planet: Planet, system?: StarSystem | null): PlanetRevealLevel => {
     if (planet.isHomePlanet || (homeInfo?.planet.id && planet.id === homeInfo.planet.id)) return 3;
-    const stored = getPlanetScopedValue(planetRevealLevels, system?.id, planet.id) ?? 0;
+    const scopedKey = system?.id ? planetObjectKey(system.id, planet.id) : null;
+    const scoped = scopedKey ? planetRevealLevels[scopedKey] : undefined;
+    const hasScopedForPlanet = Object.keys(planetRevealLevels).some((key) => key.endsWith(`::${planet.id}`));
+    const stored = scoped ?? (hasScopedForPlanet ? 0 : planetRevealLevels[planet.id] ?? 0);
     const systemResearched = system?.id ? isSystemFullyResearched(researchState, system.id) : false;
     return Math.max(stored, systemResearched ? 1 : 0) as PlanetRevealLevel;
   }, [homeInfo?.planet.id, planetRevealLevels, researchState]);
@@ -4676,7 +4679,7 @@ function AppInner() {
           reportsToAdd.push(completed.report);
           const missionPlanetKey = planetObjectKey(mission.systemId, mission.planetId);
           revealUpdates[missionPlanetKey] = Math.max(
-            planetRevealLevels[missionPlanetKey] ?? planetRevealLevels[mission.planetId] ?? 0,
+            planetRevealLevels[missionPlanetKey] ?? 0,
             mission.targetRevealLevel,
           ) as PlanetRevealLevel;
           changed = true;
@@ -4816,7 +4819,8 @@ function AppInner() {
     const systemId = state.selectedSystem.id;
     const statuses = state.selectedSystem.planets.map((planet) => {
       const planetKey = planetObjectKey(systemId, planet.id);
-      const revealLevel = planetRevealLevels[planetKey] ?? planetRevealLevels[planet.id] ?? 0;
+      const hasScopedForPlanet = Object.keys(planetRevealLevels).some((key) => key.endsWith(`::${planet.id}`));
+      const revealLevel = planetRevealLevels[planetKey] ?? (hasScopedForPlanet ? 0 : planetRevealLevels[planet.id] ?? 0);
       const report = planetReports[planetKey] ?? planetReports[planet.id];
       const colonyStateForPlanet = colonyState?.planetId === planet.id ? colonyState : undefined;
       const tfState = terraformStates[planetKey] ?? terraformStates[planet.id];

@@ -16,6 +16,7 @@ import {
   ONE_SHOT_PAYLOAD_TYPES,
   PRODUCIBLE_DEFS,
   RESEARCH_TRANSPORT_TYPES,
+  canStartPlanetMission,
   createEmptyManifest,
   isShipProducible,
   getRequiredMissionBuilding,
@@ -139,6 +140,87 @@ const fleetState: FleetState = {
 check(fleetState.cargoShipments?.[0]?.resource === 'water', 'cargo shipments persist water manifests');
 check(fleetState.ships[0].assignmentId === cargoShipment.id, 'cargo shipment reserves a concrete ship');
 check(PRODUCIBLE_DEFS.terraform_freighter.cargoCapacity > PRODUCIBLE_DEFS.transport_small.cargoCapacity, 'terraform_freighter: heavier than small transport');
+
+const missionPlanet = {
+  id: 'mission-planet',
+  type: 'rocky',
+  orbit: { semiMajorAxisAU: 1 },
+  surfaceTempK: 288,
+  surfaceGravityG: 1,
+} as const;
+const missionResources = {
+  researchData: 100,
+  minerals: 1000,
+  volatiles: 1000,
+  isotopes: 1000,
+  water: 1000,
+};
+const missionBuildingInventory = [{ id: 'pad-1', type: 'landing_pad', x: 0, y: 0, level: 1, builtAt: new Date(0).toISOString() }];
+const missionPayloadInventory = {
+  survey_probe: 1,
+  orbital_satellite: 1,
+  surface_rover: 1,
+  atmosphere_probe: 1,
+  scout_drone: 1,
+};
+const missionCarrierInventory = {
+  research_shuttle: 1,
+  rover_dropcraft: 1,
+  atmo_probe_carrier: 1,
+};
+
+check(
+  canStartPlanetMission({
+    type: 'orbital_scan',
+    planet: missionPlanet as never,
+    revealLevel: 1,
+    activeMissions: [],
+    buildings: missionBuildingInventory as never,
+    resources: missionResources,
+    payloadInventory: missionPayloadInventory,
+    carrierInventory: missionCarrierInventory,
+  }).reason === 'already_revealed',
+  'mission launch: completed orbital scan is blocked at T1',
+);
+check(
+  canStartPlanetMission({
+    type: 'orbital_probe',
+    planet: missionPlanet as never,
+    revealLevel: 1,
+    activeMissions: [],
+    buildings: missionBuildingInventory as never,
+    resources: missionResources,
+    payloadInventory: missionPayloadInventory,
+    carrierInventory: missionCarrierInventory,
+  }).canStart,
+  'mission launch: orbital probe is available at T1',
+);
+check(
+  canStartPlanetMission({
+    type: 'orbital_probe',
+    planet: missionPlanet as never,
+    revealLevel: 2,
+    activeMissions: [],
+    buildings: missionBuildingInventory as never,
+    resources: missionResources,
+    payloadInventory: missionPayloadInventory,
+    carrierInventory: missionCarrierInventory,
+  }).reason === 'already_revealed',
+  'mission launch: completed orbital probe is blocked at T2',
+);
+check(
+  canStartPlanetMission({
+    type: 'surface_landing',
+    planet: missionPlanet as never,
+    revealLevel: 2,
+    activeMissions: [],
+    buildings: missionBuildingInventory as never,
+    resources: missionResources,
+    payloadInventory: missionPayloadInventory,
+    carrierInventory: missionCarrierInventory,
+  }).canStart,
+  'mission launch: surface expedition is available at T2',
+);
 
 console.log(`\nResult: ${passed} passed, ${failed} failed\n`);
 
