@@ -80,6 +80,14 @@ function formatNumber(n: number): string {
   return formatShort(n);
 }
 
+function planetScopedKey(systemId: string, planetId: string): string {
+  return `${systemId}::${planetId}`;
+}
+
+function hasColonyId(ids: Set<string>, systemId: string, planetId: string): boolean {
+  return ids.has(planetScopedKey(systemId, planetId)) || ids.has(planetId);
+}
+
 // ---------------------------------------------------------------------------
 // PlanetThumbnail
 // ---------------------------------------------------------------------------
@@ -372,7 +380,7 @@ export function ColoniesList({
   const entries: ColonyEntry[] = [];
   for (const sys of allSystems) {
     for (const planet of sys.planets) {
-      if (colonyPlanetIds.has(planet.id)) {
+      if (hasColonyId(colonyPlanetIds, sys.id, planet.id)) {
         entries.push({ system: sys, planet });
       }
     }
@@ -402,19 +410,20 @@ export function ColoniesList({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       {entries.map(({ system, planet }) => {
-        const tfState = terraformStates?.[planet.id];
+        const scopedKey = planetScopedKey(system.id, planet.id);
+        const tfState = terraformStates?.[scopedKey] ?? terraformStates?.[planet.id];
         // Keep terraform data for potential future display; not shown in new layout
         void (tfState ? getOverallProgress(tfState) : null);
 
         const res = resourcesByPlanet
-          ? (resourcesByPlanet[planet.id] ?? null)
+          ? (resourcesByPlanet[scopedKey] ?? resourcesByPlanet[planet.id] ?? null)
           : planet.isHomePlanet ? (colonyResources ?? null) : null;
 
-        const state = colonyStateByPlanet?.[planet.id];
+        const state = colonyStateByPlanet?.[scopedKey] ?? colonyStateByPlanet?.[planet.id];
 
         return (
           <ColonyRow
-            key={planet.id}
+            key={scopedKey}
             entry={{ system, planet }}
             systemName={aliases[system.id] ?? system.name}
             resources={res}

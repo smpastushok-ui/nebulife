@@ -667,6 +667,7 @@ interface SyncedGameState {
   // Retention: daily directives progress + claimed comet occurrences
   daily_directives?: DailyDirectiveState;
   comet_claims?: string[];
+  system_notifs?: unknown[];
   // Metadata
   synced_at: number;
   last_regen_time?: number;
@@ -717,6 +718,104 @@ function mergeColonizedPlanets(
     }
   }
   return out;
+}
+
+function colonizedPlanetKey(systemId: string, planetId: string): string {
+  return systemId ? planetObjectKey(systemId, planetId) : planetId;
+}
+
+function getColonizedPlanetRecord(
+  map: Record<string, ColonizedPlanetRecord>,
+  systemId: string | null | undefined,
+  planetId: string,
+): ColonizedPlanetRecord | undefined {
+  if (systemId) {
+    const scoped = map[colonizedPlanetKey(systemId, planetId)];
+    if (scoped) return scoped;
+  }
+  const legacy = map[planetId];
+  if (legacy && (!systemId || !legacy.systemId || legacy.systemId === systemId)) return legacy;
+  return Object.entries(map).find(([key, record]) => (
+    barePlanetKey(key) === planetId && (!systemId || !record.systemId || record.systemId === systemId)
+  ))?.[1];
+}
+
+function normalizeSystemNotifs(value: unknown): SystemNotif[] {
+  if (!Array.isArray(value)) return [];
+  const out: SystemNotif[] = [];
+  for (const raw of value) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) continue;
+    const entry = raw as Record<string, unknown>;
+    if (typeof entry.id !== 'string' || typeof entry.text !== 'string') continue;
+    const timestamp = typeof entry.timestamp === 'number' && Number.isFinite(entry.timestamp)
+      ? entry.timestamp
+      : Date.now();
+    out.push({
+      ...(entry as unknown as SystemNotif),
+      id: entry.id,
+      text: entry.text,
+      planetName: typeof entry.planetName === 'string' ? entry.planetName : '',
+      systemId: typeof entry.systemId === 'string' ? entry.systemId : '',
+      planetId: typeof entry.planetId === 'string' ? entry.planetId : '',
+      timestamp,
+      read: Boolean(entry.read),
+    });
+  }
+  return out;
+}
+
+function mergeSystemNotifs(...lists: Array<SystemNotif[] | undefined>): SystemNotif[] {
+  const byId = new Map<string, SystemNotif>();
+  for (const list of lists) {
+    for (const notif of list ?? []) {
+      const existing = byId.get(notif.id);
+      byId.set(notif.id, existing ? { ...existing, ...notif, read: existing.read || notif.read } : notif);
+    }
+  }
+  return [...byId.values()].sort((a, b) => a.timestamp - b.timestamp).slice(-120);
+}
+
+function normalizeLogEntries(value: unknown): LogEntry[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((entry): entry is LogEntry => (
+    Boolean(entry)
+    && typeof entry === 'object'
+    && !Array.isArray(entry)
+    && typeof (entry as { id?: unknown }).id === 'string'
+    && typeof (entry as { text?: unknown }).text === 'string'
+    && typeof (entry as { timestamp?: unknown }).timestamp === 'number'
+  ));
+}
+
+function mergeLogEntries(...lists: Array<LogEntry[] | undefined>): LogEntry[] {
+  const byId = new Map<string, LogEntry>();
+  for (const list of lists) {
+    for (const entry of list ?? []) {
+      byId.set(entry.id, entry);
+    }
+  }
+  return [...byId.values()].sort((a, b) => a.timestamp - b.timestamp).slice(-200);
+}
+
+function createColonyStateFromRecord(planetId: string, record: ColonizedPlanetRecord): PlanetColonyState {
+  const state = createPlanetColonyState(planetId);
+  const population = Math.max(COLONY_CENTER_POPULATION, record.population);
+  return {
+    ...state,
+    population: {
+      current: population,
+      capacity: population,
+    },
+    buildings: [{
+      id: `${planetId}-colony-hub`,
+      type: 'colony_hub',
+      x: 0,
+      y: 0,
+      level: 1,
+      builtAt: new Date(record.foundedAt).toISOString(),
+    }],
+    lastTickAt: record.foundedAt,
+  };
 }
 
 type SurfaceAccessMode = 'survey' | 'colony' | 'orbital';
@@ -3081,7 +3180,7 @@ function AppInner() {
       .filter((ship) => ship.type === 'colony_ship' && isColonyShipAssignment(ship.assignmentId))
       .filter((ship) => {
         const targetPlanetId = ship.destinationPlanetId ?? ship.currentPlanetId;
-        return Boolean(targetPlanetId && !colonizedPlanets[targetPlanetId]);
+        return Boolean(targetPlanetId && !Object.keys(colonizedPlanets).some((key) => barePlanetKey(key) === targetPlanetId));
       })
       .map((ship) => {
         const targetPlanetId = ship.destinationPlanetId ?? ship.currentPlanetId ?? '';
@@ -3810,13 +3909,17 @@ function AppInner() {
     const seen = new Set<string>();
     const allSystems = engineRef.current?.getAllSystems?.() ?? [];
 
-    const addPlanetById = (planetId?: string | null) => {
-      if (!planetId || seen.has(planetId)) return;
-      const system = allSystems.find((candidate) => candidate.planets.some((planet) => planet.id === planetId));
+    const addPlanetById = (planetId?: string | null, preferredSystemId?: string | null) => {
+      if (!planetId) return;
+      const system = preferredSystemId
+        ? allSystems.find((candidate) => candidate.id === preferredSystemId && candidate.planets.some((planet) => planet.id === planetId))
+        : allSystems.find((candidate) => candidate.planets.some((planet) => planet.id === planetId));
       const planet = system?.planets.find((candidate) => candidate.id === planetId);
+      const key = system ? colonizedPlanetKey(system.id, planetId) : planetId;
+      if (seen.has(key)) return;
       if (!planet) return;
       planets.push(planet);
-      seen.add(planet.id);
+      seen.add(key);
     };
 
     // Check the current surface planet for colony_hub
@@ -3829,22 +3932,24 @@ function AppInner() {
           const hasHub = slots.some(
             (s) => s.state === 'building' && s.buildingType === 'colony_hub',
           );
-          if (hasHub && !seen.has(surfCtx.planet.id)) {
+          const surfKey = colonizedPlanetKey(surfCtx.system.id, surfCtx.planet.id);
+          if (hasHub && !seen.has(surfKey)) {
             planets.push(surfCtx.planet);
-            seen.add(surfCtx.planet.id);
+            seen.add(surfKey);
           }
         }
       } catch { /* ignore */ }
     }
 
     // Also include homeInfo planet if it's a colony (exodus phase complete)
-    if (!isExodusPhase && homeInfo?.planet && !seen.has(homeInfo.planet.id)) {
+    const homeKey = homeInfo ? colonizedPlanetKey(homeInfo.system.id, homeInfo.planet.id) : null;
+    if (!isExodusPhase && homeInfo?.planet && homeKey && !seen.has(homeKey)) {
       planets.push(homeInfo.planet);
-      seen.add(homeInfo.planet.id);
+      seen.add(homeKey);
     }
 
-    for (const [planetId] of Object.entries(colonizedPlanetsRef.current)) {
-      addPlanetById(planetId);
+    for (const [key, record] of Object.entries(colonizedPlanetsRef.current)) {
+      addPlanetById(barePlanetKey(key), record.systemId);
     }
 
     return planets;
@@ -3855,9 +3960,11 @@ function AppInner() {
     const systems: StarSystem[] = [];
     const seen = new Set<string>();
 
-    const addPlanetSystem = (planetId?: string | null) => {
+    const addPlanetSystem = (planetId?: string | null, preferredSystemId?: string | null) => {
       if (!planetId) return;
-      const system = allSystems.find((candidate) => candidate.planets.some((planet) => planet.id === planetId));
+      const system = preferredSystemId
+        ? allSystems.find((candidate) => candidate.id === preferredSystemId && candidate.planets.some((planet) => planet.id === planetId))
+        : allSystems.find((candidate) => candidate.planets.some((planet) => planet.id === planetId));
       if (system && !seen.has(system.id)) {
         systems.push(system);
         seen.add(system.id);
@@ -3867,6 +3974,9 @@ function AppInner() {
     if (homeInfo?.planet.id) addPlanetSystem(homeInfo.planet.id);
     if (colonyState?.buildings?.some((building) => building.type === 'colony_hub')) {
       addPlanetSystem(colonyState.planetId);
+    }
+    for (const [key, record] of Object.entries(colonizedPlanetsRef.current)) {
+      addPlanetSystem(barePlanetKey(key), record.systemId);
     }
     for (const planet of getColonyPlanets()) {
       addPlanetSystem(planet.id);
@@ -4365,14 +4475,14 @@ function AppInner() {
   }, []);
 
   const foundColonyFromShipArrival = useCallback((system: StarSystem, planet: Planet, now: number): boolean => {
-    if (colonizedPlanetsRef.current[planet.id]) return false;
+    if (getColonizedPlanetRecord(colonizedPlanetsRef.current, system.id, planet.id)) return false;
 
     const record: ColonizedPlanetRecord = {
       systemId: system.id,
       foundedAt: now,
       population: COLONY_CENTER_POPULATION,
     };
-    const nextColonies = mergeColonizedPlanets(colonizedPlanetsRef.current, { [planet.id]: record });
+    const nextColonies = mergeColonizedPlanets(colonizedPlanetsRef.current, { [colonizedPlanetKey(system.id, planet.id)]: record });
     colonizedPlanetsRef.current = nextColonies;
     setColonizedPlanets(nextColonies);
     try { localStorage.setItem('nebulife_colonized_planets', JSON.stringify(nextColonies)); } catch { /* ignore */ }
@@ -4915,7 +5025,7 @@ function AppInner() {
             assessmentText: assessment.logText,
           }];
         });
-        setSystemNotifs((prev) => [...prev, ...missionNotifs, ...terraformNotifs.map(({ assessmentText, ...notif }) => notif)]);
+        setSystemNotifs((prev) => mergeSystemNotifs(prev, missionNotifs, terraformNotifs.map(({ assessmentText, ...notif }) => notif)));
         setLogEntries((prev) => [
           ...prev,
           ...missionNotifs.map((notif, index) => ({
@@ -5368,13 +5478,18 @@ function AppInner() {
     try { localStorage.setItem('nebulife_game_started_at', String(now)); } catch { /* ignore */ }
   }, [isExodusPhase, needsOnboarding, gameStartedAt, serverHydrated]);
 
-  const [systemNotifs, setSystemNotifs] = useState<SystemNotif[]>([]);
+  const [systemNotifs, setSystemNotifs] = useState<SystemNotif[]>(() => {
+    try {
+      return normalizeSystemNotifs(JSON.parse(localStorage.getItem('nebulife_system_notifs') ?? 'null'));
+    } catch {
+      return [];
+    }
+  });
   const [logEntries, setLogEntries] = useState<LogEntry[]>(() => {
     try {
       const saved = localStorage.getItem('nebulife_log_entries');
       if (saved) {
-        const parsed = JSON.parse(saved) as LogEntry[];
-        if (Array.isArray(parsed)) return parsed;
+        return normalizeLogEntries(JSON.parse(saved));
       }
     } catch { /* ignore */ }
     return [];
@@ -5450,9 +5565,15 @@ function AppInner() {
   // Persist log entries to localStorage on every change
   useEffect(() => {
     try {
-      localStorage.setItem('nebulife_log_entries', JSON.stringify(logEntries));
+      localStorage.setItem('nebulife_log_entries', JSON.stringify(mergeLogEntries(logEntries)));
     } catch { /* ignore quota errors */ }
   }, [logEntries]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('nebulife_system_notifs', JSON.stringify(mergeSystemNotifs(systemNotifs)));
+    } catch { /* ignore quota errors */ }
+  }, [systemNotifs]);
 
   useEffect(() => {
     if (!playerId.current) return;
@@ -5731,7 +5852,7 @@ function AppInner() {
       'nebulife_player_xp', 'nebulife_player_level', 'nebulife_research_state',
       'nebulife_tech_tree', 'nebulife_player_stats', 'nebulife_research_data',
       'nebulife_colony_resources', 'nebulife_colony_resources_updated_at', 'nebulife_chemical_inventory', 'nebulife_chemical_inventory_by_planet', 'nebulife_colony_state', 'nebulife_exodus_phase', 'nebulife_tutorial_step',
-      'nebulife_log_entries', 'nebulife_onboarding_done', 'nebulife_scene',
+      'nebulife_log_entries', 'nebulife_system_notifs', 'nebulife_onboarding_done', 'nebulife_scene',
       'nebulife_nav_system', 'nebulife_nav_planet', 'nebulife_destroyed_planets',
       'nebulife_favorite_planets', 'nebulife_favorite_planets_updated_at', 'nebulife_game_started_at', 'nebulife_time_multiplier',
       'nebulife_accel_at', 'nebulife_game_time_at_accel', 'nebulife_clock_revealed',
@@ -6365,9 +6486,23 @@ function AppInner() {
     }
 
     // Log entries (бортовий журнал)
-    if (Array.isArray(gs.log_entries) && gs.log_entries.length > 0) {
-      setLogEntries(gs.log_entries as LogEntry[]);
-      try { localStorage.setItem('nebulife_log_entries', JSON.stringify(gs.log_entries)); } catch { /* ignore */ }
+    if (Array.isArray(gs.log_entries)) {
+      const localEntries = (() => {
+        try { return normalizeLogEntries(JSON.parse(localStorage.getItem('nebulife_log_entries') ?? 'null')); }
+        catch { return []; }
+      })();
+      const mergedEntries = mergeLogEntries(normalizeLogEntries(gs.log_entries), localEntries);
+      setLogEntries(mergedEntries);
+      try { localStorage.setItem('nebulife_log_entries', JSON.stringify(mergedEntries)); } catch { /* ignore */ }
+    }
+    if (Array.isArray(gs.system_notifs)) {
+      const localNotifs = (() => {
+        try { return normalizeSystemNotifs(JSON.parse(localStorage.getItem('nebulife_system_notifs') ?? 'null')); }
+        catch { return []; }
+      })();
+      const mergedNotifs = mergeSystemNotifs(normalizeSystemNotifs(gs.system_notifs), localNotifs);
+      setSystemNotifs(mergedNotifs);
+      try { localStorage.setItem('nebulife_system_notifs', JSON.stringify(mergedNotifs)); } catch { /* ignore */ }
     }
     // Favorite planets
     if (Array.isArray(gs.favorite_planets)) {
@@ -8325,7 +8460,7 @@ function AppInner() {
 
   const isPlanetColonized = useCallback((system: StarSystem | null | undefined, planet: Planet): boolean => {
     if (planet.isHomePlanet || planet.id === homeInfo?.planet.id) return true;
-    if (colonizedPlanets[planet.id]) return true;
+    if (getColonizedPlanetRecord(colonizedPlanets, system?.id, planet.id)) return true;
     if (colonyState?.planetId === planet.id && colonyState.buildings.some((building) => building.type === 'colony_hub')) return true;
     return getColonyPlanets().some((colonyPlanet) => colonyPlanet.id === planet.id);
   }, [colonizedPlanets, colonyState, getColonyPlanets, homeInfo?.planet.id]);
@@ -10035,9 +10170,7 @@ function AppInner() {
 
   // ── System notification helper ────────────────────────────────────────
   const addSystemNotif = useCallback((planetName: string, systemId: string, planetId: string) => {
-    setSystemNotifs((prev) => [
-      ...prev,
-      {
+    setSystemNotifs((prev) => mergeSystemNotifs(prev, [{
         id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         text: t('app.notif.quantum_synth').replace('{planet}', planetName),
         planetName,
@@ -10045,16 +10178,13 @@ function AppInner() {
         planetId,
         timestamp: Date.now(),
         read: false,
-      },
-    ]);
+      }]));
   }, []);
 
   /** System-chat notification about a found lifeform with a "view specimen"
    *  button — lets the player postpone the reveal and return to it later. */
   const addLifeformFoundNotif = useCallback((lifeformId: string, planetName: string, systemId: string, planetId: string) => {
-    setSystemNotifs((prev) => [
-      ...prev,
-      {
+    setSystemNotifs((prev) => mergeSystemNotifs(prev, [{
         id: `notif-lf-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         text: t('app.notif.lifeform_found').replace('{planet}', planetName),
         planetName,
@@ -10063,8 +10193,7 @@ function AppInner() {
         lifeformId,
         timestamp: Date.now(),
         read: false,
-      },
-    ]);
+      }]));
   }, []);
 
   /** System-chat notification for a completed observatory search. Hits carry
@@ -10081,9 +10210,7 @@ function AppInner() {
           ? t('observatory.notif_duplicate').replace('{name}', name ?? discovery.type)
           : t('observatory.notif_found').replace('{name}', name ?? discovery.type))
       : t('observatory.notif_no_signal');
-    setSystemNotifs((prev) => [
-      ...prev,
-      {
+    setSystemNotifs((prev) => mergeSystemNotifs(prev, [{
         id: `notif-obs-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         text,
         planetName,
@@ -10092,8 +10219,7 @@ function AppInner() {
         timestamp: Date.now(),
         read: false,
         discovery: discovery ?? undefined,
-      },
-    ]);
+      }]));
   }, [t, homeInfo]);
 
   /**
@@ -10102,9 +10228,7 @@ function AppInner() {
    * {@link ElementResult} so the "переглянути" button re-opens the visual card.
    */
   const addResultNotif = useCallback((result: ElementResult, text: string) => {
-    setSystemNotifs((prev) => [
-      ...prev,
-      {
+    setSystemNotifs((prev) => mergeSystemNotifs(prev, [{
         id: `notif-res-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         text,
         planetName: homeInfo?.system.name ?? '',
@@ -10113,8 +10237,7 @@ function AppInner() {
         timestamp: Date.now(),
         read: false,
         result,
-      },
-    ]);
+      }]));
   }, [homeInfo]);
 
   /** Push a result onto a capped (last-5) history list. */
@@ -11253,7 +11376,14 @@ function AppInner() {
       nav_system: state.selectedSystem?.id ?? '',
       nav_planet: state.selectedPlanet?.id ?? '',
       // Log & favorites
-      log_entries: logEntries,
+      log_entries: mergeLogEntries(
+        normalizeLogEntries(gameStateRef.current?.log_entries),
+        logEntries,
+      ),
+      system_notifs: mergeSystemNotifs(
+        normalizeSystemNotifs(gameStateRef.current?.system_notifs),
+        systemNotifs,
+      ),
       favorite_planets: [...favoritePlanets],
       favorite_planets_updated_at: favoritePlanetsUpdatedAtRef.current || 0,
       pinned_systems: [...pinnedSystems],
@@ -11415,7 +11545,7 @@ function AppInner() {
     if (!pid) return;
     if (isFirebaseConfigured && !serverHydrated) return;
     scheduleSyncToServer();
-  }, [serverHydrated, playerXP, playerLevel, researchState, isExodusPhase, colonyResources, colonyResourcesByPlanet, playerStats, arenaStats, researchData, techTreeState, logEntries, favoritePlanets, pinnedSystems, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet, shipFleet, planetRevealLevels, planetMissions, planetReports, explorationPayloads, explorationProductionQueue, separationJobs, observatoryState, astraQuizAnswers, planetOverrides, planetResourceStocks, dailyDirectives, cometClaims, dnaSparkSynthesis, chemicalInventoryByPlanet]);
+  }, [serverHydrated, playerXP, playerLevel, researchState, isExodusPhase, colonyResources, colonyResourcesByPlanet, playerStats, arenaStats, researchData, techTreeState, logEntries, systemNotifs, favoritePlanets, pinnedSystems, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet, shipFleet, planetRevealLevels, planetMissions, planetReports, explorationPayloads, explorationProductionQueue, separationJobs, observatoryState, astraQuizAnswers, planetOverrides, planetResourceStocks, dailyDirectives, cometClaims, dnaSparkSynthesis, chemicalInventoryByPlanet]);
 
   // Sync on page hide / beforeunload (best-effort) + re-sync from server on foreground
   useEffect(() => {
@@ -14340,13 +14470,23 @@ function AppInner() {
           }}
           colonyPlanetIds={(() => {
             // Colony planets: the player's current home/evacuation planet +
-            // any active surface planet that actually has a colony_hub. Do
+            // all later colony_ship-founded planets. Do
             // not trust p.isHomePlanet across all cluster systems: neighbor
             // home planets also carry that flag and looked like fake colonies.
             const ids = new Set<string>();
-            if (homeInfo?.planet.id) ids.add(homeInfo.planet.id);
+            if (homeInfo?.planet.id) {
+              ids.add(colonizedPlanetKey(homeInfo.system.id, homeInfo.planet.id));
+            }
             if (colonyState?.buildings?.some((b) => b.type === 'colony_hub')) {
-              ids.add(colonyState.planetId);
+              const colonySystem = engineRef.current?.getAllSystems?.()
+                .find((system) => system.planets.some((planet) => planet.id === colonyState.planetId));
+              if (colonySystem) ids.add(colonizedPlanetKey(colonySystem.id, colonyState.planetId));
+              else ids.add(colonyState.planetId);
+            }
+            for (const [key, record] of Object.entries(colonizedPlanetsRef.current)) {
+              if (key.includes('::')) ids.add(key);
+              if (record.systemId) ids.add(colonizedPlanetKey(record.systemId, barePlanetKey(key)));
+              else ids.add(barePlanetKey(key));
             }
             return ids;
           })()}
@@ -14359,6 +14499,9 @@ function AppInner() {
             if (colonyState?.buildings?.some((b) => b.type === 'colony_hub')) {
               const colonySys = allSys.find((s) => s.planets.some((p) => p.id === colonyState.planetId));
               if (colonySys && !sysIds.includes(colonySys.id)) sysIds.push(colonySys.id);
+            }
+            for (const record of Object.values(colonizedPlanetsRef.current)) {
+              if (record.systemId && !sysIds.includes(record.systemId)) sysIds.push(record.systemId);
             }
             return sysIds;
           })()}
@@ -14408,7 +14551,33 @@ function AppInner() {
             setShowCosmicArchive(false);
           }}
           explorationMissionsDisabled={() => false}
-          colonyStateByPlanet={colonyState ? { [colonyState.planetId]: colonyState } : undefined}
+          colonyStateByPlanet={(() => {
+            const map: Record<string, PlanetColonyState> = {};
+            if (homeInfo) {
+              const homeRecord: ColonizedPlanetRecord = {
+                systemId: homeInfo.system.id,
+                foundedAt: gameStartedAt || Date.now(),
+                population: COLONY_CENTER_POPULATION,
+              };
+              const homeState = createColonyStateFromRecord(homeInfo.planet.id, homeRecord);
+              map[colonizedPlanetKey(homeInfo.system.id, homeInfo.planet.id)] = homeState;
+              map[homeInfo.planet.id] = homeState;
+            }
+            if (colonyState) {
+              map[colonyState.planetId] = colonyState;
+              const colonySystem = engineRef.current?.getAllSystems?.()
+                .find((system) => system.planets.some((planet) => planet.id === colonyState.planetId));
+              if (colonySystem) map[colonizedPlanetKey(colonySystem.id, colonyState.planetId)] = colonyState;
+            }
+            for (const [key, record] of Object.entries(colonizedPlanetsRef.current)) {
+              const planetId = barePlanetKey(key);
+              const stateForRecord = createColonyStateFromRecord(planetId, record);
+              map[key] = stateForRecord;
+              if (!map[planetId]) map[planetId] = stateForRecord;
+              if (record.systemId) map[colonizedPlanetKey(record.systemId, planetId)] = stateForRecord;
+            }
+            return map;
+          })()}
           getPlanetResources={getResources}
           planetResourceStocks={planetResourceStocks}
           donorPlanets={getColonyPlanets()}
@@ -14930,7 +15099,7 @@ function AppInner() {
           systemNotifs={systemNotifs}
           logEntries={logEntries}
           onSystemNotifRead={(id) =>
-            setSystemNotifs((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n))
+            setSystemNotifs((prev) => mergeSystemNotifs(prev.map((n) => n.id === id ? { ...n, read: true } : n)))
           }
           onOpenLifeform={(lifeformId) => {
             closeChatDeepLinkOverlays();
@@ -15080,8 +15249,12 @@ function AppInner() {
               shutdown: fallback?.shutdown,
             };
           });
-        const findSystemForPlanetId = (planetId: string): StarSystem | null => {
+        const findSystemForPlanetId = (planetId: string, planetRef?: Planet): StarSystem | null => {
           const allSystems = engineRef.current?.getAllSystems?.() ?? [];
+          if (planetRef) {
+            const byRef = allSystems.find((system) => system.planets.includes(planetRef));
+            if (byRef) return byRef;
+          }
           return allSystems.find((system) => system.planets.some((planet) => planet.id === planetId)) ?? null;
         };
         const hexSlots = readHexSlotsForPlanet(surfaceTarget.system.id, surfaceTarget.planet.id);
@@ -15154,12 +15327,13 @@ function AppInner() {
         const allColonies: ColonyCenterPlanet[] = [];
         const seenColonyIds = new Set<string>();
         const addColonyToRoster = (planet: Planet) => {
-          if (seenColonyIds.has(planet.id)) return;
           const sys = planet.id === surfaceTarget.planet.id
             ? surfaceTarget.system
-            : findSystemForPlanetId(planet.id);
+            : findSystemForPlanetId(planet.id, planet);
+          const scopedColonyId = sys ? colonizedPlanetKey(sys.id, planet.id) : planet.id;
+          if (seenColonyIds.has(scopedColonyId)) return;
           if (!sys) return;
-          const record = colonizedPlanetsRef.current[planet.id];
+          const record = getColonizedPlanetRecord(colonizedPlanetsRef.current, sys.id, planet.id);
           const slots = planet.id === surfaceTarget.planet.id
             ? hexSlots
             : readHexSlotsForPlanet(sys.id, planet.id);
@@ -15193,7 +15367,7 @@ function AppInner() {
               : undefined,
             active: planet.id === surfaceTarget.planet.id,
           });
-          seenColonyIds.add(planet.id);
+          seenColonyIds.add(scopedColonyId);
         };
         addColonyToRoster(surfaceTarget.planet);
         for (const planet of getColonyPlanets()) addColonyToRoster(planet);
