@@ -3445,6 +3445,7 @@ function AppInner() {
   fleetRef.current = fleet;
   const shipFleetRef = useRef(shipFleet);
   shipFleetRef.current = shipFleet;
+  const deliveredCargoShipmentIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -4267,105 +4268,110 @@ function AppInner() {
     const id = window.setInterval(() => {
       const now = Date.now();
       let changed = false;
+      const prev = shipFleetRef.current;
+      const shipments = prev.cargoShipments ?? [];
+      if (shipments.length === 0) return;
+
       const delivered: CargoShipment[] = [];
+      const nextShipments = shipments.map((shipment) => {
+        if (shipment.status === 'completed') return shipment;
+        const elapsed = now - shipment.phaseStartedAt;
 
-      setShipFleet((prev) => {
-        const shipments = prev.cargoShipments ?? [];
-        if (shipments.length === 0) return prev;
+        if (shipment.status === 'loading' && elapsed >= 20_000) {
+          changed = true;
+          return { ...shipment, status: 'outbound' as const, phaseStartedAt: now };
+        }
+        if (shipment.status === 'outbound' && elapsed >= shipment.flightMs) {
+          changed = true;
+          if (!deliveredCargoShipmentIdsRef.current.has(shipment.id)) delivered.push(shipment);
+          return { ...shipment, status: 'unloading' as const, phaseStartedAt: now };
+        }
+        if (shipment.status === 'unloading' && elapsed >= 20_000) {
+          changed = true;
+          return { ...shipment, status: 'returning' as const, phaseStartedAt: now };
+        }
+        if (shipment.status === 'returning' && elapsed >= shipment.flightMs) {
+          changed = true;
+          return { ...shipment, status: 'completed' as const, phaseStartedAt: now };
+        }
+        return shipment;
+      });
 
-        const nextShipments = shipments.map((shipment) => {
-          if (shipment.status === 'completed') return shipment;
-          const elapsed = now - shipment.phaseStartedAt;
-
-          if (shipment.status === 'loading' && elapsed >= 20_000) {
-            changed = true;
-            return { ...shipment, status: 'outbound' as const, phaseStartedAt: now };
-          }
-          if (shipment.status === 'outbound' && elapsed >= shipment.flightMs) {
-            changed = true;
-            delivered.push(shipment);
-            return { ...shipment, status: 'unloading' as const, phaseStartedAt: now };
-          }
-          if (shipment.status === 'unloading' && elapsed >= 20_000) {
-            changed = true;
-            return { ...shipment, status: 'returning' as const, phaseStartedAt: now };
-          }
-          if (shipment.status === 'returning' && elapsed >= shipment.flightMs) {
-            changed = true;
-            return { ...shipment, status: 'completed' as const, phaseStartedAt: now };
-          }
-          return shipment;
-        });
-
-        if (!changed) return prev;
-        const activeShipmentByShip = new Map(nextShipments
-          .filter((shipment) => shipment.status !== 'completed')
-          .map((shipment) => [shipment.shipId, shipment]));
-        const nextShips = prev.ships.map((ship) => {
-          const shipment = activeShipmentByShip.get(ship.id);
-          if (!shipment) {
-            // Ship finished its cargo run — find the originating shipment so we
-            // can dock it back at its HOME colony. During the return flight
-            // ship.currentPlanetId is null, so we must recover the origin from
-            // the shipment record, otherwise the ship docks "nowhere" and never
-            // becomes selectable again.
-            const originShipment = (prev.cargoShipments ?? []).find(
-              (item) => item.shipId === ship.id && item.id === ship.assignmentId,
-            );
-            if (!originShipment) return ship;
-            return {
-              ...ship,
-              status: 'docked' as const,
-              currentPlanetId: originShipment.fromPlanetId ?? ship.currentPlanetId ?? null,
-              destinationPlanetId: null,
-              cargo: { ...ship.cargo, minerals: 0, volatiles: 0, isotopes: 0, water: 0 },
-              departedAt: null,
-              arrivalAt: null,
-              assignmentId: null,
-            };
-          }
-          if (shipment.status === 'loading') {
-            return { ...ship, status: 'loading' as const, currentPlanetId: shipment.fromPlanetId, destinationPlanetId: shipment.toPlanetId };
-          }
-          if (shipment.status === 'outbound') {
-            return {
-              ...ship,
-              status: 'in_transit' as const,
-              currentPlanetId: null,
-              destinationPlanetId: shipment.toPlanetId,
-              departedAt: shipment.phaseStartedAt,
-              arrivalAt: shipment.phaseStartedAt + shipment.flightMs,
-            };
-          }
-          if (shipment.status === 'unloading') {
-            return { ...ship, status: 'unloading' as const, currentPlanetId: shipment.toPlanetId, destinationPlanetId: null, departedAt: null, arrivalAt: null };
-          }
+      if (!changed) return;
+      const activeShipmentByShip = new Map(nextShipments
+        .filter((shipment) => shipment.status !== 'completed')
+        .map((shipment) => [shipment.shipId, shipment]));
+      const nextShips = prev.ships.map((ship) => {
+        const shipment = activeShipmentByShip.get(ship.id);
+        if (!shipment) {
+          // Ship finished its cargo run — find the originating shipment so we
+          // can dock it back at its HOME colony. During the return flight
+          // ship.currentPlanetId is null, so we must recover the origin from
+          // the shipment record, otherwise the ship docks "nowhere" and never
+          // becomes selectable again.
+          const originShipment = shipments.find(
+            (item) => item.shipId === ship.id && item.id === ship.assignmentId,
+          );
+          if (!originShipment) return ship;
+          return {
+            ...ship,
+            status: 'docked' as const,
+            currentPlanetId: originShipment.fromPlanetId ?? ship.currentPlanetId ?? null,
+            destinationPlanetId: null,
+            cargo: { ...ship.cargo, minerals: 0, volatiles: 0, isotopes: 0, water: 0 },
+            departedAt: null,
+            arrivalAt: null,
+            assignmentId: null,
+          };
+        }
+        if (shipment.status === 'loading') {
+          return { ...ship, status: 'loading' as const, currentPlanetId: shipment.fromPlanetId, destinationPlanetId: shipment.toPlanetId };
+        }
+        if (shipment.status === 'outbound') {
           return {
             ...ship,
             status: 'in_transit' as const,
             currentPlanetId: null,
-            destinationPlanetId: shipment.fromPlanetId,
-            cargo: { ...ship.cargo, minerals: 0, volatiles: 0, isotopes: 0, water: 0 },
+            destinationPlanetId: shipment.toPlanetId,
             departedAt: shipment.phaseStartedAt,
             arrivalAt: shipment.phaseStartedAt + shipment.flightMs,
           };
-        });
-
+        }
+        if (shipment.status === 'unloading') {
+          return { ...ship, status: 'unloading' as const, currentPlanetId: shipment.toPlanetId, destinationPlanetId: null, departedAt: null, arrivalAt: null };
+        }
         return {
-          ...prev,
-          cargoShipments: nextShipments.filter((shipment) => shipment.status !== 'completed' || now - shipment.phaseStartedAt < 60_000),
-          ships: nextShips,
+          ...ship,
+          status: 'in_transit' as const,
+          currentPlanetId: null,
+          destinationPlanetId: shipment.fromPlanetId,
+          cargo: { ...ship.cargo, minerals: 0, volatiles: 0, isotopes: 0, water: 0 },
+          departedAt: shipment.phaseStartedAt,
+          arrivalAt: shipment.phaseStartedAt + shipment.flightMs,
         };
       });
 
+      const nextFleet = {
+        ...prev,
+        cargoShipments: nextShipments.filter((shipment) => shipment.status !== 'completed' || now - shipment.phaseStartedAt < 60_000),
+        ships: nextShips,
+      };
+      shipFleetRef.current = nextFleet;
+      setShipFleet(nextFleet);
+
       for (const shipment of delivered) {
+        deliveredCargoShipmentIdsRef.current.add(shipment.id);
         addResources(shipment.toPlanetId, { [shipment.resource]: shipment.amount });
       }
-      if (changed) scheduleSyncToServer();
+
+      if (changed) {
+        if (delivered.length > 0) syncNowToServer();
+        else scheduleSyncToServer();
+      }
     }, 1000);
 
     return () => window.clearInterval(id);
-  }, [addResources, scheduleSyncToServer]);
+  }, [addResources, scheduleSyncToServer, syncNowToServer]);
 
   const handleStartPayloadProduction = useCallback((type: ProducibleType): void => {
     const def = PRODUCIBLE_DEFS[type];
