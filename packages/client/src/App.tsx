@@ -11795,6 +11795,12 @@ function AppInner() {
     scheduleSyncToServer();
   }, [addResources, createDockedShipFromProduction, scheduleSyncToServer, t]);
 
+  const hudResources = (() => {
+    const planetId = surfaceTarget?.planet.id
+      ?? (state.scene === 'planet-view' ? state.selectedPlanet?.id : undefined);
+    return planetId ? getResources(planetId) : totalResources();
+  })();
+
   return (
     <>
       <style>{`
@@ -11828,11 +11834,11 @@ function AppInner() {
         researchData={Math.floor(researchData)}
         quarks={quarks}
         isExodusPhase={isExodusPhase}
-        minerals={colonyResources.minerals}
-        volatiles={colonyResources.volatiles}
-        isotopes={colonyResources.isotopes}
-        water={colonyResources.water}
-        totalsResources={totalResources()}
+        minerals={hudResources.minerals}
+        volatiles={hudResources.volatiles}
+        isotopes={hudResources.isotopes}
+        water={hudResources.water}
+        totalsResources={hudResources}
         onClick={() => { if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true); }}
         onObservatoriesClick={() => setShowResourceModal('observatories')}
         onResearchDataClick={() => setShowResourceModal('research_data')}

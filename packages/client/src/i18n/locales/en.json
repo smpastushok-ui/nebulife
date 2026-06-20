@@ -1343,6 +1343,8 @@
     "resources_short": "M {{minerals}} · V {{volatiles}} · I {{isotopes}} · W {{water}}",
     "no_cargo_ships": "No free cargo ships. Build transport at a spaceport.",
     "landing_pad_required": "Build a landing pad on this planet first — there's nowhere to unload cargo without one.",
+    "orbital_cache_notice": "No landing pad yet: cargo will be assigned to this planet's orbital cache. Use it for the first receiving infrastructure, then normal unloading unlocks.",
+    "orbital_cache_stock": "Orbital cache: M {{minerals}} · V {{volatiles}} · I {{isotopes}} · W {{water}}",
     "select_planet": "Select planet",
     "nearest_colony": "Nearest colony",
     "select_ship": "Ship",
@@ -2589,9 +2591,10 @@
       "water": "H2O",
       "researchData": "SCI"
     },
+    "unlock_insufficient_action": "Not enough resources: {{missing}}. Send resources to this planet via Logistics, or unlock the hex with quarks.",
     "quarks_unlock": {
       "title": "UNLOCK SLOT WITH QUARKS",
-      "body": "Short on resources? You can instantly unlock this slot for 10 quarks.",
+      "body": "Not enough resources on this planet? Send cargo here through Logistics, or instantly unlock this hex for 10 quarks.",
       "cancel": "Cancel",
       "confirm": "10 ⚛ UNLOCK"
     },

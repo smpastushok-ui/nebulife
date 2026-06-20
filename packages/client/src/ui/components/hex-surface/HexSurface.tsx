@@ -24,11 +24,34 @@ import { getPlanetSize, RARITY_COLORS } from '@nebulife/core';
 
 import { useHexState, type SurfaceAccessMode } from './useHexState.js';
 import { HexGrid } from './HexGrid.js';
-import { getHexPositions, HEX_RADIUS, type HexPlanetSize, type ResourceType } from './hex-utils.js';
+import { getHexPositions, HEX_RADIUS, type HexPlanetSize, type HexSlotData, type ResourceType } from './hex-utils.js';
 import { HexBuildMenu, getAlphaHarvesterPrice } from './HexBuildMenu.js';
 import { playSfx } from '../../../audio/SfxPlayer.js';
 import { BuildingDetailPanel } from '../ColonyCenter/BuildingDetailPanel.js';
 import type { ElementResult } from '../ColonyCenter/ElementResultCard.js';
+
+type UnlockCost = NonNullable<HexSlotData['unlockCost']>;
+
+function formatMissingUnlockResources(
+  cost: UnlockCost | undefined,
+  available: { minerals: number; volatiles: number; isotopes: number; water: number; researchData?: number },
+  t: ReturnType<typeof useTranslation>['t'],
+): string {
+  if (!cost) return '';
+  const missing = ([
+    ['minerals', cost.minerals ?? 0, available.minerals],
+    ['volatiles', cost.volatiles ?? 0, available.volatiles],
+    ['isotopes', cost.isotopes ?? 0, available.isotopes],
+    ['water', cost.water ?? 0, available.water],
+    ['researchData', cost.researchData ?? 0, available.researchData ?? 0],
+  ] as const)
+    .filter(([, required, current]) => required > current)
+    .map(([key, required, current]) => {
+      const label = t(`surface.unlock_cost_short.${key}`, { defaultValue: key });
+      return `${label} ${Math.ceil(required - current)}`;
+    });
+  return missing.join(', ');
+}
 
 // ---------------------------------------------------------------------------
 // Public types (re-exported so App.tsx imports work unchanged)
@@ -478,12 +501,26 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
     );
 
     /** Fired when the player taps a locked hex they can't afford with colony
-     *  resources. If they have enough quarks, show the "Pay 10 💎" modal. */
+     *  resources. Explain the missing action, then offer the quarks shortcut. */
     const handleInsufficient = useCallback((slotId: string) => {
+      const slot = hexState.getSlot(slotId);
+      const missing = formatMissingUnlockResources(
+        slot?.unlockCost,
+        {
+          minerals: colonyResourcesRef.current.minerals,
+          volatiles: colonyResourcesRef.current.volatiles,
+          isotopes: colonyResourcesRef.current.isotopes,
+          water: colonyResourcesRef.current.water,
+          researchData: researchData ?? 0,
+        },
+        t,
+      );
+      setBuildBlockedToast(t('surface.unlock_insufficient_action', { missing }));
+      window.setTimeout(() => setBuildBlockedToast(null), 3600);
       if ((quarks ?? 0) >= 10) {
         setQuarksUnlockSlotId(slotId);
       }
-    }, [quarks]);
+    }, [hexState, quarks, researchData, t]);
 
     const handleConfirmQuarksUnlock = useCallback(() => {
       if (!quarksUnlockSlotId) return;
