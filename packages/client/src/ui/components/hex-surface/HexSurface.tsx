@@ -975,6 +975,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
             building={detailBuilding}
             buildings={buildingsForDetail}
             colonyResources={colonyResourcesRef.current}
+            chemicalInventory={chemicalInventory}
             researchData={researchData ?? 0}
             planetStocks={planetStocks}
             explorationPayloads={explorationPayloads}

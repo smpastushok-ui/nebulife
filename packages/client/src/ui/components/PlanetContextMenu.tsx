@@ -712,7 +712,7 @@ export function LogisticsTab({
   shipments?: CargoShipment[];
   targetPlanetId: string;
   planetResources?: Record<string, { minerals: number; volatiles: number; isotopes: number; water: number }>;
-  /** Whether the target planet has a landing pad / spaceport to receive cargo. */
+  /** Whether cargo unloads directly; without this, deliveries go to orbital cache. */
   targetHasLandingPad?: boolean;
   getDonorResources?: (planetId: string) => { minerals: number; volatiles: number; isotopes: number; water: number };
   getCargoRouteLY?: (fromPlanetId: string, toPlanetId: string) => number | null;
@@ -1047,7 +1047,7 @@ export function PlanetContextMenu({
   onShowTerraform?: (planet: Planet) => void;
   /** Inline terraforming panel rendered directly inside the "Terraforming" tab */
   terraformPanelContent?: React.ReactNode;
-  /** Whether the selected planet has a landing pad / spaceport (gates Logistics) */
+  /** Whether cargo unloads directly; without this, deliveries go to orbital cache. */
   targetHasLandingPad?: boolean;
   revealLevel?: PlanetRevealLevel;
   activeMission?: PlanetMission | null;

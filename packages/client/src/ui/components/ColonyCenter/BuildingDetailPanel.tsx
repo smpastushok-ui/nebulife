@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { BuildingType, Discovery, FleetState, ObservatorySearchDuration, ObservatorySearchProgram, ObservatoryState, PlacedBuilding, Planet, PlanetResourceStocks, ProducibleType, SeparationJob, SeparationGroup, ExtractionJob, CosmicEvent } from '@nebulife/core';
-import { BUILDING_DEFS, PRODUCIBLE_ASSET_PATHS, PRODUCIBLE_DEFS, RARITY_COLORS, getAvailableObservatoryPrograms, getCatalogEntry, getCatalogName, getObservatoryLevel, getObservatoryMaxActiveSearches, getObservatorySearchChance, getObservatoryXpProgress, isShipProducible, SEPARATION_BATCH, SEPARATION_DURATION_MS, SEPARATION_RESEARCH_DATA_COST, getSeparationElements, EXTRACTION_BATCH, EXTRACTION_RESEARCH_DATA_COST, getExtractionElements } from '@nebulife/core';
+import { BUILDING_DEFS, ELEMENTS, PRODUCIBLE_ASSET_PATHS, PRODUCIBLE_DEFS, RARITY_COLORS, getAvailableObservatoryPrograms, getCatalogEntry, getCatalogName, getObservatoryLevel, getObservatoryMaxActiveSearches, getObservatorySearchChance, getObservatoryXpProgress, isShipProducible, SEPARATION_BATCH, SEPARATION_DURATION_MS, SEPARATION_RESEARCH_DATA_COST, getSeparationElements, EXTRACTION_BATCH, EXTRACTION_RESEARCH_DATA_COST, getExtractionElements } from '@nebulife/core';
 
 import { ResourceIcon, RESOURCE_COLORS, type ResourceType } from '../ResourceIcon.js';
 import { buildingName, buildingDesc } from '../../../i18n/building-labels.js';
@@ -33,6 +33,7 @@ export interface BuildingDetailPanelProps {
   buildingType?: BuildingType;
   buildings: PlacedBuilding[];
   colonyResources: ColonyResources;
+  chemicalInventory?: Record<string, number>;
   researchData: number;
   planetStocks?: PlanetResourceStocks;
   explorationPayloads?: Partial<Record<ProducibleType, number>>;
@@ -1348,6 +1349,7 @@ export function BuildingDetailPanel({
   buildingType,
   buildings,
   colonyResources,
+  chemicalInventory = {},
   researchData,
   planetStocks,
   explorationPayloads,
@@ -1445,6 +1447,14 @@ export function BuildingDetailPanel({
     if (separationGroupOptions.some((item) => item.group === separationGroup)) return;
     setSeparationGroup(separationGroupOptions[0].group);
   }, [separationGroup, separationGroupOptions]);
+
+  const localElements = useMemo(() => (
+    Object.values(ELEMENTS)
+      .map((element) => ({ ...element, amount: chemicalInventory[element.symbol] ?? 0 }))
+      .filter((element) => element.amount > 0)
+      .sort((a, b) => b.amount - a.amount || a.atomicNumber - b.atomicNumber)
+      .slice(0, 8)
+  ), [chemicalInventory]);
 
   if (!type || !def || !stats) return null;
 
@@ -2171,6 +2181,54 @@ export function BuildingDetailPanel({
             </div>
           </div>
         </Section>
+
+        {type === 'resource_storage' && (
+          <Section title={t('resource_widget.storage_title')}>
+            <div style={{
+              background: 'rgba(10,15,25,0.48)',
+              border: '1px solid rgba(68,136,170,0.35)',
+              borderRadius: 5,
+              padding: compact ? 10 : 12,
+              display: 'grid',
+              gap: 12,
+            }}>
+              <div style={{ display: 'grid', gridTemplateColumns: compact ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))', gap: 8 }}>
+                {(['minerals', 'volatiles', 'isotopes', 'water'] as ColonyResourceKey[]).map((resource) => (
+                  <div key={resource} style={{ border: '1px solid rgba(51,68,85,0.42)', borderRadius: 4, padding: 8, background: 'rgba(5,10,20,0.46)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: RESOURCE_COLORS[resource], fontSize: 10, marginBottom: 5 }}>
+                      <ResourceIcon type={resource} size={12} />
+                      <span>{t(`colony_center.resource.${resource}`)}</span>
+                    </div>
+                    <div style={{ color: '#cfe3ff', fontSize: 15, fontWeight: 700 }}>{Math.round(colonyResources[resource] ?? 0).toLocaleString()}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ borderTop: '1px solid rgba(51,68,85,0.42)', paddingTop: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 7 }}>
+                  <span style={{ color: '#8899aa', fontSize: 10, letterSpacing: 1.1, textTransform: 'uppercase' }}>
+                    {t('resource_widget.elements_title')}
+                  </span>
+                  <span style={{ color: '#667788', fontSize: 9 }}>{t('resource_widget.elements_count', { count: localElements.length })}</span>
+                </div>
+                {localElements.length > 0 ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: compact ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 6 }}>
+                    {localElements.map((element) => (
+                      <div key={element.symbol} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, border: '1px solid rgba(51,68,85,0.34)', borderRadius: 3, padding: '5px 7px', background: 'rgba(5,10,20,0.48)' }}>
+                        <span style={{ color: '#7bb8ff', fontWeight: 700 }}>{element.symbol}</span>
+                        <span style={{ color: '#8899aa', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {i18n.language === 'uk' ? element.nameUk : element.name}
+                        </span>
+                        <span style={{ color: '#cfe3ff', marginLeft: 'auto' }}>{Math.round(element.amount).toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ color: '#556677', fontSize: 10 }}>{t('archive.no_elements_owned')}</div>
+                )}
+              </div>
+            </div>
+          </Section>
+        )}
 
         {producibleTypes.length > 0 && (
           <Section title={type === 'landing_pad' ? t('building_detail.transport_landing_pad') : t('building_detail.transport_spaceport')}>

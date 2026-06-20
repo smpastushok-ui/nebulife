@@ -590,8 +590,10 @@ interface SyncedGameState {
   hex_slots?: unknown[];
   hex_slots_by_planet?: Record<string, unknown[]>;
   chemical_inventory: Record<string, number>;
+  chemical_inventory_by_planet?: Record<string, Record<string, number>>;
   life_ingredients?: Record<string, number>;
   life_sparks?: Record<string, number>;
+  dna_spark_synthesis?: { spark: LifeSparkType; chosenAt: number; completedAt?: number };
   // Game phase
   exodus_phase: boolean;
   destroyed_planets: Array<{ planetId: string; systemId: string; orbitAU: number }>;
@@ -1590,11 +1592,25 @@ function AppInner() {
     } catch { /* ignore */ }
     return {};
   });
+  const [chemicalInventoryByPlanet, setChemicalInventoryByPlanet] = useState<Record<string, Record<string, number>>>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_chemical_inventory_by_planet');
+      if (saved) return JSON.parse(saved);
+    } catch { /* ignore */ }
+    return {};
+  });
+  const chemicalInventoryByPlanetRef = useRef(chemicalInventoryByPlanet);
+  chemicalInventoryByPlanetRef.current = chemicalInventoryByPlanet;
 
   useEffect(() => {
     try { localStorage.setItem('nebulife_chemical_inventory', JSON.stringify(chemicalInventory)); }
     catch { /* ignore */ }
   }, [chemicalInventory]);
+
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_chemical_inventory_by_planet', JSON.stringify(chemicalInventoryByPlanet)); }
+    catch { /* ignore */ }
+  }, [chemicalInventoryByPlanet]);
 
   // ── Genesis life ingredients (rare organic drops, L48+; Phase 2 Lab) ──────
   const [lifeIngredients, setLifeIngredients] = useState<Record<string, number>>(() => {
@@ -1621,11 +1637,30 @@ function AppInner() {
   });
   const lifeSparkHarvestCounter = useRef(0);
   const lifeSparkRefineryCounter = useRef(0);
+  const [dnaSparkSynthesis, setDnaSparkSynthesis] = useState<{ spark: LifeSparkType; chosenAt: number; completedAt?: number } | null>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_dna_spark_synthesis');
+      if (saved) {
+        const parsed = JSON.parse(saved) as { spark?: LifeSparkType; chosenAt?: number; completedAt?: number };
+        if (parsed?.spark && typeof parsed.chosenAt === 'number') {
+          return { spark: parsed.spark, chosenAt: parsed.chosenAt, completedAt: parsed.completedAt };
+        }
+      }
+    } catch { /* ignore */ }
+    return null;
+  });
 
   useEffect(() => {
     try { localStorage.setItem('nebulife_life_sparks', JSON.stringify(lifeSparks)); }
     catch { /* ignore */ }
   }, [lifeSparks]);
+
+  useEffect(() => {
+    try {
+      if (dnaSparkSynthesis) localStorage.setItem('nebulife_dna_spark_synthesis', JSON.stringify(dnaSparkSynthesis));
+      else localStorage.removeItem('nebulife_dna_spark_synthesis');
+    } catch { /* ignore */ }
+  }, [dnaSparkSynthesis]);
 
   // ── Manual-job result histories (last 5 each) + result-card modal ─────────
   // Separation/centrifuge yields and lab experiments are logged here so the
@@ -1999,6 +2034,7 @@ function AppInner() {
 
   /** Handle element inventory changes (from hex harvest or chemistry buildings) */
   const handleElementChange = useCallback((delta: Record<string, number>) => {
+    const targetPlanetId = surfaceTargetRef.current?.planet.id ?? homeInfoRef.current?.planet.id;
     setChemicalInventory(prev => {
       const next = { ...prev };
       for (const [el, amount] of Object.entries(delta)) {
@@ -2006,7 +2042,26 @@ function AppInner() {
       }
       return next;
     });
+    if (targetPlanetId) {
+      setChemicalInventoryByPlanet((prev) => {
+        const current = prev[targetPlanetId] ?? {};
+        const nextForPlanet = { ...current };
+        for (const [el, amount] of Object.entries(delta)) {
+          nextForPlanet[el] = Math.max(0, (nextForPlanet[el] ?? 0) + amount);
+        }
+        return { ...prev, [targetPlanetId]: nextForPlanet };
+      });
+    }
   }, []);
+
+  const getPlanetChemicalInventory = useCallback((planetId: string): Record<string, number> => {
+    const local = chemicalInventoryByPlanetRef.current[planetId];
+    if (local) return local;
+    // Legacy saves only had one global element bucket. Until the player creates
+    // a local bucket, show those elements on the active planet instead of
+    // making already-separated stock look lost.
+    return Object.keys(chemicalInventoryByPlanetRef.current).length === 0 ? chemicalInventory : {};
+  }, [chemicalInventory]);
 
   const grantLifeSpark = useCallback((spark: LifeSparkType, source: 'harvest' | 'refinery') => {
     setLifeSparks(prev => ({ ...prev, [spark]: (prev[spark] ?? 0) + 1 }));
@@ -3277,6 +3332,14 @@ function AppInner() {
               next[el] = (next[el] ?? 0) + amt;
             }
             return next;
+          });
+          setChemicalInventoryByPlanet((prev) => {
+            const current = prev[planetId] ?? {};
+            const nextForPlanet = { ...current };
+            for (const [el, amt] of Object.entries(result.elementsProduced)) {
+              nextForPlanet[el] = (nextForPlanet[el] ?? 0) + amt;
+            }
+            return { ...prev, [planetId]: nextForPlanet };
           });
           lifeSparkRefineryCounter.current += 1;
           const refinerySource = Object.keys(result.elementsProduced).some((el) => ['U', 'Th', 'Ra', 'Pu'].includes(el))
@@ -5240,10 +5303,9 @@ function AppInner() {
     return false;
   }, [colonyState, serverHydrated, surfaceBuildingCount]);
 
-  // Cargo logistics can only unload where the target colony has a landing pad or
-  // spaceport. Resolves the target's buildings from the active colony when it's the
-  // one open, otherwise from that colony's persisted hex slots. (Terraform delivery
-  // is a separate path and intentionally needs no surface buildings on the target.)
+  // Cargo logistics can unload to a landing pad / spaceport, or to the target
+  // planet's orbital cache before that first receiving infrastructure exists.
+  // This helper only controls the informational cache notice in the planet menu.
   const getPlanetHasLandingPad = useCallback((planetId: string): boolean => {
     const active = colonyStateRef.current;
     const buildings = (active?.planetId === planetId && (active?.buildings?.length ?? 0) > 0)
@@ -5341,7 +5403,7 @@ function AppInner() {
     const keysToRemove = [
       'nebulife_player_xp', 'nebulife_player_level', 'nebulife_research_state',
       'nebulife_tech_tree', 'nebulife_player_stats', 'nebulife_research_data',
-      'nebulife_colony_resources', 'nebulife_colony_resources_updated_at', 'nebulife_chemical_inventory', 'nebulife_colony_state', 'nebulife_exodus_phase', 'nebulife_tutorial_step',
+      'nebulife_colony_resources', 'nebulife_colony_resources_updated_at', 'nebulife_chemical_inventory', 'nebulife_chemical_inventory_by_planet', 'nebulife_colony_state', 'nebulife_exodus_phase', 'nebulife_tutorial_step',
       'nebulife_log_entries', 'nebulife_onboarding_done', 'nebulife_scene',
       'nebulife_nav_system', 'nebulife_nav_planet', 'nebulife_destroyed_planets',
       'nebulife_favorite_planets', 'nebulife_favorite_planets_updated_at', 'nebulife_game_started_at', 'nebulife_time_multiplier',
@@ -5376,6 +5438,7 @@ function AppInner() {
       // Per-planet resources (Phase 7A)
       'nebulife_colony_resources_by_planet',
       'nebulife_cosmic_event_research',
+      'nebulife_dna_spark_synthesis',
     ];
     keysToRemove.forEach(k => localStorage.removeItem(k));
     // Also remove all quiz answer keys
@@ -5776,6 +5839,22 @@ function AppInner() {
       setChemicalInventory(merged);
       try { localStorage.setItem('nebulife_chemical_inventory', JSON.stringify(merged)); } catch { /* ignore */ }
     }
+    if (gs.chemical_inventory_by_planet && typeof gs.chemical_inventory_by_planet === 'object') {
+      const localByPlanet = (() => { try { return JSON.parse(localStorage.getItem('nebulife_chemical_inventory_by_planet') ?? 'null'); } catch { return null; } })() as Record<string, Record<string, number>> | null;
+      const serverByPlanet = gs.chemical_inventory_by_planet as Record<string, Record<string, number>>;
+      const mergedByPlanet: Record<string, Record<string, number>> = {};
+      for (const planetId of new Set([...Object.keys(serverByPlanet), ...Object.keys(localByPlanet ?? {})])) {
+        const serverElements = serverByPlanet[planetId] ?? {};
+        const localElements = localByPlanet?.[planetId] ?? {};
+        const mergedElements: Record<string, number> = {};
+        for (const el of new Set([...Object.keys(serverElements), ...Object.keys(localElements)])) {
+          mergedElements[el] = Math.max(serverElements[el] ?? 0, localElements[el] ?? 0);
+        }
+        mergedByPlanet[planetId] = mergedElements;
+      }
+      setChemicalInventoryByPlanet(mergedByPlanet);
+      try { localStorage.setItem('nebulife_chemical_inventory_by_planet', JSON.stringify(mergedByPlanet)); } catch { /* ignore */ }
+    }
     if (gs.life_ingredients && typeof gs.life_ingredients === 'object') {
       const localLI = (() => { try { return JSON.parse(localStorage.getItem('nebulife_life_ingredients') ?? 'null'); } catch { return null; } })();
       const mergedLI: Record<string, number> = {};
@@ -5793,6 +5872,18 @@ function AppInner() {
       }
       setLifeSparks(mergedLS);
       try { localStorage.setItem('nebulife_life_sparks', JSON.stringify(mergedLS)); } catch { /* ignore */ }
+    }
+    if (gs.dna_spark_synthesis && typeof gs.dna_spark_synthesis === 'object') {
+      const serverDna = gs.dna_spark_synthesis;
+      const localDna = (() => { try { return JSON.parse(localStorage.getItem('nebulife_dna_spark_synthesis') ?? 'null'); } catch { return null; } })() as { spark?: LifeSparkType; chosenAt?: number; completedAt?: number } | null;
+      const candidates = [serverDna, localDna].filter((entry): entry is { spark: LifeSparkType; chosenAt: number; completedAt?: number } => (
+        Boolean(entry?.spark && typeof entry.chosenAt === 'number')
+      ));
+      const chosen = candidates.sort((a, b) => (b.completedAt ?? b.chosenAt) - (a.completedAt ?? a.chosenAt))[0];
+      if (chosen) {
+        setDnaSparkSynthesis(chosen);
+        try { localStorage.setItem('nebulife_dna_spark_synthesis', JSON.stringify(chosen)); } catch { /* ignore */ }
+      }
     }
     // Overlay the freshest harvest cooldown (lastHarvestedAt) per slot id onto the
     // server snapshot. Without this, the length-only "server is ahead" heuristic
@@ -9849,9 +9940,13 @@ function AppInner() {
     setSeparationJobs(remaining);
 
     const totals: Record<string, number> = {};
+    const totalsByPlanet: Record<string, Record<string, number>> = {};
     for (const job of done) {
       const elems = rollSeparation(job.group, job.amount, job.seed);
       for (const [el, amt] of Object.entries(elems)) totals[el] = (totals[el] ?? 0) + amt;
+      const planetTotals = totalsByPlanet[job.planetId] ?? {};
+      for (const [el, amt] of Object.entries(elems)) planetTotals[el] = (planetTotals[el] ?? 0) + amt;
+      totalsByPlanet[job.planetId] = planetTotals;
 
       // Per-job visual result → last-5 history + system-chat notification.
       const source = job.buildingType ?? 'quantum_separator';
@@ -9875,6 +9970,16 @@ function AppInner() {
     setChemicalInventory((prev) => {
       const next = { ...prev };
       for (const [el, amt] of Object.entries(totals)) next[el] = (next[el] ?? 0) + amt;
+      return next;
+    });
+    setChemicalInventoryByPlanet((prev) => {
+      const next = { ...prev };
+      for (const [planetId, planetTotals] of Object.entries(totalsByPlanet)) {
+        const current = next[planetId] ?? {};
+        const nextForPlanet = { ...current };
+        for (const [el, amt] of Object.entries(planetTotals)) nextForPlanet[el] = (nextForPlanet[el] ?? 0) + amt;
+        next[planetId] = nextForPlanet;
+      }
       return next;
     });
     const summary = Object.entries(totals)
@@ -9948,9 +10053,13 @@ function AppInner() {
     setExtractionJobs(remaining);
 
     const totals: Record<string, number> = {};
+    const totalsByPlanet: Record<string, Record<string, number>> = {};
     for (const job of done) {
       const elems = rollParticleExtraction(job.seed);
       for (const [el, amt] of Object.entries(elems)) totals[el] = (totals[el] ?? 0) + amt;
+      const planetTotals = totalsByPlanet[job.planetId] ?? {};
+      for (const [el, amt] of Object.entries(elems)) planetTotals[el] = (planetTotals[el] ?? 0) + amt;
+      totalsByPlanet[job.planetId] = planetTotals;
       const jobSummary = Object.entries(elems)
         .sort((a, b) => b[1] - a[1]).slice(0, 4).map(([el, amt]) => `${el} ${amt}`).join(', ');
       const result: ElementResult = {
@@ -9970,6 +10079,16 @@ function AppInner() {
       for (const [el, amt] of Object.entries(totals)) next[el] = (next[el] ?? 0) + amt;
       return next;
     });
+    setChemicalInventoryByPlanet((prev) => {
+      const next = { ...prev };
+      for (const [planetId, planetTotals] of Object.entries(totalsByPlanet)) {
+        const current = next[planetId] ?? {};
+        const nextForPlanet = { ...current };
+        for (const [el, amt] of Object.entries(planetTotals)) nextForPlanet[el] = (nextForPlanet[el] ?? 0) + amt;
+        next[planetId] = nextForPlanet;
+      }
+      return next;
+    });
     scheduleSyncToServer();
   }, [scheduleSyncToServer, tr, addLogEntry, addResultNotif, pushResultHistory]);
 
@@ -9980,22 +10099,43 @@ function AppInner() {
     return () => window.clearInterval(id);
   }, [completeReadyExtraction, extractionJobs.length]);
 
+  /** Lock the DNA constructor to one selected spark per player/account. */
+  const handleSparkSynthesisClaim = useCallback((sparkType: LifeSparkType): boolean => {
+    if (dnaSparkSynthesis) return dnaSparkSynthesis.spark === sparkType && !dnaSparkSynthesis.completedAt;
+    const chosen = { spark: sparkType, chosenAt: Date.now() };
+    setDnaSparkSynthesis(chosen);
+    try { localStorage.setItem('nebulife_dna_spark_synthesis', JSON.stringify(chosen)); } catch { /* ignore */ }
+    scheduleSyncToServer();
+    return true;
+  }, [dnaSparkSynthesis, scheduleSyncToServer]);
+
   /** Grant a spark after a successful DNA-constructor minigame. */
   const handleSparkSynthesisSuccess = useCallback((sparkType: LifeSparkType): void => {
+    if (dnaSparkSynthesis?.completedAt) {
+      setToastMessage(tr('lab.dna_already_completed', { spark: tr(`lab.spark.${dnaSparkSynthesis.spark}` as 'lab.spark.primordial') }));
+      window.setTimeout(() => setToastMessage(null), 3200);
+      return;
+    }
+    const now = Date.now();
+    setDnaSparkSynthesis((prev) => ({
+      spark: prev?.spark ?? sparkType,
+      chosenAt: prev?.chosenAt ?? now,
+      completedAt: now,
+    }));
     setLifeSparks((prev) => ({ ...prev, [sparkType]: (prev[sparkType] ?? 0) + 1 }));
     const result: ElementResult = {
-      id: `res-spark-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      id: `res-spark-${now}-${Math.random().toString(36).slice(2, 6)}`,
       kind: 'spark',
       source: 'research_lab',
       sparkType,
-      completedAt: Date.now(),
+      completedAt: now,
     };
     pushResultHistory(setExperimentHistory, result);
     const sparkName = tr(`lab.spark.${sparkType}` as 'lab.spark.primordial');
     addResultNotif(result, tr('lab.spark_notif', { spark: sparkName }));
     addLogEntry('science', tr('lab.spark_log', { spark: sparkName }));
     scheduleSyncToServer();
-  }, [scheduleSyncToServer, tr, addLogEntry, addResultNotif, pushResultHistory]);
+  }, [dnaSparkSynthesis, scheduleSyncToServer, tr, addLogEntry, addResultNotif, pushResultHistory]);
 
   // ── Retention systems: directives impl, comet event, ops hub ─────────────
 
@@ -10654,8 +10794,10 @@ function AppInner() {
       hex_slots: hexSlots,
       hex_slots_by_planet: hexSlotsByPlanet,
       chemical_inventory: chemicalInventory,
+      chemical_inventory_by_planet: chemicalInventoryByPlanet,
       life_ingredients: lifeIngredients,
       life_sparks: lifeSparks,
+      dna_spark_synthesis: dnaSparkSynthesis ?? undefined,
       exodus_phase: isExodusPhase,
       destroyed_planets: destroyedPlanets,
       onboarding_done: localStorage.getItem('nebulife_onboarding_done') === '1',
@@ -10832,7 +10974,7 @@ function AppInner() {
     if (!pid) return;
     if (isFirebaseConfigured && !serverHydrated) return;
     scheduleSyncToServer();
-  }, [serverHydrated, playerXP, playerLevel, researchState, isExodusPhase, colonyResources, colonyResourcesByPlanet, playerStats, arenaStats, researchData, techTreeState, logEntries, favoritePlanets, pinnedSystems, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet, shipFleet, planetRevealLevels, planetMissions, planetReports, explorationPayloads, explorationProductionQueue, separationJobs, observatoryState, astraQuizAnswers, planetOverrides, planetResourceStocks, dailyDirectives, cometClaims]);
+  }, [serverHydrated, playerXP, playerLevel, researchState, isExodusPhase, colonyResources, colonyResourcesByPlanet, playerStats, arenaStats, researchData, techTreeState, logEntries, favoritePlanets, pinnedSystems, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet, shipFleet, planetRevealLevels, planetMissions, planetReports, explorationPayloads, explorationProductionQueue, separationJobs, observatoryState, astraQuizAnswers, planetOverrides, planetResourceStocks, dailyDirectives, cometClaims, dnaSparkSynthesis, chemicalInventoryByPlanet]);
 
   // Sync on page hide / beforeunload (best-effort) + re-sync from server on foreground
   useEffect(() => {
@@ -13302,7 +13444,7 @@ function AppInner() {
           volatiles={getResources(surfaceTarget.planet.id).volatiles}
           isotopes={getResources(surfaceTarget.planet.id).isotopes}
           water={getResources(surfaceTarget.planet.id).water}
-          chemicalInventory={chemicalInventory}
+          chemicalInventory={getPlanetChemicalInventory(surfaceTarget.planet.id)}
           onElementChange={handleElementChange}
           onConsumeIsotopes={(amount) => {
             const pid = surfaceTarget.planet.id;
@@ -13371,7 +13513,7 @@ function AppInner() {
           water={getResources(surfaceTarget.planet.id).water}
           storageCapacity={getStorageCapacityForPlanet(surfaceTarget.planet.id)}
           playerLevel={playerLevel}
-          chemicalInventory={chemicalInventory}
+          chemicalInventory={getPlanetChemicalInventory(surfaceTarget.planet.id)}
           onRefsReady={setResourceRects}
         />
       )}
@@ -14399,6 +14541,9 @@ function AppInner() {
         <DnaConstructorGame
           onSuccess={handleSparkSynthesisSuccess}
           onClose={() => setShowDnaLab(false)}
+          claimedSpark={dnaSparkSynthesis?.spark ?? null}
+          completed={Boolean(dnaSparkSynthesis?.completedAt)}
+          onClaimSpark={handleSparkSynthesisClaim}
         />
       )}
 
@@ -14565,6 +14710,7 @@ function AppInner() {
             allColonies={allColonies}
             initialTab={colonyCenterInitialTab}
             colonyResources={activeResources}
+            chemicalInventory={getPlanetChemicalInventory(active.planet.id)}
             storageCapacity={storageCapacity}
             productionPerHour={displayedPerHour}
             extractionPerHour={hexExtractionPerHour}

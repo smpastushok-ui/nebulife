@@ -68,6 +68,8 @@ export interface ColonyCenterPageProps {
   allColonies: ColonyCenterPlanet[];
   /** Live colony resource balances (minerals/volatiles/isotopes/water). */
   colonyResources: { minerals: number; volatiles: number; isotopes: number; water: number };
+  /** Element inventory for the active colony planet. */
+  chemicalInventory?: Record<string, number>;
   /** Storage capacity per resource (computed from buildings + tech). */
   storageCapacity: number;
   /** Per-resource hourly production for the active colony. */
@@ -1265,6 +1267,7 @@ export const ColonyCenterPage: React.FC<ColonyCenterPageProps> = (props) => {
           buildingType={inspectBuildingType}
           buildings={props.active.buildings}
           colonyResources={props.colonyResources}
+          chemicalInventory={props.chemicalInventory}
           researchData={props.researchData}
           planetStocks={props.planetStocks}
           explorationPayloads={props.explorationPayloads}

@@ -50,6 +50,7 @@
 - DNA parameters → environment fit → procedural creature → Kling photo.
 - Від "одноклітинних" до "складних екосистем" — progression через tech-tree chemistry→biology.
 - Кожна унікальна life-form має ID та може бути shared / traded (foundation для економіки).
+- Геномний конструктор для Spark of Life — одноразовий account-choice: гравець обирає одну з 4 іскор і може синтезувати її лише один раз; це не повторюваний farm-loop.
 - Мета Q3: 3-rarity tier-система (common/rare/legendary), marketplace mvp.
 
 #### 📰 Вектор C — "Weekly Digest як re-engagement crown jewel"

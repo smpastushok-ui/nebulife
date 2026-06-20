@@ -162,7 +162,9 @@ function generateLatticePuzzle(spark: LifeSparkType, session: number): LatticeTi
 
   return allCells.map((cell) => {
     const id = tileKey(cell.x, cell.y);
-    if (blockerIds.has(id)) {
+    // Blockers can partition the grid on larger sparks. Treat unreachable cells
+    // as inert blockers so a visually complete lattice cannot be stuck at 95%.
+    if (blockerIds.has(id) || !visited.has(id)) {
       return { id, x: cell.x, y: cell.y, kind: 'blocker', ports: [], rotation: 0, solutionRotation: 0, required: false, locked: true };
     }
     const solutionRotation = 0;
@@ -415,9 +417,15 @@ function CompletionBurst({ accent, title, detail }: { accent: string; title: str
 export function DnaConstructorGame({
   onSuccess,
   onClose,
+  claimedSpark,
+  completed,
+  onClaimSpark,
 }: {
   onSuccess: (spark: LifeSparkType) => void;
   onClose: () => void;
+  claimedSpark?: LifeSparkType | null;
+  completed?: boolean;
+  onClaimSpark?: (spark: LifeSparkType) => boolean;
 }) {
   const { t } = useTranslation();
   const [spark, setSpark] = useState<LifeSparkType | null>(null);
@@ -451,6 +459,9 @@ export function DnaConstructorGame({
   }, [analysis.complete, onSuccess, spark, status]);
 
   function startSpark(s: LifeSparkType) {
+    if (completed) return;
+    if (claimedSpark && claimedSpark !== s) return;
+    if (!claimedSpark && onClaimSpark && !onClaimSpark(s)) return;
     const nextSession = session + 1;
     setSession(nextSession);
     setSpark(s);
@@ -505,19 +516,40 @@ export function DnaConstructorGame({
         {!spark ? (
           <>
             <div style={{ color: '#8899aa', fontSize: 11, marginBottom: 12, lineHeight: 1.5 }}>{t('lab.dna_choose')}</div>
+            {completed && claimedSpark && (
+              <div style={{
+                marginBottom: 10,
+                padding: '9px 11px',
+                border: '1px solid #334455',
+                borderRadius: 5,
+                background: 'rgba(5,10,20,0.62)',
+                color: '#8899aa',
+                fontSize: 10,
+                lineHeight: 1.5,
+              }}>
+                {t('lab.dna_already_completed', { spark: t(`lab.spark.${claimedSpark}` as 'lab.spark.primordial') })}
+              </div>
+            )}
             <div style={{ display: 'grid', gap: 8 }}>
               {SPARK_ORDER.map((s) => {
                 const c = SPARK_COLOR[s];
                 const d = SPARK_DIFFICULTY[s];
                 const puzzle = configForSpark(s);
+                const lockedByClaim = Boolean(completed || (claimedSpark && claimedSpark !== s));
                 return (
                   <button
                     key={s}
                     onClick={() => startSpark(s)}
+                    disabled={lockedByClaim}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left',
-                      background: `${c}12`, border: `1px solid ${c}66`, borderRadius: 6,
-                      padding: '10px 12px', cursor: 'pointer', fontFamily: 'monospace',
+                      background: lockedByClaim ? 'rgba(20,25,35,0.55)' : `${c}12`,
+                      border: `1px solid ${lockedByClaim ? '#334455' : `${c}66`}`,
+                      borderRadius: 6,
+                      padding: '10px 12px',
+                      cursor: lockedByClaim ? 'not-allowed' : 'pointer',
+                      fontFamily: 'monospace',
+                      opacity: lockedByClaim ? 0.45 : 1,
                     }}
                   >
                     <span style={{ width: 12, height: 12, borderRadius: '50%', background: c, boxShadow: `0 0 10px ${c}`, flexShrink: 0 }} />
@@ -526,6 +558,7 @@ export function DnaConstructorGame({
                       <span>{puzzle.width}x{puzzle.height}</span>
                       <span style={{ color: '#556677' }}>·</span>
                       <span>{t('lab.dna_nodes', { count: d.length })}</span>
+                      {claimedSpark === s && <><span style={{ color: '#556677' }}>·</span><span style={{ color: c }}>{t('lab.dna_chosen')}</span></>}
                       {puzzle.blockerCount > 0 && <><span style={{ color: '#556677' }}>·</span><span style={{ color: '#ffb454' }}>{t('lab.dna_blockers', { count: puzzle.blockerCount })}</span></>}
                     </span>
                   </button>
@@ -538,7 +571,7 @@ export function DnaConstructorGame({
             {/* Signal integrity */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
               <span style={{ color: '#8899aa', fontSize: 10 }}>{t('lab.dna_progress', { done: poweredCount, total: activeCount })}</span>
-              <span style={{ color: stabilityColor, fontSize: 9.5, letterSpacing: 0.5 }}>{t('lab.dna_stability')} {stabilityPct}%</span>
+              <span style={{ color: stabilityColor, fontSize: 9.5, letterSpacing: 0.5 }}>{t('lab.dna_stability')} {stability}%</span>
             </div>
             <div style={{ height: 4, borderRadius: 2, background: 'rgba(5,10,20,0.7)', overflow: 'hidden', marginBottom: 12 }}>
               <div style={{ width: `${stability}%`, height: '100%', background: stabilityColor, transition: 'width 0.3s, background 0.3s' }} />

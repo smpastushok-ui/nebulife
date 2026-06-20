@@ -100,6 +100,11 @@
 - Перемога дає гарантовано +1 кварк і один weighted reward: групові ресурси, payload/transport unit, rare Spark of Life або life ingredient.
 - Runtime art exception: цей режим може використовувати curated Higgsfield-generated фони/ship art з `packages/client/public/cosmic-battle/`; tactical grid, missiles, scans і hit effects лишаються процедурними для performance та стилістичної сумісності.
 
+### Genesis Lab: Genome Constructor
+- Геномний конструктор у Research Lab — одноразовий вибір для акаунта: гравець обирає одну з 4 Spark of Life і синтезує її один раз.
+- Після вибору інші типи іскор у конструкторі блокуються; після успішного складання повторний синтез через цей minigame не дає нагороду.
+- Рідкісніші іскри мають більшу решітку з blocker-вузлами, але генератор не має створювати required-клітинки, ізольовані від core.
+
 ---
 
 ## 3. Universe Generation
