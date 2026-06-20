@@ -69,14 +69,14 @@ export const TF_TARGET_HABITABILITY_BOOST = 0.4;
 
 /** Per-tier flight-time coefficient (game-hours per √LY). Higher tier = faster. */
 export const TF_FLIGHT_HOURS_PER_SQRT_LY: Record<1 | 2 | 3, number> = {
-  1: 0.55,
-  2: 0.40,
-  3: 0.28,
+  1: 0.85,
+  2: 0.62,
+  3: 0.44,
 };
 
 /** Lower / upper bound on one-way flight time (game-hours). */
 export const TF_FLIGHT_MIN_HOURS = 0.1;
-export const TF_FLIGHT_MAX_HOURS = 6;
+export const TF_FLIGHT_MAX_HOURS = 12;
 
 /**
  * Repair cost: minerals = ceil(tierMaxCargo × TF_REPAIR_K × √distanceLY).

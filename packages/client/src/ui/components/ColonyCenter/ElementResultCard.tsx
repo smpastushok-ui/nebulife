@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { ELEMENTS } from '@nebulife/core';
 
@@ -75,13 +76,13 @@ export function ElementResultCard({
         ? t('lab.result_extraction_title')
         : t('separation.result_title');
 
-  return (
+  return createPortal((
     <div
       onClick={onClose}
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 4000,
+        zIndex: 12000,
         background: 'rgba(2,5,16,0.78)',
         backdropFilter: 'blur(6px)',
         display: 'flex',
@@ -194,5 +195,5 @@ export function ElementResultCard({
         )}
       </div>
     </div>
-  );
+  ), document.body);
 }

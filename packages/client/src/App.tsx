@@ -134,7 +134,7 @@ import {
   rollParticleExtraction,
 } from '@nebulife/core';
 import type { TechTreeState, TechNode, SurfaceObjectType, BuildingType, PlanetColonyState, PlacedBuilding, PlanetResourceStocks, ProducibleType, FleetState, Ship, CargoShipment, ObservatoryState, ObservatorySearchDuration, ObservatorySearchProgram, SeparationJob, SeparationGroup, ExtractionJob } from '@nebulife/core';
-import type { PlanetTerraformState, Mission, TerraformParamId, ShipTier as TfShipTier, PlanetOverride } from '@nebulife/core';
+import type { PlanetTerraformState, Mission, MissionPhase, TerraformParamId, ShipTier as TfShipTier, PlanetOverride } from '@nebulife/core';
 import type { PlanetMission, PlanetMissionType, PlanetReportSummary, PlanetRevealLevel } from '@nebulife/core';
 import {
   getInitialTerraformState,
@@ -488,6 +488,70 @@ function clampResourceBundle(resources: ColonyResourceBundle, capacity: number):
     isotopes: Math.min(Math.max(0, resources.isotopes), capacity),
     water: Math.min(Math.max(0, resources.water), capacity),
   };
+}
+
+const ZERO_RESOURCE_BUNDLE: ColonyResourceBundle = { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
+
+/**
+ * Strip the scoped "systemId::planetId" prefix from a resource-map key, leaving the
+ * bare planetId. Planet ids are globally unique (`planet-${seed}`, seed derived from
+ * the system seed), so the bare id is the single canonical key for colony storage —
+ * the scoped variants are legacy and the source of the duplicate/double-count bugs.
+ */
+function barePlanetKey(key: string): string {
+  const sep = key.indexOf('::');
+  return sep === -1 ? key : key.slice(sep + 2);
+}
+
+/** Per-resource maximum of two bundles (used to de-dup legacy bare/scoped pairs). */
+function maxResourceBundle(a: ColonyResourceBundle, b: ColonyResourceBundle): ColonyResourceBundle {
+  return {
+    minerals: Math.max(a.minerals, b.minerals),
+    volatiles: Math.max(a.volatiles, b.volatiles),
+    isotopes: Math.max(a.isotopes, b.isotopes),
+    water: Math.max(a.water, b.water),
+  };
+}
+
+/**
+ * Read a planet's canonical storage bundle from the (possibly un-normalized) map.
+ * Folds any legacy scoped "::planetId" duplicate into the bare entry by taking the
+ * per-resource MAX, so reads are correct during the brief window before the
+ * normalization effect collapses everything to bare keys.
+ */
+function readPlanetResources(map: Record<string, ColonyResourceBundle>, planetId: string): ColonyResourceBundle {
+  let acc: ColonyResourceBundle | undefined = map[planetId];
+  for (const key in map) {
+    if (key !== planetId && barePlanetKey(key) === planetId) {
+      acc = acc ? maxResourceBundle(acc, map[key]) : map[key];
+    }
+  }
+  return acc ?? ZERO_RESOURCE_BUNDLE;
+}
+
+/**
+ * Collapse a resource map so every entry is keyed by the bare planetId, merging any
+ * scoped/bare duplicates by per-resource MAX (never SUM — summing identical copies is
+ * exactly what doubled players' stockpiles). Returns the same reference when already
+ * canonical so the normalization effect is a no-op and never loops.
+ */
+function normalizeResourceMap(
+  map: Record<string, ColonyResourceBundle>,
+): { map: Record<string, ColonyResourceBundle>; changed: boolean } {
+  let changed = false;
+  const out: Record<string, ColonyResourceBundle> = {};
+  for (const key of Object.keys(map)) {
+    const bare = barePlanetKey(key);
+    if (bare !== key) changed = true;
+    const existing = out[bare];
+    if (existing) {
+      changed = true;
+      out[bare] = maxResourceBundle(existing, map[key]);
+    } else {
+      out[bare] = map[key];
+    }
+  }
+  return changed ? { map: out, changed } : { map, changed };
 }
 
 function researchDataCostForRingDistance(ringDistance: number): number {
@@ -1442,8 +1506,9 @@ function AppInner() {
   // Kept for backward-compat with Phase 7B migration. Old `nebulife_colony_resources`
   // key is written for any code that reads it directly from localStorage.
   const colonyResources = useMemo((): { minerals: number; volatiles: number; isotopes: number; water: number } => {
+    const { map } = normalizeResourceMap(colonyResourcesByPlanet);
     const sum = { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
-    for (const r of Object.values(colonyResourcesByPlanet)) {
+    for (const r of Object.values(map)) {
       sum.minerals  += r.minerals;
       sum.volatiles += r.volatiles;
       sum.isotopes  += r.isotopes;
@@ -1743,13 +1808,11 @@ function AppInner() {
 
   // ── Per-planet resource helpers (Phase 7A) ────────────────────────────
 
-  /** Get resources for a specific planet. Returns empty defaults if not yet populated. */
+  /** Get resources for a specific planet. Returns empty defaults if not yet populated.
+   *  Canonical key is the bare planetId; any legacy scoped duplicate is folded in. */
   const getResources = useCallback((planetId: string): { minerals: number; volatiles: number; isotopes: number; water: number } => {
-    const scopedKey = getPlanetKeyForId(planetId);
-    return colonyResourcesByPlanetRef.current[scopedKey]
-      ?? colonyResourcesByPlanetRef.current[planetId]
-      ?? { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
-  }, [getPlanetKeyForId]);
+    return readPlanetResources(colonyResourcesByPlanetRef.current, planetId);
+  }, []);
 
   const getStorageCapacityForPlanet = useCallback((planetId: string): number => {
     const scopedKey = getPlanetKeyForId(planetId);
@@ -1771,65 +1834,52 @@ function AppInner() {
     return BASE_RESOURCE_STORAGE_CAPACITY;
   }, [getPlanetKeyForId]);
 
-  /** Add (or subtract with negative values) resources for a specific planet. Clamps to 0. */
+  /** Add (or subtract with negative values) resources for a specific planet. Clamps to 0.
+   *  Writes the canonical bare-planetId key and removes any legacy scoped duplicate so
+   *  no double-count can re-form. */
   const addResources = useCallback((planetId: string, delta: Partial<{ minerals: number; volatiles: number; isotopes: number; water: number }>) => {
     setColonyResourcesByPlanet(prev => {
-      const scopedKey = getPlanetKeyForId(planetId);
-      const scoped = prev[scopedKey];
-      const bare = scopedKey !== planetId ? prev[planetId] : undefined;
-      // Merge any scoped + stale bare-id duplicate FIRST (mirrors the key
-      // consolidation effect) so the debit applies to the true total and we
-      // never lose the bare amount.
-      const cur = scoped && bare
-        ? {
-            minerals:  scoped.minerals  + bare.minerals,
-            volatiles: scoped.volatiles + bare.volatiles,
-            isotopes:  scoped.isotopes  + bare.isotopes,
-            water:     scoped.water     + bare.water,
-          }
-        : scoped ?? bare ?? { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
+      const cur = readPlanetResources(prev, planetId);
       const capacity = getStorageCapacityForPlanet(planetId);
-      const next = {
-        ...prev,
-        [scopedKey]: {
-          minerals:  Math.min(capacity, Math.max(0, cur.minerals  + (delta.minerals  ?? 0))),
-          volatiles: Math.min(capacity, Math.max(0, cur.volatiles + (delta.volatiles ?? 0))),
-          isotopes:  Math.min(capacity, Math.max(0, cur.isotopes  + (delta.isotopes  ?? 0))),
-          water:     Math.min(capacity, Math.max(0, cur.water     + (delta.water     ?? 0))),
-        },
-      };
-      // Drop the stale bare-id duplicate after folding it in. Otherwise the
-      // key-consolidation effect later *sums* both entries — adding the old
-      // (pre-debit) amount back and silently reversing debits (terraform
-      // dispatch resource leak: the top HUD never decreased after sending a
-      // freighter from a colony).
-      if (bare) {
-        delete next[planetId];
+      const next = { ...prev };
+      // Drop any legacy scoped variant of this planet — bare id is canonical.
+      for (const key of Object.keys(next)) {
+        if (key !== planetId && barePlanetKey(key) === planetId) delete next[key];
       }
+      next[planetId] = {
+        minerals:  Math.min(capacity, Math.max(0, cur.minerals  + (delta.minerals  ?? 0))),
+        volatiles: Math.min(capacity, Math.max(0, cur.volatiles + (delta.volatiles ?? 0))),
+        isotopes:  Math.min(capacity, Math.max(0, cur.isotopes  + (delta.isotopes  ?? 0))),
+        water:     Math.min(capacity, Math.max(0, cur.water     + (delta.water     ?? 0))),
+      };
       return next;
     });
-  }, [getPlanetKeyForId, getStorageCapacityForPlanet]);
+  }, [getStorageCapacityForPlanet]);
 
-  /** Spend from the shared colony pool, preferring the active planet first. */
+  /** Spend from the shared colony pool, preferring the active planet first.
+   *  All keys are the canonical bare planetId. */
   const spendResourcesAcrossPlanets = useCallback((
     preferredPlanetId: string,
     delta: Partial<{ minerals: number; volatiles: number; isotopes: number; water: number }>,
   ) => {
     const keys = ['minerals', 'volatiles', 'isotopes', 'water'] as const;
     setColonyResourcesByPlanet(prev => {
-      const next = { ...prev };
+      // Normalize to bare keys first so a single planet can never appear twice
+      // (which previously stranded resources: a debit drained the scoped entry
+      // while a stale bare entry kept the old amount → "spend 1000, stays 1000").
+      const { map: normalized } = normalizeResourceMap(prev);
+      const next = { ...normalized };
       for (const key of keys) {
         let remaining = Math.max(0, -(delta[key] ?? 0));
         if (remaining <= 0) continue;
 
         const spendFrom = (planetId: string) => {
           if (remaining <= 0) return;
-          const scopedKey = getPlanetKeyForId(planetId);
-          const cur = next[scopedKey] ?? next[planetId] ?? { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
+          const cur = next[planetId] ?? { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
           const available = Math.max(0, cur[key] ?? 0);
           const spent = Math.min(available, remaining);
           if (spent <= 0) return;
-          next[scopedKey] = { ...cur, [key]: available - spent };
+          next[planetId] = { ...cur, [key]: available - spent };
           remaining -= spent;
         };
 
@@ -1840,12 +1890,14 @@ function AppInner() {
       }
       return next;
     });
-  }, [getPlanetKeyForId]);
+  }, []);
 
-  /** Sum resources across all planet stores. */
+  /** Sum resources across all planet stores. Normalizes to bare keys first so a
+   *  transient scoped/bare duplicate (pre-normalization window) can't double the total. */
   const totalResources = useCallback((): { minerals: number; volatiles: number; isotopes: number; water: number } => {
+    const { map } = normalizeResourceMap(colonyResourcesByPlanetRef.current);
     const sum = { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
-    for (const r of Object.values(colonyResourcesByPlanetRef.current)) {
+    for (const r of Object.values(map)) {
       sum.minerals  += r.minerals;
       sum.volatiles += r.volatiles;
       sum.isotopes  += r.isotopes;
@@ -2000,6 +2052,27 @@ function AppInner() {
   const [cometSchedule, setCometSchedule] = useState<CometSchedule>(() => getCometSchedule('local', Date.now()));
   const [cometTrackingStartedAt, setCometTrackingStartedAt] = useState<number | null>(null);
   const [cometClaiming, setCometClaiming] = useState(false);
+
+  // The Herald Comet is a deterministic, per-player client-side schedule (never
+  // written to the cosmic_events table), so the orbital telescope / observatory
+  // would otherwise show "no events" even while a fly-by is imminent. Surface it
+  // as a synthetic CosmicEvent merged with any backend-authored events.
+  const combinedUpcomingEvents = useMemo<CosmicEvent[]>(() => {
+    const tUk = i18n.getFixedT('uk');
+    const tEn = i18n.getFixedT('en');
+    const comet: CosmicEvent = {
+      id: `comet:${cometSchedule.occurrenceDate}`,
+      titleUk: tUk('ops.comet_name'),
+      titleEn: tEn('ops.comet_name'),
+      descriptionUk: tUk('ops.comet_explain'),
+      descriptionEn: tEn('ops.comet_explain'),
+      // While the window is open count down to its close; otherwise to the next fly-by.
+      eventTime: cometSchedule.active ? cometSchedule.windowEndMs : cometSchedule.windowStartMs,
+      photoUrl: null,
+      videoUrl: null,
+    };
+    return [comet, ...upcomingEvents].sort((a, b) => a.eventTime - b.eventTime);
+  }, [cometSchedule, upcomingEvents, i18n]);
   const bumpDirectiveRef = useRef<(metric: DirectiveMetric, amount?: number) => void>(() => {});
   /** Stable wrapper usable in callbacks defined before the implementation. */
   const bumpDirective = useCallback((metric: DirectiveMetric, amount = 1) => {
@@ -2017,12 +2090,17 @@ function AppInner() {
       const targetCtx = surfaceTargetRef.current ?? homeInfoRef.current;
       if (!targetCtx) return;
       const targetId = targetCtx.planet.id;
-      const targetKey = planetObjectKey(targetCtx.system.id, targetId);
-      const cur = colonyResourcesByPlanetRef.current[targetKey]
-        ?? colonyResourcesByPlanetRef.current[targetId]
-        ?? { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
+      const cur = readPlanetResources(colonyResourcesByPlanetRef.current, targetId);
       const next = typeof updater === 'function' ? updater(cur) : updater;
-      setColonyResourcesByPlanet(prev => ({ ...prev, [targetKey]: clampResourceBundle(next, getStorageCapacityForPlanet(targetId)) }));
+      setColonyResourcesByPlanet(prev => {
+        const out = { ...prev };
+        // Canonical bare key only — purge any legacy scoped duplicate.
+        for (const key of Object.keys(out)) {
+          if (key !== targetId && barePlanetKey(key) === targetId) delete out[key];
+        }
+        out[targetId] = clampResourceBundle(next, getStorageCapacityForPlanet(targetId));
+        return out;
+      });
     },
     [getStorageCapacityForPlanet],
   );
@@ -2586,7 +2664,11 @@ function AppInner() {
         return { ...prev, [homeKey]: prev[homeInfo.planet.id] };
       });
     };
-    migrateScopedRecord(setColonyResourcesByPlanet);
+    // NOTE: colonyResourcesByPlanet is intentionally NOT migrated to a scoped key.
+    // Colony storage is canonically keyed by the globally-unique bare planetId; the
+    // dedicated normalization effect collapses any scoped/duplicate entries. Copying
+    // bare→scoped here (without deleting the bare) is exactly what previously doubled
+    // stockpiles when the consolidation effect then summed the two copies.
     migrateScopedRecord(setPlanetResourceStocks);
     migrateScopedRecord(setTerraformStates);
     migrateScopedRecord(setPlanetOverrides);
@@ -2784,63 +2866,25 @@ function AppInner() {
     if (surfaceTarget) universeEngineRef.current?.setVisible(false);
   }, [surfaceTarget]);
 
+  // Canonicalize colony storage: every entry keyed by the bare planetId, legacy
+  // scoped/duplicate entries collapsed by per-resource MAX (NOT sum — summing
+  // identical copies is what doubled stockpiles), then clamp known colonies to
+  // their storage capacity. Idempotent: returns the same reference once canonical,
+  // so this never loops. Also repairs already-corrupted saves on load/hydration.
   useEffect(() => {
     const activeSurface = surfaceTargetRef.current;
     const activeColony = colonyStateRef.current;
     const activeHome = homeInfoRef.current;
-    if (!activeSurface && !activeColony && !activeHome) return;
 
     setColonyResourcesByPlanet((prev) => {
-      let changed = false;
-      const next = { ...prev };
+      const { map: normalized, changed: collapsed } = normalizeResourceMap(prev);
+      let changed = collapsed;
+      const next = collapsed ? { ...normalized } : { ...prev };
 
-      const canonicalKeys = new Map<string, string>();
-      if (activeSurface) {
-        canonicalKeys.set(activeSurface.planet.id, planetObjectKey(activeSurface.system.id, activeSurface.planet.id));
-      }
-      if (activeHome) {
-        canonicalKeys.set(activeHome.planet.id, planetObjectKey(activeHome.system.id, activeHome.planet.id));
-      }
-      if (activeColony?.planetId) {
-        const planetId = activeColony.planetId.includes('::')
-          ? activeColony.planetId.split('::').pop() ?? activeColony.planetId
-          : activeColony.planetId;
-        const canonicalKey = activeColony.planetId.includes('::')
-          ? activeColony.planetId
-          : (canonicalKeys.get(planetId) ?? activeColony.planetId);
-        canonicalKeys.set(planetId, canonicalKey);
-      }
-
-      for (const [planetId, canonicalKey] of canonicalKeys.entries()) {
-        const duplicateKeys = Object.keys(next).filter((key) => (
-          key === planetId ||
-          key === canonicalKey ||
-          (key.includes('::') && key.split('::').pop() === planetId)
-        ));
-        if (duplicateKeys.length <= 1) continue;
-
-        const merged = duplicateKeys.reduce<ColonyResourceBundle>((acc, key) => {
-          const resources = next[key];
-          if (!resources) return acc;
-          return {
-            minerals: acc.minerals + resources.minerals,
-            volatiles: acc.volatiles + resources.volatiles,
-            isotopes: acc.isotopes + resources.isotopes,
-            water: acc.water + resources.water,
-          };
-        }, { minerals: 0, volatiles: 0, isotopes: 0, water: 0 });
-
-        const clamped = clampResourceBundle(merged, getStorageCapacityForPlanet(planetId));
-        for (const key of duplicateKeys) delete next[key];
-        next[canonicalKey] = clamped;
-        changed = true;
-      }
-
-      for (const [key, resources] of Object.entries(next)) {
-        const planetId = key.includes('::') ? key.split('::').pop() ?? key : key;
+      for (const [planetId, resources] of Object.entries(next)) {
         const canComputeCapacity = activeSurface?.planet.id === planetId
           || activeColony?.planetId === planetId
-          || activeColony?.planetId === key
+          || barePlanetKey(activeColony?.planetId ?? '') === planetId
           || activeHome?.planet.id === planetId;
         if (!canComputeCapacity) continue;
 
@@ -2851,7 +2895,7 @@ function AppInner() {
           clamped.isotopes !== resources.isotopes ||
           clamped.water !== resources.water
         ) {
-          next[key] = clamped;
+          next[planetId] = clamped;
           changed = true;
         }
       }
@@ -2876,13 +2920,18 @@ function AppInner() {
   // Cross-cutting terraform missions button for the left SceneControlsPanel
   // (shown only when the player has a fleet). Last button in the column.
   const missionButtonProps = useMemo(
-    () => (fleet.length > 0
-      ? {
-          activeCount: fleet.filter((m) => m.phase !== 'idle').length,
-          total: Math.max(1, fleet.length),
-          onClick: () => setShowMissionsPanel((v) => !v),
-        }
-      : null),
+    () => {
+      // Only count missions still in flight — idle (completed) missions are
+      // dropped from the fleet, so the badge shrinks as ships free up.
+      const active = fleet.filter((m) => m.phase !== 'idle');
+      return active.length > 0
+        ? {
+            activeCount: active.length,
+            total: active.length,
+            onClick: () => setShowMissionsPanel((v) => !v),
+          }
+        : null;
+    },
     [fleet],
   );
   const [showChaosModal, setShowChaosModal] = useState(false);
@@ -3283,18 +3332,21 @@ function AppInner() {
 
         fleetChanged = true;
 
-        // Phase transition: outbound → unloading: apply delivery to terraform state
-        if (prevPhase === 'outbound' && ticked.phase === 'unloading') {
+        // Phase ordering — used to detect which boundaries were crossed this
+        // tick. tickMission() can skip several phases at once when the tab was
+        // backgrounded (timers throttled → big `now` jump). Single-step
+        // transition handlers used to miss those skips, stranding the ship as
+        // 'assigned' (never freed) and skipping the delivery / repair charge.
+        const PHASE_IDX: Record<MissionPhase, number> = {
+          dispatching: 0, outbound: 1, unloading: 2, returning: 3, repairing: 4, idle: 5,
+        };
+        const fromIdx = PHASE_IDX[prevPhase];
+        const toIdx = PHASE_IDX[ticked.phase];
+
+        // Crossed into unloading (outbound completed) → apply the delivery once.
+        if (fromIdx < PHASE_IDX.unloading && toIdx >= PHASE_IDX.unloading) {
           const targetSystemId = (ticked as Mission & { targetSystemId?: string }).targetSystemId;
           const targetPlanetKey = targetSystemId ? planetObjectKey(targetSystemId, ticked.targetPlanetId) : ticked.targetPlanetId;
-          if (ticked.shipId) {
-            setShipFleet((prev) => ({
-              ...prev,
-              ships: prev.ships.map((ship) => ship.id === ticked.shipId
-                ? { ...ship, status: 'unloading', currentPlanetId: ticked.targetPlanetId, destinationPlanetId: null, departedAt: null, arrivalAt: null }
-                : ship),
-            }));
-          }
           const tfState = (newTerraformStates[targetPlanetKey] ?? newTerraformStates[ticked.targetPlanetId]) as PlanetTerraformState | undefined;
           if (tfState) {
             const updatedTf = applyDelivery(
@@ -3356,60 +3408,51 @@ function AppInner() {
           }
         }
 
-        // Phase transition: returning → repairing: charge minerals from donor colony
-        if (prevPhase === 'returning' && ticked.phase === 'repairing') {
-          if (ticked.shipId) {
-            setShipFleet((prev) => ({
-              ...prev,
-              ships: prev.ships.map((ship) => ship.id === ticked.shipId
-                ? { ...ship, status: 'docked', currentPlanetId: ticked.donorPlanetId, destinationPlanetId: null, departedAt: null, arrivalAt: null }
-                : ship),
-            }));
-          }
+        // Crossed into repairing (round trip completed) → charge repair minerals once.
+        if (fromIdx < PHASE_IDX.repairing && toIdx >= PHASE_IDX.repairing) {
           const cost = ticked.repairCostMinerals;
           if (cost > 0) {
             addResources(ticked.donorPlanetId, { minerals: -cost });
           }
         }
 
-        if (prevPhase === 'dispatching' && ticked.phase === 'outbound' && ticked.shipId) {
-          const arrivalAt = now + ticked.flightHours * 3_600_000;
+        // Sync the reusable ship to the mission's CURRENT phase with a single
+        // switch. This guarantees the ship is freed (assignmentId cleared) on
+        // reaching 'idle' even if several phases elapsed in one catch-up tick.
+        if (ticked.shipId) {
+          const flightMs = ticked.flightHours * 3_600_000;
+          const tickedShipId = ticked.shipId;
           setShipFleet((prev) => ({
             ...prev,
-            ships: prev.ships.map((ship) => ship.id === ticked.shipId
-              ? { ...ship, status: 'in_transit', currentPlanetId: null, destinationPlanetId: ticked.targetPlanetId, departedAt: now, arrivalAt }
-              : ship),
-          }));
-        }
-
-        if (prevPhase === 'unloading' && ticked.phase === 'returning' && ticked.shipId) {
-          const arrivalAt = now + ticked.flightHours * 3_600_000;
-          setShipFleet((prev) => ({
-            ...prev,
-            ships: prev.ships.map((ship) => ship.id === ticked.shipId
-              ? { ...ship, status: 'in_transit', currentPlanetId: null, destinationPlanetId: ticked.donorPlanetId, departedAt: now, arrivalAt }
-              : ship),
-          }));
-        }
-
-        if (prevPhase === 'repairing' && ticked.phase === 'idle' && ticked.shipId) {
-          setShipFleet((prev) => ({
-            ...prev,
-            ships: prev.ships.map((ship) => ship.id === ticked.shipId
-              ? { ...ship, status: 'docked', currentPlanetId: ticked.donorPlanetId, assignmentId: null }
-              : ship),
+            ships: prev.ships.map((ship) => {
+              if (ship.id !== tickedShipId) return ship;
+              switch (ticked.phase) {
+                case 'outbound':
+                  return { ...ship, status: 'in_transit', currentPlanetId: null, destinationPlanetId: ticked.targetPlanetId, departedAt: now, arrivalAt: now + flightMs };
+                case 'unloading':
+                  return { ...ship, status: 'unloading', currentPlanetId: ticked.targetPlanetId, destinationPlanetId: null, departedAt: null, arrivalAt: null };
+                case 'returning':
+                  return { ...ship, status: 'in_transit', currentPlanetId: null, destinationPlanetId: ticked.donorPlanetId, departedAt: now, arrivalAt: now + flightMs };
+                case 'repairing':
+                  return { ...ship, status: 'docked', currentPlanetId: ticked.donorPlanetId, destinationPlanetId: null, departedAt: null, arrivalAt: null };
+                case 'idle':
+                  return { ...ship, status: 'docked', currentPlanetId: ticked.donorPlanetId, destinationPlanetId: null, departedAt: null, arrivalAt: null, assignmentId: null };
+                default:
+                  return ship;
+              }
+            }),
           }));
         }
 
         return ticked;
       });
 
-      // GC: drop missions that have been idle for more than 24 h
-      const GC_MS = 24 * 60 * 60 * 1000;
-      const gcFleet = nextFleet.filter((m) => {
-        if (m.phase !== 'idle') return true;
-        return (now - m.phaseStartedAt) < GC_MS;
-      });
+      // Drop missions the instant they reach 'idle'. By this point the ship has
+      // already been freed and the delivery applied in the same tick, so an idle
+      // mission only clutters the tracker and inflates the left-menu count. The
+      // ship returns to the spaceport's available pool for the next dispatch.
+      // (Idle missions are transient — they're never persisted to the server.)
+      const gcFleet = nextFleet.filter((m) => m.phase !== 'idle');
 
       if (fleetChanged) {
         setFleet(gcFleet);
@@ -5113,6 +5156,40 @@ function AppInner() {
   const [surfacePhase, setSurfacePhase] = useState<SurfacePhase>('ready');
   const [surfaceBuildPanelOpen, setSurfaceBuildPanelOpen] = useState(true);
   const [surfaceBuildingCount, setSurfaceBuildingCount] = useState(0);
+
+  // Genesis Vault is a global terraform enabler: once built on ANY colony it
+  // unlocks terraform launches everywhere. The active colonyState only describes
+  // the colony currently open, so checking it alone wrongly reported "vault
+  // required" in the terminal when terraforming a different planet while the
+  // vault sat on the home colony. Scan every colony's persisted hex slots too.
+  const hasGenesisVaultAnywhere = useMemo(() => {
+    if (colonyState?.buildings?.some((b) => b.type === 'genesis_vault')) return true;
+    try {
+      for (const key of Object.keys(localStorage)) {
+        if (!key.startsWith('nebulife_hex_slots')) continue;
+        const parsed = JSON.parse(localStorage.getItem(key) ?? 'null') as unknown;
+        if (Array.isArray(parsed) && parsed.some((s) => (s as { buildingType?: string })?.buildingType === 'genesis_vault')) {
+          return true;
+        }
+      }
+    } catch { /* ignore */ }
+    return false;
+  }, [colonyState, surfaceBuildingCount]);
+
+  // Cargo logistics can only unload where the target colony has a landing pad or
+  // spaceport. Resolves the target's buildings from the active colony when it's the
+  // one open, otherwise from that colony's persisted hex slots. (Terraform delivery
+  // is a separate path and intentionally needs no surface buildings on the target.)
+  const getPlanetHasLandingPad = useCallback((planetId: string): boolean => {
+    const active = colonyStateRef.current;
+    const buildings = (active?.planetId === planetId && (active?.buildings?.length ?? 0) > 0)
+      ? active!.buildings
+      : (() => {
+          const sys = engineRef.current?.getAllSystems?.().find((s) => s.planets.some((p) => p.id === planetId));
+          return readHexSlotBuildingsFromStorage(playerId.current, [], sys?.id, planetId);
+        })();
+    return buildings.some((b) => (b.type === 'landing_pad' || b.type === 'spaceport') && !b.shutdown);
+  }, []);
 
   const refreshQuarks = useCallback(() => {
     authFetch(`/api/player/${playerId.current}`)
@@ -9157,39 +9234,39 @@ function AppInner() {
     // The evacuation ship carries the stockpile — one-time handoff (Phase 7B).
     const newPlanetId = evacuationTarget.planet.id;
     const oldPlanetId = homeInfo?.planet.id;
-      const newPlanetKey = planetObjectKey(evacuationTarget.system.id, newPlanetId);
-      homeInfoRef.current = { system: evacuationTarget.system, planet: evacuationTarget.planet };
-    const oldPlanetKey = homeInfo && oldPlanetId ? planetObjectKey(homeInfo.system.id, oldPlanetId) : oldPlanetId;
+    homeInfoRef.current = { system: evacuationTarget.system, planet: evacuationTarget.planet };
     if (oldPlanetId && oldPlanetId !== newPlanetId) {
       setColonyResourcesByPlanet((prev) => {
-        const carried = (oldPlanetKey ? prev[oldPlanetKey] : undefined)
-          ?? prev[oldPlanetId]
-          ?? { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
-        const existing = prev[newPlanetKey] ?? prev[newPlanetId] ?? { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
+        // Canonical bare keys (readPlanetResources folds any legacy scoped variant).
+        const carried = readPlanetResources(prev, oldPlanetId);
+        const existing = readPlanetResources(prev, newPlanetId);
         const merged = { ...prev };
-        // Move old planet's resources onto new planet, clear old entry
-        merged[newPlanetKey] = {
+        // Move old planet's resources onto new planet, clear old entry (all variants).
+        for (const key of Object.keys(merged)) {
+          if (barePlanetKey(key) === oldPlanetId || barePlanetKey(key) === newPlanetId) delete merged[key];
+        }
+        merged[newPlanetId] = {
           minerals:  Math.max(existing.minerals  + carried.minerals,  POST_EVACUATION_RESOURCE_RESERVE.minerals),
           volatiles: Math.max(existing.volatiles + carried.volatiles, POST_EVACUATION_RESOURCE_RESERVE.volatiles),
           isotopes:  Math.max(existing.isotopes  + carried.isotopes,  POST_EVACUATION_RESOURCE_RESERVE.isotopes),
           water:     Math.max(existing.water     + carried.water,     POST_EVACUATION_RESOURCE_RESERVE.water),
         };
-        if (oldPlanetKey) delete merged[oldPlanetKey];
-        delete merged[oldPlanetId];
         return merged;
       });
     } else {
       setColonyResourcesByPlanet((prev) => {
-        const existing = prev[newPlanetKey] ?? prev[newPlanetId] ?? { minerals: 0, volatiles: 0, isotopes: 0, water: 0 };
-        return {
-          ...prev,
-          [newPlanetKey]: {
-            minerals: Math.max(existing.minerals, POST_EVACUATION_RESOURCE_RESERVE.minerals),
-            volatiles: Math.max(existing.volatiles, POST_EVACUATION_RESOURCE_RESERVE.volatiles),
-            isotopes: Math.max(existing.isotopes, POST_EVACUATION_RESOURCE_RESERVE.isotopes),
-            water: Math.max(existing.water, POST_EVACUATION_RESOURCE_RESERVE.water),
-          },
+        const existing = readPlanetResources(prev, newPlanetId);
+        const out = { ...prev };
+        for (const key of Object.keys(out)) {
+          if (key !== newPlanetId && barePlanetKey(key) === newPlanetId) delete out[key];
+        }
+        out[newPlanetId] = {
+          minerals: Math.max(existing.minerals, POST_EVACUATION_RESOURCE_RESERVE.minerals),
+          volatiles: Math.max(existing.volatiles, POST_EVACUATION_RESOURCE_RESERVE.volatiles),
+          isotopes: Math.max(existing.isotopes, POST_EVACUATION_RESOURCE_RESERVE.isotopes),
+          water: Math.max(existing.water, POST_EVACUATION_RESOURCE_RESERVE.water),
         };
+        return out;
       });
     }
 
@@ -9533,6 +9610,9 @@ function AppInner() {
       return false;
     }
     const resourceKey = group === 'volatile' ? 'volatiles' : group === 'isotope' ? 'isotopes' : group === 'water' ? 'water' : 'minerals';
+    // Per-colony storage: the separator consumes THIS colony's bulk. The surface HUD
+    // and the building panel both show this same per-colony bucket (getResources),
+    // so the check and debit stay consistent with what the player sees in storage.
     const available = getResources(planetId)[resourceKey];
     if (available < SEPARATION_BATCH) {
       setToastMessage(tr('separation.need_bulk', { amount: SEPARATION_BATCH }));
@@ -9632,6 +9712,8 @@ function AppInner() {
       setTimeout(() => setToastMessage(null), 3200);
       return false;
     }
+    // Per-colony storage (mirrors handleStartSeparation): validate + debit against
+    // THIS colony's bucket, matching the surface HUD and building panel.
     const available = getResources(planetId).minerals;
     if (available < EXTRACTION_BATCH) {
       setToastMessage(tr('lab.need_bulk', { amount: EXTRACTION_BATCH }));
@@ -12273,7 +12355,7 @@ function AppInner() {
               || systemPhotos.get(`planet-biosphere-${state.selectedPlanet.id}`)?.status === 'generating'
               || systemPhotos.get(`planet-aerial-${state.selectedPlanet.id}`)?.status === 'generating'
           }
-          hasGenesisVault={colonyState?.buildings?.some((b) => b.type === 'genesis_vault') ?? false}
+          hasGenesisVault={hasGenesisVaultAnywhere}
           onShowTerraform={onShowTerraform}
           targetHasLandingPad={(() => {
             const sel = state.selectedPlanet;
@@ -12291,7 +12373,7 @@ function AppInner() {
               ?? allSystems.find((s) => s.planets.some((p) => p.id === tfPlanet.id));
             const tfState = getPlanetScopedValue(terraformStates, targetSys?.id, tfPlanet.id)
               ?? getInitialTerraformState(tfPlanet);
-            const hasGenVault = colonyState?.buildings?.some((b) => b.type === 'genesis_vault') ?? false;
+            const hasGenVault = hasGenesisVaultAnywhere;
             const donors = getColonyPlanets();
             const donorDistMap = new Map<string, number>();
             if (targetSys) {
@@ -12524,7 +12606,7 @@ function AppInner() {
           );
         }
         const tfState = getPlanetScopedValue(terraformStates, targetSys?.id, tfPlanet.id) ?? getInitialTerraformState(tfPlanet);
-        const hasGenVault = colonyState?.buildings?.some((b) => b.type === 'genesis_vault') ?? false;
+        const hasGenVault = hasGenesisVaultAnywhere;
         const donors = getColonyPlanets();
         // Compute donor distances: find the StarSystem for target and each donor,
         // then compute distance using systemDistanceLY.
@@ -12961,10 +13043,10 @@ function AppInner() {
           onBuildPanelChange={setSurfaceBuildPanelOpen}
           playerLevel={playerLevel}
           techTreeState={techTreeState}
-          minerals={colonyResources.minerals}
-          volatiles={colonyResources.volatiles}
-          isotopes={colonyResources.isotopes}
-          water={colonyResources.water}
+          minerals={getResources(surfaceTarget.planet.id).minerals}
+          volatiles={getResources(surfaceTarget.planet.id).volatiles}
+          isotopes={getResources(surfaceTarget.planet.id).isotopes}
+          water={getResources(surfaceTarget.planet.id).water}
           chemicalInventory={chemicalInventory}
           onElementChange={handleElementChange}
           onConsumeIsotopes={(amount) => {
@@ -13009,7 +13091,7 @@ function AppInner() {
           extractionJobs={extractionJobs}
           onStartExtraction={handleStartExtraction}
           onOpenDnaLab={() => setShowDnaLab(true)}
-          upcomingEvents={upcomingEvents}
+          upcomingEvents={combinedUpcomingEvents}
           onOpenSignals={() => { setOpsHubTab('signals'); setShowOpsHub(true); }}
           isPremium={isPremiumActive}
           shutdownBuildingTypes={colonyState
@@ -13474,6 +13556,8 @@ function AppInner() {
           planetResourceStocks={planetResourceStocks}
           donorPlanets={getColonyPlanets()}
           colonyBuildings={colonyState?.buildings ?? []}
+          hasGenesisVault={hasGenesisVaultAnywhere}
+          getPlanetHasLandingPad={getPlanetHasLandingPad}
           cargoShips={shipFleet.ships.filter((ship) => {
             const def = PRODUCIBLE_DEFS[ship.type];
             return (ship.type === 'terraform_freighter' || def.requiresBuilding === 'spaceport') && def.cargoCapacity > 0;
@@ -14041,7 +14125,7 @@ function AppInner() {
       {/* Mission panel — opened from the CommandBar mission button */}
       {!authLoading && !needsOnboarding && !needsCallsign && !showArena && !showRaid && !showHangar && (
         <MissionTracker
-          missions={fleet}
+          missions={fleet.filter((m) => m.phase !== 'idle')}
           open={showMissionsPanel}
           onClose={() => setShowMissionsPanel(false)}
           getPlanetName={(planetId) => {
@@ -14244,7 +14328,7 @@ function AppInner() {
             extractionJobs={extractionJobs}
             onStartExtraction={handleStartExtraction}
             onOpenDnaLab={() => setShowDnaLab(true)}
-            upcomingEvents={upcomingEvents}
+            upcomingEvents={combinedUpcomingEvents}
             onOpenSignals={() => { setOpsHubTab('signals'); setShowOpsHub(true); }}
           />
         );

@@ -210,6 +210,10 @@ export interface CosmicArchiveProps {
   donorPlanets?: Planet[];
   /** Current buildings on the active colony surface — used for ship-tier computation. */
   colonyBuildings?: PlacedBuilding[];
+  /** Whether a Genesis Vault exists on ANY colony (global terraform enabler). */
+  hasGenesisVault?: boolean;
+  /** Whether a target planet has a landing pad / spaceport to receive cargo. */
+  getPlanetHasLandingPad?: (planetId: string) => boolean;
   /** Save a custom name for a planet (stored in planetOverrides). */
   onRenamePlanet?: (planetId: string, newName: string) => void;
   /** Reusable cargo ships for Terminal -> Planets logistics tab. */
@@ -391,6 +395,8 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   onCompleteTerraform,
   donorPlanets,
   colonyBuildings,
+  hasGenesisVault,
+  getPlanetHasLandingPad,
   onRenamePlanet,
   cargoShips,
   cargoShipments,
@@ -694,6 +700,8 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           donorPlanets={donorPlanets}
           techTreeState={techTreeState}
           colonyBuildings={colonyBuildings}
+          hasGenesisVault={hasGenesisVault}
+          getPlanetHasLandingPad={getPlanetHasLandingPad}
           onToggleFavorite={toggleFavorite}
           favoritePlanetIds={favorites}
           onRenamePlanet={onRenamePlanet}
@@ -776,6 +784,8 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
           donorPlanets={donorPlanets}
           techTreeState={techTreeState}
           colonyBuildings={colonyBuildings}
+          hasGenesisVault={hasGenesisVault}
+          getPlanetHasLandingPad={getPlanetHasLandingPad}
           onToggleFavorite={toggleFavorite}
           favoritePlanetIds={favorites}
           onlyFavorites

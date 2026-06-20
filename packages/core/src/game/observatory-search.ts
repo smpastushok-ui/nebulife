@@ -270,6 +270,8 @@ function applyObservatoryDiscovery(
         duplicate,
         xpGained,
         leveledUp: getObservatoryLevel({ xp: state.xp + xpGained }) > previousLevel,
+        // Persist the full discovery so the report card can re-open the reveal.
+        discovery,
       },
     ].slice(-25),
   };

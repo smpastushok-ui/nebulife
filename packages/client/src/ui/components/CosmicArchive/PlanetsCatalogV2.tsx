@@ -87,6 +87,10 @@ interface PlanetsCatalogV2Props {
   techTreeState?: TechTreeState;
   /** Current buildings on the active colony surface (for ship-tier check). */
   colonyBuildings?: PlacedBuilding[];
+  /** Whether a Genesis Vault exists on ANY colony (global terraform enabler). */
+  hasGenesisVault?: boolean;
+  /** Whether a target planet has a landing pad / spaceport to receive cargo. */
+  getPlanetHasLandingPad?: (planetId: string) => boolean;
   /** Callback to rename a planet (inline edit). Saved in planetOverrides. */
   onRenamePlanet?: (planetId: string, newName: string) => void;
   /** Reusable cargo ships for Terminal -> Planets logistics tab. */
@@ -1200,6 +1204,7 @@ function TerraformParamDetailRow({
   donorPlanets,
   techTreeState,
   shipTier,
+  hasGenesisVault = false,
   getPlanetResources,
   onSendTerraformDelivery,
 }: {
@@ -1210,6 +1215,7 @@ function TerraformParamDetailRow({
   techTreeState: TechTreeState | undefined;
   shipTier: number;
   colonyBuildings?: PlacedBuilding[];
+  hasGenesisVault?: boolean;
   getPlanetResources?: (planetId: string) => ColonyResources;
   onSendTerraformDelivery?: (targetPlanet: Planet, paramId: TerraformParamId) => void;
 }) {
@@ -1234,8 +1240,8 @@ function TerraformParamDetailRow({
     ? Math.round((progress / 100) * requirement)
     : 0;
 
-  // Gate check
-  const hasGenesisVault = false; // catalog doesn't have genesis vault context — safe default
+  // Gate check — Genesis Vault is a global enabler threaded from App (built on
+  // ANY colony), so the terminal no longer falsely demands a vault here.
   const gate = useMemo(() => {
     if (!techTreeState) return { allowed: true, reason: null };
     try {
@@ -1243,7 +1249,7 @@ function TerraformParamDetailRow({
     } catch {
       return { allowed: true, reason: null };
     }
-  }, [terraformState, paramId, planet, techTreeState]);
+  }, [terraformState, paramId, planet, techTreeState, hasGenesisVault]);
 
   const hasDonors = donorPlanets.length > 0;
   const hasShip = shipTier >= 1;
@@ -1505,6 +1511,10 @@ interface ExpandedDetailPanelProps {
   techTreeState: TechTreeState | undefined;
   shipTier: number;
   colonyBuildings?: PlacedBuilding[];
+  /** Whether a Genesis Vault exists on ANY colony (global terraform enabler). */
+  hasGenesisVault?: boolean;
+  /** Whether a target planet has a landing pad / spaceport to receive cargo. */
+  getPlanetHasLandingPad?: (planetId: string) => boolean;
   getPlanetResources?: (planetId: string) => ColonyResources;
   onSendTerraformDelivery?: (targetPlanet: Planet, paramId: TerraformParamId) => void;
   onCompleteTerraform?: (planet: Planet) => void;
@@ -1559,6 +1569,8 @@ function ExpandedDetailPanel({
   techTreeState,
   shipTier,
   colonyBuildings = [],
+  hasGenesisVault = false,
+  getPlanetHasLandingPad,
   getPlanetResources,
   onSendTerraformDelivery,
   onCompleteTerraform,
@@ -2051,6 +2063,7 @@ function ExpandedDetailPanel({
             ships={cargoShips}
             shipments={cargoShipments}
             targetPlanetId={planet.id}
+            targetHasLandingPad={getPlanetHasLandingPad ? getPlanetHasLandingPad(planet.id) : true}
             planetResources={planetResourcesById}
             getDonorResources={getDonorResources}
             getCargoRouteLY={getCargoRouteLY}
@@ -2075,6 +2088,7 @@ function ExpandedDetailPanel({
                     donorPlanets={donorPlanets}
                     techTreeState={techTreeState}
                     shipTier={shipTier}
+                    hasGenesisVault={hasGenesisVault}
                     getPlanetResources={getPlanetResources}
                     onSendTerraformDelivery={onSendTerraformDelivery}
                   />
@@ -2147,6 +2161,8 @@ export function PlanetsCatalogV2({
   donorPlanets = [],
   techTreeState,
   colonyBuildings = [],
+  hasGenesisVault = false,
+  getPlanetHasLandingPad,
   onRenamePlanet,
   cargoShips = [],
   cargoShipments = [],
@@ -2416,6 +2432,8 @@ export function PlanetsCatalogV2({
                   techTreeState={techTreeState}
                   shipTier={shipTier}
                   colonyBuildings={colonyBuildings}
+                  hasGenesisVault={hasGenesisVault}
+                  getPlanetHasLandingPad={getPlanetHasLandingPad}
                   getPlanetResources={getPlanetResources}
                   onSendTerraformDelivery={onSendTerraformDelivery}
                   onCompleteTerraform={onCompleteTerraform}
