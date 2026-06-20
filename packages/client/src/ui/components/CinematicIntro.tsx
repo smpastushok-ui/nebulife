@@ -570,11 +570,10 @@ function OnboardingSlides({
   }, [slide]);
 
   // Per-slide one-shot cues for the text variant (these slides replaced the old
-  // catastrophe/briefing videos): incoming transmission alert + directive stamp.
+  // catastrophe/briefing videos). Slide 0 intentionally stays silent.
   useEffect(() => {
     if (INTRO_VIDEOS_ENABLED) return;
-    if (slide === 0) playSfx('alert-transmission', 0.8);
-    else if (slide === 2) playSfx('directive-stamp', 0.5);
+    if (slide === 2) playSfx('directive-stamp', 0.5);
   }, [slide]);
 
   const { star } = system;

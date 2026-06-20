@@ -42,7 +42,6 @@
       { "name": "intro-bigbang", "duration": 3, "loop": false, "prompt": "A sub-bass impact then a wide whoosh blossoming into a bright ringing tail, an elegant cosmic big bang, powerful but not scary, one-shot" },
       { "name": "intro-star-chime", "duration": 2, "loop": false, "prompt": "A soft crystalline chime, a two or three note magical arpeggio, a single point of light being born, gentle and bright, one-shot" },
       { "name": "intro-theme", "duration": 20, "loop": true, "prompt": "Atmospheric minimalist ambient pad, calm and hopeful space-journey mood, slow evolving synth texture, no drums and no strong melody, soothing background, seamless loop" },
-      { "name": "alert-transmission", "duration": 2, "loop": false, "prompt": "A short incoming-transmission alert, two or three muffled radio beeps with static crackle, urgent but controlled, not a siren, one-shot" },
       { "name": "directive-stamp", "duration": 1, "loop": false, "prompt": "A short low official stamp thud with a brief metallic resonance, the sense of an order being issued and approved, one-shot" },
       { "name": "mission-start", "duration": 3, "loop": false, "prompt": "A heroic short riser building into a bright uplifting chord, engines igniting, an emotional lift and reward, one-shot" }
     ]
