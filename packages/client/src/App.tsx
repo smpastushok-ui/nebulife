@@ -669,6 +669,47 @@ interface ColonizedPlanetRecord {
   population: number;
 }
 
+function normalizeColonizedPlanets(value: unknown): Record<string, ColonizedPlanetRecord> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const out: Record<string, ColonizedPlanetRecord> = {};
+  for (const [planetId, rawRecord] of Object.entries(value as Record<string, unknown>)) {
+    if (!planetId || !rawRecord || typeof rawRecord !== 'object' || Array.isArray(rawRecord)) continue;
+    const record = rawRecord as Record<string, unknown>;
+    const systemId = typeof record.systemId === 'string' ? record.systemId : '';
+    if (!systemId) continue;
+    const foundedAt = typeof record.foundedAt === 'number' && Number.isFinite(record.foundedAt)
+      ? record.foundedAt
+      : Date.now();
+    const population = typeof record.population === 'number' && Number.isFinite(record.population)
+      ? Math.max(0, Math.round(record.population))
+      : 5000;
+    out[planetId] = { systemId, foundedAt, population };
+  }
+  return out;
+}
+
+function mergeColonizedPlanets(
+  ...maps: Array<Record<string, ColonizedPlanetRecord> | undefined>
+): Record<string, ColonizedPlanetRecord> {
+  const out: Record<string, ColonizedPlanetRecord> = {};
+  for (const map of maps) {
+    if (!map) continue;
+    for (const [planetId, record] of Object.entries(map)) {
+      const existing = out[planetId];
+      if (!existing) {
+        out[planetId] = record;
+        continue;
+      }
+      out[planetId] = {
+        systemId: record.systemId || existing.systemId,
+        foundedAt: Math.min(existing.foundedAt, record.foundedAt),
+        population: Math.max(existing.population, record.population),
+      };
+    }
+  }
+  return out;
+}
+
 type SurfaceAccessMode = 'survey' | 'colony' | 'orbital';
 
 interface SurfaceAccessCheck {
@@ -6005,6 +6046,22 @@ function AppInner() {
         commitColonyResourcesByPlanet({ [hpid]: cr }, typeof gs.colony_resources_updated_at === 'number' ? gs.colony_resources_updated_at : Date.now());
       }
     }
+    if (gs.colonized_planets && typeof gs.colonized_planets === 'object') {
+      const serverColonies = normalizeColonizedPlanets(gs.colonized_planets);
+      if (Object.keys(serverColonies).length > 0) {
+        const localColonies = (() => {
+          try {
+            return normalizeColonizedPlanets(JSON.parse(localStorage.getItem('nebulife_colonized_planets') ?? 'null'));
+          } catch {
+            return {};
+          }
+        })();
+        const mergedColonies = mergeColonizedPlanets(serverColonies, localColonies);
+        colonizedPlanetsRef.current = mergedColonies;
+        setColonizedPlanets(mergedColonies);
+        try { localStorage.setItem('nebulife_colonized_planets', JSON.stringify(mergedColonies)); } catch { /* ignore */ }
+      }
+    }
     if (gs.chemical_inventory && typeof gs.chemical_inventory === 'object') {
       const localCI = (() => { try { return JSON.parse(localStorage.getItem('nebulife_chemical_inventory') ?? 'null'); } catch { return null; } })();
       const merged: Record<string, number> = {};
@@ -11041,6 +11098,10 @@ function AppInner() {
       isotopes: acc.isotopes + resources.isotopes,
       water: acc.water + resources.water,
     }), { minerals: 0, volatiles: 0, isotopes: 0, water: 0 });
+    const syncedColonizedPlanets = mergeColonizedPlanets(
+      normalizeColonizedPlanets(gameStateRef.current?.colonized_planets),
+      colonizedPlanetsRef.current,
+    );
 
     return {
       xp: playerXP,
@@ -11091,6 +11152,7 @@ function AppInner() {
       ),
       fleet: fleet.filter((m) => m.phase !== 'idle'),
       fleet_state: shipFleet,
+      colonized_planets: syncedColonizedPlanets,
       planet_reveal_levels: planetRevealLevels,
       planet_missions: planetMissions,
       planet_reports: planetReports,
