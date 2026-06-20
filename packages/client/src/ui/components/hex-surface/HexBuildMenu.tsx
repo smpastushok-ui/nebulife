@@ -118,6 +118,14 @@ function isTechResearched(techTreeState: any, techId: string | null): boolean {
   return !!techTreeState[techId];
 }
 
+function isBuildingAllowedForPlanetType(type: BuildingType, planetType?: PlanetType): boolean {
+  if (!planetType) return true;
+  if (planetType === 'gas-giant' || planetType === 'ice-giant') {
+    return type === 'landing_pad' || type === 'orbital_collector';
+  }
+  return BUILDING_DEFS[type].allowedPlanetTypes.includes(planetType);
+}
+
 // Building image map
 const BUILDING_IMG: Record<string, string> = {
   colony_hub: '/buildings/colony.webp',
@@ -295,7 +303,7 @@ export function HexBuildMenu({
                   const def = BUILDING_DEFS[type];
                   const levelLocked = def.levelRequired > playerLevel;
                   const techLocked = !isTechResearched(techTreeState, def.techRequired);
-                  const planetLocked = planetType ? !def.allowedPlanetTypes.includes(planetType) : false;
+                  const planetLocked = !isBuildingAllowedForPlanetType(type, planetType);
                   const isLocked = levelLocked || techLocked || planetLocked;
 
                   // Alpha harvester: quarks price instead of colony resources

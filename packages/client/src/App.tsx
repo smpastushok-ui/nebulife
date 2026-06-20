@@ -3145,7 +3145,7 @@ function AppInner() {
       fresh.buildings = buildings;
       return fresh;
     });
-  }, [surfaceTarget?.planet.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [surfaceTarget?.system.id, surfaceTarget?.planet.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const runImmediateEnergyCheck = useCallback((currentColony: PlanetColonyState) => {
     if (!surfaceTarget) return currentColony;
@@ -3595,8 +3595,7 @@ function AppInner() {
     const surfCtx = surfaceTargetRef.current ?? colonyPlanetRef.current;
     if (surfCtx?.planet) {
       try {
-        const raw = localStorage.getItem(`nebulife_hex_slots_${surfCtx.system.id}_${surfCtx.planet.id}`)
-          ?? localStorage.getItem('nebulife_hex_slots');
+        const raw = localStorage.getItem(`nebulife_hex_slots_${surfCtx.system.id}_${surfCtx.planet.id}`);
         if (raw) {
           const slots = JSON.parse(raw) as Array<{ state: string; buildingType?: string }>;
           const hasHub = slots.some(
@@ -3680,7 +3679,8 @@ function AppInner() {
     for (const building of colonyState?.buildings ?? []) byId.set(building.id, building);
 
     try {
-      const raw = localStorage.getItem('nebulife_hex_slots');
+      const surfCtx = surfaceTargetRef.current ?? colonyPlanetRef.current;
+      const raw = surfCtx ? localStorage.getItem(`nebulife_hex_slots_${surfCtx.system.id}_${surfCtx.planet.id}`) : null;
       if (raw) {
         const slots = JSON.parse(raw) as Array<{ id: string; state: string; buildingType?: string; buildingLevel?: number }>;
         for (const slot of slots) {

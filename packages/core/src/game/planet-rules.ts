@@ -15,11 +15,11 @@ import { ALL_NODES } from './tech-tree.js';
 
 /** Buildings allowed per planet type (overrides BuildingDef.allowedPlanetTypes). */
 const GAS_GIANT_ALLOWED: BuildingType[] = [
-  'orbital_collector', 'orbital_telescope', 'landing_pad',
+  'landing_pad', 'orbital_collector',
 ];
 
 const ICE_GIANT_ALLOWED: BuildingType[] = [
-  'orbital_collector', 'orbital_telescope', 'landing_pad', 'thermal_generator',
+  'landing_pad', 'orbital_collector',
 ];
 
 /** Check whether a planet has atmosphere (simplified heuristic). */
@@ -61,17 +61,19 @@ export function canBuildOnPlanet(
     return { available: false, reason: `Потрібна технологія: ${techName}` };
   }
 
-  // 3. Planet type restriction
-  if (!def.allowedPlanetTypes.includes(planet.type)) {
-    return { available: false, reason: `Не доступна на ${getPlanetTypeLabel(planet.type)}` };
-  }
-
-  // 4. Gas giant / ice giant hard-list
+  // 3. Gas giant / ice giant hard-list. These planets use an orbital grid, not
+  // a normal surface, so only logistics + atmospheric collection are allowed.
   if (planet.type === 'gas-giant' && !GAS_GIANT_ALLOWED.includes(buildingType)) {
     return { available: false, reason: 'Газовий гігант: лише орбітальні будівлі' };
   }
   if (planet.type === 'ice-giant' && !ICE_GIANT_ALLOWED.includes(buildingType)) {
     return { available: false, reason: 'Крижаний гігант: обмежений набір будівель' };
+  }
+
+  // 4. Planet type restriction for normal solid-surface planets. Giants already
+  // passed the orbital hard-list above, even if a shared def is land-only.
+  if (!isGiantPlanet(planet.type) && !def.allowedPlanetTypes.includes(planet.type)) {
+    return { available: false, reason: `Не доступна на ${getPlanetTypeLabel(planet.type)}` };
   }
 
   // 5. Atmosphere requirement
@@ -98,6 +100,10 @@ export function canBuildOnPlanet(
   }
 
   return { available: true };
+}
+
+function isGiantPlanet(type: PlanetType): boolean {
+  return type === 'gas-giant' || type === 'ice-giant';
 }
 
 /**

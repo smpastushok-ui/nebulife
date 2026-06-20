@@ -169,17 +169,22 @@ function revealAdjacentHidden(slots: HexSlotData[], unlockedId: string, size: He
 // Initial slot builder (fresh start, 30 diamond hexes)
 // ---------------------------------------------------------------------------
 
+function initialHubBuildingFor(size: HexPlanetSize): BuildingType {
+  return size === 'orbital' ? 'landing_pad' : 'colony_hub';
+}
+
 function buildInitialSlots(size: HexPlanetSize = 'medium'): HexSlotData[] {
   const descriptors = buildDiamondDescriptors(size);
+  const hubBuilding = initialHubBuildingFor(size);
   const slots: HexSlotData[] = descriptors.map(({ id, zone, zoneIndex }) => {
     if (zone === 0) {
-      // Hub — auto-unlocked with colony building
+      // Hub — solid planets get a colony hub; giants get an orbital landing pad.
       return {
         id,
         ring: 0,
         index: zoneIndex,
         state: 'building' as HexState,
-        buildingType: 'colony_hub',
+        buildingType: hubBuilding,
         buildingLevel: 1,
       };
     }
@@ -235,12 +240,13 @@ function migrateRingToDiamond(oldSlots: HexSlotData[], size: HexPlanetSize = 'me
     if (zone === 0) {
       // Try to restore hub state from old ring0-0
       const oldHub = oldById.get('ring0-0');
+      const hubBuilding = initialHubBuildingFor(size);
       return {
         id,
         ring: 0,
         index: zoneIndex,
         state: oldHub?.state ?? ('building' as HexState),
-        buildingType: oldHub?.buildingType ?? 'colony_hub',
+        buildingType: oldHub?.buildingType ?? hubBuilding,
         buildingLevel: oldHub?.buildingLevel ?? 1,
       };
     }
@@ -337,6 +343,63 @@ function mergeHarvestTimers(base: HexSlotData[], other: HexSlotData[]): HexSlotD
   return changed ? merged : base;
 }
 
+function isGiantPlanet(planet: Planet): boolean {
+  return planet.type === 'gas-giant' || planet.type === 'ice-giant';
+}
+
+function isBuildingAllowedForPlanet(buildingType: BuildingType, planet: Planet): boolean {
+  if (isGiantPlanet(planet)) {
+    return buildingType === 'landing_pad' || buildingType === 'orbital_collector';
+  }
+  return BUILDING_DEFS[buildingType]?.allowedPlanetTypes.includes(planet.type) ?? false;
+}
+
+function sanitizeSlotsForPlanet(slots: HexSlotData[], planet: Planet, size: HexPlanetSize): HexSlotData[] {
+  const hubId = getHubId(size);
+  const hubBuilding = initialHubBuildingFor(size);
+  let changed = false;
+  const sanitized = slots.map((slot) => {
+    if (slot.id === hubId) {
+      if (slot.state !== 'building' || slot.buildingType !== hubBuilding) {
+        changed = true;
+        return {
+          ...slot,
+          state: 'building' as HexState,
+          buildingType: hubBuilding,
+          buildingLevel: slot.buildingLevel ?? 1,
+          resourceType: undefined,
+          rarity: undefined,
+          yieldPerHour: undefined,
+          maxCapacity: undefined,
+          unlockCost: undefined,
+        };
+      }
+      return slot;
+    }
+
+    if (slot.state === 'building' && slot.buildingType) {
+      const buildingType = slot.buildingType as BuildingType;
+      if (!isBuildingAllowedForPlanet(buildingType, planet)) {
+        changed = true;
+        return {
+          ...slot,
+          state: 'empty' as HexState,
+          buildingType: undefined,
+          buildingLevel: undefined,
+        };
+      }
+    }
+
+    if (size === 'orbital' && slot.state === 'resource' && slot.resourceType !== 'vent') {
+      changed = true;
+      return { ...slot, resourceType: 'vent' as ResourceType };
+    }
+
+    return slot;
+  });
+  return changed ? recalculateLockedCosts(sanitized) : slots;
+}
+
 function idsWithinRadius(originId: string, radius: number, size: HexPlanetSize): Set<string> {
   const visited = new Set<string>([originId]);
   let frontier = new Set<string>([originId]);
@@ -424,6 +487,16 @@ function rollSlotContents(
   const isZone1 = zone === 1;
 
   const h = Math.abs(Math.sin(seed * 0.17 + stringHash(slotId) * 0.031)) * 100;
+
+  if (size === 'orbital') {
+    const orbitalRoll = Math.abs(stringHash(`${seed}:${slotId}:orbital`)) % 100;
+    if (orbitalRoll < 58) {
+      const rarity = rollRarity(seed, slotId, zone);
+      const yieldPerHour = rarityYield(rarity, yieldRng);
+      return { state: 'resource', resourceType: 'vent', rarity, yieldPerHour, maxCapacity: yieldPerHour * 12 };
+    }
+    return { state: 'empty' };
+  }
 
   if (isZone1 || h < 70) {
     const resourceType = rollResourceType(seed, slotId, undefined, undefined, size, planetContext);
@@ -566,8 +639,17 @@ export function useHexState(
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
 
     const expectedHubId = getHubId(planetSize);
+    const legacyMatchesCurrentPlanet = (): boolean => {
+      const legacySystemId = localStorage.getItem('nebulife_hex_slots_system_id');
+      const legacyPlanetId = localStorage.getItem('nebulife_hex_slots_planet_id');
+      if (legacySystemId && legacyPlanetId) {
+        return legacySystemId === systemId && legacyPlanetId === planet.id;
+      }
+      return localStorage.getItem('nebulife_home_planet_id') === planet.id;
+    };
 
     /** Validate and migrate saved slots for current planet size */
     const validateAndMigrate = (raw: HexSlotData[]): HexSlotData[] => {
@@ -578,18 +660,20 @@ export function useHexState(
         console.info('[useHexState] Hub ID mismatch — rebuilding for', planetSize);
         return buildInitialSlots(planetSize);
       }
-      return migrated;
+      return sanitizeSlotsForPlanet(migrated, planet, planetSize);
     };
 
     // 1) Load from localStorage FIRST (instant, survives app restart)
     // If data exists, show it immediately WITHOUT loading screen
     let localLoaded = false;
     try {
-      const local = localStorage.getItem(hexSlotsKey) ?? localStorage.getItem('nebulife_hex_slots');
+      const local = localStorage.getItem(hexSlotsKey) ?? (legacyMatchesCurrentPlanet() ? localStorage.getItem('nebulife_hex_slots') : null);
       if (local) {
         const parsed = JSON.parse(local) as HexSlotData[];
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setSlots(validateAndMigrate(parsed));
+          const localSlots = validateAndMigrate(parsed);
+          setSlots(localSlots);
+          if (JSON.stringify(localSlots) !== JSON.stringify(parsed)) scheduleSave(localSlots);
           setLoading(false); // Hide loading screen immediately
           localLoaded = true;
         }
@@ -613,10 +697,11 @@ export function useHexState(
         if (cancelled) return;
 
         const scopedSaved = playerData?.game_state?.hex_slots_by_planet?.[hexSlotsKey];
-        const saved = scopedSaved ?? playerData?.game_state?.hex_slots;
+        const saved = scopedSaved ?? (legacyMatchesCurrentPlanet() ? playerData?.game_state?.hex_slots : undefined);
 
         if (Array.isArray(saved) && saved.length > 0) {
           const serverSlots = validateAndMigrate(saved as HexSlotData[]);
+          if (JSON.stringify(serverSlots) !== JSON.stringify(saved)) scheduleSave(serverSlots);
           // Prefer the more-progressed version to avoid a stale server snapshot
           // overwriting freshly-saved localStorage state. Progress is measured
           // across THREE dimensions, not just unlocked tiles:
@@ -681,7 +766,7 @@ export function useHexState(
     })();
 
     return () => { cancelled = true; };
-  }, [playerId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hexSlotsKey, planet.id, planet.type, planetSize, playerId, scheduleSave, systemId]);
 
   // Flush pending save on unmount (don't lose data!)
   useEffect(() => {
@@ -921,6 +1006,12 @@ export function useHexState(
     (slotId: string, type: BuildingType): boolean => {
       const slot = slotsRef.current.find((s) => s.id === slotId);
       if (!slot || slot.state !== 'empty') return false;
+      if (!isBuildingAllowedForPlanet(type, planet)) return false;
+      const maxPerPlanet = BUILDING_DEFS[type]?.maxPerPlanet ?? 0;
+      if (maxPerPlanet > 0) {
+        const currentCount = slotsRef.current.filter((s) => s.state === 'building' && s.buildingType === type).length;
+        if (currentCount >= maxPerPlanet) return false;
+      }
 
       const { colony: colonyCost, elements: elementCost } = buildingCost(type);
       if (!canAffordCost(colonyResources, colonyCost, chemicalInventory, elementCost)) return false;
@@ -963,7 +1054,7 @@ export function useHexState(
 
       return true;
     },
-    [colonyResources, chemicalInventory, onBuildingPlaced, onResourceChange, onElementChange, planet.id, playerId, systemId, updateSlots],
+    [colonyResources, chemicalInventory, onBuildingPlaced, onResourceChange, onElementChange, planet, playerId, systemId, updateSlots],
   );
 
   // ---------------------------------------------------------------------------

@@ -45,6 +45,9 @@ const DNAC_CSS = `
 @keyframes dnac-rotate { 0%{filter:brightness(1.7)} 100%{filter:brightness(1)} }
 @keyframes dnac-ignite { 0%{transform:scale(.94);opacity:.55} 55%{transform:scale(1.08);opacity:1} 100%{transform:scale(1);opacity:.92} }
 @keyframes dnac-rise { 0%{transform:translateY(12px) scale(.9);opacity:0} 100%{transform:translateY(0) scale(1);opacity:1} }
+@keyframes dnac-orbit { to { transform: rotate(360deg); } }
+@keyframes dnac-pulse-ring { 0%{transform:scale(.2);opacity:.95} 70%{opacity:.25} 100%{transform:scale(1.45);opacity:0} }
+@keyframes dnac-sparkle { 0%,100%{transform:translateY(0) scale(.8);opacity:.55} 45%{transform:translateY(-8px) scale(1.15);opacity:1} }
 `;
 
 const OPPOSITE: Record<Dir, Dir> = { n: 's', e: 'w', s: 'n', w: 'e' };
@@ -356,6 +359,55 @@ function TileGlyph({
   );
 }
 
+function CompletionBurst({ accent, title, detail }: { accent: string; title: string; detail: string }) {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        pointerEvents: 'none',
+        borderRadius: 8,
+        background: `radial-gradient(circle at 50% 50%, ${accent}24 0%, rgba(5,10,20,0.74) 52%, rgba(5,10,20,0.2) 100%)`,
+        animation: 'dnac-rise .45s ease-out',
+      }}
+    >
+      <div style={{ position: 'relative', width: 180, height: 180, display: 'grid', placeItems: 'center' }}>
+        <div style={{ position: 'absolute', inset: 30, border: `1px solid ${accent}`, borderRadius: '50%', animation: 'dnac-pulse-ring 1.35s ease-out infinite' }} />
+        <div style={{ position: 'absolute', inset: 18, border: `1px dashed ${accent}88`, borderRadius: '50%', animation: 'dnac-orbit 5s linear infinite' }} />
+        {Array.from({ length: 10 }, (_, i) => {
+          const angle = (i / 10) * Math.PI * 2;
+          const x = 88 + Math.cos(angle) * 70;
+          const y = 88 + Math.sin(angle) * 70;
+          return (
+            <span
+              key={i}
+              style={{
+                position: 'absolute',
+                left: x,
+                top: y,
+                width: 5,
+                height: 5,
+                borderRadius: '50%',
+                background: accent,
+                boxShadow: `0 0 12px ${accent}`,
+                animation: `dnac-sparkle ${0.9 + (i % 3) * 0.16}s ease-in-out infinite`,
+                animationDelay: `${i * 0.05}s`,
+              }}
+            />
+          );
+        })}
+        <div style={{ textAlign: 'center', padding: '0 18px' }}>
+          <div style={{ color: accent, fontSize: 18, fontWeight: 800, letterSpacing: 0.9, textShadow: `0 0 18px ${accent}` }}>{title}</div>
+          <div style={{ color: '#cfe3ff', fontSize: 10.5, lineHeight: 1.45, marginTop: 8 }}>{detail}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Spark-of-life Genome Lattice constructor — the player rotates molecular
  * segments until the spark core can power the full living circuit.
@@ -385,6 +437,7 @@ export function DnaConstructorGame({
     : 0;
   const stability = Math.max(0, Math.min(100, stabilityPct));
   const stabilityColor = stability > 80 ? '#44ff88' : stability > 45 ? '#ffcf66' : '#ff8844';
+  const sparkName = spark ? t(`lab.spark.${spark}` as 'lab.spark.primordial') : '';
 
   useEffect(() => {
     if (!spark || status !== 'play' || !analysis.complete || successRef.current) return;
@@ -492,10 +545,11 @@ export function DnaConstructorGame({
             </div>
 
             <div style={{ color: '#7d93ab', fontSize: 10.5, marginBottom: 10, textAlign: 'center' }}>
-              {status === 'igniting' || status === 'won' ? t('lab.dna_igniting') : t('lab.dna_select')}
+              {status === 'won' ? t('lab.dna_success_detail', { spark: sparkName }) : status === 'igniting' ? t('lab.dna_igniting') : t('lab.dna_select')}
             </div>
 
             <div style={{
+              position: 'relative',
               display: 'grid',
               gridTemplateColumns: config ? `repeat(${config.width}, 54px)` : undefined,
               justifyContent: 'center',
@@ -519,7 +573,32 @@ export function DnaConstructorGame({
                   />
                 );
               })}
+              {(status === 'igniting' || status === 'won') && (
+                <CompletionBurst
+                  accent={accent}
+                  title={status === 'won' ? t('lab.dna_success_title') : t('lab.dna_igniting_title')}
+                  detail={status === 'won' ? t('lab.dna_success_detail', { spark: sparkName }) : t('lab.dna_igniting')}
+                />
+              )}
             </div>
+
+            {(status === 'igniting' || status === 'won') && (
+              <div style={{
+                marginTop: 12,
+                border: `1px solid ${accent}88`,
+                borderRadius: 8,
+                padding: '10px 12px',
+                background: `linear-gradient(135deg, ${accent}1f, rgba(5,10,20,0.86))`,
+                boxShadow: `0 0 24px ${accent}18`,
+                animation: 'dnac-rise .45s ease-out',
+              }}>
+                <div style={{ color: '#667788', fontSize: 9, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 5 }}>{t('lab.dna_reward_title')}</div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                  <div style={{ color: '#eafff2', fontSize: 13, fontWeight: 700 }}>{t('lab.dna_reward_spark', { spark: sparkName })}</div>
+                  <div style={{ color: accent, fontSize: 18, fontWeight: 800, textShadow: `0 0 12px ${accent}` }}>+1</div>
+                </div>
+              </div>
+            )}
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 12 }}>
               <div style={{ border: '1px solid #2a3a4a', borderRadius: 5, padding: 8, color: '#8899aa', fontSize: 9 }}>
