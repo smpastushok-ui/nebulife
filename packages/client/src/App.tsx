@@ -11797,7 +11797,11 @@ function AppInner() {
 
   const hudResources = (() => {
     const planetId = surfaceTarget?.planet.id
-      ?? (state.scene === 'planet-view' ? state.selectedPlanet?.id : undefined);
+      ?? state.selectedPlanet?.id
+      ?? showTerraformPlanet?.id
+      ?? planetReportTarget?.planet.id
+      ?? (planetDetailTarget ? planetDetailTarget.system.planets[planetDetailTarget.planetIndex]?.id : undefined)
+      ?? (state.scene === 'home-intro' ? homeInfo?.planet.id : undefined);
     return planetId ? getResources(planetId) : totalResources();
   })();
 
