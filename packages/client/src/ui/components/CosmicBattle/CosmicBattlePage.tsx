@@ -139,11 +139,16 @@ export const CosmicBattlePage: React.FC<CosmicBattlePageProps> = ({ seed, onExit
           position: fixed; inset: 0; z-index: 1400; overflow: hidden;
           font-family: monospace; color: #aabbcc; background: #020510;
         }
+        .cbBackgroundArt {
+          position: absolute; inset: 0; width: 100%; height: 100%;
+          object-fit: cover; object-position: center; opacity: 0.92;
+          transform: scale(1.03);
+          animation: cbDrift 20s ease-in-out infinite alternate;
+        }
         .cosmicBattleRoot::before {
           content: ''; position: absolute; inset: 0;
-          background-image: linear-gradient(90deg, rgba(2,5,16,0.24), rgba(2,5,16,0.72)), url(${ASSET.background});
-          background-size: cover; background-position: center; transform: scale(1.03);
-          animation: cbDrift 20s ease-in-out infinite alternate;
+          background: linear-gradient(90deg, rgba(2,5,16,0.18), rgba(2,5,16,0.74));
+          z-index: 0;
         }
         .cosmicBattleRoot::after {
           content: ''; position: absolute; inset: 0;
@@ -156,9 +161,9 @@ export const CosmicBattlePage: React.FC<CosmicBattlePageProps> = ({ seed, onExit
         .cbSub { color: #8899aa; font-size: 11px; margin-top: 6px; max-width: 760px; line-height: 1.5; }
         .cbStatus { color: #7bb8ff; font-size: 12px; text-transform: uppercase; letter-spacing: 0.12em; border: 1px solid #446688; padding: 8px 10px; background: rgba(8,18,32,0.8); }
         .cbBack { color: #aabbcc; background: rgba(10,15,25,0.86); border: 1px solid #334455; border-radius: 4px; padding: 9px 12px; cursor: pointer; font-family: monospace; }
-        .cbStage { flex: 1; display: grid; grid-template-columns: 1fr 1.15fr 1fr; gap: 14px; min-height: 0; }
+        .cbStage { flex: 1; display: grid; grid-template-columns: 0.78fr 1.08fr 1.08fr 0.78fr; gap: 14px; min-height: 0; }
         .cbIntel, .cbBoardPanel { border: 1px solid #334455; background: rgba(5,10,20,0.82); border-radius: 6px; overflow: hidden; box-shadow: 0 0 38px rgba(0,0,0,0.34); }
-        .cbIntelArt { height: 42%; min-height: 150px; background-size: cover; background-position: center; border-bottom: 1px solid #334455; opacity: 0.86; }
+        .cbIntelArt { width: 100%; height: 42%; min-height: 150px; object-fit: cover; object-position: center; border-bottom: 1px solid #334455; opacity: 0.92; display: block; }
         .cbIntelBody { padding: 14px; }
         .cbIntelTitle { color: #d8ecff; letter-spacing: 0.12em; text-transform: uppercase; font-size: 12px; }
         .cbMeter { height: 8px; background: rgba(51,68,85,0.5); border-radius: 10px; overflow: hidden; margin: 10px 0 14px; }
@@ -190,11 +195,12 @@ export const CosmicBattlePage: React.FC<CosmicBattlePageProps> = ({ seed, onExit
         @keyframes cbMissile { from { opacity: 0; transform: translateX(-260px) scaleX(0.2); } 20% { opacity: 1; } to { opacity: 0; transform: translateX(120px) scaleX(1); } }
         @media (max-width: 980px) {
           .cbStage { grid-template-columns: 1fr; overflow: auto; }
-          .cbIntel { display: none; }
+          .cbIntelArt { min-height: 118px; height: 130px; }
           .cbHeader { flex-direction: column; }
           .cbGrid { width: min(100%, 78vw); }
         }
       `}</style>
+      <img className="cbBackgroundArt" src={ASSET.background} alt="" aria-hidden="true" />
       <div className="cbShell">
         <div className="cbHeader">
           <div>
@@ -226,6 +232,7 @@ export const CosmicBattlePage: React.FC<CosmicBattlePageProps> = ({ seed, onExit
             shotVisual={shotVisual?.side === 'enemy' ? shotVisual : null}
             footer={lastOutcome && shotVisual?.side === 'enemy' ? t(lastOutcome.hit ? 'cosmic_battle.outcome.enemy_hit' : 'cosmic_battle.outcome.enemy_miss') : t('cosmic_battle.defense_hint')}
           />
+          <FleetIntel side="enemy" board={enemyBoard} />
         </div>
       </div>
 
@@ -260,7 +267,11 @@ function FleetIntel({ side, board }: { side: 'ally' | 'enemy'; board: BattleBoar
   const integrity = fleetIntegrity(board);
   return (
     <div className="cbIntel">
-      <div className="cbIntelArt" style={{ backgroundImage: `url(${side === 'ally' ? ASSET.ally : ASSET.enemy})` }} />
+      <img
+        className="cbIntelArt"
+        src={side === 'ally' ? ASSET.ally : ASSET.enemy}
+        alt={t(side === 'ally' ? 'cosmic_battle.ally_fleet' : 'cosmic_battle.enemy_fleet')}
+      />
       <div className="cbIntelBody">
         <div className="cbIntelTitle">{t(side === 'ally' ? 'cosmic_battle.ally_fleet' : 'cosmic_battle.enemy_fleet')}</div>
         <div className="cbMeter"><span style={{ width: `${integrity}%` }} /></div>
