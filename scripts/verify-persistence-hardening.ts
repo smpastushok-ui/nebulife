@@ -64,6 +64,27 @@ assert.deepEqual(firstMerge?.local_storage_snapshot, {
   harvesters_planet_a: '{"h":1}',
 });
 
+const sanitizedSnapshotMerge = mergeGameStateForPersistence(
+  {
+    local_storage_snapshot: {
+      nebulife_research_state: '{"slots":[],"systems":{}}',
+      nebulife_colony_resources_by_planet: '{"home":{"minerals":1000}}',
+      explorer_old: '{"seen":true}',
+    },
+  },
+  {
+    local_storage_snapshot: {
+      nebulife_system_notifs: '[{"id":"stale"}]',
+      harvest_planet_b: '["h2"]',
+    },
+  },
+);
+
+assert.deepEqual(sanitizedSnapshotMerge?.local_storage_snapshot, {
+  explorer_old: '{"seen":true}',
+  harvest_planet_b: '["h2"]',
+});
+
 const twoDeviceMerge = mergeGameStateForPersistence(firstMerge, {
   hex_slots_by_planet: {
     nebulife_hex_slots_third_planet: [{ id: 't-1', buildingType: 'residential' }],

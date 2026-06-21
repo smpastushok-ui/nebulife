@@ -119,6 +119,80 @@ function isJsonRecord(value: unknown): value is JsonRecord {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
+const CANONICAL_GAME_STATE_STORAGE_KEYS = new Set([
+  'nebulife_player_xp',
+  'nebulife_player_level',
+  'nebulife_research_state',
+  'nebulife_player_stats',
+  'nebulife_research_data',
+  'nebulife_colony_resources',
+  'nebulife_colony_resources_by_planet',
+  'nebulife_colony_resources_updated_at',
+  'nebulife_colony_state',
+  'nebulife_chemical_inventory',
+  'nebulife_chemical_inventory_by_planet',
+  'nebulife_life_ingredients',
+  'nebulife_life_sparks',
+  'nebulife_dna_spark_synthesis',
+  'nebulife_exodus_phase',
+  'nebulife_destroyed_planets',
+  'nebulife_tutorial_step',
+  'nebulife_tech_tree',
+  'nebulife_game_started_at',
+  'nebulife_time_multiplier',
+  'nebulife_accel_at',
+  'nebulife_game_time_at_accel',
+  'nebulife_clock_revealed',
+  'nebulife_scene',
+  'nebulife_nav_system',
+  'nebulife_nav_planet',
+  'nebulife_log_entries',
+  'nebulife_system_notifs',
+  'nebulife_favorite_planets',
+  'nebulife_favorite_planets_updated_at',
+  'nebulife_pinned_systems',
+  'nebulife_evac_system_id',
+  'nebulife_evac_planet_id',
+  'nebulife_evac_forced',
+  'nebulife_home_system_id',
+  'nebulife_home_planet_id',
+  'nebulife_terraform_states',
+  'nebulife_fleet',
+  'nebulife_fleet_state',
+  'nebulife_colonized_planets',
+  'nebulife_planet_reveal_levels',
+  'nebulife_planet_missions',
+  'nebulife_planet_reports',
+  'nebulife_exploration_payloads',
+  'nebulife_exploration_production_queue',
+  'nebulife_separation_jobs',
+  'nebulife_arena_stats',
+  'nebulife_observatory_state',
+  'nebulife_astra_quiz_answers',
+  'nebulife_daily_directives',
+  'nebulife_comet_claims',
+  'nebulife_planet_overrides',
+  'nebulife_planet_resource_stocks',
+]);
+
+function sanitizeLocalStorageSnapshot(snapshot: unknown): unknown {
+  if (!isJsonRecord(snapshot)) return snapshot;
+  const sanitized: JsonRecord = {};
+  for (const [key, value] of Object.entries(snapshot)) {
+    if (CANONICAL_GAME_STATE_STORAGE_KEYS.has(key)) continue;
+    sanitized[key] = value;
+  }
+  return sanitized;
+}
+
+function sanitizeGameStateForPersistence(value: Record<string, unknown>): Record<string, unknown> {
+  const sanitized: Record<string, unknown> = { ...value };
+  if ('local_storage_snapshot' in sanitized) {
+    sanitized.local_storage_snapshot = sanitizeLocalStorageSnapshot(sanitized.local_storage_snapshot);
+  }
+  return sanitized;
+}
+
 function mergeNumberField(
   current: unknown,
   incoming: unknown,
@@ -188,7 +262,10 @@ export function mergeGameStateForPersistence(
   incoming: Record<string, unknown> | null | undefined,
 ): Record<string, unknown> | undefined {
   if (!incoming) return undefined;
-  return deepMergeGameStateValue(current ?? {}, incoming) as Record<string, unknown>;
+  const sanitizedCurrent = sanitizeGameStateForPersistence(current ?? {});
+  const sanitizedIncoming = sanitizeGameStateForPersistence(incoming);
+  const merged = deepMergeGameStateValue(sanitizedCurrent, sanitizedIncoming) as Record<string, unknown>;
+  return sanitizeGameStateForPersistence(merged);
 }
 
 export async function getPremiumStatus(playerId: string): Promise<PremiumStatus> {
