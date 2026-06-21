@@ -1104,6 +1104,62 @@ const LOCAL_STORAGE_SNAPSHOT_EXCLUDED_KEYS = new Set([
   'nebulife_push_prompted',
 ]);
 
+const CANONICAL_GAME_STATE_STORAGE_KEYS = new Set([
+  'nebulife_player_xp',
+  'nebulife_player_level',
+  'nebulife_research_state',
+  'nebulife_player_stats',
+  'nebulife_research_data',
+  'nebulife_colony_resources',
+  'nebulife_colony_resources_by_planet',
+  'nebulife_colony_resources_updated_at',
+  'nebulife_colony_state',
+  'nebulife_chemical_inventory',
+  'nebulife_chemical_inventory_by_planet',
+  'nebulife_life_ingredients',
+  'nebulife_life_sparks',
+  'nebulife_dna_spark_synthesis',
+  'nebulife_exodus_phase',
+  'nebulife_destroyed_planets',
+  'nebulife_tutorial_step',
+  'nebulife_tech_tree',
+  'nebulife_game_started_at',
+  'nebulife_time_multiplier',
+  'nebulife_accel_at',
+  'nebulife_game_time_at_accel',
+  'nebulife_clock_revealed',
+  'nebulife_scene',
+  'nebulife_nav_system',
+  'nebulife_nav_planet',
+  'nebulife_log_entries',
+  'nebulife_system_notifs',
+  'nebulife_favorite_planets',
+  'nebulife_favorite_planets_updated_at',
+  'nebulife_pinned_systems',
+  'nebulife_evac_system_id',
+  'nebulife_evac_planet_id',
+  'nebulife_evac_forced',
+  'nebulife_home_system_id',
+  'nebulife_home_planet_id',
+  'nebulife_terraform_states',
+  'nebulife_fleet',
+  'nebulife_fleet_state',
+  'nebulife_colonized_planets',
+  'nebulife_planet_reveal_levels',
+  'nebulife_planet_missions',
+  'nebulife_planet_reports',
+  'nebulife_exploration_payloads',
+  'nebulife_exploration_production_queue',
+  'nebulife_separation_jobs',
+  'nebulife_arena_stats',
+  'nebulife_observatory_state',
+  'nebulife_astra_quiz_answers',
+  'nebulife_daily_directives',
+  'nebulife_comet_claims',
+  'nebulife_planet_overrides',
+  'nebulife_planet_resource_stocks',
+]);
+
 function isAccountScopedStorageKey(key: string): boolean {
   if (LOCAL_ACCOUNT_PREF_KEYS.has(key)) return false;
   if (LOCAL_STORAGE_SNAPSHOT_EXCLUDED_KEYS.has(key)) return false;
@@ -1114,11 +1170,15 @@ function isAccountScopedStorageKey(key: string): boolean {
     || key.startsWith('fog_');
 }
 
+function isLocalStorageSnapshotKey(key: string): boolean {
+  return isAccountScopedStorageKey(key) && !CANONICAL_GAME_STATE_STORAGE_KEYS.has(key);
+}
+
 function collectAccountScopedLocalStorageSnapshot(): Record<string, string> {
   const snapshot: Record<string, string> = {};
   try {
     for (const key of Object.keys(localStorage)) {
-      if (!isAccountScopedStorageKey(key)) continue;
+      if (!isLocalStorageSnapshotKey(key)) continue;
       const value = localStorage.getItem(key);
       if (value !== null) snapshot[key] = value;
     }
@@ -1132,7 +1192,7 @@ function restoreAccountScopedLocalStorageSnapshot(snapshot: unknown, overwriteEx
   if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return;
   try {
     for (const [key, value] of Object.entries(snapshot as Record<string, unknown>)) {
-      if (!isAccountScopedStorageKey(key) || typeof value !== 'string') continue;
+      if (!isLocalStorageSnapshotKey(key) || typeof value !== 'string') continue;
       if (overwriteExisting || localStorage.getItem(key) === null) localStorage.setItem(key, value);
     }
   } catch {
@@ -6401,7 +6461,7 @@ function AppInner() {
           && localResearch.slots.length === 0;
         const serverHasSlots = rs.slots.length > 0;
 
-        if (localHasEmptySlots && serverHasSlots) {
+        if (localIsAtLeastAsFreshByXp && localHasEmptySlots && serverHasSlots) {
           // Post-evacuation: local was explicitly emptied, server is stale — keep local
           const pid = playerId.current;
           if (pid) {
@@ -6422,7 +6482,7 @@ function AppInner() {
           const localScore = getProgressScore(localResearch);
           const serverScore = getProgressScore(rs);
 
-          if (localScore >= serverScore && localResearch) {
+          if (localIsAtLeastAsFreshByXp && localScore > 0 && localScore >= serverScore && localResearch) {
             // Local has more or equal progress — keep local, push to server
             const pid = playerId.current;
             if (pid) {

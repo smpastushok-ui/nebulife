@@ -24,8 +24,8 @@ const firstMerge = mergeGameStateForPersistence(
       nebulife_unlock_popups_baselined: '1',
     },
     local_storage_snapshot: {
-      nebulife_fleet_state: '{"ships":[{"id":"ship-a"}]}',
       harvest_planet_a: '["h1"]',
+      fog_planet_a: '["f1"]',
     },
   },
   {
@@ -37,7 +37,7 @@ const firstMerge = mergeGameStateForPersistence(
     },
     local_storage_snapshot: {
       explorer_planet_a: '{"x":1}',
-      nebulife_system_notifs: '[{"id":"n1"}]',
+      harvesters_planet_a: '{"h":1}',
     },
     colony_state: {
       planetId: 'home',
@@ -58,10 +58,10 @@ assert.deepEqual(firstMerge?.planet_reveal_levels, {
 });
 assert.equal((firstMerge?.ui_flags as Record<string, string>).nebulife_unlock_popups_baselined, '1');
 assert.deepEqual(firstMerge?.local_storage_snapshot, {
-  nebulife_fleet_state: '{"ships":[{"id":"ship-a"}]}',
   harvest_planet_a: '["h1"]',
+  fog_planet_a: '["f1"]',
   explorer_planet_a: '{"x":1}',
-  nebulife_system_notifs: '[{"id":"n1"}]',
+  harvesters_planet_a: '{"h":1}',
 });
 
 const twoDeviceMerge = mergeGameStateForPersistence(firstMerge, {
