@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18nInstance from '../../i18n/index.js';
 import { playSfx } from '../../audio/SfxPlayer.js';
@@ -155,6 +155,18 @@ function filterLegacyLessonNotifs(msgs: MessageData[]): MessageData[] {
   return msgs.filter((m) => !LEGACY_LESSON_NOTIFS.has(m.content.trim()));
 }
 
+function getDigestWeekDateFromMessage(msg: MessageData): string | null {
+  if (msg.sender_id !== 'astra' && msg.sender_id !== 'system') return null;
+  try {
+    const parsed = JSON.parse(msg.content) as { type?: string; weekDate?: unknown };
+    return parsed?.type === 'digest' && typeof parsed.weekDate === 'string'
+      ? parsed.weekDate
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 // Exported as React.memo below. ChatWidget is always mounted while the
 // player is in-game, so unrelated App.tsx state changes (tutorial steps,
 // research ticks, countdown, etc.) previously forced a full re-render of
@@ -208,6 +220,11 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
   const [unreadDm, setUnreadDm] = useState(0);
   const [bannedError, setBannedError] = useState(false);
   const [systemActionError, setSystemActionError] = useState<string | null>(null);
+  // A.S.T.R.A. state
+  const [astraMessages, setAstraMessages] = useState<MessageData[]>([]);
+  const [astraInput, setAstraInput] = useState('');
+  const [astraLoading, setAstraLoading] = useState(false);
+  const astraEndRef = useRef<HTMLDivElement>(null);
   // Track which digest the user has "seen" in the ASTRA tab
   const [seenDigestWeekDate, setSeenDigestWeekDate] = useState<string | null | undefined>(lastDigestSeen);
 
@@ -223,7 +240,16 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
     });
   }, [lastDigestSeen]);
 
-  const unreadAstraDigest = (latestDigestWeekDate != null && latestDigestWeekDate !== seenDigestWeekDate) ? 1 : 0;
+  const astraHasLatestDigestMessage = useMemo(() => (
+    latestDigestWeekDate != null
+      && astraMessages.some((msg) => getDigestWeekDateFromMessage(msg) === latestDigestWeekDate)
+  ), [astraMessages, latestDigestWeekDate]);
+
+  const unreadAstraDigest = (
+    latestDigestWeekDate != null
+    && latestDigestWeekDate !== seenDigestWeekDate
+    && !astraHasLatestDigestMessage
+  ) ? 1 : 0;
   const unreadAstra = unreadAstraDigest + unreadAstraMessages;
 
   const markDigestSeen = useCallback((weekDate: string | null | undefined) => {
@@ -243,11 +269,6 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
     pulseStyleInjected.current = true;
   }, []);
 
-  // A.S.T.R.A. state
-  const [astraMessages, setAstraMessages] = useState<MessageData[]>([]);
-  const [astraInput, setAstraInput] = useState('');
-  const [astraLoading, setAstraLoading] = useState(false);
-  const astraEndRef = useRef<HTMLDivElement>(null);
   const ASTRA_HOURLY_LIMIT = 10;
   const astraHourKey = useCallback(() => {
     const d = new Date();
@@ -1344,7 +1365,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
               gap: 6,
             }}>
               {/* Digest notification — shown when there's a new unread digest */}
-              {latestDigestWeekDate != null && latestDigestWeekDate !== seenDigestWeekDate && (
+              {latestDigestWeekDate != null && latestDigestWeekDate !== seenDigestWeekDate && !astraHasLatestDigestMessage && (
                 <div style={{
                   background: 'rgba(0,30,20,0.5)',
                   border: '1px solid rgba(68,255,136,0.3)',
@@ -1381,7 +1402,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
                 </div>
               )}
 
-              {astraMessages.length === 0 && !astraLoading && !(latestDigestWeekDate != null && latestDigestWeekDate !== seenDigestWeekDate) && (
+              {astraMessages.length === 0 && !astraLoading && !(latestDigestWeekDate != null && latestDigestWeekDate !== seenDigestWeekDate && !astraHasLatestDigestMessage) && (
                 <div style={{ color: '#44ffaa', fontSize: 10, textAlign: 'center', marginTop: 30, fontFamily: 'monospace', opacity: 0.7 }}>
                   {t('chat.astra_online')}
                 </div>
@@ -1402,6 +1423,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
                     onAwardXP={onAwardXP}
                     selectedQuizAnswer={quizAnswers[msg.id]}
                     onQuizAnswer={onQuizAnswer}
+                    onDigestOpen={markDigestSeen}
                   />
                 )
               ))}
@@ -1812,7 +1834,15 @@ function MessageItem({
 }
 
 // Digest card extracted to its own component so it can use useTranslation
-function DigestCard({ time, parsed }: { time: string; parsed: { weekDate?: string } }) {
+function DigestCard({
+  time,
+  parsed,
+  onOpen,
+}: {
+  time: string;
+  parsed: { weekDate?: string };
+  onOpen?: (weekDate: string | null | undefined) => void;
+}) {
   const { t } = useTranslation();
   return (
     <div style={{
@@ -1832,6 +1862,7 @@ function DigestCard({ time, parsed }: { time: string; parsed: { weekDate?: strin
       </div>
       <button
         onClick={() => {
+          onOpen?.(parsed.weekDate);
           window.dispatchEvent(new CustomEvent('nebulife:open-digest', { detail: { weekDate: parsed.weekDate } }));
         }}
         style={{
@@ -2006,12 +2037,14 @@ function AstraMessageItem({
   onAwardXP,
   selectedQuizAnswer,
   onQuizAnswer,
+  onDigestOpen,
 }: {
   msg: AstraMessage;
   messageId: string;
   onAwardXP?: (amount: number, reason: string) => void;
   selectedQuizAnswer?: number;
   onQuizAnswer?: (messageId: string, selectedIndex: number) => void;
+  onDigestOpen?: (weekDate: string | null | undefined) => void;
 }) {
   const { t } = useTranslation();
   const isUser = msg.role === 'user';
@@ -2040,7 +2073,7 @@ function AstraMessageItem({
         );
       }
       if (parsed?.type === 'digest') {
-        return <DigestCard time="" parsed={parsed} />;
+        return <DigestCard time="" parsed={parsed} onOpen={onDigestOpen} />;
       }
       // Bilingual plain text (daily fact + future bilingual broadcasts):
       // stored as {"uk":"...","en":"..."}. Pick the player's language
