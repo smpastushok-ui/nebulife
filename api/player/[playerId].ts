@@ -25,8 +25,11 @@ function countResearchedTech(gameState: unknown): number {
   return Object.keys(researched as Record<string, unknown>).length;
 }
 
-function isGameStateRegression(current: PlayerRow, incoming: unknown): boolean {
-  if (!incoming || typeof incoming !== 'object') return false;
+export function protectGameStateAgainstRegression(
+  current: PlayerRow,
+  incoming: unknown,
+): Record<string, unknown> | null {
+  if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) return null;
   const saved = (current.game_state ?? {}) as Record<string, unknown>;
   const next = incoming as Record<string, unknown>;
 
@@ -39,7 +42,7 @@ function isGameStateRegression(current: PlayerRow, incoming: unknown): boolean {
     typeof saved.level === 'number' ||
     columnXP > 0 ||
     columnLevel > 1;
-  if (!savedWasStarted) return false;
+  if (!savedWasStarted) return next;
 
   // A partial patch that carries NO identity fields (xp / level /
   // onboarding_done) is not a "fresh reset" — it just updates other keys
@@ -58,7 +61,7 @@ function isGameStateRegression(current: PlayerRow, incoming: unknown): boolean {
     next.onboarding_done !== true &&
     (typeof next.xp !== 'number' || next.xp <= 0) &&
     (typeof next.level !== 'number' || next.level <= 1);
-  if (nextLooksFresh) return true;
+  if (nextLooksFresh) return null;
 
   // Floor = highest value seen in either the JSON snapshot or the protected
   // columns. A correct client never writes below its own previously synced max.
@@ -67,8 +70,14 @@ function isGameStateRegression(current: PlayerRow, incoming: unknown): boolean {
   const nextXP = typeof next.xp === 'number' ? next.xp : savedXP;
   const nextLevel = typeof next.level === 'number' ? next.level : savedLevel;
 
+  // XP is monotonic. If an incoming full snapshot carries lower XP than the DB,
+  // it is an older client/cache and must not overwrite mutable domains like
+  // resources, fleet, missions, or messages.
+  if (typeof next.xp === 'number' && nextXP < savedXP - 1) return null;
+
   // 1 XP tolerance so a legitimate equal/idempotent save is never dropped.
-  if (nextXP < savedXP - 1 || nextLevel < savedLevel) return true;
+  const protectedNext: Record<string, unknown> = { ...next };
+  if (nextLevel < savedLevel) protectedNext.level = savedLevel;
 
   // Tech tree must never shrink. The researched set is monotonic (nodes are
   // never un-researched), so a smaller incoming set means the client is
@@ -76,10 +85,10 @@ function isGameStateRegression(current: PlayerRow, incoming: unknown): boolean {
   // manual restore). Only evaluated when the write actually carries a
   // tech_tree, so partial patches are unaffected.
   if (next.tech_tree !== undefined && countResearchedTech(next) < countResearchedTech(saved)) {
-    return true;
+    protectedNext.tech_tree = saved.tech_tree;
   }
 
-  return false;
+  return protectedNext;
 }
 
 /**
@@ -162,11 +171,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!current) {
           return res.status(404).json({ error: 'Player not found' });
         }
-        if (isGameStateRegression(current, sanitized.game_state)) {
+        const protectedGameState = protectGameStateAgainstRegression(current, sanitized.game_state);
+        if (!protectedGameState) {
           delete sanitized.game_state;
           if (Object.keys(sanitized).length === 0) {
             return res.status(409).json({ error: 'Ignored stale game_state regression' });
           }
+        } else {
+          sanitized.game_state = protectedGameState;
         }
       }
 

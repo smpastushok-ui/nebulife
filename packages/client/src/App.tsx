@@ -680,6 +680,8 @@ interface SyncedGameState {
   daily_directives?: DailyDirectiveState;
   comet_claims?: string[];
   system_notifs?: unknown[];
+  /** Rescue/fallback mirror of account-scoped localStorage keys from older builds. */
+  local_storage_snapshot?: Record<string, string>;
   // Metadata
   synced_at: number;
   last_regen_time?: number;
@@ -1095,9 +1097,47 @@ const LOCAL_ACCOUNT_PREF_KEYS = new Set([
   'nebulife_quantum_seed_seen',
 ]);
 
+const LOCAL_STORAGE_SNAPSHOT_EXCLUDED_KEYS = new Set([
+  'nebulife_last_uid',
+  'nebulife_player_id',
+  'nebulife_firebase_token',
+  'nebulife_push_prompted',
+]);
+
 function isAccountScopedStorageKey(key: string): boolean {
   if (LOCAL_ACCOUNT_PREF_KEYS.has(key)) return false;
-  return key.startsWith('nebulife_') || key.startsWith('harvest_');
+  if (LOCAL_STORAGE_SNAPSHOT_EXCLUDED_KEYS.has(key)) return false;
+  return key.startsWith('nebulife_')
+    || key.startsWith('harvest_')
+    || key.startsWith('explorer_')
+    || key.startsWith('harvesters_')
+    || key.startsWith('fog_');
+}
+
+function collectAccountScopedLocalStorageSnapshot(): Record<string, string> {
+  const snapshot: Record<string, string> = {};
+  try {
+    for (const key of Object.keys(localStorage)) {
+      if (!isAccountScopedStorageKey(key)) continue;
+      const value = localStorage.getItem(key);
+      if (value !== null) snapshot[key] = value;
+    }
+  } catch {
+    // localStorage can be unavailable in private/locked-down contexts.
+  }
+  return snapshot;
+}
+
+function restoreAccountScopedLocalStorageSnapshot(snapshot: unknown, overwriteExisting = false): void {
+  if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return;
+  try {
+    for (const [key, value] of Object.entries(snapshot as Record<string, unknown>)) {
+      if (!isAccountScopedStorageKey(key) || typeof value !== 'string') continue;
+      if (overwriteExisting || localStorage.getItem(key) === null) localStorage.setItem(key, value);
+    }
+  } catch {
+    // localStorage restore is best-effort; explicit React state hydration still runs.
+  }
 }
 
 function hasAccountScopedLocalProgress(): boolean {
@@ -2351,6 +2391,7 @@ function AppInner() {
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const gameStateRef = useRef<Record<string, unknown>>({});
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const syncRetryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const syncGameStateRef = useRef<() => void>(() => {});
   /** True after server game state has been hydrated — prevents premature local fallbacks */
   const [serverHydrated, setServerHydrated] = useState(false);
@@ -2586,6 +2627,35 @@ function AppInner() {
     if (syncTimeoutRef.current) { clearTimeout(syncTimeoutRef.current); syncTimeoutRef.current = null; }
     syncGameStateRef.current();
   }, []);
+
+  useEffect(() => {
+    const proto = Storage.prototype as Storage & {
+      __nebulifeSyncPatched?: boolean;
+      __nebulifeOriginalSetItem?: Storage['setItem'];
+      __nebulifeOriginalRemoveItem?: Storage['removeItem'];
+    };
+    if (proto.__nebulifeSyncPatched) return;
+    const originalSetItem = proto.setItem;
+    const originalRemoveItem = proto.removeItem;
+    proto.__nebulifeSyncPatched = true;
+    proto.__nebulifeOriginalSetItem = originalSetItem;
+    proto.__nebulifeOriginalRemoveItem = originalRemoveItem;
+    proto.setItem = function patchedSetItem(key: string, value: string): void {
+      originalSetItem.call(this, key, value);
+      if (isAccountScopedStorageKey(key)) scheduleSyncToServer();
+    };
+    proto.removeItem = function patchedRemoveItem(key: string): void {
+      originalRemoveItem.call(this, key);
+      if (isAccountScopedStorageKey(key)) scheduleSyncToServer();
+    };
+    return () => {
+      proto.setItem = originalSetItem;
+      proto.removeItem = originalRemoveItem;
+      delete proto.__nebulifeSyncPatched;
+      delete proto.__nebulifeOriginalSetItem;
+      delete proto.__nebulifeOriginalRemoveItem;
+    };
+  }, [scheduleSyncToServer]);
 
   useEffect(() => {
     try { localStorage.setItem('nebulife_player_level', String(playerLevel)); }
@@ -6084,6 +6154,7 @@ function AppInner() {
     Object.keys(localStorage).filter(k => k.startsWith('nebulife_quiz_')).forEach(k => localStorage.removeItem(k));
     // Legacy per-planet harvest progress (from old surface system: harvest_<planetId>)
     Object.keys(localStorage).filter(k => k.startsWith('harvest_')).forEach(k => localStorage.removeItem(k));
+    Object.keys(localStorage).filter(k => k.startsWith('explorer_') || k.startsWith('harvesters_') || k.startsWith('fog_')).forEach(k => localStorage.removeItem(k));
     // One-time UI flags (now server-synced) — clear so they don't leak to the
     // new account and then get re-synced into ITS game_state.
     Object.keys(localStorage).filter(isSyncedUiFlagKey).forEach(k => localStorage.removeItem(k));
@@ -6185,6 +6256,7 @@ function AppInner() {
         keysToRemove.forEach(k => localStorage.removeItem(k));
         Object.keys(localStorage).filter(k => k.startsWith('nebulife_quiz_')).forEach(k => localStorage.removeItem(k));
         Object.keys(localStorage).filter(k => k.startsWith('harvest_')).forEach(k => localStorage.removeItem(k));
+        Object.keys(localStorage).filter(k => k.startsWith('explorer_') || k.startsWith('harvesters_') || k.startsWith('fog_')).forEach(k => localStorage.removeItem(k));
         // Preserve generation_index (set in step 3) - re-apply after clearing
         localStorage.setItem('nebulife_generation_index', String(newGenerationIndex));
         window.location.reload();
@@ -6193,6 +6265,16 @@ function AppInner() {
 
     // Start warp after fade-in
     setTimeout(() => animate(), 800);
+  }, []);
+
+  const markServerHydrated = useCallback((rescueLocalProgress = true): void => {
+    serverHydratedRef.current = true;
+    setServerHydrated(true);
+    if (!rescueLocalProgress || !hasAccountScopedLocalProgress()) return;
+    window.setTimeout(() => {
+      if (!playerId.current || !serverHydratedRef.current) return;
+      syncGameStateRef.current();
+    }, 0);
   }, []);
 
   /** Hydrate full game state from server on login (cross-platform sync). */
@@ -6240,8 +6322,7 @@ function AppInner() {
 
     const gs = player?.game_state as Partial<SyncedGameState> | undefined;
     if (!gs || typeof gs !== 'object') {
-      serverHydratedRef.current = true;
-      setServerHydrated(true);
+      markServerHydrated(true);
       return;
     }
 
@@ -6267,12 +6348,16 @@ function AppInner() {
         localStorage.removeItem('nebulife_evac_phase');
       } catch { /* ignore */ }
       gameStateRef.current = {};
-      serverHydratedRef.current = true;
-      setServerHydrated(true);
+      markServerHydrated(false);
       return;
     }
 
+    const serverSnapshotXP = typeof gs.xp === 'number' && gs.xp >= 0 ? gs.xp : 0;
+    const localSnapshotXP = parseCompactNumber(localStorage.getItem('nebulife_player_xp') ?? '0') ?? 0;
+    const localIsAtLeastAsFreshByXp = localSnapshotXP >= serverSnapshotXP;
+
     gameStateRef.current = { ...gs };
+    restoreAccountScopedLocalStorageSnapshot(gs.local_storage_snapshot, serverSnapshotXP > localSnapshotXP);
 
     // Restore one-time UI flags (intro/onboarding/unlock popups/tips) that live
     // only in localStorage. Without this, an app update that clears web storage
@@ -6290,8 +6375,7 @@ function AppInner() {
 
     // Progression
     if (typeof gs.xp === 'number' && gs.xp >= 0) {
-      const localXP = parseCompactNumber(localStorage.getItem('nebulife_player_xp') ?? '0') ?? 0;
-      const resolvedXP = Math.max(gs.xp, localXP);
+      const resolvedXP = Math.max(gs.xp, localSnapshotXP);
       setPlayerXP(resolvedXP);
       setPlayerLevel(typeof gs.level === 'number' && gs.level > 0 ? Math.max(gs.level, levelFromXP(resolvedXP)) : levelFromXP(resolvedXP));
       try { localStorage.setItem('nebulife_player_xp', String(resolvedXP)); } catch { /* ignore */ }
@@ -6437,11 +6521,15 @@ function AppInner() {
         const serverUpdatedAt = typeof gs.colony_resources_updated_at === 'number' ? gs.colony_resources_updated_at : 0;
         const normalizedServer = normalizeResourceMap(nextMap).map;
         // Do not max-merge resources: spending must be able to reduce counts.
-        // Pick the newest whole resource snapshot. If the server lacks a timestamp,
-        // a local timestamped snapshot means this device has fresher spend/add data.
+        // Pick the newest whole resource snapshot. After a clean reinstall the
+        // server snapshot must win over freshly-created local defaults, otherwise
+        // resources appear to "restore" to an older local/generated amount. But
+        // old builds may have local resources and no server timestamp because the
+        // broken keepalive save never reached DB; rescue those on update.
         const shouldKeepLocal = Boolean(localMap)
+          && localIsAtLeastAsFreshByXp
           && localUpdatedAt > 0
-          && (serverUpdatedAt === 0 || localUpdatedAt >= serverUpdatedAt);
+          && (serverUpdatedAt === 0 || localUpdatedAt > serverUpdatedAt);
         const resolvedMap = shouldKeepLocal ? localMap! : normalizedServer;
         const resolvedUpdatedAt = shouldKeepLocal
           ? localUpdatedAt
@@ -6838,13 +6926,25 @@ function AppInner() {
 
     if (gs.fleet_state && typeof gs.fleet_state === 'object') {
       const serverFleetState = gs.fleet_state as FleetState;
+      const hadPersistedLocalFleet = (() => {
+        try { return localStorage.getItem('nebulife_fleet_state') !== null; }
+        catch { return false; }
+      })();
       setShipFleet((localFleetState) => {
-        if ((localFleetState.ships?.length ?? 0) >= (serverFleetState.ships?.length ?? 0)) return localFleetState;
+        if (
+          hadPersistedLocalFleet
+          && localIsAtLeastAsFreshByXp
+          && (localFleetState.ships?.length ?? 0) > (serverFleetState.ships?.length ?? 0)
+        ) {
+          return localFleetState;
+        }
         return {
-          ships: serverFleetState.ships ?? [],
-          cargoShipments: serverFleetState.cargoShipments ?? [],
-          routes: serverFleetState.routes ?? [],
-          productionQueues: serverFleetState.productionQueues ?? {},
+          ships: Array.isArray(serverFleetState.ships) ? serverFleetState.ships : [],
+          cargoShipments: Array.isArray(serverFleetState.cargoShipments) ? serverFleetState.cargoShipments : [],
+          routes: Array.isArray(serverFleetState.routes) ? serverFleetState.routes : [],
+          productionQueues: serverFleetState.productionQueues && typeof serverFleetState.productionQueues === 'object'
+            ? serverFleetState.productionQueues
+            : {},
         };
       });
     }
@@ -7052,9 +7152,8 @@ function AppInner() {
     // Language: localStorage is always the source of truth.
     // Never override from server — player chose their language at first launch.
 
-    serverHydratedRef.current = true;
-    setServerHydrated(true);
-  }, [commitColonyResourcesByPlanet, commitFavoritePlanets, mergeArenaStats, normalizeArenaStats]);
+    markServerHydrated(true);
+  }, [commitColonyResourcesByPlanet, commitFavoritePlanets, markServerHydrated, mergeArenaStats, normalizeArenaStats]);
 
   // ── Firebase auth lifecycle ──────────────────────────────────────────
   useEffect(() => {
@@ -7267,6 +7366,16 @@ function AppInner() {
               // a newer auth event (null or different user) may have fired.
               // If so, bail out before stomping newer state with our data.
               if (!isLatest()) return;
+              if (player?.requires_linked_login) {
+                console.warn('[auth] Linked account with newer progress exists on this device; showing login instead of stale guest.');
+                setGuestAutoFailed(true);
+                setNeedsOnboarding(false);
+                setCinematicActive(false);
+                playerId.current = '';
+                setIsGuest(false);
+                try { await signOut(); } catch { /* keep AuthScreen fallback visible */ }
+                return;
+              }
               playerId.current = player.id; // Use DB id (may differ from UID for migrated)
               setQuarks(player.quarks ?? 0);
               if (player.global_index != null) globalPlayerIndexRef.current = player.global_index;
@@ -11643,6 +11752,8 @@ function AppInner() {
       planet_overrides: planetOverrides,
       // Planet resource stocks (v168 — finite extraction deposits; stored in JSONB)
       planet_resource_stocks: planetResourceStocksRef.current,
+      // Fallback mirror for older builds and localStorage-only component state.
+      local_storage_snapshot: collectAccountScopedLocalStorageSnapshot(),
       synced_at: Date.now(),
     };
   };
@@ -11749,7 +11860,20 @@ function AppInner() {
     if (isFirebaseConfigured && !serverHydratedRef.current) return;
     const snapshot = buildGameStateSnapshot();
     gameStateRef.current = snapshot as unknown as Record<string, unknown>;
-    updatePlayer(pid, { game_state: snapshot as unknown as Record<string, unknown> }).catch(() => {});
+    updatePlayer(pid, { game_state: snapshot as unknown as Record<string, unknown> })
+      .catch((err) => {
+        console.warn('[sync] game_state save failed; retrying once', err);
+        if (syncRetryTimeoutRef.current) clearTimeout(syncRetryTimeoutRef.current);
+        syncRetryTimeoutRef.current = setTimeout(() => {
+          syncRetryTimeoutRef.current = null;
+          const retryPid = playerId.current;
+          if (!retryPid || (isFirebaseConfigured && !serverHydratedRef.current)) return;
+          const retrySnapshot = buildGameStateSnapshot();
+          gameStateRef.current = retrySnapshot as unknown as Record<string, unknown>;
+          updatePlayer(retryPid, { game_state: retrySnapshot as unknown as Record<string, unknown> })
+            .catch((retryErr) => console.error('[sync] game_state retry failed', retryErr));
+        }, 2500);
+      });
   };
 
   // Debounced sync on critical state changes
@@ -11803,6 +11927,10 @@ function AppInner() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('beforeunload', handleBeforeUnload);
+      if (syncRetryTimeoutRef.current) {
+        clearTimeout(syncRetryTimeoutRef.current);
+        syncRetryTimeoutRef.current = null;
+      }
     };
   }, [hydrateGameStateFromServer]);
 

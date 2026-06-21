@@ -98,15 +98,17 @@ export async function updatePlayer(
     push_notifications: boolean;
     last_digest_seen: string;
   }>,
+  options: { keepalive?: boolean } = {},
 ): Promise<PlayerData> {
   const res = await authFetch(`${API_BASE}/player/${playerId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updates),
-    // keepalive ensures the request completes even if the page/app is being
-    // unloaded (APK kill, browser tab close) — critical for saving research
-    // progress right before app termination.
-    keepalive: true,
+    // DO NOT enable keepalive by default. Browser/WebView keepalive requests
+    // have a small body limit (~64KB); our game_state JSON often exceeds it,
+    // causing the save to be rejected before it reaches the API. Page-hide
+    // callers may opt in only for small targeted writes.
+    keepalive: options.keepalive === true,
   });
 
   if (!res.ok) {

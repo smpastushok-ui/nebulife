@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import { mergeGameStateForPersistence } from '../packages/server/src/db.ts';
+import { protectGameStateAgainstRegression } from '../api/player/[playerId].ts';
+import type { PlayerRow } from '../packages/server/src/db.ts';
 
 const homeSlots = [{ id: 'h-1', buildingType: 'colony_hub' }];
 const remoteSlots = [{ id: 'r-1', buildingType: 'greenhouse' }];
@@ -21,6 +23,10 @@ const firstMerge = mergeGameStateForPersistence(
     ui_flags: {
       nebulife_unlock_popups_baselined: '1',
     },
+    local_storage_snapshot: {
+      nebulife_fleet_state: '{"ships":[{"id":"ship-a"}]}',
+      harvest_planet_a: '["h1"]',
+    },
   },
   {
     hex_slots_by_planet: {
@@ -28,6 +34,10 @@ const firstMerge = mergeGameStateForPersistence(
     },
     planet_reveal_levels: {
       'sys-b::planet-b': 1,
+    },
+    local_storage_snapshot: {
+      explorer_planet_a: '{"x":1}',
+      nebulife_system_notifs: '[{"id":"n1"}]',
     },
     colony_state: {
       planetId: 'home',
@@ -47,6 +57,12 @@ assert.deepEqual(firstMerge?.planet_reveal_levels, {
   'sys-b::planet-b': 1,
 });
 assert.equal((firstMerge?.ui_flags as Record<string, string>).nebulife_unlock_popups_baselined, '1');
+assert.deepEqual(firstMerge?.local_storage_snapshot, {
+  nebulife_fleet_state: '{"ships":[{"id":"ship-a"}]}',
+  harvest_planet_a: '["h1"]',
+  explorer_planet_a: '{"x":1}',
+  nebulife_system_notifs: '[{"id":"n1"}]',
+});
 
 const twoDeviceMerge = mergeGameStateForPersistence(firstMerge, {
   hex_slots_by_planet: {
@@ -85,5 +101,56 @@ assert.deepEqual(depositMerge?.planet_resource_stocks, {
     initial: { minerals: 2000, water: 1200 },
   },
 });
+
+const staleLowerXpSnapshot = protectGameStateAgainstRegression(
+  {
+    game_phase: 'exploring',
+    game_state: {
+      xp: 5000,
+      level: 12,
+      tech_tree: { researched: { a: true, b: true, c: true } },
+      fleet_state: { ships: [{ id: 'old-ship' }], routes: [], productionQueues: {} },
+    },
+    player_xp: 5000,
+    player_level: 12,
+  } as PlayerRow,
+  {
+    xp: 4500,
+    level: 11,
+    tech_tree: { researched: { a: true } },
+    fleet_state: { ships: [{ id: 'new-ship' }], routes: [], productionQueues: {} },
+    system_notifs: [{ id: 'n1', text: 'Mission complete' }],
+  },
+);
+
+assert.equal(staleLowerXpSnapshot, null);
+
+const protectedSnapshot = protectGameStateAgainstRegression(
+  {
+    game_phase: 'exploring',
+    game_state: {
+      xp: 5000,
+      level: 12,
+      tech_tree: { researched: { a: true, b: true, c: true } },
+      fleet_state: { ships: [{ id: 'old-ship' }], routes: [], productionQueues: {} },
+    },
+    player_xp: 5000,
+    player_level: 12,
+  } as PlayerRow,
+  {
+    xp: 5000,
+    level: 11,
+    tech_tree: { researched: { a: true } },
+    fleet_state: { ships: [{ id: 'new-ship' }], routes: [], productionQueues: {} },
+    system_notifs: [{ id: 'n1', text: 'Mission complete' }],
+  },
+);
+
+assert.ok(protectedSnapshot);
+assert.equal(protectedSnapshot.xp, 5000);
+assert.equal(protectedSnapshot.level, 12);
+assert.deepEqual(protectedSnapshot.tech_tree, { researched: { a: true, b: true, c: true } });
+assert.deepEqual(protectedSnapshot.fleet_state, { ships: [{ id: 'new-ship' }], routes: [], productionQueues: {} });
+assert.deepEqual(protectedSnapshot.system_notifs, [{ id: 'n1', text: 'Mission complete' }]);
 
 console.log('Persistence hardening verification passed.');

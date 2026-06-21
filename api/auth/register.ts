@@ -5,6 +5,7 @@ import {
   linkFirebaseToPlayer,
   createPlayerWithAuth,
   findRecoverableGuest,
+  findRecoverableLinkedAccountHint,
   relinkGuestToUid,
   detachFirebaseUid,
   setPlayerDeviceId,
@@ -32,6 +33,13 @@ function maybeSendWelcomeEmail(player: {
   }).catch((err) => {
     console.warn('[register] Welcome email failed:', err);
   });
+}
+
+function playerProgressXp(player: { player_xp?: number | null; game_state?: Record<string, unknown> | null } | null): number {
+  if (!player) return 0;
+  const columnXp = typeof player.player_xp === 'number' && Number.isFinite(player.player_xp) ? player.player_xp : 0;
+  const stateXp = typeof player.game_state?.xp === 'number' && Number.isFinite(player.game_state.xp) ? player.game_state.xp : 0;
+  return Math.max(columnXp, stateXp);
 }
 
 /**
@@ -95,7 +103,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     //    device_id) whose Firebase UID changed after an app update. Only for
     //    anonymous logins so a shared device can never steal a linked account.
     if (normalizedProvider === 'anonymous') {
+      const linkedHint = await findRecoverableLinkedAccountHint({ fcmToken, deviceId, excludeUid: auth.uid });
       const candidate = await findRecoverableGuest({ fcmToken, deviceId, excludeUid: auth.uid });
+      if (linkedHint && (!candidate || playerProgressXp(linkedHint) >= playerProgressXp(candidate))) {
+        return res.status(200).json({
+          requires_linked_login: true,
+          linked_provider_hint: linkedHint.auth_provider,
+          linked_progress_xp: playerProgressXp(linkedHint),
+          guest_progress_xp: playerProgressXp(candidate),
+          ads_geo_allowed: adsGeoAllowed,
+        });
+      }
       if (candidate) {
         // Free the new UID if an empty stub already holds it (unique index).
         if (existing) {

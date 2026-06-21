@@ -1161,6 +1161,44 @@ export async function findRecoverableGuest(opts: {
   return (rows[0] as PlayerRow) ?? null;
 }
 
+/**
+ * Find the strongest linked account seen on this device/recovery key. This is
+ * only a login hint: callers must NOT authenticate as that row without the
+ * linked provider token. It prevents native guest auto-login from showing an old
+ * low-XP anonymous row when the same phone already has a higher Google/Apple
+ * account.
+ */
+export async function findRecoverableLinkedAccountHint(opts: {
+  fcmToken?: string | null;
+  deviceId?: string | null;
+  excludeUid: string;
+}): Promise<PlayerRow | null> {
+  const fcmToken = opts.fcmToken ?? null;
+  const deviceId = opts.deviceId ?? null;
+  if (!fcmToken && !deviceId) return null;
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT * FROM players
+    WHERE auth_provider <> 'anonymous'
+      AND firebase_uid IS DISTINCT FROM ${opts.excludeUid}
+      AND (
+        (${fcmToken}::text IS NOT NULL AND fcm_token = ${fcmToken})
+        OR (${deviceId}::text IS NOT NULL AND device_id = ${deviceId})
+      )
+      AND NOT (
+        game_phase = 'onboarding'
+        AND COALESCE(player_level, (game_state->>'level')::int, 0) <= 1
+        AND COALESCE((game_state->>'onboarding_done')::boolean, false) = false
+      )
+    ORDER BY
+      COALESCE(player_xp, (game_state->>'xp')::int, 0) DESC,
+      COALESCE(player_level, (game_state->>'level')::int, 0) DESC,
+      last_login DESC NULLS LAST
+    LIMIT 1
+  `;
+  return (rows[0] as PlayerRow) ?? null;
+}
+
 export { isFreshPlayerRow };
 
 /**
