@@ -1158,6 +1158,22 @@ export async function getPlayerByFirebaseUid(firebaseUid: string): Promise<Playe
   return (rows[0] as PlayerRow) ?? null;
 }
 
+/** Mark a player as active without changing gameplay state. */
+export async function touchPlayerPresence(playerId: string): Promise<PlayerRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    UPDATE players
+    SET last_login = NOW(),
+        last_seen_at = NOW()
+    WHERE id = ${playerId}
+    RETURNING *
+  `;
+  if (rows[0]) {
+    try { await recordPlayerActivityHour(playerId); } catch { /* non-critical analytics */ }
+  }
+  return (rows[0] as PlayerRow) ?? null;
+}
+
 /** Link a Firebase UID to an existing legacy player (migration). */
 export async function linkFirebaseToPlayer(
   legacyPlayerId: string,
@@ -4182,7 +4198,8 @@ export async function claimDailyLoginBonus(playerId: string): Promise<{
                           WHEN cur.last_day < cur.today - INTERVAL '1 day' THEN 1
                           ELSE p.login_streak
                         END,
-          last_login   = NOW()
+          last_login   = NOW(),
+          last_seen_at = NOW()
       FROM cur
       WHERE p.id = ${playerId}
       RETURNING p.quarks, p.login_streak, cur.last_day, cur.today
@@ -4626,51 +4643,11 @@ export async function recycleStaleClusterSeat(
   newPlayerId: string,
   newGlobalIndex: number,
 ): Promise<{ recycledIndex: number; recycledClusterId: string | null } | null> {
-  const sql = getSQL();
-
-  const candidates = await sql`
-    SELECT id, global_index, cluster_id
-    FROM players
-    WHERE player_level <= 1
-      AND COALESCE(last_seen_at, last_login, created_at) < NOW() - INTERVAL '3 days'
-      AND cluster_id IS NOT NULL
-      AND global_index IS NOT NULL
-      AND global_index < ${newGlobalIndex}
-      AND id <> ${newPlayerId}
-    ORDER BY global_index ASC
-    LIMIT 1
-  ` as Array<{ id: string; global_index: number; cluster_id: string | null }>;
-
-  const stale = candidates[0];
-  if (!stale) return null;
-
-  try {
-    // Three-step swap inside one transaction: global_index has a partial
-    // unique index, so the stale row must vacate its index (NULL) before the
-    // newcomer can take it. Guards on the expected indices make concurrent
-    // registrations abort via the unique index instead of corrupting seats.
-    await sql.transaction((tx) => [
-      tx`
-        UPDATE players
-        SET global_index = NULL, cluster_id = NULL,
-            home_system_id = 'home', home_planet_id = 'home'
-        WHERE id = ${stale.id} AND global_index = ${stale.global_index}
-      `,
-      tx`
-        UPDATE players SET global_index = ${stale.global_index}
-        WHERE id = ${newPlayerId} AND global_index = ${newGlobalIndex}
-      `,
-      tx`
-        UPDATE players SET global_index = ${newGlobalIndex}
-        WHERE id = ${stale.id} AND global_index IS NULL
-      `,
-    ]);
-  } catch (err) {
-    console.warn('[recycleStaleClusterSeat] swap failed (likely concurrent registration):', err);
-    return null;
-  }
-
-  return { recycledIndex: stale.global_index, recycledClusterId: stale.cluster_id };
+  void newPlayerId;
+  void newGlobalIndex;
+  // Disabled after the Explorer-943 incident. A player's global_index is part of
+  // their deterministic galaxy identity and must never be recycled or swapped.
+  return null;
 }
 
 /** Players eligible for comet pushes (active in last 14d, push-enabled). */

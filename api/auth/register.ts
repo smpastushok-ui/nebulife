@@ -10,7 +10,7 @@ import {
   detachFirebaseUid,
   setPlayerDeviceId,
   isFreshPlayerRow,
-  recycleStaleClusterSeat,
+  touchPlayerPresence,
 } from '../../packages/server/src/db.js';
 import { assignPlayerToCluster } from '@nebulife/server';
 import { sendWelcomeEmail } from '../../packages/server/src/email-client.js';
@@ -96,7 +96,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (deviceId && existing.device_id !== deviceId) {
         try { await setPlayerDeviceId(existing.id, deviceId); } catch { /* non-critical */ }
       }
-      return res.status(200).json({ ...existing, ads_geo_allowed: adsGeoAllowed });
+      const touched = await touchPlayerPresence(existing.id);
+      return res.status(200).json({ ...(touched ?? existing), ads_geo_allowed: adsGeoAllowed });
     }
 
     // 2. Guest recovery: re-link an orphaned guest row (matched by FCM token or
@@ -126,7 +127,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             try { await assignPlayerToCluster(recovered.id, recovered.global_index); }
             catch (clusterErr) { console.warn('[register] Cluster assign (recovered) failed:', clusterErr); }
           }
-          return res.status(200).json({ ...recovered, ads_geo_allowed: adsGeoAllowed });
+          const touched = await touchPlayerPresence(recovered.id);
+          return res.status(200).json({ ...(touched ?? recovered), ads_geo_allowed: adsGeoAllowed });
         }
       }
     }
@@ -135,7 +137,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // return it (don't create a duplicate); otherwise fall through to create.
     if (existing) {
       if (deviceId) { try { await setPlayerDeviceId(existing.id, deviceId); } catch { /* non-critical */ } }
-      return res.status(200).json({ ...existing, ads_geo_allowed: adsGeoAllowed });
+      const touched = await touchPlayerPresence(existing.id);
+      return res.status(200).json({ ...(touched ?? existing), ads_geo_allowed: adsGeoAllowed });
     }
     console.log('[register] No existing player found, creating new...');
 
@@ -160,7 +163,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
         }
         maybeSendWelcomeEmail(linked);
-        return res.status(200).json({ ...linked, ads_geo_allowed: adsGeoAllowed });
+        const touched = await touchPlayerPresence(linked.id);
+        return res.status(200).json({ ...(touched ?? linked), ads_geo_allowed: adsGeoAllowed });
       }
       console.log('[register] Legacy link failed, creating fresh player');
     }
@@ -180,28 +184,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     console.log(`[register] Player created: id=${player?.id}, phase=${player?.game_phase}`);
 
-    // Assign the new player to their cluster. Before that, try to recycle a
-    // stale seat (level ≤1 player absent 3+ days) so long-lived clusters stay
-    // populated and the weekly rating stays meaningful.
+    // Assign the new player to their own cluster seat. Player identifiers are
+    // immutable: never recycle or swap global_index values after they are
+    // issued, because the index is part of the player's galaxy identity.
     if (player?.global_index != null) {
-      let effectiveIndex = player.global_index;
       try {
-        const recycled = await recycleStaleClusterSeat(player.id, player.global_index);
-        if (recycled) {
-          effectiveIndex = recycled.recycledIndex;
-          console.log(`[register] Recycled stale seat: globalIndex=${effectiveIndex} for ${player.id}`);
-        }
-      } catch (recycleErr) {
-        console.warn('[register] Seat recycle failed (continuing with fresh index):', recycleErr);
-      }
-      try {
-        await assignPlayerToCluster(player.id, effectiveIndex);
-        console.log(`[register] Cluster assigned for new player: id=${player.id}, globalIndex=${effectiveIndex}`);
+        await assignPlayerToCluster(player.id, player.global_index);
+        console.log(`[register] Cluster assigned for new player: id=${player.id}, globalIndex=${player.global_index}`);
       } catch (clusterErr) {
         console.warn('[register] Failed to assign cluster for new player:', clusterErr);
-      }
-      if (effectiveIndex !== player.global_index) {
-        player.global_index = effectiveIndex;
       }
     }
 
