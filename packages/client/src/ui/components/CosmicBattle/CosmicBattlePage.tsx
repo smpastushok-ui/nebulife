@@ -185,7 +185,7 @@ export const CosmicBattlePage: React.FC<CosmicBattlePageProps> = ({ seed, onExit
         .cbMeter > span { display: block; height: 100%; background: linear-gradient(90deg, #44ff88, #7bb8ff); box-shadow: 0 0 14px rgba(123,184,255,0.6); }
         .cbGridWrap { display: flex; flex-direction: column; height: 100%; padding: 14px; box-sizing: border-box; }
         .cbGridTitle { display: flex; justify-content: space-between; color: #8899aa; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px; }
-        .cbGrid { display: grid; gap: 3px; flex: 1; min-height: 0; aspect-ratio: 1; margin: auto; width: min(100%, 68vh); }
+        .cbGrid { display: grid; gap: 3px; flex: 1; min-height: 0; aspect-ratio: 1; margin: auto; width: min(100%, 68vh); touch-action: manipulation; }
         .cbCell { position: relative; border: 1px solid rgba(68,102,136,0.62); background: rgba(8,18,32,0.78); color: #aabbcc; font-family: monospace; cursor: crosshair; overflow: hidden; }
         .cbCell::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(123,184,255,0.12), transparent 45%); opacity: 0; transition: opacity 0.18s ease; }
         .cbCell:hover::before { opacity: 1; }
@@ -214,6 +214,104 @@ export const CosmicBattlePage: React.FC<CosmicBattlePageProps> = ({ seed, onExit
           .cbHeader { flex-direction: column; }
           .cbGrid { width: min(100%, 78vw); }
         }
+        @media (max-width: 760px) {
+          .cosmicBattleRoot { overflow: auto; }
+          .cbBackgroundArt { display: none; }
+          .cosmicBattleRoot::before {
+            background:
+              radial-gradient(circle at 18% 12%, rgba(68,136,170,0.16), transparent 34%),
+              linear-gradient(180deg, #020510 0%, #050a14 100%);
+          }
+          .cosmicBattleRoot::after {
+            background: radial-gradient(circle at 50% 22%, transparent 0 34%, rgba(2,5,16,0.55) 100%);
+          }
+          .cbShell {
+            min-height: 100%;
+            height: auto;
+            padding: max(10px, env(safe-area-inset-top)) 10px max(14px, env(safe-area-inset-bottom));
+            gap: 10px;
+            overflow: visible;
+          }
+          .cbHeader {
+            padding: 12px;
+            gap: 10px;
+          }
+          .cbTitle {
+            font-size: 18px;
+            letter-spacing: 0.14em;
+          }
+          .cbSub {
+            display: none;
+          }
+          .cbStatus,
+          .cbBack {
+            min-height: 42px;
+            box-sizing: border-box;
+            display: inline-flex;
+            align-items: center;
+          }
+          .cbStage {
+            flex: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-height: auto;
+            overflow: visible;
+          }
+          .cbBoardPanel {
+            overflow: visible;
+          }
+          .cbBoardPanel.enemyBoard {
+            order: 1;
+          }
+          .cbBoardPanel.allyBoard {
+            order: 2;
+          }
+          .cbIntel {
+            order: 3;
+            box-shadow: none;
+          }
+          .cbIntel.enemyIntel {
+            order: 4;
+          }
+          .cbIntelArt {
+            display: none;
+          }
+          .cbIntelBody {
+            padding: 10px 12px;
+          }
+          .cbMeter {
+            margin: 8px 0 6px;
+          }
+          .cbGridWrap {
+            padding: 12px;
+          }
+          .cbGridTitle {
+            font-size: 10px;
+            margin-bottom: 8px;
+          }
+          .cbGrid {
+            flex: none;
+            width: min(100%, calc(100vw - 44px));
+            max-width: 420px;
+            gap: 4px;
+          }
+          .cbCell {
+            min-width: 0;
+            min-height: 0;
+            border-radius: 3px;
+            cursor: pointer;
+          }
+          .cbCell::before {
+            opacity: 0.18;
+          }
+          .cbOutcome {
+            min-height: auto;
+            margin-top: 9px;
+            font-size: 10px;
+            line-height: 1.4;
+          }
+        }
       `}</style>
       <img className="cbBackgroundArt" src={ASSET.background} alt="" aria-hidden="true" />
       <div className="cbShell">
@@ -231,6 +329,7 @@ export const CosmicBattlePage: React.FC<CosmicBattlePageProps> = ({ seed, onExit
         <div className="cbStage">
           <FleetIntel side="ally" board={playerBoard} />
           <BattleGrid
+            variant="enemy"
             title={t('cosmic_battle.enemy_grid')}
             board={enemyBoard}
             revealShips={false}
@@ -240,6 +339,7 @@ export const CosmicBattlePage: React.FC<CosmicBattlePageProps> = ({ seed, onExit
             footer={lastOutcome && shotVisual?.side === 'player' ? t(lastOutcome.hit ? 'cosmic_battle.outcome.hit' : 'cosmic_battle.outcome.miss') : t('cosmic_battle.target_hint')}
           />
           <BattleGrid
+            variant="ally"
             title={t('cosmic_battle.ally_grid')}
             board={playerBoard}
             revealShips
@@ -281,7 +381,7 @@ function FleetIntel({ side, board }: { side: 'ally' | 'enemy'; board: BattleBoar
   const { t } = useTranslation();
   const integrity = fleetIntegrity(board);
   return (
-    <div className="cbIntel">
+    <div className={`cbIntel ${side === 'ally' ? 'allyIntel' : 'enemyIntel'}`}>
       <img
         className="cbIntelArt"
         src={side === 'ally' ? ASSET.ally : ASSET.enemy}
@@ -299,6 +399,7 @@ function FleetIntel({ side, board }: { side: 'ally' | 'enemy'; board: BattleBoar
 }
 
 function BattleGrid({
+  variant,
   title,
   board,
   revealShips,
@@ -307,6 +408,7 @@ function BattleGrid({
   footer,
   onCell,
 }: {
+  variant: 'ally' | 'enemy';
   title: string;
   board: BattleBoard;
   revealShips: boolean;
@@ -337,7 +439,7 @@ function BattleGrid({
     }
   }
   return (
-    <div className="cbBoardPanel">
+    <div className={`cbBoardPanel ${variant === 'enemy' ? 'enemyBoard' : 'allyBoard'}`}>
       <div className="cbGridWrap">
         <div className="cbGridTitle"><span>{title}</span><span>{board.size}x{board.size}</span></div>
         <div className="cbGrid" style={{ gridTemplateColumns: `repeat(${board.size}, 1fr)` }}>

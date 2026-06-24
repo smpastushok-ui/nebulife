@@ -65,6 +65,11 @@ export interface LifeformRevealModalProps {
   planetContext?: { hint: string; medium: string };
   /** Show the A.S.T.R.A. onboarding (first lifeform ever found). */
   showOnboarding?: boolean;
+  onAlphaPromoOpportunity?: (event: {
+    trigger: 'lifeform_locked' | 'insufficient_quarks';
+    objectId: string;
+    rarity: DiscoveryRarity;
+  }) => void;
 }
 
 export function LifeformRevealModal({
@@ -78,6 +83,7 @@ export function LifeformRevealModal({
   bundleVideoSrc,
   planetContext,
   showOnboarding,
+  onAlphaPromoOpportunity,
 }: LifeformRevealModalProps) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language?.startsWith('en') ? 'en' : 'uk';
@@ -213,6 +219,11 @@ export function LifeformRevealModal({
     }
     if (!adToken && quarks < photoCost) {
       setGenError(t('lifeform.err_quarks'));
+      onAlphaPromoOpportunity?.({
+        trigger: 'insufficient_quarks',
+        objectId: record.id,
+        rarity,
+      });
       return;
     }
     setGenError(null);
@@ -241,7 +252,7 @@ export function LifeformRevealModal({
       setPhotoGenStatus('failed');
       setGenError(err instanceof Error ? err.message : t('lifeform.err_failed'));
     }
-  }, [quarks, photoCost, playerId, record, onQuarksChange, onUpdated, planetContext, t]);
+  }, [quarks, photoCost, playerId, record, onQuarksChange, onUpdated, planetContext, t, onAlphaPromoOpportunity, rarity]);
 
   // ── Paid Alpha-video generation ─────────────────────────────────────────
   const startVideoGen = useCallback(async () => {
@@ -251,6 +262,11 @@ export function LifeformRevealModal({
     }
     if (quarks < videoCost) {
       setGenError(t('lifeform.err_quarks'));
+      onAlphaPromoOpportunity?.({
+        trigger: 'insufficient_quarks',
+        objectId: record.id,
+        rarity,
+      });
       return;
     }
     setGenError(null);
@@ -275,7 +291,7 @@ export function LifeformRevealModal({
       setVideoGenStatus('failed');
       setGenError(err instanceof Error ? err.message : t('lifeform.err_failed'));
     }
-  }, [quarks, videoCost, playerId, record, onQuarksChange, onUpdated, t]);
+  }, [quarks, videoCost, playerId, record, onQuarksChange, onUpdated, t, onAlphaPromoOpportunity, rarity]);
 
   const rarityLabel = getRarityLabel(rarity, lang);
   const photoBusy = photoGenStatus === 'generating' || photoGenStatus === 'pending' || photoGenStatus === 'processing';
@@ -283,6 +299,15 @@ export function LifeformRevealModal({
   // Rewarded-ad alternative for the Alpha-PHOTO only (Tier-1 ad regions,
   // native, daily limit not reached). Alpha-video stays quarks-only.
   const [adChoiceAvailable] = useState(() => canShowAd());
+
+  useEffect(() => {
+    if (beat !== 'media' || isCommon || record.photo_url || record.video_url) return;
+    onAlphaPromoOpportunity?.({
+      trigger: 'lifeform_locked',
+      objectId: record.id,
+      rarity,
+    });
+  }, [beat, isCommon, onAlphaPromoOpportunity, rarity, record.id, record.photo_url, record.video_url]);
 
   // ── Render helpers ───────────────────────────────────────────────────────
   const renderMedia = (mode: 'scan' | 'video' | 'still' | 'clip') => (

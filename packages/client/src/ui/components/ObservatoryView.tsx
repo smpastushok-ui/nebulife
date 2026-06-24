@@ -33,6 +33,11 @@ type Phase = 'submitting' | 'awaiting' | 'revealing' | 'report' | 'photo' | 'err
 
 
 const REVEAL_DURATION_MS = 30_000; // 30 seconds
+const COMMON_EVENT_ASSET_BASE = '/cosmic-events/common';
+
+function getCommonEventImageUrl(objectType: string): string {
+  return `${COMMON_EVENT_ASSET_BASE}/${objectType}.webp`;
+}
 
 export function ObservatoryView({
   discovery,
@@ -92,11 +97,23 @@ export function ObservatoryView({
 
     const run = async () => {
       try {
-        // 1. Build prompt
+        // Common cosmic events ship as bundled art. Do not ask the core prompt
+        // builder or image-generation endpoint for them.
+        if (discovery.rarity === 'common') {
+          const url = getCommonEventImageUrl(discovery.type);
+          setImageUrl(url);
+          const blob = await downloadImage(url);
+          if (cancelled) return;
+          setImageBlob(blob);
+          setPhase('revealing');
+          return;
+        }
+
+        // 1. Build prompt for paid / ad-funded non-common discoveries.
         const prompt = buildPrompt(discovery.type, system, undefined, system.seed);
         const aspectRatio = getScreenAspectRatio();
 
-        // 2. Submit generation request
+        // 2. Submit generation request.
         setPhase('submitting');
         const genRes = await requestGeneration({
           playerId,
@@ -149,7 +166,7 @@ export function ObservatoryView({
       cancelled = true;
       mountedRef.current = false;
     };
-  }, [discovery, system, playerId, reportText, cost]);
+  }, [adPhotoToken, discovery, system, playerId, reportText, cost]);
 
   const handleRevealComplete = useCallback(() => {
     setPhase('report');

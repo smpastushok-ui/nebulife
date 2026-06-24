@@ -47,7 +47,8 @@ export function DiscoveryChoicePanel({
   const name = catalog ? getCatalogName(catalog, lang) : discovery.type;
   const description = catalog ? getCatalogDescription(catalog, lang) : undefined;
 
-  const isFreeQuantum = isFirstDiscovery || isLuckyFree;
+  const isCommon = discovery.rarity === 'common';
+  const isFreeQuantum = isCommon || isFirstDiscovery || isLuckyFree;
   const quantumCost = isFreeQuantum ? 0 : 25;
   const canAffordQuantum = isFreeQuantum || playerQuarks >= 25;
 
@@ -237,7 +238,9 @@ export function DiscoveryChoicePanel({
             title={t('discovery.choice_quantum')}
             subtitle={
               isFreeQuantum
-                ? isFirstDiscovery
+                ? isCommon
+                  ? t('discovery.choice_quantum_free_common')
+                  : isFirstDiscovery
                   ? t('research.first_free')
                   : t('research.lucky_free')
                 : (

@@ -1,4 +1,30 @@
 {
+  "alpha_signal": {
+    "kicker": "Priority channel",
+    "title": "Directorate Signal",
+    "close": "Close",
+    "receiving": "Signal crossing interference",
+    "tap_to_play": "Tap to receive transmission",
+    "body": "Rare findings deserve an Alpha image: a full visual record for your Archive.",
+    "complete": "Transmission received. Choose how to power the next discovery.",
+    "subline": "Quarks unlock life images, non-standard cosmic events, and expedition records.",
+    "quarks_cta": "Quarks",
+    "pass_cta": "Alpha Pass"
+  },
+  "emergency_transmission": {
+    "kicker": "Emergency relay",
+    "title": "Mission Dispatch",
+    "close": "Close",
+    "receiving": "Signal lock in progress",
+    "autoplay_hint": "Remote dispatches stream from YouTube and start muted when the device allows autoplay.",
+    "ack": "Acknowledge",
+    "episodes": {
+      "frontier_001": {
+        "title": "Frontier dispatch 001",
+        "summary": "A short field report from a science-military mission operating beyond the safe corridor."
+      }
+    }
+  },
   "lifeform": {
     "skip": "Skip",
     "continue": "Continue",
@@ -877,6 +903,7 @@
     "choice_telemetry": "Basic Telemetry",
     "choice_telemetry_free": "Free",
     "choice_quantum": "Quantum Focus",
+    "choice_quantum_free_common": "Bundled archive image",
     "choice_calibration": "Sensor Calibration",
     "choice_calibration_progress": "Energy: {{done}}/{{total}}",
     "choice_skip": "Skip",
@@ -1622,6 +1649,9 @@
     "creating_payment": "Creating payment...",
     "pay_btn": "Top up {{amount}} for {{amount}} UAH",
     "note": "1 quark = 1 UAH · Payment via Monobank",
+    "alpha_offer_kicker": "Alpha Archive",
+    "alpha_offer_title": "Quarks unlock rare records",
+    "alpha_offer_body": "Use quarks for Alpha images of life, non-standard cosmic events, and expedition video records. The first-purchase discount will be connected through a dedicated store pack.",
     "iap_title": "Quark Packs",
     "pack_starter": "Starter pack",
     "pack_optimal": "Best choice",

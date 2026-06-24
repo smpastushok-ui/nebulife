@@ -38,6 +38,7 @@ function formatPremiumExpiresAt(expiresAt: string | null | undefined, productId:
 interface QuarkTopUpModalProps {
   playerId: string;
   currentBalance: number;
+  context?: 'alpha_promo' | null;
   onClose: () => void;
   /** Called after successful IAP with the number of quarks granted */
   onQuarksGranted?: (quarks: number) => void;
@@ -48,7 +49,7 @@ interface QuarkTopUpModalProps {
 // ---------------------------------------------------------------------------
 // Web/MonoPay variant
 // ---------------------------------------------------------------------------
-function WebTopUpModal({ playerId, currentBalance, onClose }: QuarkTopUpModalProps) {
+function WebTopUpModal({ playerId, currentBalance, context, onClose }: QuarkTopUpModalProps) {
   const { t } = useTranslation();
   const [selectedAmount, setSelectedAmount] = useState<number>(100);
   const [customAmount, setCustomAmount] = useState('');
@@ -85,6 +86,7 @@ function WebTopUpModal({ playerId, currentBalance, onClose }: QuarkTopUpModalPro
         <div style={styles.balance}>
           {t('topup.current_balance')}: <span style={styles.balanceValue}>{currentBalance} <QuarkIcon /></span>
         </div>
+        {context === 'alpha_promo' && <AlphaPromoTopUpBanner />}
         <div style={styles.presets}>
           {PRESETS.map((preset) => (
             <button
@@ -138,7 +140,7 @@ function WebTopUpModal({ playerId, currentBalance, onClose }: QuarkTopUpModalPro
 // ---------------------------------------------------------------------------
 // Native IAP variant (iOS / Android via RevenueCat)
 // ---------------------------------------------------------------------------
-function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted, onPremiumChanged }: QuarkTopUpModalProps) {
+function NativeTopUpModal({ playerId, currentBalance, context, onClose, onQuarksGranted, onPremiumChanged }: QuarkTopUpModalProps) {
   const { t, i18n } = useTranslation();
   const [packages, setPackages] = useState<IAPPackage[]>([]);
   const [premiumPackages, setPremiumPackages] = useState<PremiumPackage[]>([]);
@@ -303,6 +305,7 @@ function NativeTopUpModal({ playerId, currentBalance, onClose, onQuarksGranted, 
         <div style={styles.balance}>
           {t('topup.current_balance')}: <span style={styles.balanceValue}>{currentBalance} <QuarkIcon /></span>
         </div>
+        {context === 'alpha_promo' && <AlphaPromoTopUpBanner />}
 
         {isPremiumActive && (
           <div style={styles.premiumActiveNotice}>
@@ -505,6 +508,17 @@ function QuarkIcon() {
   );
 }
 
+function AlphaPromoTopUpBanner() {
+  const { t } = useTranslation();
+  return (
+    <div style={styles.alphaPromoBanner}>
+      <div style={styles.alphaPromoKicker}>{t('topup.alpha_offer_kicker')}</div>
+      <div style={styles.alphaPromoTitle}>{t('topup.alpha_offer_title')}</div>
+      <div style={styles.alphaPromoText}>{t('topup.alpha_offer_body')}</div>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Unified export — branches based on platform
 // ---------------------------------------------------------------------------
@@ -577,6 +591,32 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 16, fontFamily: 'monospace',
   },
   balanceValue: { color: '#7bb8ff', fontWeight: 600 },
+  alphaPromoBanner: {
+    margin: '0 0 14px',
+    padding: '11px 12px',
+    borderRadius: 5,
+    border: '1px solid rgba(221,170,68,0.55)',
+    background: 'linear-gradient(180deg, rgba(80,52,12,0.24), rgba(10,15,25,0.72))',
+    boxShadow: '0 0 20px rgba(221,170,68,0.12), inset 0 0 18px rgba(255,204,102,0.06)',
+  },
+  alphaPromoKicker: {
+    color: '#ddaa44',
+    fontSize: 9,
+    letterSpacing: 1.8,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  alphaPromoTitle: {
+    color: '#ffe0a0',
+    fontSize: 12,
+    letterSpacing: 0.6,
+    marginBottom: 5,
+  },
+  alphaPromoText: {
+    color: '#99aabb',
+    fontSize: 10,
+    lineHeight: 1.45,
+  },
   presets: {
     display: 'flex', flexWrap: 'wrap' as const, gap: 8,
     marginBottom: 16,

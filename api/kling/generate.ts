@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { getCatalogEntry } from '@nebulife/core';
 import { generateImage } from '../../packages/server/src/kling-client.js';
 import { saveKlingTask, saveDiscovery, deductQuarks, creditQuarks } from '../../packages/server/src/db.js';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
@@ -55,13 +56,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       adPhotoToken,
     } = req.body;
 
-    if (!playerId || !discoveryId || !objectType || !prompt) {
-      return res.status(400).json({ error: 'Missing required fields: playerId, discoveryId, objectType, prompt' });
+    if (!playerId || !discoveryId || !objectType) {
+      return res.status(400).json({ error: 'Missing required fields: playerId, discoveryId, objectType' });
     }
 
     // Verify player owns this playerId
     if (playerId !== auth.playerId) {
       return res.status(403).json({ error: 'Forbidden: player mismatch' });
+    }
+
+    // Common cosmic events ship with bundled images and must not invoke Kling
+    // or persist generated prompts. The client saves their bundled URL directly.
+    const catalogEntry = getCatalogEntry(objectType);
+    if (rarity === 'common' || catalogEntry?.rarity === 'common') {
+      return res.status(400).json({ error: 'Common cosmic events use bundled assets — no generation needed' });
+    }
+
+    if (!prompt) {
+      return res.status(400).json({ error: 'Missing required field: prompt' });
     }
 
     // Check if funded by a valid ad-reward photo token (HMAC-signed by server after watching ads).

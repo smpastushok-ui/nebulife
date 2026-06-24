@@ -236,6 +236,8 @@ import { ResearchToast } from './ui/components/ResearchToast.js';
 import type { ResearchToastItem } from './ui/components/ResearchToast.js';
 import { CutsceneVideo } from './ui/components/CutsceneVideo.js';
 import { LifeformRevealModal } from './ui/components/LifeformRevealModal.js';
+import { AlphaSignalPromoModal } from './ui/components/AlphaSignalPromoModal.js';
+import { EmergencyTransmissionModal } from './ui/components/EmergencyTransmissionModal.js';
 import { GenesisLabModal } from './ui/components/GenesisLabModal.js';
 import {
   reportLifeformFound,
@@ -297,6 +299,8 @@ import { requestAppTrackingTransparencyIfNeeded, watchAdsWithProgress } from './
 import { setAdsUnlockedAfterSettlement, setAdsGeoAllowed } from './services/ad-release-gate.js';
 import { isWebAccessTemporarilyOpen } from './services/web-access-gate.js';
 import { interstitialManager } from './services/interstitial-manager.js';
+import { shouldShowAlphaPromo, type AlphaPromoTrigger } from './services/alpha-promo-manager.js';
+import { shouldShowEmergencyTransmission, type EmergencyTransmissionEpisode } from './services/emergency-transmission-manager.js';
 import {
   generateSystemPhoto, pollSystemPhotoStatus,
   generateSystemMission, pollMissionStatus,
@@ -1616,14 +1620,6 @@ function AppInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Step 0 funnel: the login screen became visible (same gate as the JSX
-  // render below). Lets GA4 measure intro → auth_screen_shown drop.
-  useEffect(() => {
-    if (isFirebaseConfigured && !authLoading && bootLoaderDone && !manualSetup && !firebaseUser) {
-      trackEventOnce('auth_screen_shown', 'auth_screen_shown');
-    }
-  }, [authLoading, bootLoaderDone, manualSetup, firebaseUser]);
-
   // Guest-first (native only): after the intro, sign in anonymously WITHOUT
   // showing the login form, so a new player flows straight intro → cinematic
   // videos → countdown. The existing onAuthChange handler then registers the
@@ -1638,13 +1634,30 @@ function AppInner() {
     if (!isFirebaseConfigured || authLoading || !bootLoaderDone || manualSetup || firebaseUser) return;
     if (guestAutoAttemptedRef.current) return;
     guestAutoAttemptedRef.current = true;
+    const previousUid = (() => {
+      try { return localStorage.getItem('nebulife_last_uid'); }
+      catch { return null; }
+    })();
+    void trackEvent('guest_session_attempt', {
+      had_previous_uid: Boolean(previousUid),
+    });
     // ensureGuestSession waits for Firebase to finish restoring any persisted
     // anonymous session before minting a new one — prevents UID churn (and the
     // resulting lost guest progress) after an app update.
-    ensureGuestSession().catch((err) => {
-      console.warn('[Auth] Silent guest sign-in failed; showing login form:', err);
-      setGuestAutoFailed(true);
-    });
+    ensureGuestSession()
+      .then((user) => {
+        void trackEvent(previousUid === user.uid ? 'guest_session_restored' : 'guest_session_started', {
+          provider: user.isAnonymous ? 'anonymous' : 'linked',
+          uid_changed: Boolean(previousUid && previousUid !== user.uid),
+        });
+      })
+      .catch((err) => {
+        console.warn('[Auth] Silent guest sign-in failed; showing login form:', err);
+        void trackEvent('guest_session_failed', {
+          message: err instanceof Error ? err.message.slice(0, 120) : 'unknown',
+        });
+        setGuestAutoFailed(true);
+      });
   }, [authLoading, bootLoaderDone, manualSetup, firebaseUser]);
 
   // Intro genesis cinematic finished. Watched to the end → trust the auto
@@ -3424,6 +3437,9 @@ function AppInner() {
   /** Quarks (in-game currency) */
   const [quarks, setQuarks] = useState<number>(0);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
+  const [showAlphaSignalPromo, setShowAlphaSignalPromo] = useState(false);
+  const [alphaSignalPromoVideoSrc, setAlphaSignalPromoVideoSrc] = useState<string | undefined>(undefined);
+  const [emergencyTransmission, setEmergencyTransmission] = useState<EmergencyTransmissionEpisode | null>(null);
   const [showResourceModal, setShowResourceModal] = useState<ResourceType | null>(null);
   const [showGetResearchData, setShowGetResearchData] = useState(false);
   const [researchDataNeeded, setResearchDataNeeded] = useState<number | null>(null);
@@ -5984,6 +6000,26 @@ function AppInner() {
   const [isPremiumActive, setIsPremiumActive] = useState(() => localStorage.getItem('nebulife_premium') === '1');
   const [premiumExpiresAt, setPremiumExpiresAt] = useState<string | null>(null);
   const [premiumProductId, setPremiumProductId] = useState<string | null>(null);
+  const [topUpContext, setTopUpContext] = useState<'alpha_promo' | null>(null);
+  const maybeShowAlphaPromo = useCallback((event: {
+    trigger: AlphaPromoTrigger;
+    objectId: string;
+    rarity?: DiscoveryRarity;
+  }): boolean => {
+    const decision = shouldShowAlphaPromo({
+      playerId: playerId.current,
+      trigger: event.trigger,
+      objectId: event.objectId,
+      rarity: event.rarity,
+      quarks,
+      isPremium: isPremiumActive,
+      isGuest,
+    });
+    if (!decision.show) return false;
+    setAlphaSignalPromoVideoSrc(decision.video?.src);
+    setShowAlphaSignalPromo(true);
+    return true;
+  }, [isGuest, isPremiumActive, quarks]);
   const [astraQuizAnswers, setAstraQuizAnswers] = useState<Record<string, number>>(() => {
     try {
       const saved = localStorage.getItem('nebulife_astra_quiz_answers');
@@ -7428,6 +7464,13 @@ function AppInner() {
               if (!isLatest()) return;
               if (player?.requires_linked_login) {
                 console.warn('[auth] Linked account with newer progress exists on this device; showing login instead of stale guest.');
+                void trackEvent('linked_login_required', {
+                  linked_provider_hint: typeof player.linked_provider_hint === 'string' ? player.linked_provider_hint : 'unknown',
+                  linked_progress_xp: typeof player.linked_progress_xp === 'number' ? player.linked_progress_xp : 0,
+                  guest_progress_xp: typeof player.guest_progress_xp === 'number' ? player.guest_progress_xp : 0,
+                  has_device_id: Boolean(deviceId),
+                  has_fcm_token: Boolean(fcmToken),
+                });
                 setGuestAutoFailed(true);
                 setNeedsOnboarding(false);
                 setCinematicActive(false);
@@ -7437,6 +7480,14 @@ function AppInner() {
                 return;
               }
               playerId.current = player.id; // Use DB id (may differ from UID for migrated)
+              if (user.isAnonymous) {
+                void trackEvent('guest_register_success', {
+                  recovered: player.id !== user.uid,
+                  has_device_id: Boolean(deviceId),
+                  has_fcm_token: Boolean(fcmToken),
+                  attempt: attempt + 1,
+                });
+              }
               setQuarks(player.quarks ?? 0);
               if (player.global_index != null) globalPlayerIndexRef.current = player.global_index;
               try { localStorage.setItem('nebulife_generation_index', String(player.science_points ?? 0)); } catch { /* ignore */ }
@@ -9900,19 +9951,36 @@ function AppInner() {
 
   const handleTelemetry = useCallback(() => {
     if (pendingDiscovery) {
+      maybeShowAlphaPromo({
+        trigger: 'event_locked',
+        objectId: pendingDiscovery.discovery.id,
+        rarity: pendingDiscovery.discovery.rarity,
+      });
       setTelemetryTarget(pendingDiscovery);
       setDiscoveryQueue(q => q.slice(1));
       setShowCosmicArchive(false); // Close archive so telemetry is visible
       awardXP(XP_REWARDS.TELEMETRY_SCAN, 'telemetry');
     }
-  }, [pendingDiscovery]);
+  }, [maybeShowAlphaPromo, pendingDiscovery]);
 
   const handleQuantumFocus = useCallback(() => {
     if (pendingDiscovery) {
-      const isFree = playerStats.totalDiscoveries <= 1
+      const isCommon = pendingDiscovery.discovery.rarity === 'common';
+      const isFree = isCommon
+        || playerStats.totalDiscoveries <= 1
         || (playerStats.totalDiscoveries >= 3 && (pendingDiscovery.discovery.timestamp % 50) === 0);
       if (!isFree && quarks < 25) {
-        if (isGuest) setShowLinkModal(true); else setShowTopUpModal(true);
+        const promoShown = maybeShowAlphaPromo({
+          trigger: 'insufficient_quarks',
+          objectId: pendingDiscovery.discovery.id,
+          rarity: pendingDiscovery.discovery.rarity,
+        });
+        if (!promoShown) {
+          if (isGuest) setShowLinkModal(true); else {
+            setTopUpContext('alpha_promo');
+            setShowTopUpModal(true);
+          }
+        }
         return;
       }
       setObservatoryTarget({ ...pendingDiscovery, cost: isFree ? 0 : 25 });
@@ -9920,7 +9988,7 @@ function AppInner() {
       setShowCosmicArchive(false); // Close archive so observatory view is visible
       awardXP(XP_REWARDS.OBSERVATORY_SCAN, 'observatory');
     }
-  }, [pendingDiscovery, playerStats, quarks, isGuest]);
+  }, [maybeShowAlphaPromo, pendingDiscovery, playerStats, quarks, isGuest]);
 
   const handleSkipDiscovery = useCallback(() => {
     setDiscoveryQueue(q => q.slice(1));
@@ -11537,6 +11605,50 @@ function AppInner() {
     discoveryQueue.length, completedModalQueue.length,
   ]);
 
+  // ── Emergency galaxy transmissions ─────────────────────────────────────
+  // Released YouTube dispatches are remote embeds, so they do not inflate the
+  // app bundle. They surface once the player is safely inside the game.
+  useEffect(() => {
+    if (emergencyTransmission) return;
+    if (!serverHydrated || needsOnboarding || needsCallsign) return;
+    if (cinematicActive || cinematicVideoPlaying) return;
+    if (isTutorialActive || tutorialStep < tutorialCompleteStep) return;
+    if (pendingDiscovery || completedModal || discoveryQueue.length > 0 || completedModalQueue.length > 0) return;
+    if (activeLifeform || showDigestEntryPopup || showAlphaSignalPromo || showTopUpModal || showResourceModal || showChaosModal) return;
+
+    const decision = shouldShowEmergencyTransmission({ playerId: playerId.current });
+    if (!decision.show || !decision.episode) return;
+
+    const id = window.setTimeout(() => {
+      setEmergencyTransmission(decision.episode ?? null);
+      void trackEvent('emergency_transmission_shown', {
+        episode_id: decision.episode?.id,
+        source: decision.episode?.source,
+      });
+    }, 900);
+    return () => window.clearTimeout(id);
+  }, [
+    emergencyTransmission,
+    serverHydrated,
+    needsOnboarding,
+    needsCallsign,
+    cinematicActive,
+    cinematicVideoPlaying,
+    isTutorialActive,
+    tutorialStep,
+    tutorialCompleteStep,
+    pendingDiscovery,
+    completedModal,
+    discoveryQueue.length,
+    completedModalQueue.length,
+    activeLifeform,
+    showDigestEntryPopup,
+    showAlphaSignalPromo,
+    showTopUpModal,
+    showResourceModal,
+    showChaosModal,
+  ]);
+
   // ── Award XP & level-up detection (assign to ref for stable callbacks) ──
   awardXPRef.current = (amount: number, _reason: string) => {
     setPlayerXP((prevXP) => {
@@ -12827,6 +12939,11 @@ function AppInner() {
   // PlanetFormationLoader is an intro cinematic, not a generic route/loading
   // placeholder. Returning players should not see it flash on every refresh.
   const showBootLoader = !bootLoaderDone;
+  const shouldShowAuthScreen = isFirebaseConfigured
+    && !authLoading
+    && !showBootLoader
+    && !firebaseUser
+    && (!Capacitor.isNativePlatform() || guestAutoFailed);
   const shouldShowWebAccessGate = isFirebaseConfigured
     && !Capacitor.isNativePlatform()
     && !isWebAccessTemporarilyOpen()
@@ -12844,6 +12961,17 @@ function AppInner() {
     && !shouldShowWebAccessGate
     && !needsCallsign
     && !needsOnboarding;
+
+  // Track the AuthScreen only when it is actually rendered. Native guest-first
+  // attempts briefly satisfy "!firebaseUser" while silent auth is resolving, so
+  // the older boot-based effect overstated login-screen exposure.
+  useEffect(() => {
+    if (!shouldShowAuthScreen) return;
+    trackEventOnce('auth_screen_shown', 'auth_screen_shown', {
+      platform: Capacitor.getPlatform(),
+      guest_auto_failed: guestAutoFailed,
+    });
+  }, [shouldShowAuthScreen, guestAutoFailed]);
 
   // Top HUD swap driver: the galaxy stats bar is a once-per-day welcome flourish.
   // When eligible (mode==='stats' and no blocking overlay) we reveal it for 5s,
@@ -14145,6 +14273,7 @@ function AppInner() {
           bundleVideoSrc={activeLifeformBundle?.video}
           planetContext={activeLifeformPlanet ?? undefined}
           showOnboarding={activeLifeformOnboarding}
+          onAlphaPromoOpportunity={maybeShowAlphaPromo}
           onClose={() => { setActiveLifeform(null); setActiveLifeformBundle(null); setActiveLifeformPlanet(null); setActiveLifeformOnboarding(false); }}
         />
       )}
@@ -14501,7 +14630,10 @@ function AppInner() {
           onStartExtraction={handleStartExtraction}
           onOpenDnaLab={() => setShowDnaLab(true)}
           upcomingEvents={combinedUpcomingEvents}
-          onOpenSignals={() => { setOpsHubTab('signals'); setShowOpsHub(true); }}
+          onOpenSignals={() => {
+            setOpsHubTab('signals');
+            setShowOpsHub(true);
+          }}
           isPremium={isPremiumActive}
           shutdownBuildingTypes={colonyState
             ? new Set(colonyState.buildings.filter(b => b.shutdown).map(b => b.type))
@@ -14672,12 +14804,50 @@ function AppInner() {
         </div>
       )}
 
+      {emergencyTransmission && (
+        <EmergencyTransmissionModal
+          episode={emergencyTransmission}
+          onClose={() => {
+            void trackEvent('emergency_transmission_closed', {
+              episode_id: emergencyTransmission.id,
+              source: emergencyTransmission.source,
+            });
+            setEmergencyTransmission(null);
+          }}
+        />
+      )}
+
+      {showAlphaSignalPromo && (
+        <AlphaSignalPromoModal
+          videoSrc={alphaSignalPromoVideoSrc}
+          onClose={() => {
+            setShowAlphaSignalPromo(false);
+            setAlphaSignalPromoVideoSrc(undefined);
+          }}
+          onQuarksClick={() => {
+            if (isGuest) setShowLinkModal(true);
+            else {
+              setTopUpContext('alpha_promo');
+              setShowTopUpModal(true);
+            }
+          }}
+          onAlphaPassClick={() => {
+            if (isGuest) setShowLinkModal(true);
+            else {
+              setTopUpContext('alpha_promo');
+              setShowTopUpModal(true);
+            }
+          }}
+        />
+      )}
+
       {/* Quark Top-Up Modal */}
       {showTopUpModal && (
         <QuarkTopUpModal
           playerId={playerId.current}
           currentBalance={quarks}
-          onClose={() => setShowTopUpModal(false)}
+          context={topUpContext}
+          onClose={() => { setShowTopUpModal(false); setTopUpContext(null); }}
           onQuarksGranted={(granted) => setQuarks(q => q + granted)}
           onPremiumChanged={(status) => {
             setIsPremiumActive(status.active);
@@ -15932,7 +16102,10 @@ function AppInner() {
             onStartExtraction={handleStartExtraction}
             onOpenDnaLab={() => setShowDnaLab(true)}
             upcomingEvents={combinedUpcomingEvents}
-            onOpenSignals={() => { setOpsHubTab('signals'); setShowOpsHub(true); }}
+            onOpenSignals={() => {
+              setOpsHubTab('signals');
+              setShowOpsHub(true);
+            }}
           />
         );
       })()}
@@ -15958,8 +16131,7 @@ function AppInner() {
           sign in as guest silently after the intro (guest-first), so the form
           only appears on web, or as a fallback if the silent guest sign-in
           failed (e.g. offline) — never trapping the player. */}
-      {isFirebaseConfigured && !authLoading && !showBootLoader && !firebaseUser
-        && (!Capacitor.isNativePlatform() || guestAutoFailed) && (
+      {shouldShowAuthScreen && (
         <AuthScreen
           onAuthenticated={async (user, _isNew) => {
             setFirebaseUser(user);

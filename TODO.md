@@ -6,6 +6,15 @@
 
 ## 🔥 ПРІОРИТЕТ 0 — Термінове (ламає гравцю досвід)
 
+### GA4: зробити чесні воронки після виправлення auth-аналітики
+Після деплою версії з виправленим `auth_screen_shown` зібрати нові exploration funnels у GA4:
+
+- [ ] Guest-first funnel: `app_js_loaded → boot_loader_done → guest_session_attempt → guest_session_started/guest_session_restored → guest_register_success`.
+- [ ] Linked recovery funnel: `linked_login_required → auth_screen_shown → login`.
+- [ ] Activation/value funnel: `guest_register_success → onboarding_slides_done/intro_completed/tutorial_complete → first_system_open → lifeform_found → first_lifeform_revealed → paid_feature_order → purchase`.
+- [ ] Окремо перевірити, чи `login` з'являється в GA4 selectable events після деплою; якщо ні — знайти, чому `trackLogin(..., false)` не доходить.
+- [ ] Порівняти mobile/tablet/desktop breakdown і виписати реальну точку відвалу: Firebase restore/register, onboarding, перша система чи перша цінна дія.
+
 ### Перевірити чи попап планет показується на всіх зірках
 Після пересборки APK гравець скаже, чи на Ring 2 відкривається попап. Якщо ні — дамо скрін, полагодимо.
 
