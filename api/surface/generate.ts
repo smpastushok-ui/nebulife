@@ -4,6 +4,7 @@ import {
   getSurfaceMap,
   saveSurfaceMap,
   deductQuarks,
+  creditQuarks,
   getPlayer,
   generateImage,
   buildSurfacePrompt,
@@ -40,6 +41,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(429).json({ error: 'Зачекайте перед наступною генерацією.' });
   }
 
+  let quarksDeducted = false;
+  let isFree = false;
+
   try {
     const { playerId, planetId, systemId, planetData, starData } = req.body;
 
@@ -55,11 +59,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Check if surface map already exists for this planet
     const existingMap = await getSurfaceMap(systemId, planetId);
-    const isRegenerating = !!existingMap && existingMap.status === 'ready';
-
+    
     // Determine pricing
     // First generation of home planet is free; all others cost 10⚛
-    let isFree = false;
     if (!existingMap && planetData.isHomePlanet) {
       isFree = true;
     }
@@ -80,6 +82,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           deficit: SURFACE_GENERATION_COST - player.quarks,
         });
       }
+      quarksDeducted = true;
     }
 
     // Build prompt from planet and star data
@@ -113,6 +116,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (error) {
     console.error('Surface generation error:', error);
+    
+    // Refund quarks if they were deducted but generation failed
+    if (quarksDeducted && req.body?.playerId) {
+      try {
+        await creditQuarks(req.body.playerId, SURFACE_GENERATION_COST);
+      } catch (refundError) {
+        console.error('Failed to refund quarks:', refundError);
+      }
+    }
+
     return res.status(500).json({
       error: 'Failed to generate surface',
       details: error instanceof Error ? error.message : 'Unknown error',

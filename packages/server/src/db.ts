@@ -61,7 +61,7 @@ export interface PlayerRow {
 /** Starter wallet for new players. 30⚛ — first photo is FREE (handled in
  *  handleQuantumFocus) so 30 covers ~1 paid photo (25⚛) with a small buffer
  *  instead of leaving a fresh player short by 5⚛ on their second action. */
-export const STARTER_QUARKS = 30;
+export const STARTER_QUARKS = 50;
 
 export async function createPlayer(player: {
   id: string;
