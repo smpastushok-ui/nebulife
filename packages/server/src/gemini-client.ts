@@ -9,7 +9,10 @@ import { put } from '@vercel/blob';
 // persistent URL storage.
 // ---------------------------------------------------------------------------
 
-const GEMINI_MODEL = 'gemini-3.1-flash-image-preview';
+// Image-generation model. Override via GEMINI_IMAGE_MODEL env var (Vercel dashboard).
+// Default: gemini-3.1-flash-image-preview (Nano Banana 2).
+// Example alternatives: gemini-2.0-flash-preview-image-generation
+const GEMINI_MODEL = process.env.GEMINI_IMAGE_MODEL ?? 'gemini-3.1-flash-image-preview';
 
 /**
  * Supported aspect ratios by Gemini.

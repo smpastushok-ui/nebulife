@@ -89,10 +89,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const prompt = buildSurfacePrompt(planetData, starData);
 
     // Call Kling to generate satellite image
+    // Model is read from KLING_IMAGE_MODEL env var (server-side, Vercel dashboard).
+    // Default: kling-v1-5. Set KLING_IMAGE_MODEL=kling-v3 or kling-v2-1 to upgrade.
     const klingResponse = await generateImage({
       prompt,
       aspectRatio: '16:9',
-      model: 'kling-v3',
       resolution: '2K',
     });
 

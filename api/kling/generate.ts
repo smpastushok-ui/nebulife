@@ -107,10 +107,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     // 2. Submit generation to Kling AI
+    // Model is read from KLING_IMAGE_MODEL env var. Default: kling-v1-5.
     const { taskId } = await generateImage({
       prompt,
       aspectRatio: aspectRatio ?? '16:9',
-      model: 'kling-v3',
       resolution: '2K',
     });
 
