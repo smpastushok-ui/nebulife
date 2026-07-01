@@ -50,7 +50,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({ processed: delivered, total: allPlayerIds.length });
   } catch (err) {
+    // Genuine generation/delivery failure (e.g. Gemini quota/model error) —
+    // return 500 so Vercel's cron monitoring can actually flag it. Returning
+    // 200 here previously meant this could fail silently every single day.
     console.error('[daily-quiz] Failed:', err);
-    return res.status(200).json({ processed: 0, error: err instanceof Error ? err.message : 'Unknown' });
+    return res.status(500).json({ processed: 0, error: err instanceof Error ? err.message : 'Unknown' });
   }
 }
