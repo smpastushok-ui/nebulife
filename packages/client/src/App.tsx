@@ -995,6 +995,49 @@ function getDestroyedPlanetIdsForSystem(systemId: string): Set<string> | undefin
   return ids.size > 0 ? ids : undefined;
 }
 
+/** localStorage key + cap for the persisted research-session dedup guard
+ *  (see `loadProcessedSessionKeys` / `markSessionProcessed` below). */
+const PROCESSED_RESEARCH_SESSIONS_KEY = 'nebulife_processed_research_sessions';
+const PROCESSED_RESEARCH_SESSIONS_LIMIT = 50;
+
+/**
+ * Load previously-processed research session keys (`${slotIndex}:${startedAt}`)
+ * from localStorage so the completion dedup guard survives app relaunches.
+ *
+ * Without this, a cold boot starts with an empty in-memory Set. If the
+ * hydrated `researchState` ever still shows a slot as "overdue" (e.g. a
+ * research-completion sync that hadn't reached the server yet before the
+ * app was killed), the live timer / offline catch-up effects would treat
+ * it as a brand new completion and re-roll + re-enqueue the exact same
+ * discovery every single launch. Persisting the guard makes that a one-time
+ * event: the slot gets silently cleared instead of reprocessed.
+ */
+function loadProcessedSessionKeys(): Set<string> {
+  try {
+    const raw = localStorage.getItem(PROCESSED_RESEARCH_SESSIONS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as unknown;
+      if (Array.isArray(parsed)) {
+        return new Set(parsed.filter((v): v is string => typeof v === 'string'));
+      }
+    }
+  } catch { /* ignore */ }
+  return new Set();
+}
+
+/** Record a session key as processed, both in-memory and durably. Trims to
+ *  the most recent N entries so long play sessions don't grow this forever. */
+function markSessionProcessed(ref: { current: Set<string> }, key: string): void {
+  ref.current.add(key);
+  try {
+    const arr = Array.from(ref.current);
+    const trimmed = arr.length > PROCESSED_RESEARCH_SESSIONS_LIMIT
+      ? arr.slice(arr.length - PROCESSED_RESEARCH_SESSIONS_LIMIT)
+      : arr;
+    localStorage.setItem(PROCESSED_RESEARCH_SESSIONS_KEY, JSON.stringify(trimmed));
+  } catch { /* ignore */ }
+}
+
 type CommandModeIconKind = 'surface' | 'terminal' | 'academy' | 'arena' | 'web' | 'ops';
 
 function CommandModeIcon({
@@ -1390,7 +1433,7 @@ function AppInner() {
   // is processed (XP + discovery + completion modal) exactly once, regardless of
   // which path observes it first. Starting a new session yields a new startedAt
   // → new key, so this never blocks legitimate re-research.
-  const processedSessionsRef = useRef<Set<string>>(new Set());
+  const processedSessionsRef = useRef<Set<string>>(loadProcessedSessionKeys());
   // Ensures the offline catch-up reconciliation runs only once per app load.
   const offlineCatchupDoneRef = useRef(false);
   // Discovery ids already catalogued to the server `discoveries` table on find,
@@ -6246,6 +6289,7 @@ function AppInner() {
       'nebulife_colony_resources_by_planet',
       'nebulife_cosmic_event_research',
       'nebulife_dna_spark_synthesis',
+      'nebulife_processed_research_sessions',
     ];
     keysToRemove.forEach(k => localStorage.removeItem(k));
     // Also remove all quiz answer keys
@@ -6508,13 +6552,21 @@ function AppInner() {
             }).catch(() => {});
           }
         } else {
-          // Compare progress scores: whoever has more discovered nodes wins
+          // Compare progress scores: whoever has more actual research progress
+          // wins. Previously this summed a `discoveredNodes` field that does
+          // not exist on SystemResearchState (that shape only has
+          // systemId/progress/isComplete/observation) — it always evaluated
+          // to 0, so the "score" was really just "how many systems have been
+          // touched", which ties whenever both sides touched the same
+          // systems regardless of how much progress each one actually made.
+          // Summing real `progress` (0-100, with isComplete weighted highest)
+          // makes a state that has advanced further — or already completed a
+          // session — reliably win the merge, instead of a coin-flip tie.
           const getProgressScore = (research: unknown): number => {
-            const r = research as { systems?: Record<string, { discoveredNodes?: Record<string, unknown> }> } | null;
+            const r = research as { systems?: Record<string, { progress?: number; isComplete?: boolean }> } | null;
             if (!r || !r.systems) return 0;
             return Object.values(r.systems).reduce((total: number, sys) => {
-              const nodesCount = sys.discoveredNodes ? Object.keys(sys.discoveredNodes).length : 0;
-              return total + nodesCount + 1;
+              return total + (sys.isComplete ? 1000 : Math.max(0, sys.progress ?? 0));
             }, 0);
           };
           const localScore = getProgressScore(localResearch);
@@ -7753,7 +7805,7 @@ function AppInner() {
                 const result = completeResearchSession(current, slot.slotIndex, stuckSystem, playerStats.totalCompletedSessions, playerStats.totalDiscoveries, playerStats.lastDiscoverySession);
                 current = result.state;
                 changed = true;
-                processedSessionsRef.current.add(sessionKey);
+                markSessionProcessed(processedSessionsRef, sessionKey);
 
                 // Keep self-healed completions behaviorally identical to normal
                 // timer completions. Previously these only updated the galaxy
@@ -7817,7 +7869,7 @@ function AppInner() {
                 const result = completeResearchSession(current, slot.slotIndex, system, playerStats.totalCompletedSessions, playerStats.totalDiscoveries, playerStats.lastDiscoverySession);
                 current = result.state;
                 changed = true;
-                processedSessionsRef.current.add(sessionKey);
+                markSessionProcessed(processedSessionsRef, sessionKey);
 
                 // Track player stats
                 setPlayerStats((ps) => ({
@@ -7912,7 +7964,25 @@ function AppInner() {
           // Critical save: research session just completed → push to server
           // immediately (don't wait for debounce). This protects against APK
           // kill / uninstall right after a system finishes researching.
-          syncNowToServer();
+          //
+          // Direct-patch `current` here instead of calling syncNowToServer():
+          // we are still inside this setResearchState updater, so
+          // buildGameStateSnapshot() would close over the pre-update
+          // `researchState` (React hasn't re-rendered yet) and re-push the
+          // STALE, still-"active" slot to the server. On the next cold boot
+          // that stale slot looks "overdue" again, fooling the offline
+          // catch-up effect into re-rolling and re-enqueuing the exact same
+          // discovery — the root cause of the repeating research-prompt bug.
+          // Same direct-patch pattern as the post-evacuation sync below.
+          try { localStorage.setItem('nebulife_research_state', JSON.stringify(current)); } catch { /* ignore */ }
+          const pid = playerId.current;
+          if (pid) {
+            const merged = { ...gameStateRef.current, research_state: current };
+            gameStateRef.current = merged as Record<string, unknown>;
+            updatePlayer(pid, { game_state: merged as unknown as Record<string, unknown> })
+              .catch((err) => console.warn('[research] critical sync failed:', err));
+          }
+          setTimeout(() => syncGameStateRef.current(), 500);
           return current;
         }
         return prev;
@@ -7965,7 +8035,7 @@ function AppInner() {
       if (processedSessionsRef.current.has(sessionKey)) continue;
       const system = engine.getAllSystems().find((s) => s.id === slot.systemId);
       if (!system) continue;
-      processedSessionsRef.current.add(sessionKey);
+      markSessionProcessed(processedSessionsRef, sessionKey);
       processedAny = true;
 
       const result = completeResearchSession(
@@ -8018,7 +8088,31 @@ function AppInner() {
     if (discoveries.length > 0) setDiscoveryQueue((q) => [...q, ...discoveries]);
     if (completions.length > 0) setCompletedModalQueue((q) => [...q, ...completions]);
     if (xpTotal > 0) awardXP(xpTotal, 'research_session');
-    syncNowToServer();
+
+    // Critical sync: push the freshly-completed research_state directly.
+    // syncNowToServer()/buildGameStateSnapshot() close over the React state
+    // from BEFORE the setResearchState/setPlayerStats calls above — those
+    // updates aren't reflected in that closure until the next render — so
+    // calling it here would silently re-push the STALE pre-completion
+    // research_state, leaving the server thinking this exact slot is still
+    // active/overdue. On the next cold boot that fools this very offline
+    // catch-up effect into "finding" the same session again and re-rolling
+    // the same discovery forever. Direct-patch instead, same pattern as the
+    // post-evacuation sync elsewhere in this file.
+    try { localStorage.setItem('nebulife_research_state', JSON.stringify(current)); } catch { /* ignore */ }
+    const pid = playerId.current;
+    if (pid) {
+      const directPatch = {
+        research_state: current,
+        player_stats: { totalCompletedSessions: completedSessions, totalDiscoveries, lastDiscoverySession },
+      };
+      const merged = { ...gameStateRef.current, ...directPatch };
+      gameStateRef.current = merged as Record<string, unknown>;
+      updatePlayer(pid, { game_state: merged as unknown as Record<string, unknown> })
+        .catch((err) => console.warn('[research] offline catch-up critical sync failed:', err));
+    }
+    // Also schedule the normal sync shortly after for the rest of the state (xp, etc.)
+    setTimeout(() => syncGameStateRef.current(), 500);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serverHydrated, needsOnboarding, needsCallsign, researchState]);
 
