@@ -115,6 +115,8 @@ export const RATE_LIMITS = {
    * client loops / scrapers (the 2026-05 anomaly hit ~330/min from one IP).
    */
   poll: (playerId: string) => checkRateLimit(`poll:${playerId}`, 150, 60_000),
+  /** Player feedback submissions: a one-shot prompt, but allow a few retries/hour. */
+  feedback: (playerId: string) => checkRateLimit(`feedback:${playerId}`, 5, 3_600_000),
 } as const;
 
 /** Extract client IP from Vercel request headers. */

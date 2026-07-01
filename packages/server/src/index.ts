@@ -97,6 +97,9 @@ export {
   updateReport,
   chatBanPlayer,
   isChatBanned,
+  // Player Feedback (level 12+ likes/dislikes prompt)
+  savePlayerFeedback,
+  listPlayerFeedback,
   // Daily Content
   getAllPlayerIds,
   getPlayersRegisteredBefore,
@@ -189,6 +192,7 @@ export type {
   MessageRow,
   DMChannelInfo,
   ReportRow,
+  PlayerFeedbackRow,
   WeeklyDigestRow,
   PushQueueRow,
   ClaimedPushNotification,

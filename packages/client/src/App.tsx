@@ -189,7 +189,12 @@ const SYNCED_UI_FLAG_KEYS = new Set<string>([
   'nebulife_tutorial_main_done',
   'nebulife_unlock_popups_baselined',
   'nebulife_surface_prompts_baselined',
+  'nebulife_feedback_prompt_done',
 ]);
+
+/** Level threshold at which the one-shot "what do you like / dislike" feedback
+ *  popup is offered (see PlayerFeedbackPrompt / api/feedback/submit.ts). */
+const FEEDBACK_PROMPT_MIN_LEVEL = 12;
 
 /** Bundled photo for the legendary "Comet Herald" live-event gallery entry.
  *  Optimized WebP artwork at packages/client/public/events/comet-herald.webp. */
@@ -273,6 +278,7 @@ import { AcademyDashboard } from './ui/components/Academy/AcademyDashboard.js';
 import type { AcademyTab } from './ui/components/Academy/AcademyDashboard.js';
 import { SurfaceAstraLessonPrompt } from './ui/components/Academy/SurfaceAstraLessonPrompt.js';
 import { AppReviewPrompt } from './ui/components/AppReviewPrompt.js';
+import { PlayerFeedbackPrompt } from './ui/components/PlayerFeedbackPrompt.js';
 import { EncyclopediaScreen } from './ui/components/Encyclopedia/EncyclopediaScreen.js';
 import { SpaceArena } from './ui/components/SpaceArena/SpaceArena.js';
 import { HangarPage } from './ui/components/Hangar/HangarPage.js';
@@ -3578,6 +3584,10 @@ function AppInner() {
   // True between scheduling the review prompt and the player closing it. Used to
   // keep deferred discovery cards hidden across the 700ms reveal delay too.
   const [appReviewPromptPending, setAppReviewPromptPending] = useState(false);
+  // One-shot "what do you like / dislike" survey, offered once an account
+  // reaches FEEDBACK_PROMPT_MIN_LEVEL. Gated by nebulife_feedback_prompt_done
+  // (synced into server game_state.ui_flags — see SYNCED_UI_FLAG_KEYS).
+  const [showFeedbackPrompt, setShowFeedbackPrompt] = useState(false);
   const [showEncyclopedia, setShowEncyclopedia] = useState(false);
   const [exosphereLoaded, setExosphereLoaded] = useState(false);
   // Colony Center — opened by tapping the colony_hub building on the surface.
@@ -5761,9 +5771,48 @@ function AppInner() {
       evacuationPhase !== 'idle'
       || showSurfaceAstraLesson
       || showAppReviewPrompt
-      || appReviewPromptPending;
+      || appReviewPromptPending
+      || showFeedbackPrompt;
     setDeferDiscoveryForReview(blocking);
-  }, [evacuationPhase, showSurfaceAstraLesson, showAppReviewPrompt, appReviewPromptPending]);
+  }, [evacuationPhase, showSurfaceAstraLesson, showAppReviewPrompt, appReviewPromptPending, showFeedbackPrompt]);
+
+  // One-shot "what do you like / dislike" survey — offered once an account's
+  // level first reaches FEEDBACK_PROMPT_MIN_LEVEL. Serialized behind unlock
+  // popups / level-up banners / the review prompt / arena so it never stacks
+  // with another overlay. The done-flag is only written once the popup
+  // actually shows (not when merely scheduled), so a gating flicker before
+  // the 700ms delay elapses lets a later run retry instead of silently
+  // burning the one-shot.
+  useEffect(() => {
+    if (needsOnboarding || needsCallsign || authLoading || !serverHydrated) return;
+    if (playerLevel < FEEDBACK_PROMPT_MIN_LEVEL) return;
+    if (levelUpNotification !== null || levelUpQueue.length > 0 || arenaPopupGate) return;
+    if (unlockPopup || showAppReviewPrompt || appReviewPromptPending || showFeedbackPrompt) return;
+    try {
+      if (localStorage.getItem('nebulife_feedback_prompt_done') === '1') return;
+    } catch {
+      // If storage is unavailable, still attempt to show below.
+    }
+
+    const timer = window.setTimeout(() => {
+      try { localStorage.setItem('nebulife_feedback_prompt_done', '1'); } catch { /* ignore */ }
+      setShowFeedbackPrompt(true);
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [
+    appReviewPromptPending,
+    arenaPopupGate,
+    authLoading,
+    levelUpNotification,
+    levelUpQueue.length,
+    needsCallsign,
+    needsOnboarding,
+    playerLevel,
+    serverHydrated,
+    showAppReviewPrompt,
+    showFeedbackPrompt,
+    unlockPopup,
+  ]);
 
   // Reset clock state when entering onboarding (account reset scenario)
   useEffect(() => {
@@ -14797,6 +14846,12 @@ function AppInner() {
       {showAppReviewPrompt && (
         <AppReviewPrompt
           onClose={() => { setShowAppReviewPrompt(false); setAppReviewPromptPending(false); }}
+        />
+      )}
+      {showFeedbackPrompt && (
+        <PlayerFeedbackPrompt
+          playerLevel={playerLevel}
+          onClose={() => setShowFeedbackPrompt(false)}
         />
       )}
       {/* ── Fly-to-HUD resource dots ──────────────────────────────────────── */}

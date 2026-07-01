@@ -2293,6 +2293,21 @@
     "google_play": "Google Play",
     "app_store": "the App Store"
   },
+  "feedback_prompt": {
+    "kicker": "Colony survey",
+    "title": "What do you think of Nebulife?",
+    "body": "You've reached level 12, so your opinion matters a lot right now. Tell us what you like and what could be improved. This is a one-time survey — it won't show up again.",
+    "likes_label": "What you like",
+    "likes_placeholder": "What stood out to you in a good way?",
+    "dislikes_label": "What you don't like / want improved",
+    "dislikes_placeholder": "What's annoying, unclear, or should change?",
+    "submit": "Send feedback",
+    "sending": "Sending...",
+    "skip": "Skip",
+    "error": "Could not send feedback. Please try again later.",
+    "thanks_title": "Thanks for the feedback",
+    "thanks_body": "Your input has been saved and will help make Nebulife better."
+  },
   "premium_help": {
     "common": {
       "kicker": "Alpha / Premium explainer",

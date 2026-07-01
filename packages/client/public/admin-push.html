@@ -159,6 +159,29 @@
     button.danger:hover { background: rgba(204,68,68,0.12); }
     button.small { padding: 7px 12px; font-size: 12px; }
     .daily-empty { color: var(--muted); font-size: 12px; padding: 8px 0; }
+
+    /* Player feedback cards */
+    .feedback-card {
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 14px;
+      margin-bottom: 12px;
+      background: #070d18;
+    }
+    .feedback-card .fb-head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 10px; margin-bottom: 10px; flex-wrap: wrap;
+    }
+    .feedback-card .fb-who { color: #7bb8ff; font-size: 13px; font-weight: 600; }
+    .feedback-card .fb-meta { color: var(--muted); font-size: 11px; }
+    .feedback-card .fb-block { margin-top: 8px; }
+    .feedback-card .fb-label {
+      color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px;
+    }
+    .feedback-card .fb-label.likes { color: var(--green); }
+    .feedback-card .fb-label.dislikes { color: var(--orange); }
+    .feedback-card .fb-text { color: var(--text); font-size: 13px; white-space: pre-wrap; }
+    .feedback-card .fb-empty { color: var(--muted); font-style: italic; }
   </style>
 </head>
 <body>
@@ -178,6 +201,14 @@
               <div class="nav-item active" data-section="sec-push">Push-розсилка</div>
               <div class="nav-item" data-section="sec-daily">Щоденні автопуші</div>
               <div class="nav-item" data-section="sec-chat">Чат (Ткач)</div>
+            </div>
+          </div>
+          <div class="nav-group" id="grpFeedback">
+            <div class="nav-group-title" data-group="grpFeedback">
+              <span class="chev">&#9662;</span> Фідбек
+            </div>
+            <div class="nav-items">
+              <div class="nav-item" data-section="sec-feedback">Відгуки гравців</div>
             </div>
           </div>
         </nav>
@@ -366,6 +397,24 @@
               <button id="btnChatSend" type="button" class="primary">Надіслати в чат</button>
             </div>
             <div class="out" id="chatOut"></div>
+          </div>
+        </div>
+
+        <!-- ════════════ SECTION: PLAYER FEEDBACK ════════════ -->
+        <div class="section" id="sec-feedback">
+          <div class="panel">
+            <h2>Відгуки гравців</h2>
+            <p class="hint" style="margin-top:-6px;margin-bottom:12px">
+              Відкриті відгуки з попапу "Що подобається / що ні", який показується один раз
+              гравцям від 12 рівня. Список лише для читання — новіші зверху.
+            </p>
+            <div class="actions" style="margin-bottom:14px">
+              <button id="btnFeedbackLoad" type="button">Оновити список</button>
+              <button id="btnFeedbackMore" type="button" style="display:none">Завантажити ще</button>
+            </div>
+            <div class="out" id="feedbackStats"></div>
+            <div id="feedbackList"><div class="daily-empty">Введи адмін-секрет і натисни «Оновити список».</div></div>
+            <div class="out" id="feedbackOut"></div>
           </div>
         </div>
       </div>
@@ -718,6 +767,100 @@
     // Auto-load the pool the first time the section is opened (if secret saved)
     document.querySelector('.nav-item[data-section="sec-daily"]').addEventListener('click', function () {
       if (!dailyLoaded && $('secret').value.trim()) loadDailyList();
+    });
+
+    // ════════════ PLAYER FEEDBACK section logic ════════════
+    var feedbackLoaded = false;
+    var feedbackOffset = 0;
+    var feedbackTotal = 0;
+    var FEEDBACK_PAGE_SIZE = 50;
+
+    function setFeedbackOut(kind, msg) {
+      var el = $('feedbackOut');
+      el.className = 'out ' + kind;
+      el.textContent = msg;
+    }
+
+    function fmtDate(iso) {
+      try {
+        var d = new Date(iso);
+        return d.toLocaleString('uk-UA');
+      } catch (e) { return String(iso || ''); }
+    }
+
+    function feedbackCardHtml(item) {
+      var who = esc(item.callsign || item.playerId || 'невідомий');
+      var likes = item.likesText ? esc(item.likesText) : '';
+      var dislikes = item.dislikesText ? esc(item.dislikesText) : '';
+      return '' +
+        '<div class="feedback-card">' +
+          '<div class="fb-head">' +
+            '<span class="fb-who">' + who + ' · рівень ' + esc(item.level) + '</span>' +
+            '<span class="fb-meta">' + esc(fmtDate(item.createdAt)) + ' · ' + esc((item.language || '').toUpperCase()) + '</span>' +
+          '</div>' +
+          '<div class="fb-block">' +
+            '<div class="fb-label likes">Подобається</div>' +
+            '<div class="fb-text' + (likes ? '' : ' fb-empty') + '">' + (likes || '(порожньо)') + '</div>' +
+          '</div>' +
+          '<div class="fb-block">' +
+            '<div class="fb-label dislikes">Не подобається / покращити</div>' +
+            '<div class="fb-text' + (dislikes ? '' : ' fb-empty') + '">' + (dislikes || '(порожньо)') + '</div>' +
+          '</div>' +
+        '</div>';
+    }
+
+    async function loadFeedbackList(append) {
+      var secret = $('secret').value.trim();
+      if (!secret) { setFeedbackOut('err', 'Спочатку введи адмін-секрет.'); return; }
+      persistSecret();
+
+      var btn = $('btnFeedbackLoad');
+      var moreBtn = $('btnFeedbackMore');
+      btn.disabled = true; moreBtn.disabled = true;
+
+      try {
+        var offset = append ? feedbackOffset : 0;
+        var res = await fetch('/api/admin/feedback-list', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ secret: secret, limit: FEEDBACK_PAGE_SIZE, offset: offset })
+        });
+        var data = await res.json().catch(function () { return {}; });
+        if (!res.ok) {
+          setFeedbackOut('err', '[' + res.status + '] ' + (data.message || data.error || 'Помилка запиту'));
+          return;
+        }
+
+        feedbackLoaded = true;
+        feedbackTotal = data.total || 0;
+        feedbackOffset = offset + (data.items || []).length;
+
+        var list = $('feedbackList');
+        if (!append) list.innerHTML = '';
+        if (!data.items || !data.items.length) {
+          if (!append) list.innerHTML = '<div class="daily-empty">Відгуків поки немає.</div>';
+        } else {
+          list.insertAdjacentHTML('beforeend', data.items.map(feedbackCardHtml).join(''));
+        }
+
+        var st = $('feedbackStats');
+        st.className = 'out ok';
+        st.textContent = 'Завантажено: ' + feedbackOffset + ' з ' + feedbackTotal;
+        moreBtn.style.display = feedbackOffset < feedbackTotal ? '' : 'none';
+        setFeedbackOut('', '');
+        $('feedbackOut').className = 'out';
+      } catch (e) {
+        setFeedbackOut('err', 'Помилка мережі: ' + (e && e.message ? e.message : e));
+      } finally {
+        btn.disabled = false; moreBtn.disabled = false;
+      }
+    }
+
+    $('btnFeedbackLoad').addEventListener('click', function () { loadFeedbackList(false); });
+    $('btnFeedbackMore').addEventListener('click', function () { loadFeedbackList(true); });
+
+    document.querySelector('.nav-item[data-section="sec-feedback"]').addEventListener('click', function () {
+      if (!feedbackLoaded && $('secret').value.trim()) loadFeedbackList(false);
     });
   </script>
 </body>

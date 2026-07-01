@@ -2392,6 +2392,55 @@ export async function isChatBanned(playerId: string, channel: string): Promise<b
 }
 
 // ---------------------------------------------------------------------------
+// Player Feedback (open "what do you like / dislike" prompt, level 12+)
+// ---------------------------------------------------------------------------
+
+export interface PlayerFeedbackRow {
+  id: number;
+  player_id: string;
+  callsign: string | null;
+  level: number;
+  likes_text: string | null;
+  dislikes_text: string | null;
+  language: string;
+  created_at: string;
+}
+
+export async function savePlayerFeedback(input: {
+  playerId: string;
+  callsign: string | null;
+  level: number;
+  likesText: string | null;
+  dislikesText: string | null;
+  language: string;
+}): Promise<PlayerFeedbackRow> {
+  const sql = getSQL();
+  const rows = await sql`
+    INSERT INTO player_feedback (player_id, callsign, level, likes_text, dislikes_text, language)
+    VALUES (${input.playerId}, ${input.callsign}, ${input.level}, ${input.likesText}, ${input.dislikesText}, ${input.language})
+    RETURNING *
+  `;
+  return rows[0] as PlayerFeedbackRow;
+}
+
+/** Newest-first page of feedback rows for the admin console, plus total count for pagination. */
+export async function listPlayerFeedback(
+  limit: number = 50,
+  offset: number = 0,
+): Promise<{ rows: PlayerFeedbackRow[]; total: number }> {
+  const sql = getSQL();
+  const [rows, countRows] = await Promise.all([
+    sql`
+      SELECT * FROM player_feedback
+      ORDER BY created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `,
+    sql`SELECT COUNT(*)::int AS count FROM player_feedback`,
+  ]);
+  return { rows: rows as PlayerFeedbackRow[], total: (countRows[0] as { count: number }).count };
+}
+
+// ---------------------------------------------------------------------------
 // Daily Content (quiz & fun facts)
 // ---------------------------------------------------------------------------
 
