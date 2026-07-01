@@ -10,9 +10,11 @@ import { put } from '@vercel/blob';
 // ---------------------------------------------------------------------------
 
 // Image-generation model. Override via GEMINI_IMAGE_MODEL env var (Vercel dashboard).
-// Default: gemini-3.1-flash-image-preview (Nano Banana 2).
-// Example alternatives: gemini-2.0-flash-preview-image-generation
-const GEMINI_MODEL = process.env.GEMINI_IMAGE_MODEL ?? 'gemini-3.1-flash-image-preview';
+// Default: gemini-3.1-flash-image (Nano Banana 2, GA). The preview variant
+// (gemini-3.1-flash-image-preview) was retired by Google on 2026-06-25 — see
+// ASTRA_MODEL comment below for the sibling text-model retirement that broke
+// A.S.T.R.A./daily-quiz/daily-fact around the same date.
+const GEMINI_MODEL = process.env.GEMINI_IMAGE_MODEL ?? 'gemini-3.1-flash-image';
 
 /**
  * Supported aspect ratios by Gemini.
@@ -168,7 +170,15 @@ export async function generateImageWithGemini(
 
 import { ASTRA_SYSTEM_PROMPT } from './astra-prompt.js';
 
-const ASTRA_MODEL = 'gemini-3.1-flash-lite-preview';
+// gemini-3.1-flash-lite-preview was FULLY SHUT DOWN by Google on 2026-05-25
+// (announced 2026-05-07) — every call has 404'd since. Migrated to the GA
+// replacement (same request format, no other changes needed). This silently
+// broke A.S.T.R.A. chat AND the daily quiz/fun-fact crons for 5+ weeks: both
+// crons swallow generation errors and always returned HTTP 200, so nothing
+// ever showed up as a failure in Vercel's cron monitoring. See the sibling
+// GEMINI_MODEL (image) comment above for the June 25 image-model retirement
+// — a separate outage that happened to land ~a month later.
+const ASTRA_MODEL = 'gemini-3.1-flash-lite';
 
 export interface AstraMessage {
   role: 'user' | 'model';
@@ -374,7 +384,9 @@ Respond ONLY as JSON:
 // Daily Quiz & Fun Fact Generation
 // ---------------------------------------------------------------------------
 
-const DAILY_MODEL = 'gemini-3.1-flash-lite-preview';
+// See ASTRA_MODEL comment above — same preview-model retirement (shut down
+// 2026-05-25), which is the root cause of the daily-quiz/daily-fact outage.
+const DAILY_MODEL = 'gemini-3.1-flash-lite';
 
 /**
  * Generate a daily quiz about space/astrophysics.

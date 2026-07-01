@@ -6,11 +6,14 @@ import type { Language } from '@nebulife/core';
 // Weekly Space News Digest Generator
 // ---------------------------------------------------------------------------
 // Step 1: gemini-3-flash-preview (1M context, thinking: HIGH) compiles news
-// Step 2: gemini-3.1-flash-image-preview generates 9:16 infographic images
+// Step 2: gemini-3.1-flash-image generates 9:16 infographic images
 // ---------------------------------------------------------------------------
 
-const CORE_MODEL = 'gemini-3.1-flash-lite-preview';
-const IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
+// Preview variants were retired by Google — gemini-3.1-flash-lite-preview on
+// 2026-05-25, gemini-3.1-flash-image-preview on 2026-06-25 — migrated to the
+// GA replacements (same request format, no other changes needed).
+const CORE_MODEL = 'gemini-3.1-flash-lite';
+const IMAGE_MODEL = 'gemini-3.1-flash-image';
 
 // ---------------------------------------------------------------------------
 // Types

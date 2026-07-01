@@ -1,8 +1,11 @@
 import { GoogleGenAI } from '@google/genai';
 import { put } from '@vercel/blob';
 
-const LESSON_MODEL = 'gemini-3.1-flash-lite-preview';
-const IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
+// Preview variants were retired by Google — gemini-3.1-flash-lite-preview on
+// 2026-05-25, gemini-3.1-flash-image-preview on 2026-06-25 — migrated to the
+// GA replacements (same request format, no other changes needed).
+const LESSON_MODEL = 'gemini-3.1-flash-lite';
+const IMAGE_MODEL = 'gemini-3.1-flash-image';
 
 export interface GeneratedLesson {
   lessonContent: string;
