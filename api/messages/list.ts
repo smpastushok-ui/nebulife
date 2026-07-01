@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
-import { getMessages, getPlayer } from '../../packages/server/src/db.js';
+import { getMessages } from '../../packages/server/src/db.js';
 import { RATE_LIMITS } from '../../packages/server/src/rate-limiter.js';
 
 /**
@@ -53,13 +53,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    const player = channel === 'global' ? await getPlayer(auth.playerId) : null;
-    const messages = await getMessages(
-      channel,
-      limit,
-      after || undefined,
-      channel === 'global' ? player?.created_at : undefined,
-    );
+    // NOTE: `global` history used to be bounded to `created_at > player.created_at`
+    // (see git history) so a brand-new account never saw chat that predates its
+    // join. That makes a legitimately active cluster chat look completely dead
+    // to every new player until someone posts again after they registered —
+    // there's no documented anti-spoiler/anti-noise rationale for it in
+    // GAME_BIBLE.md/GAME_DESIGN.md, and it only ever applied to the initial
+    // history load (subsequent polls already query `created_at > after` with
+    // no join-date bound). Showing the most recent `limit` messages regardless
+    // of account age matches how every other MMO general-chat behaves and how
+    // this endpoint already behaves on every poll after the first one.
+    const messages = await getMessages(channel, limit, after || undefined);
     return res.status(200).json(messages);
   } catch (err) {
     console.error('List messages error:', err);

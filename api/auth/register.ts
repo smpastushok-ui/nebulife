@@ -11,6 +11,8 @@ import {
   setPlayerDeviceId,
   isFreshPlayerRow,
   touchPlayerPresence,
+  getDailyContent,
+  saveMessage,
 } from '../../packages/server/src/db.js';
 import { assignPlayerToCluster } from '@nebulife/server';
 import { sendWelcomeEmail } from '../../packages/server/src/email-client.js';
@@ -33,6 +35,41 @@ function maybeSendWelcomeEmail(player: {
   }).catch((err) => {
     console.warn('[register] Welcome email failed:', err);
   });
+}
+
+/**
+ * Backfill today's already-generated A.S.T.R.A. content (daily quiz +
+ * fun fact) to a brand-new player's `astra:<playerId>` channel.
+ *
+ * The daily-quiz (09:00 UTC) / daily-fact (10:00 UTC) crons generate each
+ * day's content once and deliver it only to players that already existed
+ * in the `players` table at the moment they ran (via `getAllPlayerIds()`).
+ * A player who registers AFTER that day's cron run gets zero ASTRA content
+ * — no quiz, no fun fact — until the NEXT day's cron cycle, which can look
+ * like the ASTRA channel is silently broken for up to ~24h.
+ *
+ * Mirrors the exact message format used by the crons (`saveMessage` with
+ * the same sender/channel/content shape) so the backfilled messages render
+ * identically to a normal cron delivery. Best-effort / fire-and-forget:
+ * must never fail or delay registration.
+ */
+function backfillTodaysAstraContent(playerId: string): void {
+  void (async () => {
+    try {
+      const [quiz, fact] = await Promise.all([
+        getDailyContent('quiz'),
+        getDailyContent('fun_fact'),
+      ]);
+      if (quiz?.content_json) {
+        await saveMessage('system', 'A.S.T.R.A.', `astra:${playerId}`, quiz.content_json);
+      }
+      if (fact?.content_json) {
+        await saveMessage('system', 'A.S.T.R.A.', `astra:${playerId}`, fact.content_json);
+      }
+    } catch (err) {
+      console.warn(`[register] ASTRA backfill failed for ${playerId}:`, err);
+    }
+  })();
 }
 
 function playerProgressXp(player: { player_xp?: number | null; game_state?: Record<string, unknown> | null } | null): number {
@@ -127,6 +164,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             try { await assignPlayerToCluster(recovered.id, recovered.global_index); }
             catch (clusterErr) { console.warn('[register] Cluster assign (recovered) failed:', clusterErr); }
           }
+          backfillTodaysAstraContent(recovered.id);
           const touched = await touchPlayerPresence(recovered.id);
           return res.status(200).json({ ...(touched ?? recovered), ads_geo_allowed: adsGeoAllowed });
         }
@@ -162,6 +200,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             console.warn('[register] Failed to assign cluster for linked player:', clusterErr);
           }
         }
+        backfillTodaysAstraContent(linked.id);
         maybeSendWelcomeEmail(linked);
         const touched = await touchPlayerPresence(linked.id);
         return res.status(200).json({ ...(touched ?? linked), ads_geo_allowed: adsGeoAllowed });
@@ -196,6 +235,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
+    if (player?.id) backfillTodaysAstraContent(player.id);
     maybeSendWelcomeEmail(player);
     return res.status(201).json({ ...player, ads_geo_allowed: adsGeoAllowed });
   } catch (err) {

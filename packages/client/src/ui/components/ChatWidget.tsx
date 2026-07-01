@@ -361,6 +361,13 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
       if (err instanceof Error && /40[13]/.test(err.message)) {
         authFailedRef.current = true;
         if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
+      } else {
+        // Non-auth failures (network blip, 5xx) were previously swallowed
+        // silently, which is indistinguishable from "this channel genuinely
+        // has no messages" from the player's point of view. Log so a
+        // persistently-failing fetch (e.g. a broken deploy) is visible in
+        // diagnostics instead of just looking like an empty chat.
+        console.warn(`[chat] fetchMessages(${activeChannel}) failed:`, err);
       }
     }
   }, [activeChannel]);
