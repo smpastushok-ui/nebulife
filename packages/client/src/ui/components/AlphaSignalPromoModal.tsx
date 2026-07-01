@@ -7,6 +7,12 @@ interface AlphaSignalPromoModalProps {
   onQuarksClick: () => void;
   onAlphaPassClick: () => void;
   videoSrc?: string;
+  /**
+   * H.264/AAC MP4 fallback source. WKWebView on iOS has known gaps and
+   * intermittent bugs playing WebM/VP9, so `videoSrc` (WebM) is offered
+   * first and the browser falls back to this MP4 source if it can't play it.
+   */
+  videoFallbackSrc?: string;
 }
 
 const DEFAULT_VIDEO = '/astra/astra-video.mp4';
@@ -16,6 +22,7 @@ export function AlphaSignalPromoModal({
   onQuarksClick,
   onAlphaPassClick,
   videoSrc = DEFAULT_VIDEO,
+  videoFallbackSrc,
 }: AlphaSignalPromoModalProps) {
   const { t } = useTranslation();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -33,12 +40,15 @@ export function AlphaSignalPromoModal({
     if (phase !== 'video') return;
     const video = videoRef.current;
     if (!video) return;
+    // <source> children don't get picked up by an already-loaded <video>;
+    // force the resource-selection algorithm to re-run for this src pair.
+    video.load();
     video.currentTime = 0;
     const playPromise = video.play();
     if (playPromise && typeof playPromise.catch === 'function') {
       playPromise.catch(() => setNeedsTap(true));
     }
-  }, [phase]);
+  }, [phase, videoSrc, videoFallbackSrc]);
 
   const handleManualPlay = () => {
     const video = videoRef.current;
@@ -92,7 +102,6 @@ export function AlphaSignalPromoModal({
             <video
               ref={videoRef}
               className="alphaSignalVideo"
-              src={videoSrc}
               playsInline
               preload="auto"
               controls={false}
@@ -100,7 +109,11 @@ export function AlphaSignalPromoModal({
               onPause={exitVideoFocus}
               onEnded={() => { setEnded(true); exitVideoFocus(); }}
               style={{ opacity: phase === 'video' ? 1 : 0 }}
-            />
+            >
+              {videoSrc.endsWith('.webm') && <source src={videoSrc} type="video/webm" />}
+              {!videoSrc.endsWith('.webm') && <source src={videoSrc} type="video/mp4" />}
+              {videoFallbackSrc && <source src={videoFallbackSrc} type="video/mp4" />}
+            </video>
 
             {needsTap && phase === 'video' && (
               <button type="button" className="alphaSignalTap" onClick={handleManualPlay}>

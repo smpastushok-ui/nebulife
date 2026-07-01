@@ -35,7 +35,15 @@ export interface AlphaPromoDecision {
 
 export interface AlphaPromoVideo {
   id: string;
+  /** Primary source (WebM/VP9 — smaller, preferred on modern iOS/Android). */
   src: string;
+  /**
+   * H.264/AAC MP4 fallback. WebM/VP9 in WKWebView has known playback gaps on
+   * iOS < 17.4 and intermittent WKWebView-specific bugs even on newer iOS
+   * (see videojs/video.js#8895), so every promo video ships an MP4 fallback
+   * source the <video> element can pick if WebM silently fails to decode.
+   */
+  fallbackSrc: string;
 }
 
 interface AlphaPromoStoredState {
@@ -55,15 +63,30 @@ const SESSION_SHOW_LIMIT = 1;
 const COOLDOWN_MS = 20 * 60 * 1000;
 const CADENCE = 3;
 const ALPHA_PROMO_VIDEO_BASE_PATH = '/alpha-promo';
-const FALLBACK_ALPHA_PROMO_VIDEO: AlphaPromoVideo = { id: 'astra-alpha-signal', src: '/astra/astra-video.mp4' };
+const FALLBACK_ALPHA_PROMO_VIDEO: AlphaPromoVideo = {
+  id: 'astra-alpha-signal',
+  src: '/astra/astra-video.mp4',
+  fallbackSrc: '/astra/astra-video.mp4',
+};
 
 export const ALPHA_PROMO_VIDEOS: readonly AlphaPromoVideo[] = [
-  // Add production promo videos to packages/client/public/alpha-promo
-  // and register them here as: alphaPromoVideo('unique-id', 'file-name.mp4')
+  alphaPromoVideo('veteran-captain-quarks', 'veteran-captain-quarks.webm', 'veteran-captain-quarks.mp4'),
+  alphaPromoVideo('skeptic-changed-mind', 'skeptic-changed-mind.webm', 'skeptic-changed-mind.mp4'),
+  alphaPromoVideo('professor-unique-lifeform', 'professor-unique-lifeform.webm', 'professor-unique-lifeform.mp4'),
+  alphaPromoVideo('pilot-asteroid-timer', 'pilot-asteroid-timer.webm', 'pilot-asteroid-timer.mp4'),
+  alphaPromoVideo('survey-officer-social-proof', 'survey-officer-social-proof.webm', 'survey-officer-social-proof.mp4'),
+  alphaPromoVideo('pathfinder-greedy-quasar', 'pathfinder-greedy-quasar.webm', 'pathfinder-greedy-quasar.mp4'),
+  alphaPromoVideo('pathfinder-lost-discovery', 'pathfinder-lost-discovery.webm', 'pathfinder-lost-discovery.mp4'),
+  alphaPromoVideo('engineer-quark-value', 'engineer-quark-value.webm', 'engineer-quark-value.mp4'),
+  alphaPromoVideo('commander-alpha-status', 'commander-alpha-status.webm', 'commander-alpha-status.mp4'),
 ];
 
-export function alphaPromoVideo(id: string, fileName: string): AlphaPromoVideo {
-  return { id, src: `${ALPHA_PROMO_VIDEO_BASE_PATH}/${fileName}` };
+export function alphaPromoVideo(id: string, fileName: string, fallbackFileName: string): AlphaPromoVideo {
+  return {
+    id,
+    src: `${ALPHA_PROMO_VIDEO_BASE_PATH}/${fileName}`,
+    fallbackSrc: `${ALPHA_PROMO_VIDEO_BASE_PATH}/${fallbackFileName}`,
+  };
 }
 
 function todayKey(now: number): string {

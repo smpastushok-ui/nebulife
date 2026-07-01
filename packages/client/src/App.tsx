@@ -3439,6 +3439,7 @@ function AppInner() {
   const [showTopUpModal, setShowTopUpModal] = useState(false);
   const [showAlphaSignalPromo, setShowAlphaSignalPromo] = useState(false);
   const [alphaSignalPromoVideoSrc, setAlphaSignalPromoVideoSrc] = useState<string | undefined>(undefined);
+  const [alphaSignalPromoVideoFallbackSrc, setAlphaSignalPromoVideoFallbackSrc] = useState<string | undefined>(undefined);
   const [emergencyTransmission, setEmergencyTransmission] = useState<EmergencyTransmissionEpisode | null>(null);
   const [showResourceModal, setShowResourceModal] = useState<ResourceType | null>(null);
   const [showGetResearchData, setShowGetResearchData] = useState(false);
@@ -6017,6 +6018,7 @@ function AppInner() {
     });
     if (!decision.show) return false;
     setAlphaSignalPromoVideoSrc(decision.video?.src);
+    setAlphaSignalPromoVideoFallbackSrc(decision.video?.fallbackSrc);
     setShowAlphaSignalPromo(true);
     return true;
   }, [isGuest, isPremiumActive, quarks]);
@@ -14820,9 +14822,11 @@ function AppInner() {
       {showAlphaSignalPromo && (
         <AlphaSignalPromoModal
           videoSrc={alphaSignalPromoVideoSrc}
+          videoFallbackSrc={alphaSignalPromoVideoFallbackSrc}
           onClose={() => {
             setShowAlphaSignalPromo(false);
             setAlphaSignalPromoVideoSrc(undefined);
+            setAlphaSignalPromoVideoFallbackSrc(undefined);
           }}
           onQuarksClick={() => {
             if (isGuest) setShowLinkModal(true);
