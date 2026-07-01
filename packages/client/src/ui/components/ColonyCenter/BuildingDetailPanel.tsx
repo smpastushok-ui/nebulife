@@ -54,6 +54,10 @@ export interface BuildingDetailPanelProps {
   onStartExtraction?: (buildingId: string, planetId: string) => boolean | void;
   /** Open the DNA-constructor spark minigame (fired from the lab section). */
   onOpenDnaLab?: () => void;
+  /** True once all 4 spark types have been synthesized today (00:00 UTC
+   *  reset — see GAME_DESIGN.md). Drives the lab button label so it doesn't
+   *  look broken/unresponsive once today's plays are exhausted. */
+  dnaLabCompleted?: boolean;
   /** Backend-authored upcoming cosmic events (telescope / observatory / radar). */
   upcomingEvents?: CosmicEvent[];
   /** Open the Operations Hub signals tab (radar-tower decode shortcut). */
@@ -1369,6 +1373,7 @@ export function BuildingDetailPanel({
   extractionJobs,
   onStartExtraction,
   onOpenDnaLab,
+  dnaLabCompleted = false,
   upcomingEvents,
   onOpenSignals,
   isPremium = false,
@@ -1979,17 +1984,17 @@ export function BuildingDetailPanel({
                 <div style={{ fontSize: 9.5, color: '#9c8cad', lineHeight: 1.5 }}>{t('lab.spark_desc')}</div>
                 <button
                   type="button"
-                  disabled={stats.isShutdown || !onOpenDnaLab}
+                  disabled={stats.isShutdown || !onOpenDnaLab || dnaLabCompleted}
                   onClick={() => onOpenDnaLab?.()}
                   style={{
-                    background: stats.isShutdown ? 'rgba(20,30,45,0.45)' : 'linear-gradient(180deg, rgba(183,140,255,0.30), rgba(183,140,255,0.14))',
-                    border: `1px solid ${stats.isShutdown ? BORDER : '#b78cff'}`, borderRadius: 6,
-                    color: stats.isShutdown ? '#556677' : '#f0e6ff', fontFamily: 'monospace', fontSize: 11.5,
+                    background: (stats.isShutdown || dnaLabCompleted) ? 'rgba(20,30,45,0.45)' : 'linear-gradient(180deg, rgba(183,140,255,0.30), rgba(183,140,255,0.14))',
+                    border: `1px solid ${(stats.isShutdown || dnaLabCompleted) ? BORDER : '#b78cff'}`, borderRadius: 6,
+                    color: (stats.isShutdown || dnaLabCompleted) ? '#556677' : '#f0e6ff', fontFamily: 'monospace', fontSize: 11.5,
                     letterSpacing: 1.5, textTransform: 'uppercase', padding: '11px 12px',
-                    cursor: stats.isShutdown ? 'not-allowed' : 'pointer', boxShadow: stats.isShutdown ? 'none' : '0 0 18px rgba(183,140,255,0.32)',
+                    cursor: (stats.isShutdown || dnaLabCompleted) ? 'not-allowed' : 'pointer', boxShadow: (stats.isShutdown || dnaLabCompleted) ? 'none' : '0 0 18px rgba(183,140,255,0.32)',
                   }}
                 >
-                  {stats.isShutdown ? t('separation.no_power') : t('lab.spark_start')}
+                  {stats.isShutdown ? t('separation.no_power') : dnaLabCompleted ? t('lab.spark_done') : t('lab.spark_start')}
                 </button>
               </div>
             </div>

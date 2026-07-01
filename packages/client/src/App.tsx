@@ -47,7 +47,7 @@ import { TelescopeOverlay } from './ui/components/TelescopeOverlay.js';
 import type {
   Planet, Star, StarSystem, ResearchState, SystemResearchState, Discovery, CatalogEntry,
 } from '@nebulife/core';
-import { getCatalogEntry, getCatalogName, BUILDING_DEFS } from '@nebulife/core';
+import { getCatalogEntry, getCatalogName, BUILDING_DEFS, LIFE_SPARK_TYPES } from '@nebulife/core';
 import { rollLifeformFind, rollLifeformHarvestFind, isLifeformTriggerBuilding, rollIngredientDrop, rollLifeSparkDrop, buildLifeformPlanetContext, simpleLifeformPhoto, simpleLifeformVideo, simpleLifeformName, simpleKeyFromAssetUrl, pickUnseenSimpleLifeform, LIFEFORM_FIND_COOLDOWN_MS } from '@nebulife/core';
 import {
   getCometSchedule,
@@ -625,7 +625,10 @@ interface SyncedGameState {
   chemical_inventory_by_planet?: Record<string, Record<string, number>>;
   life_ingredients?: Record<string, number>;
   life_sparks?: Record<string, number>;
-  dna_spark_synthesis?: { spark: LifeSparkType; chosenAt: number; completedAt?: number };
+  /** Per-spark-type UTC date-key (YYYY-MM-DD) of the last Genome Constructor
+   *  completion. Each of the 4 spark types resets independently at 00:00 UTC —
+   *  see GAME_DESIGN.md "available up to 4 times per day". */
+  dna_spark_synthesis?: Partial<Record<LifeSparkType, string>>;
   // Game phase
   exodus_phase: boolean;
   destroyed_planets: Array<{ planetId: string; systemId: string; orbitAU: number }>;
@@ -1143,6 +1146,30 @@ const LOCAL_ACCOUNT_PREF_KEYS = new Set([
   // whole StarBirthIntro a second time).
   'nebulife_quantum_seed_seen',
 ]);
+
+/** UTC date-key (YYYY-MM-DD) — Genome Constructor cooldowns reset at 00:00 UTC. */
+function utcDateKey(ts: number): string {
+  return new Date(ts).toISOString().slice(0, 10);
+}
+
+/** Normalize any stored Genome Constructor shape (current or legacy one-time-
+ *  per-account format) into the current per-spark-type date-key map. Legacy
+ *  entries that had actually completed become "completed on that date", which
+ *  simply makes them immediately eligible again once that day has passed. */
+function migrateDnaSparkSynthesis(raw: unknown): Partial<Record<LifeSparkType, string>> {
+  if (!raw || typeof raw !== 'object') return {};
+  const legacy = raw as { spark?: LifeSparkType; completedAt?: number };
+  if (legacy.spark && typeof legacy.completedAt === 'number') {
+    return { [legacy.spark]: utcDateKey(legacy.completedAt) };
+  }
+  const record = raw as Partial<Record<LifeSparkType, unknown>>;
+  const out: Partial<Record<LifeSparkType, string>> = {};
+  for (const spark of LIFE_SPARK_TYPES) {
+    const value = record[spark];
+    if (typeof value === 'string') out[spark] = value;
+  }
+  return out;
+}
 
 const LOCAL_STORAGE_SNAPSHOT_EXCLUDED_KEYS = new Set([
   'nebulife_last_uid',
@@ -2015,17 +2042,12 @@ function AppInner() {
   });
   const lifeSparkHarvestCounter = useRef(0);
   const lifeSparkRefineryCounter = useRef(0);
-  const [dnaSparkSynthesis, setDnaSparkSynthesis] = useState<{ spark: LifeSparkType; chosenAt: number; completedAt?: number } | null>(() => {
+  const [dnaSparkSynthesis, setDnaSparkSynthesis] = useState<Partial<Record<LifeSparkType, string>>>(() => {
     try {
       const saved = localStorage.getItem('nebulife_dna_spark_synthesis');
-      if (saved) {
-        const parsed = JSON.parse(saved) as { spark?: LifeSparkType; chosenAt?: number; completedAt?: number };
-        if (parsed?.spark && typeof parsed.chosenAt === 'number') {
-          return { spark: parsed.spark, chosenAt: parsed.chosenAt, completedAt: parsed.completedAt };
-        }
-      }
+      if (saved) return migrateDnaSparkSynthesis(JSON.parse(saved));
     } catch { /* ignore */ }
-    return null;
+    return {};
   });
 
   useEffect(() => {
@@ -2034,11 +2056,14 @@ function AppInner() {
   }, [lifeSparks]);
 
   useEffect(() => {
-    try {
-      if (dnaSparkSynthesis) localStorage.setItem('nebulife_dna_spark_synthesis', JSON.stringify(dnaSparkSynthesis));
-      else localStorage.removeItem('nebulife_dna_spark_synthesis');
-    } catch { /* ignore */ }
+    try { localStorage.setItem('nebulife_dna_spark_synthesis', JSON.stringify(dnaSparkSynthesis)); }
+    catch { /* ignore */ }
   }, [dnaSparkSynthesis]);
+  /** True once all 4 spark types have been synthesized today (00:00 UTC reset). */
+  const dnaLabAllCompletedToday = useMemo(
+    () => LIFE_SPARK_TYPES.every((s) => dnaSparkSynthesis[s] === utcDateKey(Date.now())),
+    [dnaSparkSynthesis],
+  );
 
   // ── Manual-job result histories (last 5 each) + result-card modal ─────────
   // Separation/centrifuge yields and lab experiments are logged here so the
@@ -6778,16 +6803,16 @@ function AppInner() {
       try { localStorage.setItem('nebulife_life_sparks', JSON.stringify(mergedLS)); } catch { /* ignore */ }
     }
     if (gs.dna_spark_synthesis && typeof gs.dna_spark_synthesis === 'object') {
-      const serverDna = gs.dna_spark_synthesis;
-      const localDna = (() => { try { return JSON.parse(localStorage.getItem('nebulife_dna_spark_synthesis') ?? 'null'); } catch { return null; } })() as { spark?: LifeSparkType; chosenAt?: number; completedAt?: number } | null;
-      const candidates = [serverDna, localDna].filter((entry): entry is { spark: LifeSparkType; chosenAt: number; completedAt?: number } => (
-        Boolean(entry?.spark && typeof entry.chosenAt === 'number')
-      ));
-      const chosen = candidates.sort((a, b) => (b.completedAt ?? b.chosenAt) - (a.completedAt ?? a.chosenAt))[0];
-      if (chosen) {
-        setDnaSparkSynthesis(chosen);
-        try { localStorage.setItem('nebulife_dna_spark_synthesis', JSON.stringify(chosen)); } catch { /* ignore */ }
+      const serverDna = migrateDnaSparkSynthesis(gs.dna_spark_synthesis);
+      const localDna = (() => { try { return migrateDnaSparkSynthesis(JSON.parse(localStorage.getItem('nebulife_dna_spark_synthesis') ?? 'null')); } catch { return {}; } })();
+      const merged: Partial<Record<LifeSparkType, string>> = {};
+      for (const spark of LIFE_SPARK_TYPES) {
+        const a = serverDna[spark];
+        const b = localDna[spark];
+        merged[spark] = a && b ? (a > b ? a : b) : (a ?? b);
       }
+      setDnaSparkSynthesis(merged);
+      try { localStorage.setItem('nebulife_dna_spark_synthesis', JSON.stringify(merged)); } catch { /* ignore */ }
     }
     // Overlay the freshest harvest cooldown (lastHarvestedAt) per slot id onto the
     // server snapshot. Without this, the length-only "server is ahead" heuristic
@@ -11187,29 +11212,22 @@ function AppInner() {
     return () => window.clearInterval(id);
   }, [completeReadyExtraction, extractionJobs.length]);
 
-  /** Lock the DNA constructor to one selected spark per player/account. */
+  /** Each spark type is playable once per UTC day (GAME_DESIGN.md: "available
+   *  up to 4 times per day", one per spark type). Gate check before starting. */
   const handleSparkSynthesisClaim = useCallback((sparkType: LifeSparkType): boolean => {
-    if (dnaSparkSynthesis) return dnaSparkSynthesis.spark === sparkType && !dnaSparkSynthesis.completedAt;
-    const chosen = { spark: sparkType, chosenAt: Date.now() };
-    setDnaSparkSynthesis(chosen);
-    try { localStorage.setItem('nebulife_dna_spark_synthesis', JSON.stringify(chosen)); } catch { /* ignore */ }
-    scheduleSyncToServer();
-    return true;
-  }, [dnaSparkSynthesis, scheduleSyncToServer]);
+    return dnaSparkSynthesis[sparkType] !== utcDateKey(Date.now());
+  }, [dnaSparkSynthesis]);
 
   /** Grant a spark after a successful DNA-constructor minigame. */
   const handleSparkSynthesisSuccess = useCallback((sparkType: LifeSparkType): void => {
-    if (dnaSparkSynthesis?.completedAt) {
-      setToastMessage(tr('lab.dna_already_completed', { spark: tr(`lab.spark.${dnaSparkSynthesis.spark}` as 'lab.spark.primordial') }));
+    const today = utcDateKey(Date.now());
+    if (dnaSparkSynthesis[sparkType] === today) {
+      setToastMessage(tr('lab.dna_already_completed', { spark: tr(`lab.spark.${sparkType}` as 'lab.spark.primordial') }));
       window.setTimeout(() => setToastMessage(null), 3200);
       return;
     }
     const now = Date.now();
-    setDnaSparkSynthesis((prev) => ({
-      spark: prev?.spark ?? sparkType,
-      chosenAt: prev?.chosenAt ?? now,
-      completedAt: now,
-    }));
+    setDnaSparkSynthesis((prev) => ({ ...prev, [sparkType]: today }));
     setLifeSparks((prev) => ({ ...prev, [sparkType]: (prev[sparkType] ?? 0) + 1 }));
     const result: ElementResult = {
       id: `res-spark-${now}-${Math.random().toString(36).slice(2, 6)}`,
@@ -14725,6 +14743,7 @@ function AppInner() {
           extractionJobs={extractionJobs}
           onStartExtraction={handleStartExtraction}
           onOpenDnaLab={() => setShowDnaLab(true)}
+          dnaLabCompleted={dnaLabAllCompletedToday}
           upcomingEvents={combinedUpcomingEvents}
           onOpenSignals={() => {
             setOpsHubTab('signals');
@@ -15877,13 +15896,13 @@ function AppInner() {
         <ElementResultCard result={resultCard} onClose={() => setResultCard(null)} />
       )}
 
-      {/* Research-lab spark-of-life DNA constructor minigame */}
+      {/* Research-lab spark-of-life DNA constructor minigame — each of the 4
+          spark types resets independently at 00:00 UTC (up to 4 plays/day). */}
       {showDnaLab && (
         <DnaConstructorGame
           onSuccess={handleSparkSynthesisSuccess}
           onClose={() => setShowDnaLab(false)}
-          claimedSpark={dnaSparkSynthesis?.spark ?? null}
-          completed={Boolean(dnaSparkSynthesis?.completedAt)}
+          completedToday={LIFE_SPARK_TYPES.filter((s) => dnaSparkSynthesis[s] === utcDateKey(Date.now()))}
           onClaimSpark={handleSparkSynthesisClaim}
         />
       )}
@@ -16199,6 +16218,7 @@ function AppInner() {
             extractionJobs={extractionJobs}
             onStartExtraction={handleStartExtraction}
             onOpenDnaLab={() => setShowDnaLab(true)}
+            dnaLabCompleted={dnaLabAllCompletedToday}
             upcomingEvents={combinedUpcomingEvents}
             onOpenSignals={() => {
               setOpsHubTab('signals');

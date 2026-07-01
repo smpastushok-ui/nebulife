@@ -128,6 +128,7 @@ interface HexSurfaceProps {
   extractionJobs?: ExtractionJob[];
   onStartExtraction?: (buildingId: string, planetId: string) => boolean | void;
   onOpenDnaLab?: () => void;
+  dnaLabCompleted?: boolean;
   upcomingEvents?: CosmicEvent[];
   onOpenSignals?: () => void;
   isPremium?: boolean;
@@ -263,6 +264,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       extractionJobs,
       onStartExtraction,
       onOpenDnaLab,
+      dnaLabCompleted,
       upcomingEvents,
       onOpenSignals,
       isPremium = false,
@@ -992,6 +994,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
             extractionJobs={extractionJobs}
             onStartExtraction={onStartExtraction}
             onOpenDnaLab={onOpenDnaLab}
+            dnaLabCompleted={dnaLabCompleted}
             upcomingEvents={upcomingEvents}
             onOpenSignals={onOpenSignals}
             isPremium={isPremium}

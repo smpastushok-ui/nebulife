@@ -139,6 +139,7 @@ export interface ColonyCenterPageProps {
   extractionJobs?: ExtractionJob[];
   onStartExtraction?: (buildingId: string, planetId: string) => boolean | void;
   onOpenDnaLab?: () => void;
+  dnaLabCompleted?: boolean;
   upcomingEvents?: CosmicEvent[];
   onOpenSignals?: () => void;
   initialTab?: ColonyCenterTabId;
@@ -1351,6 +1352,7 @@ export const ColonyCenterPage: React.FC<ColonyCenterPageProps> = (props) => {
           extractionJobs={props.extractionJobs}
           onStartExtraction={props.onStartExtraction}
           onOpenDnaLab={props.onOpenDnaLab}
+          dnaLabCompleted={props.dnaLabCompleted}
           upcomingEvents={props.upcomingEvents}
           onOpenSignals={props.onOpenSignals}
           onStartPayloadProduction={props.onStartPayloadProduction}

@@ -48,6 +48,9 @@ const DNAC_CSS = `
 @keyframes dnac-orbit { to { transform: rotate(360deg); } }
 @keyframes dnac-pulse-ring { 0%{transform:scale(.2);opacity:.95} 70%{opacity:.25} 100%{transform:scale(1.45);opacity:0} }
 @keyframes dnac-sparkle { 0%,100%{transform:translateY(0) scale(.8);opacity:.55} 45%{transform:translateY(-8px) scale(1.15);opacity:1} }
+@keyframes dnac-shock { 0%{transform:scale(.35);opacity:.9} 100%{transform:scale(1.55);opacity:0} }
+@keyframes dnac-settle-glow { 0%{opacity:0;transform:scale(.7)} 55%{opacity:1;transform:scale(1.05)} 100%{opacity:.82;transform:scale(1)} }
+@keyframes dnac-burst { 0%{transform:translate(0,0) scale(1);opacity:1} 100%{transform:translate(var(--dnac-tx),var(--dnac-ty)) scale(.2);opacity:0} }
 `;
 
 const OPPOSITE: Record<Dir, Dir> = { n: 's', e: 'w', s: 'n', w: 'e' };
@@ -384,7 +387,15 @@ function TileGlyph({
   );
 }
 
-function CompletionBurst({ accent, title, detail }: { accent: string; title: string; detail: string }) {
+/**
+ * `igniting` plays the ambient infinite loop (brief, ~900ms transient state).
+ * `won` plays a distinct, non-infinite resolution: shockwave rings burst
+ * outward once and fade, particles fly out once, then everything settles
+ * into a steady (non-animating) glow — an unmistakable "done" moment,
+ * rather than reusing the same eternal pulse/orbit loop.
+ */
+function CompletionBurst({ accent, title, detail, variant }: { accent: string; title: string; detail: string; variant: 'igniting' | 'won' }) {
+  const settled = variant === 'won';
   return (
     <div
       style={{
@@ -400,30 +411,64 @@ function CompletionBurst({ accent, title, detail }: { accent: string; title: str
       }}
     >
       <div style={{ position: 'relative', width: 180, height: 180, display: 'grid', placeItems: 'center' }}>
-        <div style={{ position: 'absolute', inset: 30, border: `1px solid ${accent}`, borderRadius: '50%', animation: 'dnac-pulse-ring 1.35s ease-out infinite' }} />
-        <div style={{ position: 'absolute', inset: 18, border: `1px dashed ${accent}88`, borderRadius: '50%', animation: 'dnac-orbit 5s linear infinite' }} />
-        {Array.from({ length: 10 }, (_, i) => {
-          const angle = (i / 10) * Math.PI * 2;
-          const x = 88 + Math.cos(angle) * 70;
-          const y = 88 + Math.sin(angle) * 70;
-          return (
-            <span
-              key={i}
-              style={{
-                position: 'absolute',
-                left: x,
-                top: y,
-                width: 5,
-                height: 5,
-                borderRadius: '50%',
-                background: accent,
-                boxShadow: `0 0 12px ${accent}`,
-                animation: `dnac-sparkle ${0.9 + (i % 3) * 0.16}s ease-in-out infinite`,
-                animationDelay: `${i * 0.05}s`,
-              }}
-            />
-          );
-        })}
+        {settled ? (
+          <>
+            <div style={{ position: 'absolute', inset: 30, border: `1px solid ${accent}`, borderRadius: '50%', animation: 'dnac-shock .7s ease-out both' }} />
+            <div style={{ position: 'absolute', inset: 30, border: `1px solid ${accent}`, borderRadius: '50%', animation: 'dnac-shock .7s ease-out .18s both' }} />
+            <div style={{ position: 'absolute', inset: 56, borderRadius: '50%', background: `radial-gradient(circle, ${accent}55 0%, transparent 72%)`, animation: 'dnac-settle-glow 1.1s ease-out .15s both' }} />
+            <div style={{ position: 'absolute', inset: 64, border: `1px solid ${accent}`, borderRadius: '50%', boxShadow: `0 0 20px ${accent}`, animation: 'dnac-settle-glow 1.1s ease-out .15s both' }} />
+            {Array.from({ length: 8 }, (_, i) => {
+              const angle = (i / 8) * Math.PI * 2;
+              const tx = Math.cos(angle) * 72;
+              const ty = Math.sin(angle) * 72;
+              return (
+                <span
+                  key={i}
+                  style={{
+                    position: 'absolute',
+                    left: 88,
+                    top: 88,
+                    width: 5,
+                    height: 5,
+                    borderRadius: '50%',
+                    background: accent,
+                    boxShadow: `0 0 12px ${accent}`,
+                    ['--dnac-tx' as string]: `${tx}px`,
+                    ['--dnac-ty' as string]: `${ty}px`,
+                    animation: `dnac-burst .6s ease-out ${i * 0.025}s both`,
+                  }}
+                />
+              );
+            })}
+          </>
+        ) : (
+          <>
+            <div style={{ position: 'absolute', inset: 30, border: `1px solid ${accent}`, borderRadius: '50%', animation: 'dnac-pulse-ring 1.35s ease-out infinite' }} />
+            <div style={{ position: 'absolute', inset: 18, border: `1px dashed ${accent}88`, borderRadius: '50%', animation: 'dnac-orbit 5s linear infinite' }} />
+            {Array.from({ length: 10 }, (_, i) => {
+              const angle = (i / 10) * Math.PI * 2;
+              const x = 88 + Math.cos(angle) * 70;
+              const y = 88 + Math.sin(angle) * 70;
+              return (
+                <span
+                  key={i}
+                  style={{
+                    position: 'absolute',
+                    left: x,
+                    top: y,
+                    width: 5,
+                    height: 5,
+                    borderRadius: '50%',
+                    background: accent,
+                    boxShadow: `0 0 12px ${accent}`,
+                    animation: `dnac-sparkle ${0.9 + (i % 3) * 0.16}s ease-in-out infinite`,
+                    animationDelay: `${i * 0.05}s`,
+                  }}
+                />
+              );
+            })}
+          </>
+        )}
         <div style={{ textAlign: 'center', padding: '0 18px' }}>
           <div style={{ color: accent, fontSize: 18, fontWeight: 800, letterSpacing: 0.9, textShadow: `0 0 18px ${accent}` }}>{title}</div>
           <div style={{ color: '#cfe3ff', fontSize: 10.5, lineHeight: 1.45, marginTop: 8 }}>{detail}</div>
@@ -440,14 +485,13 @@ function CompletionBurst({ accent, title, detail }: { accent: string; title: str
 export function DnaConstructorGame({
   onSuccess,
   onClose,
-  claimedSpark,
-  completed,
+  completedToday = [],
   onClaimSpark,
 }: {
   onSuccess: (spark: LifeSparkType) => void;
   onClose: () => void;
-  claimedSpark?: LifeSparkType | null;
-  completed?: boolean;
+  /** Spark types already synthesized today (00:00 UTC reset, up to 4/day). */
+  completedToday?: LifeSparkType[];
   onClaimSpark?: (spark: LifeSparkType) => boolean;
 }) {
   const { t } = useTranslation();
@@ -457,6 +501,8 @@ export function DnaConstructorGame({
   const [moves, setMoves] = useState(0);
   const [session, setSession] = useState(1);
   const successRef = useRef(false);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   const accent = spark ? SPARK_COLOR[spark] : '#7bb8ff';
   const analysis = useMemo(() => analyzeLattice(tiles), [tiles]);
@@ -475,6 +521,13 @@ export function DnaConstructorGame({
   const stabilityColor = stability > 80 ? '#44ff88' : stability > 45 ? '#ffcf66' : '#ff8844';
   const sparkName = spark ? t(`lab.spark.${spark}` as 'lab.spark.primordial') : '';
 
+  // NOTE: `status` is intentionally NOT a dependency here. Including it caused
+  // a real bug — `setStatus('igniting')` changes `status`, which re-runs this
+  // effect on the very next render; the cleanup then clears the still-pending
+  // 900ms timeout before it can ever fire, so the puzzle got permanently
+  // stuck in 'igniting' and never reached 'won' (root cause of the reported
+  // "endless synthesis" feeling — confirmed via instrumented logging). The
+  // `successRef` guard alone is sufficient to make this idempotent.
   useEffect(() => {
     if (!spark || status !== 'play' || !latticeComplete || successRef.current) return;
     successRef.current = true;
@@ -484,12 +537,27 @@ export function DnaConstructorGame({
       onSuccess(spark);
     }, 900);
     return () => window.clearTimeout(id);
-  }, [latticeComplete, onSuccess, spark, status]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [latticeComplete, onSuccess, spark]);
+
+  // Auto-close the reward moment after a short, comfortable beat so the
+  // player isn't required to hunt for the "Зібрати" button — it feels like
+  // the modal completes itself rather than looping forever. Depends only on
+  // `status` (not `onClose`, which is re-created on every parent render) so
+  // the timer isn't reset before it can fire; clicking "Зібрати" unmounts
+  // this component, which cleans up the pending timeout and prevents any
+  // double `onClose()` call.
+  useEffect(() => {
+    if (status !== 'won') return;
+    const id = window.setTimeout(() => {
+      onCloseRef.current();
+    }, 2200);
+    return () => window.clearTimeout(id);
+  }, [status]);
 
   function startSpark(s: LifeSparkType) {
-    if (completed) return;
-    if (claimedSpark && claimedSpark !== s) return;
-    if (!claimedSpark && onClaimSpark && !onClaimSpark(s)) return;
+    if (completedToday.includes(s)) return;
+    if (onClaimSpark && !onClaimSpark(s)) return;
     const nextSession = session + 1;
     setSession(nextSession);
     setSpark(s);
@@ -544,7 +612,7 @@ export function DnaConstructorGame({
         {!spark ? (
           <>
             <div style={{ color: '#8899aa', fontSize: 11, marginBottom: 12, lineHeight: 1.5 }}>{t('lab.dna_choose')}</div>
-            {completed && claimedSpark && (
+            {completedToday.length >= SPARK_ORDER.length && (
               <div style={{
                 marginBottom: 10,
                 padding: '9px 11px',
@@ -555,7 +623,7 @@ export function DnaConstructorGame({
                 fontSize: 10,
                 lineHeight: 1.5,
               }}>
-                {t('lab.dna_already_completed', { spark: t(`lab.spark.${claimedSpark}` as 'lab.spark.primordial') })}
+                {t('lab.dna_all_completed_today')}
               </div>
             )}
             <div style={{ display: 'grid', gap: 8 }}>
@@ -563,21 +631,21 @@ export function DnaConstructorGame({
                 const c = SPARK_COLOR[s];
                 const d = SPARK_DIFFICULTY[s];
                 const puzzle = configForSpark(s);
-                const lockedByClaim = Boolean(completed || (claimedSpark && claimedSpark !== s));
+                const doneToday = completedToday.includes(s);
                 return (
                   <button
                     key={s}
                     onClick={() => startSpark(s)}
-                    disabled={lockedByClaim}
+                    disabled={doneToday}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left',
-                      background: lockedByClaim ? 'rgba(20,25,35,0.55)' : `${c}12`,
-                      border: `1px solid ${lockedByClaim ? '#334455' : `${c}66`}`,
+                      background: doneToday ? 'rgba(20,25,35,0.55)' : `${c}12`,
+                      border: `1px solid ${doneToday ? '#334455' : `${c}66`}`,
                       borderRadius: 6,
                       padding: '10px 12px',
-                      cursor: lockedByClaim ? 'not-allowed' : 'pointer',
+                      cursor: doneToday ? 'not-allowed' : 'pointer',
                       fontFamily: 'monospace',
-                      opacity: lockedByClaim ? 0.45 : 1,
+                      opacity: doneToday ? 0.45 : 1,
                     }}
                   >
                     <span style={{ width: 12, height: 12, borderRadius: '50%', background: c, boxShadow: `0 0 10px ${c}`, flexShrink: 0 }} />
@@ -586,7 +654,7 @@ export function DnaConstructorGame({
                       <span>{puzzle.width}x{puzzle.height}</span>
                       <span style={{ color: '#556677' }}>·</span>
                       <span>{t('lab.dna_nodes', { count: d.length })}</span>
-                      {claimedSpark === s && <><span style={{ color: '#556677' }}>·</span><span style={{ color: c }}>{t('lab.dna_chosen')}</span></>}
+                      {doneToday && <><span style={{ color: '#556677' }}>·</span><span style={{ color: c }}>{t('lab.dna_done_today')}</span></>}
                       {puzzle.blockerCount > 0 && <><span style={{ color: '#556677' }}>·</span><span style={{ color: '#ffb454' }}>{t('lab.dna_blockers', { count: puzzle.blockerCount })}</span></>}
                     </span>
                   </button>
@@ -637,6 +705,7 @@ export function DnaConstructorGame({
               {(status === 'igniting' || status === 'won') && (
                 <CompletionBurst
                   accent={accent}
+                  variant={status === 'won' ? 'won' : 'igniting'}
                   title={status === 'won' ? t('lab.dna_success_title') : t('lab.dna_igniting_title')}
                   detail={status === 'won' ? t('lab.dna_success_detail', { spark: sparkName }) : t('lab.dna_igniting')}
                 />
