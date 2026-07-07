@@ -1964,6 +1964,7 @@
     "tab_signals": "SIGNALS",
     "tab_event": "EVENT",
     "tab_megastructure": "BEACON",
+    "tab_saga": "SAGA",
     "loading": "Loading…",
     "you": "you",
     "quarks_short": "quarks",
@@ -3525,11 +3526,8 @@
     }
   },
   "saga": {
-    "section": "The Weaver's Saga",
-    "open_reader": "Open the Saga",
     "title": "The Weaver's Saga",
     "subtitle": "A chronicle written for you alone",
-    "close": "Close",
     "back_to_list": "Back",
     "chapter_label": "Chapter {{roman}}",
     "empty_state": "The Saga begins with your first step. Keep exploring — the Weaver is watching, and will write when the moment is worthy.",

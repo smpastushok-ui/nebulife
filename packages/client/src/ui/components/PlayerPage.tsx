@@ -52,9 +52,6 @@ interface PlayerPageProps {
   onRedeemPromoCode?: (code: string) => Promise<{ success: boolean; error?: string }>;
   /** Called after the player successfully changes their callsign/name. */
   onNameChanged?: (newName: string) => void;
-  /** "Сага Ткача" — number of chapters written since the reader was last opened. */
-  sagaUnreadCount?: number;
-  onOpenSaga?: () => void;
 }
 
 // ── Pro badge ─────────────────────────────────────────────────────────────
@@ -168,8 +165,6 @@ export function PlayerPage({
   onChangeAmbientVolume,
   onRedeemPromoCode,
   onNameChanged,
-  sagaUnreadCount = 0,
-  onOpenSaga,
 }: PlayerPageProps) {
   const { t, i18n } = useTranslation();
   const [confirmReset, setConfirmReset] = useState(false);
@@ -806,47 +801,6 @@ export function PlayerPage({
             </div>
           )}
         </div>
-
-        {/* Saga section — "Сага Ткача" personal illustrated chronicle */}
-        {onOpenSaga && (
-          <div style={{
-            ...panelStyle,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 10,
-          }}>
-            <div style={sectionLabelStyle}>{t('saga.section')}</div>
-            <button
-              onClick={() => { playSfx('ui-click', 0.07); onOpenSaga(); }}
-              style={{
-                ...actionButtonStyle,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-              }}
-            >
-              <span>{t('saga.open_reader')}</span>
-              {sagaUnreadCount > 0 && (
-                <span style={{
-                  minWidth: 16,
-                  height: 16,
-                  padding: '0 4px',
-                  borderRadius: 8,
-                  background: '#44ff88',
-                  color: '#03160c',
-                  fontSize: 9,
-                  fontWeight: 700,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                  {sagaUnreadCount}
-                </span>
-              )}
-            </button>
-          </div>
-        )}
 
         {/* Activation code (one-time premium promo codes for testers) */}
         {isNative && !isPremium && onRedeemPromoCode && (

@@ -198,7 +198,6 @@ import {
 } from '@nebulife/core';
 import { queueSagaMilestone, type SagaMilestoneQueueItem, type SagaMilestoneType, type SagaMilestoneContext } from '@nebulife/core';
 import { useSagaChapters } from './hooks/useSagaChapters.js';
-import { SagaReader } from './ui/components/Saga/SagaReader.js';
 import { listPlanetCreatures } from './api/creature-api.js';
 import { MissionTracker } from './ui/components/Terraform/MissionTracker.js';
 import { TerraformPanel } from './ui/components/Terraform/TerraformPanel.js';
@@ -2375,7 +2374,6 @@ function AppInner() {
   });
   const sagaTriggeredMilestonesRef = useRef(sagaTriggeredMilestones);
   sagaTriggeredMilestonesRef.current = sagaTriggeredMilestones;
-  const [showSagaReader, setShowSagaReader] = useState(false);
 
   const triggerSagaMilestone = useCallback((milestoneType: SagaMilestoneType, context: SagaMilestoneContext) => {
     const result = queueSagaMilestone(sagaMilestoneQueue, sagaTriggeredMilestonesRef.current, milestoneType, context);
@@ -13838,14 +13836,24 @@ function AppInner() {
     return () => window.clearTimeout(id);
   }, [sagaChapters.justWrittenTitle, sagaChapters.clearJustWritten, tr]);
 
-  // DEV-ONLY verification hook — `?saga_test=1` opens the reader directly
-  // (chapters come from the real /api/saga/list call, stubbed by the tester
-  // when needed) so the reader UI can be checked without grinding milestones.
-  // Strictly `import.meta.env.DEV`-gated; dead code (and its URL param) in production.
+  // Chapters count as read once the Saga tab of the Operations Hub is on
+  // screen (clears the unread badge; re-fires as new chapters land while
+  // the tab stays open).
+  useEffect(() => {
+    if (!showOpsHub || opsHubViewedTab !== 'saga') return;
+    sagaChapters.markAllRead();
+  }, [showOpsHub, opsHubViewedTab, sagaChapters.markAllRead]);
+
+  // DEV-ONLY verification hook — `?saga_test=1` opens the Operations Hub on
+  // the Saga tab directly (chapters come from the real /api/saga/list call,
+  // stubbed by the tester when needed) so the reader UI can be checked
+  // without grinding milestones. Strictly `import.meta.env.DEV`-gated; dead
+  // code (and its URL param) in production.
   useEffect(() => {
     if (!import.meta.env.DEV) return;
     if (new URLSearchParams(window.location.search).get('saga_test') !== '1') return;
-    setShowSagaReader(true);
+    setOpsHubTab('saga');
+    setShowOpsHub(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -15948,6 +15956,8 @@ function AppInner() {
           onSpendMegastructureResources={(delta) => spendResourcesAcrossPlanets(homeInfo?.planet.id ?? '', delta)}
           onAwardXP={awardXP}
           onQuarksAwarded={(amount) => setQuarks((prev) => prev + amount)}
+          sagaChapters={sagaChapters.chapters}
+          sagaUnreadCount={sagaChapters.unreadCount}
         />
       )}
       {/* Cosmic event countdown moved off-screen into the orbital telescope /
@@ -15992,16 +16002,6 @@ function AppInner() {
             return { success: result.success, error: result.error };
           }}
           onNameChanged={(newName) => setState((prev) => ({ ...prev, playerName: newName }))}
-          sagaUnreadCount={sagaChapters.unreadCount}
-          onOpenSaga={() => { setShowPlayerPage(false); setShowSagaReader(true); }}
-        />
-      )}
-
-      {/* "Сага Ткача" — personal AI-written illustrated chronicle reader */}
-      {showSagaReader && (
-        <SagaReader
-          chapters={sagaChapters.chapters}
-          onClose={() => { sagaChapters.markAllRead(); setShowSagaReader(false); }}
         />
       )}
 

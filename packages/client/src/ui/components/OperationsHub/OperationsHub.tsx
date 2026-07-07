@@ -6,15 +6,17 @@ import { RatingTab } from './RatingTab.js';
 import { SignalsTab } from './SignalsTab.js';
 import { EventTab } from './EventTab.js';
 import { MegastructureTab } from './MegastructureTab.js';
+import { SagaContent } from '../Saga/SagaContent.js';
 import type { MegastructureResourceBundle } from '../../../api/megastructure-api.js';
+import type { SagaChapterView } from '../../../api/saga-api.js';
 
 // ---------------------------------------------------------------------------
 // OperationsHub — retention center: daily directives, cluster rating,
-// signal minigames, live events and the cluster megastructure. Opened from
-// the CommandBar.
+// signal minigames, live events, the cluster megastructure and the personal
+// "Weaver's Saga" chronicle. Opened from the CommandBar.
 // ---------------------------------------------------------------------------
 
-export type OpsTab = 'directives' | 'rating' | 'signals' | 'event' | 'megastructure';
+export type OpsTab = 'directives' | 'rating' | 'signals' | 'event' | 'megastructure' | 'saga';
 
 export interface OperationsHubProps {
   initialTab?: OpsTab;
@@ -51,6 +53,9 @@ export interface OperationsHubProps {
   onSpendMegastructureResources: (delta: Partial<MegastructureResourceBundle>) => void;
   onAwardXP: (amount: number, reason: string) => void;
   onQuarksAwarded: (amount: number) => void;
+  // Saga ("Сага Ткача")
+  sagaChapters: SagaChapterView[];
+  sagaUnreadCount: number;
 }
 
 const PANEL_BG = 'rgba(10,15,25,0.97)';
@@ -72,6 +77,7 @@ export function OperationsHub(props: OperationsHubProps) {
     { id: 'signals', label: t('ops.tab_signals') },
     { id: 'event', label: t('ops.tab_event'), badge: eventBadge },
     { id: 'megastructure', label: t('ops.tab_megastructure') },
+    { id: 'saga', label: t('ops.tab_saga'), badge: props.sagaUnreadCount > 0 },
   ];
 
   return (
@@ -194,6 +200,7 @@ export function OperationsHub(props: OperationsHubProps) {
               onQuarksAwarded={props.onQuarksAwarded}
             />
           )}
+          {tab === 'saga' && <SagaContent chapters={props.sagaChapters} />}
         </div>
       </div>
     </div>
