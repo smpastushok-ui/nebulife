@@ -83,6 +83,12 @@ function buildTasks() {
   for (const s of manifest.intro.list) {
     tasks.push({ group: 'intro', name: s.name, prompt: s.prompt, duration: s.duration, loop: s.loop });
   }
+  // precursor (Сигнали Предтеч card-acquisition stingers — nested under sfx/precursor/)
+  if (manifest.precursor) {
+    for (const s of manifest.precursor.list) {
+      tasks.push({ group: 'precursor', name: s.name, prompt: s.prompt, duration: s.duration, loop: s.loop });
+    }
+  }
   return tasks
     .filter((t) => !GROUP || t.group === GROUP)
     .filter((t) => ONLY.length === 0 || ONLY.includes(t.name))
@@ -139,6 +145,7 @@ function ffmpeg(arglist) {
 function transcode(rawPath, name) {
   const mp3 = path.join(OUT_DIR, `${name}.mp3`);
   const webm = path.join(OUT_DIR, `${name}.webm`);
+  fs.mkdirSync(path.dirname(mp3), { recursive: true }); // supports nested names (e.g. "precursor/acquire-1")
   ffmpeg(['-i', rawPath, '-af', AF, '-c:a', 'libmp3lame', '-q:a', '4', '-ar', '44100', mp3]);
   ffmpeg(['-i', rawPath, '-af', AF, '-c:a', 'libopus', '-b:a', '96k', webm]);
   return { mp3, webm };
@@ -197,6 +204,7 @@ async function main() {
       process.stdout.write(`${tag} … `);
       const raw = await generateRaw(t);
       const rawPath = path.join(tmpDir, `${t.name}.mp3`);
+      fs.mkdirSync(path.dirname(rawPath), { recursive: true }); // supports nested names (e.g. "precursor/acquire-1")
       fs.writeFileSync(rawPath, raw);
       transcode(rawPath, t.name);
       ok++;

@@ -35,6 +35,16 @@
     ]
   },
 
+  "precursor": {
+    "_comment": "Сигнали Предтеч (Precursor Signals) card-acquisition stingers — 4 selectable variants, ~2-3s one-shots, played at the moment the card flips face-up. Files: precursor/acquire-<1..4>. See PRECURSOR_SFX_PROMPTS.md at repo root for the same prompts in ready-to-paste form.",
+    "list": [
+      { "name": "precursor/acquire-1", "duration": 2.5, "loop": false, "prompt": "A single crystalline ping, a bright glassy bell-like chime with a long shimmering decay, clean and precise, a moment of discovery, one-shot" },
+      { "name": "precursor/acquire-2", "duration": 3, "loop": false, "prompt": "A low ancient hum slowly swelling into a warm resonant drone, deep and vast like an old machine waking up, dignified and mysterious, one-shot" },
+      { "name": "precursor/acquire-3", "duration": 2.5, "loop": false, "prompt": "A short radio burst decoding into a clean confirmation tone, digital data-static resolving into a clear bright pulse, a signal being successfully decrypted, one-shot" },
+      { "name": "precursor/acquire-4", "duration": 3, "loop": false, "prompt": "A harmonic choir pulse, layered ethereal vocal-like pad tones swelling together in a single consonant chord, otherworldly and reverent, one-shot" }
+    ]
+  },
+
   "intro": {
     "_comment": "Intro / onboarding SFX from SOUND_PLAN_INTRO.md.",
     "list": [
