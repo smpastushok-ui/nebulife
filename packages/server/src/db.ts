@@ -1840,6 +1840,21 @@ export async function getSurfaceMapById(id: string): Promise<SurfaceMapRow | nul
   return (rows[0] as SurfaceMapRow) ?? null;
 }
 
+/**
+ * True once the player has at least one generated surface photo on ANY planet.
+ * Used by /api/surface/generate for the "first surface photo is free" rule
+ * (per player, not per planet).
+ */
+export async function playerHasSurfacePhoto(playerId: string): Promise<boolean> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT 1 FROM surface_maps
+    WHERE player_id = ${playerId} AND photo_url IS NOT NULL
+    LIMIT 1
+  `;
+  return rows.length > 0;
+}
+
 export async function updateSurfaceMap(
   id: string,
   updates: Partial<{
@@ -4526,7 +4541,7 @@ export async function getGalaxyStats(clusterId: string): Promise<GalaxyStats> {
 }
 
 /** Daily login bonus amount (per Game Bible §0.4-bis: tighter free-AI control) */
-export const DAILY_LOGIN_BONUS = 1;
+export const DAILY_LOGIN_BONUS = 2;
 
 /**
  * Award daily login bonus if last_login was on a different calendar day (UTC).
@@ -4585,7 +4600,7 @@ export async function claimDailyLoginBonus(playerId: string): Promise<{
 // ---------------------------------------------------------------------------
 
 export const DIRECTIVE_QUARKS = 1;
-export const DIRECTIVE_STREAK_QUARKS = 3;
+export const DIRECTIVE_STREAK_QUARKS = 5;
 export const DIRECTIVE_STREAK_LEN = 7;
 
 /**

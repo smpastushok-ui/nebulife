@@ -8,7 +8,7 @@ import { authenticate } from '../../packages/server/src/auth-middleware.js';
  * GET  — streak info: { streak, claimedToday }
  * POST — claim today's reward (idempotent per UTC day):
  *        { credited, newBalance, streak }
- *        credited = 1 normally, 3 on every 7th consecutive day.
+ *        credited = 1 normally, 5 on every 7th consecutive day.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const auth = await authenticate(req, res);

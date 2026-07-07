@@ -8,8 +8,8 @@ import { useTranslation } from 'react-i18next';
 // the singleton will flush them one-by-one through the visible toast renderer.
 //
 // Sources that should enqueue toasts:
-//   - Starter wallet on first registration (+20⚛)
-//   - Daily login bonus (+1⚛)
+//   - Starter wallet on first registration (+50⚛)
+//   - Daily login bonus (+2⚛)
 //   - Ad-rewarded videos (+5⚛)
 //   - Quiz / Academy correct answer (+1⚛)
 //   - Photo refund on Kling failure (+10⚛)

@@ -4,7 +4,7 @@
 // Tasks are picked deterministically from (playerId, UTC date) so a reload or
 // device switch always shows the same set. Progress is tracked client-side in
 // game_state; completing all 3 unlocks a server-validated claim that credits
-// quarks (1 normally, 3 on every 7th consecutive day).
+// quarks (1 normally, 5 on every 7th consecutive day).
 // ---------------------------------------------------------------------------
 
 import { cometHash } from './comet-event.js';
@@ -50,7 +50,7 @@ export const DAILY_DIRECTIVE_COUNT = 3;
 
 /** Quark rewards (server-authoritative, mirrored here for UI copy). */
 export const DIRECTIVE_REWARD_QUARKS = 1;
-export const DIRECTIVE_STREAK_REWARD_QUARKS = 3;
+export const DIRECTIVE_STREAK_REWARD_QUARKS = 5;
 export const DIRECTIVE_STREAK_LENGTH = 7;
 
 export interface DailyDirectiveState {

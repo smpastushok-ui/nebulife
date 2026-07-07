@@ -4,6 +4,7 @@ import {
   getSurfaceMap,
   saveSurfaceMap,
   updateSurfaceMap,
+  playerHasSurfacePhoto,
   deductQuarks,
   creditQuarks,
   getPlayer,
@@ -71,9 +72,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Check if surface map already exists for this planet
     const existingMap = await getSurfaceMap(systemId, planetId);
 
-    // Determine pricing
-    // First generation of home planet is free; all others cost 10⚛
+    // Determine pricing.
+    // The player's FIRST surface photo ever (any planet) is free — onboarding
+    // wow-moment. The first generation of the home planet also stays free.
+    // All other generations cost SURFACE_GENERATION_COST.
     if (!existingMap && planetData.isHomePlanet) {
+      isFree = true;
+    } else if (!(await playerHasSurfacePhoto(playerId))) {
       isFree = true;
     }
 
@@ -135,6 +140,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       photoUrl: surfaceMap?.photo_url ?? generated.imageUrl,
       zoneMap: surfaceMap?.zone_map,
       generationCount: surfaceMap?.generation_count,
+      wasFree: isFree,
     });
   } catch (error) {
     console.error('Surface generation error:', error);

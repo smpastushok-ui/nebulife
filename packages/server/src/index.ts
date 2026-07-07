@@ -51,6 +51,7 @@ export {
   getSurfaceMap,
   getSurfaceMapById,
   updateSurfaceMap,
+  playerHasSurfacePhoto,
   // Quarks
   deductQuarks,
   creditQuarks,
@@ -318,12 +319,8 @@ export type { StoredGlb } from './glb-storage.js';
 
 // Biosphere creature prompt helpers
 export {
-  CREATURE_PROMPT_MIN_LENGTH,
-  CREATURE_PROMPT_MAX_LENGTH,
   CREATURE_GENERATION_COST_QUARKS,
   MAX_CREATURES_PER_PLANET,
-  normalizeCreatureDescription,
-  validateCreatureDescription,
   buildCreatureImagePrompt,
   buildOffspringDescription,
   buildHybridDescription,
@@ -348,8 +345,8 @@ export { buildLifeformPhotoPrompt, buildLifeformVideoPrompt } from './lifeform-p
 export type { LifeformRarity } from './lifeform-prompt-builder.js';
 
 // Gemini AI image generation + moderation + A.S.T.R.A. chat + daily content
-export { generateImageWithGemini, generateImageWithGeminiFromImages, computeAspectRatio, moderateMessage, chatWithAstra, generateDailyQuiz, generateDailyFunFact, moderateCreaturePrompt, generateSagaChapterText } from './gemini-client.js';
-export type { GeminiGenerateImageRequest, GeminiGenerateImageFromImagesRequest, GeminiGenerateImageResult, ModerationResult, ModerationVerdict, AstraMessage, AstraChatResult, CreaturePromptVerdict, CreaturePromptModerationResult } from './gemini-client.js';
+export { generateImageWithGemini, generateImageWithGeminiFromImages, computeAspectRatio, moderateMessage, chatWithAstra, generateDailyQuiz, generateDailyFunFact, generateSagaChapterText } from './gemini-client.js';
+export type { GeminiGenerateImageRequest, GeminiGenerateImageFromImagesRequest, GeminiGenerateImageResult, ModerationResult, ModerationVerdict, AstraMessage, AstraChatResult } from './gemini-client.js';
 
 // "Сага Ткача" — narrator + illustration prompt builders (migration 044)
 export { buildSagaChapterPrompt, parseSagaChapterResponse } from './saga-prompt.js';
