@@ -5,7 +5,19 @@ import { App } from './App.js';
 import { getDeviceTier } from './utils/device-tier.js';
 import { LandingPage } from './ui/landing/LandingPage.js';
 import { AppReviewPrompt } from './ui/components/AppReviewPrompt.js';
-import { OpsHubPreview } from './dev/OpsHubPreview.js';
+
+// Dev-only Ops Hub preview harness. `src/dev/` is gitignored (local scratch
+// harnesses, see .gitignore) so it does NOT exist on CI/Vercel — a static
+// import there breaks `tsc && vite build` and blocks the whole production
+// deploy (client + /api functions). import.meta.glob resolves to an empty
+// map when the file is absent, so the preview route simply disappears.
+const opsHubPreviewLoader = import.meta.glob('./dev/OpsHubPreview.tsx')['./dev/OpsHubPreview.tsx'];
+const OpsHubPreviewLazy = opsHubPreviewLoader
+  ? React.lazy(async () => {
+      const mod = await opsHubPreviewLoader() as { OpsHubPreview: React.ComponentType };
+      return { default: mod.OpsHubPreview };
+    })
+  : null;
 
 // ---------------------------------------------------------------------------
 // Perf-tier root attribute + global CSS kill-switch
@@ -143,8 +155,12 @@ function RootRouter() {
     return <AppReviewPrompt onClose={() => { /* preview only */ }} />;
   }
 
-  if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('ops_preview') === '1') {
-    return <OpsHubPreview />;
+  if (import.meta.env.DEV && OpsHubPreviewLazy && new URLSearchParams(window.location.search).get('ops_preview') === '1') {
+    return (
+      <React.Suspense fallback={null}>
+        <OpsHubPreviewLazy />
+      </React.Suspense>
+    );
   }
 
   if (shouldRenderGame(window.location.pathname, window.location.search)) {
