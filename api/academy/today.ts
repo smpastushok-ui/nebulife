@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
-import { getAcademyProgress, getCachedLesson, saveCachedLesson, getPlayer, updateCachedLessonQuiz } from '../../packages/server/src/db.js';
+import { getAcademyProgress, getCachedLesson, saveCachedLesson, getPlayer, updateCachedLessonQuiz, updateAcademyProgress } from '../../packages/server/src/db.js';
 import { generateEducationPackage, generateLessonImage } from '../../packages/server/src/education-generator.js';
 import { selectEncyclopediaQuiz } from '../../packages/server/src/encyclopedia-quiz-bank.js';
 
@@ -27,6 +27,25 @@ function getAnsweredQuizIds(categoryProgress: AcademyCategoryProgress): Set<stri
   const answers = categoryProgress.__quiz_answers ?? {};
   const ids = Object.entries(answers).map(([lessonId, answer]) => answer.quizId ?? lessonId);
   return new Set(ids);
+}
+
+/**
+ * Persist today's quest as the player's active quest so that
+ * /api/academy/complete-quest can validate and complete it.
+ * Historically nothing ever wrote active_quest, so every quest completion
+ * returned "No active quest" and players never got an acknowledgement.
+ */
+async function ensureActiveQuest(
+  playerId: string,
+  progress: { last_quest_date: string | null; active_quest: unknown },
+  today: string,
+  lessonId: string,
+  quest: unknown,
+): Promise<void> {
+  if (progress.last_quest_date === today) return; // quest already completed today
+  const current = progress.active_quest as { lessonId?: string } | null;
+  if (current && current.lessonId === lessonId) return;
+  await updateAcademyProgress(playerId, { active_quest: { lessonId, quest } });
 }
 
 /**
@@ -87,6 +106,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (cachedQuiz.id !== quiz.id) {
         await updateCachedLessonQuiz(today, nextLesson.id, progress.difficulty, lang, quiz);
       }
+      await ensureActiveQuest(auth.playerId, progress, today, cached.topic_id, cached.quest_data);
       return res.status(200).json({
         lesson: {
           date: today,
@@ -137,6 +157,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       quiz,
       lang,
     );
+
+    await ensureActiveQuest(auth.playerId, progress, today, nextLesson.id, generated.quest);
 
     return res.status(200).json({
       lesson: {

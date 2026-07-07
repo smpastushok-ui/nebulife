@@ -51,7 +51,6 @@ interface AlphaPromoStoredState {
   shownToday: number;
   lockedOpportunities: number;
   lastShownAt: number;
-  lastVideoId?: string;
   seenOpportunities: Record<string, number>;
   shownObjects: Record<string, number>;
 }
@@ -62,6 +61,12 @@ const DAILY_SHOW_LIMIT = 3;
 const SESSION_SHOW_LIMIT = 1;
 const COOLDOWN_MS = 20 * 60 * 1000;
 const CADENCE = 3;
+// Per-player "already watched" list, keyed by video id. Prefixed (not a fixed
+// key) because the player id is baked into the storage key — see
+// SYNCED_UI_FLAG_PREFIXES in App.tsx, which mirrors this into
+// game_state.ui_flags so the no-repeat guarantee survives reinstall/relogin
+// on a different device, not just this browser's localStorage.
+const SEEN_VIDEOS_STORAGE_PREFIX = 'nebulife_alpha_promo_seen_';
 const ALPHA_PROMO_VIDEO_BASE_PATH = '/alpha-promo';
 const FALLBACK_ALPHA_PROMO_VIDEO: AlphaPromoVideo = {
   id: 'astra-alpha-signal',
@@ -97,6 +102,27 @@ function storageKey(playerId: string): string {
   return `${STORAGE_PREFIX}_${playerId || 'local'}`;
 }
 
+function seenVideosKey(playerId: string): string {
+  return `${SEEN_VIDEOS_STORAGE_PREFIX}${playerId || 'local'}`;
+}
+
+function readSeenVideoIds(playerId: string): string[] {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(seenVideosKey(playerId)) ?? '[]') as unknown;
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeSeenVideoIds(playerId: string, ids: string[]): void {
+  try {
+    localStorage.setItem(seenVideosKey(playerId), JSON.stringify(ids));
+  } catch {
+    // Non-critical UI state.
+  }
+}
+
 function getSessionCount(): number {
   const value = (globalThis as unknown as Record<string, unknown>)[SESSION_KEY];
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
@@ -112,7 +138,6 @@ function emptyState(now: number): AlphaPromoStoredState {
     shownToday: 0,
     lockedOpportunities: 0,
     lastShownAt: 0,
-    lastVideoId: undefined,
     seenOpportunities: {},
     shownObjects: {},
   };
@@ -128,7 +153,6 @@ function readState(playerId: string, now: number): AlphaPromoStoredState {
       shownToday: parsed.day === day && typeof parsed.shownToday === 'number' ? parsed.shownToday : 0,
       lockedOpportunities: typeof parsed.lockedOpportunities === 'number' ? parsed.lockedOpportunities : 0,
       lastShownAt: typeof parsed.lastShownAt === 'number' ? parsed.lastShownAt : 0,
-      lastVideoId: typeof parsed.lastVideoId === 'string' ? parsed.lastVideoId : undefined,
       seenOpportunities: parsed.seenOpportunities && typeof parsed.seenOpportunities === 'object' ? parsed.seenOpportunities as Record<string, number> : {},
       shownObjects: parsed.shownObjects && typeof parsed.shownObjects === 'object' ? parsed.shownObjects as Record<string, number> : {},
     };
@@ -151,14 +175,33 @@ function isCommonOrLower(rarity?: DiscoveryRarity): boolean {
 
 export function pickRandomAlphaPromoVideo(
   videos: readonly AlphaPromoVideo[] = ALPHA_PROMO_VIDEOS,
-  avoidVideoId?: string,
 ): AlphaPromoVideo {
   const available = videos.length > 0 ? videos : [FALLBACK_ALPHA_PROMO_VIDEO];
-  const pool = available.length > 1 && avoidVideoId
-    ? available.filter((video) => video.id !== avoidVideoId)
-    : available;
-  const index = Math.floor(Math.random() * pool.length);
-  return pool[index] ?? available[0] ?? FALLBACK_ALPHA_PROMO_VIDEO;
+  const index = Math.floor(Math.random() * available.length);
+  return available[index] ?? available[0] ?? FALLBACK_ALPHA_PROMO_VIDEO;
+}
+
+/**
+ * Pick the next promo video for a player with a "shuffle bag" no-repeat
+ * guarantee: every registered video is shown at most once before any video
+ * repeats. Once the player has seen every video at least once, the seen-list
+ * resets and the rotation starts a fresh cycle (rather than stopping the
+ * promo entirely) — the videos exist to drive quark purchases, and going
+ * permanently silent after ~9 views would throw away a working monetization
+ * touchpoint for long-lived players. Reshuffling keeps the "never twice in a
+ * row / never an obvious short loop" guarantee while keeping the feature alive.
+ */
+export function pickNextAlphaPromoVideoForPlayer(
+  playerId: string,
+  videos: readonly AlphaPromoVideo[] = ALPHA_PROMO_VIDEOS,
+): AlphaPromoVideo {
+  const seenIds = readSeenVideoIds(playerId);
+  const unseen = videos.filter((video) => !seenIds.includes(video.id));
+  const startingNewCycle = unseen.length === 0;
+  const pool = startingNewCycle ? videos : unseen;
+  const video = pickRandomAlphaPromoVideo(pool);
+  writeSeenVideoIds(playerId, startingNewCycle ? [video.id] : [...seenIds, video.id]);
+  return video;
 }
 
 export function shouldShowAlphaPromo(input: AlphaPromoDecisionInput): AlphaPromoDecision {
@@ -191,8 +234,7 @@ export function shouldShowAlphaPromo(input: AlphaPromoDecisionInput): AlphaPromo
   state.shownToday += 1;
   state.lastShownAt = now;
   state.shownObjects[objectKey] = now;
-  const video = pickRandomAlphaPromoVideo(ALPHA_PROMO_VIDEOS, state.lastVideoId);
-  state.lastVideoId = video.id;
+  const video = pickNextAlphaPromoVideoForPlayer(input.playerId);
   writeState(input.playerId, state);
   setSessionCount(sessionCount + 1);
 

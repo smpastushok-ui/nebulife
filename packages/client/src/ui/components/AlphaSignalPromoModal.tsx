@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useVideoAudioFocus } from '../../audio/useVideoAudioFocus.js';
 
@@ -26,20 +26,27 @@ export function AlphaSignalPromoModal({
 }: AlphaSignalPromoModalProps) {
   const { t } = useTranslation();
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [phase, setPhase] = useState<'signal' | 'video'>('signal');
+  // 'gate': "incoming transmission" screen with a launch button, no playback
+  // yet. 'video': playback started, unmuted, from the click itself.
+  //
+  // Browsers only allow unmuted autoplay from within the synchronous call
+  // stack of a real user gesture (a click), never from a timer. The previous
+  // version auto-started playback from a setTimeout, so browsers either
+  // silently played it back muted or blocked it outright — which is exactly
+  // why testers reported "plays fine, but no sound". Gating playback behind
+  // this explicit button and calling video.play() directly in the click
+  // handler (see handleLaunch) gives us a real user gesture, so audio is
+  // reliably unlocked — no `muted` attribute needed or wanted here.
+  const [phase, setPhase] = useState<'gate' | 'video'>('gate');
   const [needsTap, setNeedsTap] = useState(false);
   const [ended, setEnded] = useState(false);
   const { enterVideoFocus, exitVideoFocus } = useVideoAudioFocus();
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => setPhase('video'), 1000);
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    if (phase !== 'video') return;
+  const handleLaunch = () => {
+    setPhase('video');
     const video = videoRef.current;
     if (!video) return;
+    video.muted = false;
     // <source> children don't get picked up by an already-loaded <video>;
     // force the resource-selection algorithm to re-run for this src pair.
     video.load();
@@ -48,11 +55,12 @@ export function AlphaSignalPromoModal({
     if (playPromise && typeof playPromise.catch === 'function') {
       playPromise.catch(() => setNeedsTap(true));
     }
-  }, [phase, videoSrc, videoFallbackSrc]);
+  };
 
   const handleManualPlay = () => {
     const video = videoRef.current;
     if (!video) return;
+    video.muted = false;
     video.play().then(() => setNeedsTap(false)).catch(() => setNeedsTap(true));
   };
 
@@ -92,10 +100,15 @@ export function AlphaSignalPromoModal({
             <span className="alphaCorner bottomLeft" />
             <span className="alphaCorner bottomRight" />
 
-            {phase === 'signal' && (
+            {phase === 'gate' && (
               <div className="alphaSignalNoise">
                 <div className="alphaSignalSweep" />
                 <div className="alphaSignalStatus">{t('alpha_signal.receiving')}</div>
+                <button type="button" className="alphaSignalLaunchBtn" onClick={handleLaunch}>
+                  <span className="alphaSignalLaunchIcon" aria-hidden="true" />
+                  {t('alpha_signal.launch_cta')}
+                </button>
+                <div className="alphaSignalLaunchHint">{t('alpha_signal.launch_hint')}</div>
               </div>
             )}
 
@@ -274,8 +287,11 @@ const styles = `
   inset: 0;
   z-index: 2;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  padding: 0 16px;
+  text-align: center;
   background:
     repeating-linear-gradient(0deg, rgba(123,184,255,0.12) 0 1px, transparent 1px 5px),
     repeating-linear-gradient(90deg, rgba(221,170,68,0.08) 0 1px, transparent 1px 9px),
@@ -291,7 +307,7 @@ const styles = `
   height: 22%;
   background: linear-gradient(180deg, transparent, rgba(123,184,255,0.36), transparent);
   filter: blur(2px);
-  animation: alphaSweep 1s ease-out forwards;
+  animation: alphaSweep 2.6s ease-in-out infinite;
 }
 .alphaSignalStatus {
   color: #7bb8ff;
@@ -299,6 +315,43 @@ const styles = `
   letter-spacing: 2px;
   text-transform: uppercase;
   text-shadow: 0 0 16px rgba(123,184,255,0.7);
+}
+.alphaSignalLaunchBtn {
+  position: relative;
+  z-index: 4;
+  margin-top: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 13px 22px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,204,102,0.78);
+  background: linear-gradient(180deg, rgba(90,58,14,0.96), rgba(38,24,6,0.96));
+  box-shadow: 0 0 26px rgba(221,170,68,0.32), inset 0 0 20px rgba(255,204,102,0.1);
+  color: #ffe0a0;
+  font-family: monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.alphaSignalLaunchIcon {
+  width: 0;
+  height: 0;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-left: 9px solid #ffe0a0;
+}
+.alphaSignalLaunchHint {
+  position: relative;
+  z-index: 4;
+  margin-top: 10px;
+  color: #8899aa;
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-align: center;
+  max-width: 82%;
 }
 .alphaSignalTap {
   position: absolute;

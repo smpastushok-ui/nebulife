@@ -66,7 +66,8 @@ interface HexSlotProps {
   /** Called when the player taps a locked hex they can't afford. Parent uses
    *  this to surface the quarks-pay shortcut. */
   onInsufficient?: (id: string) => void;
-  onHarvest: (id: string, sx: number, sy: number) => void;
+  /** Returns the actually credited amount (null when nothing was harvested). */
+  onHarvest: (id: string, sx: number, sy: number) => number | null;
   onBuild: (id: string) => void;
   onInspect: (id: string) => void;
   onDestroy: (id: string) => void;
@@ -518,11 +519,15 @@ export const HexSlot = React.memo(function HexSlot({
       }
     } else if (slot.state === 'resource') {
       if (isResourceReady(slot.lastHarvestedAt, slot.yieldPerHour, slot.ring)) {
-        const amount = slot.yieldPerHour ?? 1;
-        setHarvestAnim(amount);
-        playSfx('harvest-all', 0.5);
-        onHarvest(id, e.clientX, e.clientY);
-        setTimeout(() => setHarvestAnim(null), 1200);
+        // Show the ACTUAL credited amount (after storage caps, stock depletion
+        // and building bonuses) — previously this showed raw yieldPerHour and
+        // played the harvest sound even when nothing was credited.
+        const credited = onHarvest(id, e.clientX, e.clientY);
+        if (typeof credited === 'number' && credited > 0) {
+          setHarvestAnim(Math.round(credited * 10) / 10);
+          playSfx('harvest-all', 0.5);
+          setTimeout(() => setHarvestAnim(null), 1200);
+        }
       } else {
         setResourceHint(true);
         setTimeout(() => setResourceHint(false), 1800);

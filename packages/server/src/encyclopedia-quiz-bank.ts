@@ -141,7 +141,11 @@ export async function selectEncyclopediaQuiz(params: {
   const bank = await getEncyclopediaQuizBank(params.lang);
   if (bank.length === 0) throw new Error(`No encyclopedia quiz questions available for ${params.lang}`);
 
-  if (params.preferredQuizId) {
+  // Honor the cached/preferred quiz only if THIS player hasn't answered it
+  // yet. The lesson cache is shared across players, so the cached quiz may
+  // already be in this player's answered set — returning it made the daily
+  // quiz appear pre-answered and unplayable (player feedback bug).
+  if (params.preferredQuizId && !params.answeredQuizIds.has(params.preferredQuizId)) {
     const preferred = bank.find((quiz) => quiz.id === params.preferredQuizId);
     if (preferred) return preferred;
   }

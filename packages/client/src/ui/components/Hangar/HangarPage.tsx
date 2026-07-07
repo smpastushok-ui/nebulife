@@ -430,61 +430,70 @@ export const HangarPage: React.FC<HangarPageProps> = ({
         <div style={S.starfield} />
         <div style={S.vignette} />
         <div style={S.hangarRibs} />
-        <div style={{ ...S.scroll, justifyContent: 'center' }}>
-          <div style={{
-            ...S.header,
-            opacity: mounted ? 1 : 0,
-            transform: mounted ? 'translateY(0)' : 'translateY(-20px)',
-            transition: 'opacity 0.5s ease, transform 0.5s ease',
-          }}>
-            <button style={S.backBtn} onClick={onBack}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M19 12H5M12 19l-7-7 7-7" />
-              </svg>
-              {t('hangar.back')}
-            </button>
-            <div style={S.titleBlock}>
-              <h1 style={S.title}>{t('hangar.mode_select.title' as Parameters<typeof t>[0])}</h1>
-              <div style={S.subtitle}>{t('hangar.mode_select.subtitle' as Parameters<typeof t>[0])}</div>
+        <div style={S.scroll}>
+          {/* Safe-centering wrapper: `margin: auto 0` centers this block when
+              it fits the viewport, but — unlike `justify-content: center`
+              on the scroll container — it collapses to 0 (top-aligned)
+              instead of clipping when content is taller than the screen.
+              This keeps the header (and its safe-area padding) below the
+              OS status bar/notch on short phones instead of pushing it
+              off-screen above y=0 with no way to scroll back up to it. */}
+          <div style={S.modeSelectCenterWrap}>
+            <div style={{
+              ...S.header,
+              opacity: mounted ? 1 : 0,
+              transform: mounted ? 'translateY(0)' : 'translateY(-20px)',
+              transition: 'opacity 0.5s ease, transform 0.5s ease',
+            }}>
+              <button style={S.backBtn} onClick={onBack}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+                {t('hangar.back')}
+              </button>
+              <div style={S.titleBlock}>
+                <h1 style={S.title}>{t('hangar.mode_select.title' as Parameters<typeof t>[0])}</h1>
+                <div style={S.subtitle}>{t('hangar.mode_select.subtitle' as Parameters<typeof t>[0])}</div>
+              </div>
+              <div style={S.badge}>
+                <div style={S.badgeLabel}>{t('hangar.pilot')}</div>
+                <div style={S.badgeLevel}>L{playerLevel}</div>
+              </div>
             </div>
-            <div style={S.badge}>
-              <div style={S.badgeLabel}>{t('hangar.pilot')}</div>
-              <div style={S.badgeLevel}>L{playerLevel}</div>
-            </div>
-          </div>
 
-          <div style={S.modeSelectGrid}>
-            <button
-              style={{
-                ...S.modeCard,
-                borderColor: '#446688',
-                background: 'radial-gradient(circle at 30% 20%, rgba(123,184,255,0.22), transparent 42%), rgba(5,10,20,0.9)',
-                opacity: mounted ? 1 : 0,
-                transform: mounted ? 'translateY(0)' : 'translateY(18px)',
-              }}
-              onClick={handleOpenArenaRoute}
-            >
-              <div style={{ ...S.modeCardKicker, color: '#7bb8ff' }}>{t('hangar.mode_select.arena_kicker' as Parameters<typeof t>[0])}</div>
-              <div style={S.modeCardTitle}>{t('hangar.mode_select.arena_title' as Parameters<typeof t>[0])}</div>
-              <div style={S.modeCardDesc}>{t('hangar.mode_select.arena_desc' as Parameters<typeof t>[0])}</div>
-              <span style={{ ...S.modeCardAction, borderColor: '#7bb8ff', color: '#7bb8ff' }}>{t('hangar.mode_select.enter' as Parameters<typeof t>[0])}</span>
-            </button>
-            <button
-              style={{
-                ...S.modeCard,
-                borderColor: onEnterCosmicBattle ? '#665544' : '#223344',
-                background: 'radial-gradient(circle at 70% 25%, rgba(255,136,68,0.18), transparent 45%), rgba(5,10,20,0.9)',
-                opacity: mounted ? (onEnterCosmicBattle ? 1 : 0.56) : 0,
-                transform: mounted ? 'translateY(0)' : 'translateY(18px)',
-              }}
-              onClick={handleOpenCosmicBattle}
-              disabled={!onEnterCosmicBattle}
-            >
-              <div style={{ ...S.modeCardKicker, color: '#ff8844' }}>{t('hangar.mode_select.cosmic_kicker' as Parameters<typeof t>[0])}</div>
-              <div style={S.modeCardTitle}>{t('hangar.mode_select.cosmic_title' as Parameters<typeof t>[0])}</div>
-              <div style={S.modeCardDesc}>{t('hangar.mode_select.cosmic_desc' as Parameters<typeof t>[0])}</div>
-              <span style={{ ...S.modeCardAction, borderColor: '#ff8844', color: '#ff8844' }}>{t('hangar.mode_select.enter' as Parameters<typeof t>[0])}</span>
-            </button>
+            <div style={S.modeSelectGrid}>
+              <button
+                style={{
+                  ...S.modeCard,
+                  borderColor: '#446688',
+                  background: 'radial-gradient(circle at 30% 20%, rgba(123,184,255,0.22), transparent 42%), rgba(5,10,20,0.9)',
+                  opacity: mounted ? 1 : 0,
+                  transform: mounted ? 'translateY(0)' : 'translateY(18px)',
+                }}
+                onClick={handleOpenArenaRoute}
+              >
+                <div style={{ ...S.modeCardKicker, color: '#7bb8ff' }}>{t('hangar.mode_select.arena_kicker' as Parameters<typeof t>[0])}</div>
+                <div style={S.modeCardTitle}>{t('hangar.mode_select.arena_title' as Parameters<typeof t>[0])}</div>
+                <div style={S.modeCardDesc}>{t('hangar.mode_select.arena_desc' as Parameters<typeof t>[0])}</div>
+                <span style={{ ...S.modeCardAction, borderColor: '#7bb8ff', color: '#7bb8ff' }}>{t('hangar.mode_select.enter' as Parameters<typeof t>[0])}</span>
+              </button>
+              <button
+                style={{
+                  ...S.modeCard,
+                  borderColor: onEnterCosmicBattle ? '#665544' : '#223344',
+                  background: 'radial-gradient(circle at 70% 25%, rgba(255,136,68,0.18), transparent 45%), rgba(5,10,20,0.9)',
+                  opacity: mounted ? (onEnterCosmicBattle ? 1 : 0.56) : 0,
+                  transform: mounted ? 'translateY(0)' : 'translateY(18px)',
+                }}
+                onClick={handleOpenCosmicBattle}
+                disabled={!onEnterCosmicBattle}
+              >
+                <div style={{ ...S.modeCardKicker, color: '#ff8844' }}>{t('hangar.mode_select.cosmic_kicker' as Parameters<typeof t>[0])}</div>
+                <div style={S.modeCardTitle}>{t('hangar.mode_select.cosmic_title' as Parameters<typeof t>[0])}</div>
+                <div style={S.modeCardDesc}>{t('hangar.mode_select.cosmic_desc' as Parameters<typeof t>[0])}</div>
+                <span style={{ ...S.modeCardAction, borderColor: '#ff8844', color: '#ff8844' }}>{t('hangar.mode_select.enter' as Parameters<typeof t>[0])}</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1284,6 +1293,17 @@ const S: Record<string, React.CSSProperties> = {
   },
   desktopFlushBlock: {
     margin: 0,
+  },
+  // `margin: auto 0` centers this block vertically when it fits the
+  // viewport, but — unlike `justify-content: center` on the scrolling
+  // parent — collapses to 0 instead of clipping when it's taller than
+  // the screen (phones), so the header always stays reachable at the top.
+  modeSelectCenterWrap: {
+    width: '100%',
+    margin: 'auto 0',
+    display: 'flex',
+    flexDirection: 'column',
+    flexShrink: 0,
   },
   modeSelectGrid: {
     width: 'min(1120px, calc(100vw - 32px))',

@@ -30,4 +30,6 @@ export const ALPHA_PROMO_VIDEOS: readonly AlphaPromoVideo[] = [
 ```
 
 The game randomly selects one registered video when the Alpha promo is allowed.
-If more than one video exists, it avoids showing the same video twice in a row.
+Each player sees every registered video at most once (no repeats) before the
+rotation reshuffles and starts a fresh cycle — see
+`pickNextAlphaPromoVideoForPlayer()` in `alpha-promo-manager.ts`.

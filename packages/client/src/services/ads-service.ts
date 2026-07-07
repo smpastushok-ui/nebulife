@@ -441,7 +441,14 @@ export function getAdProgress(rewardType: RewardType): number {
 
 export type WatchAdsResult =
   | { rewarded: true; photoToken?: string; amount?: number }
-  | { rewarded: false; reason: 'dismissed' | 'no_fill' | 'daily_limit' | 'error' };
+  | { rewarded: false; reason: 'dismissed' | 'no_fill' | 'daily_limit' | 'error' | 'busy' };
+
+/**
+ * Global in-flight guard. Some call sites (e.g. the Research Data modal
+ * button) had no local guard, so a double-tap started two concurrent ad
+ * loops — players then saw extra back-to-back ads beyond the UI counter.
+ */
+let adFlowInFlight = false;
 
 /**
  * Watch N rewarded ads with localStorage progress persistence.
@@ -450,6 +457,22 @@ export type WatchAdsResult =
  * The token is HMAC-signed by the server and cannot be forged by the client.
  */
 export async function watchAdsWithProgress(
+  rewardType: RewardType,
+  adsRequired: number,
+  onProgress: (completed: number, total: number) => void,
+): Promise<WatchAdsResult> {
+  // Reject overlapping flows — concurrent loops stack AdMob listeners and
+  // chain extra rewarded videos back-to-back.
+  if (adFlowInFlight) return { rewarded: false, reason: 'busy' };
+  adFlowInFlight = true;
+  try {
+    return await watchAdsWithProgressInner(rewardType, adsRequired, onProgress);
+  } finally {
+    adFlowInFlight = false;
+  }
+}
+
+async function watchAdsWithProgressInner(
   rewardType: RewardType,
   adsRequired: number,
   onProgress: (completed: number, total: number) => void,

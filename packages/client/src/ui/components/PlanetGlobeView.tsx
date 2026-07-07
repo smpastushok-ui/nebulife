@@ -1239,6 +1239,19 @@ let _doomsdayShipCache: THREE.Group | null = null;
 let _doomsdayShipLoading: Promise<void> | null = null;
 let _glowTextureCache: THREE.Texture | null = null;
 
+// Tracks whether this globe (home planet OR exosphere) has ever finished
+// building once in this page session. The very first 'home' mount happens
+// right after the StarBirthIntro cinematic, which already played its own
+// loading beat — showing the OrbitLoader again there reads as a duplicate/
+// flickering animation. Every mount AFTER that first one is a genuine
+// scene switch (e.g. "back" navigation to the home planet from galaxy/
+// system), where the heavy WebGL rebuild (shader compile, geometry) can
+// block the main thread for seconds — those DO need a visible loader, or
+// players see a frozen, content-less "blue screen" and think the game
+// hung. See CLAUDE.md bug report: back-navigation into home/exosphere
+// with no loading indicator.
+let _planetGlobeEverLoadedOnce = false;
+
 /* Коментар українською: Генерація гарної текстури круглого світіння сопла двигуна за допомогою Canvas-градієнта */
 function getGlowTexture(): THREE.Texture {
   if (_glowTextureCache) return _glowTextureCache;
@@ -1552,6 +1565,10 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
     const animFrameRef = useRef<number>(0);
 
     const [sceneLoaded, setSceneLoaded] = useState(false);
+    // Flips on after a short grace period if the scene is still building —
+    // swaps the loader's sub-label to an explicit "this can take a few
+    // seconds" reassurance so a genuinely slow rebuild never reads as frozen.
+    const [slowLoadHint, setSlowLoadHint] = useState(false);
 
     // Mutable refs for imperative handle
     const scanRef = useRef<ScanOverlay | null>(null);
@@ -1686,10 +1703,16 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       // it synchronously here so the loader paints from the very first frame of
       // every system switch — before the heavy WebGL build begins.
       setSceneLoaded(false);
+      setSlowLoadHint(false);
 
       const container = containerRef.current;
       if (!container) return;
       if (waitingForSkinTexture) return;
+
+      // If the build is still running after a couple seconds, swap in the
+      // "this can take a while" sub-label so a slow rebuild reads as
+      // in-progress rather than frozen.
+      const slowHintTimer = window.setTimeout(() => setSlowLoadHint(true), 2200);
 
       // Defer the heavy WebGL build by one painted frame. The scene construction
       // (geometry + shader compilation) runs synchronously and can block the main
@@ -2080,12 +2103,15 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
         document.head.appendChild(style);
       }
 
-      // Beautiful sci-fi loading delayed trigger. In 'home' mode this view
-      // mounts immediately after the boot StarBirthIntro (which already played
-      // its own "establishing orbit" loader), so a second 3.5s scanner here
-      // read as a duplicate/flickering orbital animation. Home mode therefore
-      // resolves almost instantly (and hides the scanner rings below); the full
-      // telemetry-sync scanner is kept for normal exosphere opens.
+      // Beautiful sci-fi loading delayed trigger. The very first 'home' mount
+      // happens immediately after the boot StarBirthIntro (which already
+      // played its own "establishing orbit" loader), so showing a second
+      // scanner right there reads as a duplicate/flickering animation — that
+      // one mount resolves almost instantly with the loader hidden below.
+      // Every mount after that (including this one, if `_planetGlobeEverLoadedOnce`
+      // is already true) is a genuine scene switch — e.g. "back" navigation
+      // to the home planet from galaxy/system — and DOES show the loader,
+      // since the heavy WebGL rebuild can block the main thread for seconds.
       // By the time `build()` returns, the scene is fully constructed and the
       // first frame has already rendered (animate() ran once above). Keep the
       // loader up for a short, fixed grace window so it never just flashes, then
@@ -2093,6 +2119,7 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       // unrelated to actual readiness.)
       const loadTimer = setTimeout(() => {
         setSceneLoaded(true);
+        _planetGlobeEverLoadedOnce = true;
         onSceneLoaded?.();
       }, mode === 'home' ? 400 : 700);
 
@@ -2166,6 +2193,7 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       return () => {
         cancelled = true;
         cancelAnimationFrame(raf1);
+        window.clearTimeout(slowHintTimer);
         teardown?.();
       };
     }, [planet.id, planet.type, planet.habitability.overall, star.id, validatedTextureUrl, waitingForSkinTexture]); // Re-create scene when planet/star/skin/promoted visuals change
@@ -2230,7 +2258,7 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
             {''}
           </div>
         )}
-        {!sceneLoaded && mode !== 'home' && (
+        {!sceneLoaded && (mode !== 'home' || _planetGlobeEverLoadedOnce) && (
           <div
             style={{
               position: 'absolute',
@@ -2243,10 +2271,22 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
               pointerEvents: 'none',
             }}
           >
-            {/* Lightweight shared orbit loader (replaces the old heavier scanner). */}
+            {/* Lightweight shared orbit loader (replaces the old heavier scanner).
+                Shown for every exosphere open, and for every "back to home
+                planet" navigation after the very first (boot) mount — see
+                `_planetGlobeEverLoadedOnce` above for why the first one is
+                skipped. */}
             <OrbitLoader
-              label={t('loading.starbirth.establishing')}
-              subLabel={t('loading.exosphereSync', { defaultValue: 'Syncing exosphere telemetry' })}
+              label={mode === 'home'
+                ? t('loading.returningToOrbit', { defaultValue: 'Returning to orbit...' })
+                : t('loading.starbirth.establishing')}
+              subLabel={mode === 'home'
+                ? t(slowLoadHint ? 'loading.syncingNavigationSlow' : 'loading.syncingNavigation', {
+                    defaultValue: slowLoadHint ? 'This may take a few seconds' : 'Syncing navigation',
+                  })
+                : t(slowLoadHint ? 'loading.exosphereSlow' : 'loading.exosphereSync', {
+                    defaultValue: slowLoadHint ? 'Loading the exosphere may take a few seconds' : 'Syncing exosphere telemetry',
+                  })}
             />
           </div>
         )}

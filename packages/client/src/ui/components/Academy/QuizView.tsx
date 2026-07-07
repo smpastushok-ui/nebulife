@@ -61,9 +61,16 @@ export function QuizView({ lesson, progress, onRefresh, onAwardXP }: QuizViewPro
       return;
     }
 
-    const answerKey = lesson.quiz.id ?? lesson.lessonId;
-    const savedAnswer = progress?.category_progress?.__quiz_answers?.[answerKey]
-      ?? progress?.category_progress?.__quiz_answers?.[lesson.lessonId];
+    // Restore a saved answer ONLY if it belongs to this exact quiz question.
+    // Legacy records were keyed by lessonId (pre-quizId era) and belong to a
+    // different question — restoring them made today's quiz appear already
+    // answered with a random option pre-selected (player feedback bug).
+    const quizAnswers = progress?.category_progress?.__quiz_answers ?? {};
+    const quizId = lesson.quiz.id;
+    const savedAnswer = quizId
+      ? (quizAnswers[quizId]
+        ?? Object.entries(quizAnswers).find(([, a]) => a.quizId === quizId)?.[1])
+      : quizAnswers[lesson.lessonId];
     if (savedAnswer && liveAnsweredLessonRef.current === lesson.lessonId) return;
     if (!savedAnswer) {
       setSelectedIndex(null);

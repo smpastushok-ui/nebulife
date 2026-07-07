@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AcademyProgress, DailyLesson } from '../../../api/academy-api.js';
-import { completeLesson } from '../../../api/academy-api.js';
+import { completeLesson, completeQuest } from '../../../api/academy-api.js';
 import { playSfx } from '../../../audio/SfxPlayer.js';
 import { trackEvent } from '../../../analytics/firebase-analytics.js';
 
@@ -67,6 +67,13 @@ export function LessonView({ lesson, progress, onRefresh, playerName }: LessonVi
         category: categoryTitle,
         difficulty: lesson.difficulty,
       });
+      // Knowledge quests are defined as "read the lesson and mark it read"
+      // (see QuestView hint), so marking the lesson read must also complete
+      // the daily quest — otherwise the player never gets an acknowledgement.
+      const today = new Date().toISOString().slice(0, 10);
+      if (lesson.quest?.type === 'knowledge' && progress?.last_quest_date !== today) {
+        try { await completeQuest(lesson.lessonId); } catch { /* quest completion is best-effort */ }
+      }
       onRefresh();
     } catch (err) {
       console.error('Failed to complete lesson:', err);

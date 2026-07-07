@@ -52,12 +52,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const cachedQuizData = lesson.quiz_data as { id?: string; correctIndex: number; explanation: string };
     const answeredQuizIds = new Set(Object.entries(quizAnswers).map(([key, answer]) => answer.quizId ?? key));
+
+    // If the submitted quiz was already answered, replay the stored result
+    // BEFORE re-selecting a quiz — selectEncyclopediaQuiz now skips answered
+    // preferred quizzes, so falling through would validate the player's
+    // answer against a different question.
+    const submittedQuizId = typeof quizId === 'string' ? quizId : cachedQuizData.id;
+    if (submittedQuizId) {
+      const previous = Object.entries(quizAnswers)
+        .find(([key, answer]) => (answer.quizId ?? key) === submittedQuizId)?.[1];
+      if (previous) {
+        return res.status(200).json({
+          correct: previous.correct,
+          correctIndex: previous.correctIndex,
+          explanation: previous.explanation,
+          xpAwarded: 0,
+          quarksAwarded: 0,
+          answerIndex: previous.answerIndex,
+          answeredAt: previous.answeredAt,
+          quizId: previous.quizId ?? submittedQuizId,
+          alreadyAnswered: true,
+        });
+      }
+    }
+
     const quizData = await selectEncyclopediaQuiz({
       lang,
       topicId: lessonId,
       seed: today,
       answeredQuizIds,
-      preferredQuizId: typeof quizId === 'string' ? quizId : cachedQuizData.id,
+      preferredQuizId: submittedQuizId,
     });
     const answerKey = quizData.id;
     const existingAnswer = quizAnswers[answerKey];
