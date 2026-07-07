@@ -5,7 +5,9 @@ import { put } from '@vercel/blob';
 // 2026-05-25, gemini-3.1-flash-image-preview on 2026-06-25 — migrated to the
 // GA replacements (same request format, no other changes needed).
 const LESSON_MODEL = 'gemini-3.1-flash-lite';
-const IMAGE_MODEL = 'gemini-3.1-flash-image';
+// Image model shares the GEMINI_IMAGE_MODEL override with gemini-client.ts.
+// Default: gemini-3.1-flash-lite-image (Nano Banana 2 Lite, GA, max 1K).
+const IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL ?? 'gemini-3.1-flash-lite-image';
 
 export interface GeneratedLesson {
   lessonContent: string;

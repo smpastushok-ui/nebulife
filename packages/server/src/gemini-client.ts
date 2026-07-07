@@ -10,11 +10,17 @@ import { put } from '@vercel/blob';
 // ---------------------------------------------------------------------------
 
 // Image-generation model. Override via GEMINI_IMAGE_MODEL env var (Vercel dashboard).
-// Default: gemini-3.1-flash-image (Nano Banana 2, GA). The preview variant
+// Default: gemini-3.1-flash-lite-image (Nano Banana 2 Lite, GA since
+// 2026-06-30). Same request/response shape as gemini-3.1-flash-image, just
+// cheaper (~$0.0336/image) and capped at 1K output — this is also the sole
+// image provider now: Kling was retired from every generate.ts call site in
+// favor of this synchronous Gemini path (kling-client.ts stays in the repo
+// for the still-Kling-based video pipeline and legacy task polling, but is
+// no longer used for new photo generation). The prior preview variant
 // (gemini-3.1-flash-image-preview) was retired by Google on 2026-06-25 — see
 // ASTRA_MODEL comment below for the sibling text-model retirement that broke
 // A.S.T.R.A./daily-quiz/daily-fact around the same date.
-const GEMINI_MODEL = process.env.GEMINI_IMAGE_MODEL ?? 'gemini-3.1-flash-image';
+const GEMINI_MODEL = process.env.GEMINI_IMAGE_MODEL ?? 'gemini-3.1-flash-lite-image';
 
 /**
  * Supported aspect ratios by Gemini.
@@ -108,7 +114,12 @@ export async function generateImageWithGemini(
           responseModalities: ['IMAGE', 'TEXT'],
           imageConfig: {
             aspectRatio: aspectRatio,
-            imageSize: req.imageSize ?? '2K',
+            // Nano Banana 2 Lite maxes out at 1K (1024px) — 2K/4K requests
+            // are rejected/clamped by the API. Callers that used to request
+            // Kling 2K stills (surface maps, discovery photos, planet
+            // concept art) now render at 1K; see the model-swap report for
+            // the full list of affected call sites and quality tradeoffs.
+            imageSize: req.imageSize ?? '1K',
           },
         },
       });
@@ -151,6 +162,115 @@ export async function generateImageWithGemini(
       lastError = err instanceof Error ? err : new Error(String(err));
       const msg = lastError.message.toLowerCase();
       // Retry on 503 (overloaded), 429 (rate limit), or network errors
+      const isTransient = msg.includes('503') || msg.includes('429')
+        || msg.includes('overloaded') || msg.includes('unavailable')
+        || msg.includes('econnreset') || msg.includes('timeout')
+        || msg.includes('fetch failed');
+      if (!isTransient || attempt >= MAX_RETRIES) {
+        throw lastError;
+      }
+    }
+  }
+
+  throw lastError ?? new Error('Gemini generation failed');
+}
+
+// ---------------------------------------------------------------------------
+// Image generation with reference-image inputs (multi-image editing/fusion)
+// ---------------------------------------------------------------------------
+// gemini-3.1-flash-lite-image supports multiple input images in one request
+// (same generateContent shape, images as inlineData parts before the text
+// prompt). Used by the creature hybridization experiment ("дослід
+// схрещування" — api/creatures/hybridize.ts), which sends both parents'
+// portraits and asks for a fused offspring. Kept separate from
+// generateImageWithGemini so the widely-used text-only path stays untouched.
+
+export interface GeminiGenerateImageFromImagesRequest {
+  prompt: string;
+  /** Publicly fetchable reference image URLs (e.g. Vercel Blob), in order. */
+  imageUrls: string[];
+  aspectRatio?: string;
+  imageSize?: string;
+  uploadPrefix?: string;
+}
+
+async function fetchImageAsInlineData(url: string): Promise<{ inlineData: { mimeType: string; data: string } }> {
+  const resp = await fetch(url);
+  if (!resp.ok) {
+    throw new Error(`Failed to fetch reference image (${resp.status})`);
+  }
+  const mimeType = (resp.headers.get('content-type') ?? 'image/png').split(';')[0].trim();
+  const buffer = Buffer.from(await resp.arrayBuffer());
+  return { inlineData: { mimeType, data: buffer.toString('base64') } };
+}
+
+/**
+ * Generate an image from a prompt PLUS reference input images, upload to
+ * Vercel Blob. Same retry/extract/upload flow as generateImageWithGemini.
+ */
+export async function generateImageWithGeminiFromImages(
+  req: GeminiGenerateImageFromImagesRequest,
+): Promise<GeminiGenerateImageResult> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY must be set');
+  }
+  if (req.imageUrls.length === 0) {
+    throw new Error('generateImageWithGeminiFromImages requires at least one reference image');
+  }
+
+  const aspectRatio = req.aspectRatio ?? '1:1';
+  const imageParts = await Promise.all(req.imageUrls.map(fetchImageAsInlineData));
+  const ai = new GoogleGenAI({ apiKey });
+
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      if (attempt > 0) {
+        console.log(`[Gemini] (image-input) Retry attempt ${attempt} after ${RETRY_DELAY_MS}ms...`);
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+      }
+
+      const response = await ai.models.generateContent({
+        model: GEMINI_MODEL,
+        contents: [...imageParts, { text: req.prompt }],
+        config: {
+          thinkingConfig: { thinkingBudget: 0 },
+          responseModalities: ['IMAGE', 'TEXT'],
+          imageConfig: {
+            aspectRatio,
+            imageSize: req.imageSize ?? '1K', // Nano Banana 2 Lite caps at 1K
+          },
+        },
+      });
+
+      const parts = response.candidates?.[0]?.content?.parts;
+      if (!parts || parts.length === 0) {
+        throw new Error('Gemini returned no content parts');
+      }
+      const imagePart = parts.find(p => p.inlineData?.data);
+      if (!imagePart?.inlineData) {
+        throw new Error('Gemini returned no image data');
+      }
+      const { data: base64Data, mimeType } = imagePart.inlineData;
+      if (!base64Data || !mimeType) {
+        throw new Error('Gemini image data is empty');
+      }
+
+      const buffer = Buffer.from(base64Data, 'base64');
+      const ext = mimeType === 'image/jpeg' ? 'jpg' : 'png';
+      const prefix = req.uploadPrefix ?? 'system-photos';
+      const filename = `${prefix}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+      const blob = await put(filename, buffer, {
+        access: 'public',
+        contentType: mimeType,
+      });
+
+      return { imageUrl: blob.url, mimeType, aspectRatio };
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      const msg = lastError.message.toLowerCase();
       const isTransient = msg.includes('503') || msg.includes('429')
         || msg.includes('overloaded') || msg.includes('unavailable')
         || msg.includes('econnreset') || msg.includes('timeout')
@@ -381,6 +501,62 @@ Respond ONLY as JSON:
 }
 
 // ---------------------------------------------------------------------------
+// Biosphere Creature Prompt Moderation
+// ---------------------------------------------------------------------------
+
+export type CreaturePromptVerdict = 'approved' | 'needs_revision' | 'blocked';
+
+export interface CreaturePromptModerationResult {
+  verdict: CreaturePromptVerdict;
+  reason: string;
+  cleanedPrompt: string;
+}
+
+export async function moderateCreaturePrompt(description: string): Promise<CreaturePromptModerationResult> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY must be set');
+
+  const prompt = `You moderate player descriptions for a biosphere creature they want to settle on their own planet in Nebulife.
+
+Player description:
+"${description}"
+
+Rules:
+- Approve only alien creature / fauna / flora design descriptions (appearance, anatomy, colors, behavior).
+- Ask for revision if it is too vague, too short, includes personal data, or is not clearly a creature.
+- Block sexual content, hateful content, extremist/political propaganda, real brands/IP, public figures, gore, graphic violence, harassment, or requests to copy a copyrighted character/creature.
+- Remove unsafe/irrelevant words in cleanedPrompt, but keep the player's intended creature shape, traits, colors and mood.
+- cleanedPrompt must be English, concise, image-generation ready, max 700 characters.
+
+Respond ONLY as JSON:
+{"verdict":"approved","reason":"...","cleanedPrompt":"..."}`;
+
+  const ai = new GoogleGenAI({ apiKey });
+  const response = await ai.models.generateContent({
+    model: MODERATION_MODEL,
+    contents: prompt,
+    config: { thinkingConfig: { thinkingBudget: 0 } },
+  });
+
+  const text = response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+  const cleaned = text.replace(/```json?\n?/gi, '').replace(/```/g, '').trim();
+  const parsed = JSON.parse(cleaned) as CreaturePromptModerationResult;
+  const verdicts: CreaturePromptVerdict[] = ['approved', 'needs_revision', 'blocked'];
+  if (!verdicts.includes(parsed.verdict)) {
+    return {
+      verdict: 'needs_revision',
+      reason: 'Опис потрібно уточнити.',
+      cleanedPrompt: '',
+    };
+  }
+  return {
+    verdict: parsed.verdict,
+    reason: String(parsed.reason || ''),
+    cleanedPrompt: String(parsed.cleanedPrompt || '').slice(0, 700),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Daily Quiz & Fun Fact Generation
 // ---------------------------------------------------------------------------
 
@@ -522,7 +698,7 @@ Respond with ONLY pure JSON (no markdown):
 // ---------------------------------------------------------------------------
 // Gemini 3.5 Flash turns a rarity + planet hint into a unique creative brief.
 // The brief drives the paid pipeline:
-//   appearance → Nano Banana 2 (gemini-3.1-flash-image) still photo
+//   appearance → Nano Banana 2 Lite (gemini-3.1-flash-lite-image) still photo
 //   action     → Kling V3 image-to-video motion
 //   sound      → Kling V3 audio track (ambient, NO voice)
 // Cheap (~$0.0005/call) so it is bundled into the photo/video price.
@@ -552,7 +728,7 @@ export interface LifeformBrief {
 }
 
 export interface LifeformBriefResult extends LifeformBrief {
-  /** Ready-to-send still-image prompt (Nano Banana 2 / Kling image). */
+  /** Ready-to-send still-image prompt (Nano Banana 2 Lite). */
   photoPrompt: string;
   /** Ready-to-send image-to-video motion prompt (Kling V3). */
   videoPrompt: string;
@@ -665,6 +841,29 @@ Respond with ONLY pure JSON (no markdown):
     console.warn('[lifeform-brief] generation failed, using fallback:', err);
     return fallback();
   }
+}
+
+// ---------------------------------------------------------------------------
+// "Сага Ткача" — chapter text generation
+// ---------------------------------------------------------------------------
+// Same model as ASTRA/daily content (see ASTRA_MODEL comment above for the
+// 2026-05-25 retirement that motivated pinning to the GA replacement).
+
+const SAGA_MODEL = 'gemini-3.1-flash-lite';
+
+/** Raw Gemini text call for one saga chapter prompt. Returns the fenced-JSON
+ *  string as-is; callers parse it with parseSagaChapterResponse. */
+export async function generateSagaChapterText(prompt: string): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY must be set');
+
+  const ai = new GoogleGenAI({ apiKey });
+  const response = await ai.models.generateContent({
+    model: SAGA_MODEL,
+    contents: prompt,
+    config: { thinkingConfig: { thinkingBudget: 256 } },
+  });
+  return response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
 }
 
 function finalize(brief: LifeformBrief, scale: LifeformScale, mediumClause?: string): LifeformBriefResult {

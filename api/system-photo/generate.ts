@@ -1,6 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { computeAspectRatio, generateImageWithGemini } from '../../packages/server/src/gemini-client.js';
-import { generateImage as generateKlingImage } from '../../packages/server/src/kling-client.js';
 import { deductQuarks, creditQuarks, getPlayer, saveSystemPhoto } from '../../packages/server/src/db.js';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
 import { RATE_LIMITS } from '../../packages/server/src/rate-limiter.js';
@@ -10,8 +9,14 @@ import { verifyPhotoToken } from '../../packages/server/src/photo-token.js';
 import { enqueueMissionPhotoReadyPush } from '../../packages/server/src/push-events.js';
 import type { StarSystem } from '@nebulife/core';
 
-const GEMINI_PHOTO_COST = 50;
-const KLING_PHOTO_COST = 25;
+const PANORAMA_PHOTO_COST = 50;
+// Exosphere shots used to be cheaper because they ran on Kling; kept at the
+// same price now that every kind uses Gemini, to avoid a stealth price hike.
+const PLANET_PHOTO_COST: Record<PlanetPhotoKind, number> = {
+  exosphere: 25,
+  biosphere: 50,
+  aerial: 50,
+};
 
 // Allow up to 60s for Gemini image generation + blob upload
 export const config = {
@@ -25,8 +30,9 @@ export const config = {
  * Body: { playerId, systemId, systemData, screenWidth?, screenHeight? }
  * Returns: { photoId, status, photoUrl, quarksRemaining }
  *
- * Uses Gemini AI for synchronous image generation.
- * Image is uploaded to Vercel Blob and returned as a public URL.
+ * All photo kinds (panorama, exosphere, biosphere, aerial) generate
+ * synchronously via Gemini (Nano Banana 2 Lite). Image is uploaded to
+ * Vercel Blob and returned as a public URL.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -58,8 +64,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const photoKind: PlanetPhotoKind = requestedKind === 'biosphere' || requestedKind === 'aerial'
       ? requestedKind
       : 'exosphere';
-    const isKlingPhoto = isPlanetPhoto && photoKind === 'exosphere';
-    const cost = isKlingPhoto ? KLING_PHOTO_COST : GEMINI_PHOTO_COST;
+    const cost = isPlanetPhoto ? PLANET_PHOTO_COST[photoKind] : PANORAMA_PHOTO_COST;
 
     // Check if this generation is funded by a valid ad-reward token.
     // The token is HMAC-signed server-side after the player watched the required ads —
@@ -99,36 +104,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       prompt = buildGeminiSystemPhotoPrompt(sys);
     }
 
-    // Exosphere planet shots are Kling-based and complete through the existing
-    // status polling path. Surface and aerial variants use Nano Banana 2/Gemini.
-    if (isPlanetPhoto && photoKind === 'exosphere') {
-      const aspectRatio = screenWidth && screenHeight
-        ? computeAspectRatio(Number(screenWidth), Number(screenHeight))
-        : '16:9';
-      // Model is read from KLING_IMAGE_MODEL env var. Default: kling-v1-5.
-      const { taskId } = await generateKlingImage({ prompt, aspectRatio, resolution: '2K' });
-      const photoId = `sp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const saved = await saveSystemPhoto({
-        id: photoId,
-        playerId,
-        systemId,
-        klingTaskId: taskId,
-        promptUsed: prompt,
-        status: 'generating',
-      });
-      return res.status(200).json({
-        photoId: saved.id,
-        klingTaskId: taskId,
-        status: 'generating',
-        quarksRemaining: player?.quarks ?? null,
-      });
-    }
-
-    // 3. Generate image with Gemini / Nano Banana 2 (synchronous — returns base64, uploads to blob)
+    // 3. Generate image with Gemini / Nano Banana 2 Lite (synchronous —
+    // returns base64, uploads to blob). Exosphere shots used to submit to
+    // Kling and complete asynchronously via /api/system-photo/status; now
+    // every kind resolves inline.
+    const aspectRatio = screenWidth && screenHeight
+      ? computeAspectRatio(Number(screenWidth), Number(screenHeight))
+      : '16:9';
     const result = await generateImageWithGemini({
       prompt,
-      screenWidth: screenWidth ? Number(screenWidth) : undefined,
-      screenHeight: screenHeight ? Number(screenHeight) : undefined,
+      aspectRatio,
+      imageSize: '1K',
     });
 
     // 4. Save to DB with completed status
@@ -166,8 +152,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (playerId && !wasAdFunded) {
         const requestedKind = typeof req.body.photoKind === 'string' ? req.body.photoKind : undefined;
-        const isKling = isPlanet && requestedKind !== 'biosphere' && requestedKind !== 'aerial';
-        const refundAmount = isKling ? KLING_PHOTO_COST : GEMINI_PHOTO_COST;
+        const photoKind: PlanetPhotoKind = requestedKind === 'biosphere' || requestedKind === 'aerial'
+          ? requestedKind
+          : 'exosphere';
+        const refundAmount = isPlanet ? PLANET_PHOTO_COST[photoKind] : PANORAMA_PHOTO_COST;
         const refunded = await creditQuarks(playerId, refundAmount);
         console.log(`[Refund] Credited ${refundAmount} quarks back to ${playerId}, new balance: ${refunded.quarks}`);
         return res.status(500).json({

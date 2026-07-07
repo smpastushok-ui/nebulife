@@ -45,7 +45,7 @@ nebulife/
 ├── packages/
 │   ├── core/          # Headless: типи, генерація, фізика, хімія, біологія, Delaunay
 │   ├── client/        # PixiJS v8 + React UI + i18n (react-i18next)
-│   └── server/        # Серверні функції: Neon DB, Kling API, Tripo API, ClusterManager
+│   └── server/        # Серверні функції: Neon DB, Gemini (фото/текст), Kling (відео), Tripo API, ClusterManager
 ├── api/               # Vercel serverless endpoints
 ├── GAME_BIBLE.md      # Біблія гри — правила, стиль, баланс
 └── GAME_DESIGN.md     # Дизайн-документ — сюжет, механіки, фізика
@@ -168,10 +168,10 @@ Home Intro → Galaxy → System → Planet View → Surface
 | Фіча | Статус |
 |---|---|
 | Кварки — ігрова валюта + MonoPay | Реалізовано |
-| AI-поверхня — Kling генерація + процедурний fallback | Реалізовано |
+| AI-поверхня — Gemini (Nano Banana 2 Lite) генерація + процедурний fallback | Реалізовано |
 | 3D моделі — Tripo pipeline + Babylon.js viewer | Реалізовано |
 | Дослідження — обсерваторії, прогресивне розкриття | Реалізовано |
-| Discoveries — Kling фото + pixel reveal + наукові звіти | Реалізовано |
+| Discoveries — AI фото (Gemini) + pixel reveal + наукові звіти | Реалізовано |
 | CommandBar — уніфікована нижня панель управління | Реалізовано |
 | Космічна Академія — квести, вікторини, щоденні уроки | Реалізовано |
 | i18n — двомовна система uk/en | Реалізовано |
@@ -190,11 +190,20 @@ Home Intro → Galaxy → System → Planet View → Surface
 
 | Сервіс | Endpoint | Auth | Використання |
 |---|---|---|---|
-| Kling | `api.klingai.com/v1` | JWT HS256 | AI фото генерація |
+| Gemini | Google AI SDK | API key | Lessons, quizzes, digest, ASTRA chat, moderation, **AI фото генерація (усі endpoints)** |
+| Kling | `api.klingai.com/v1` | JWT HS256 | Тільки відео (system-mission, lifeform/video) + polling старих фото-задач |
 | Tripo | `api.tripo3d.ai/v2` | Bearer token | 3D моделі GLB |
-| Gemini | Google AI SDK | API key | Lessons, quizzes, digest, ASTRA chat, moderation |
 | Neon | PostgreSQL | Connection string | Все серверне |
 | Firebase | Auth + FCM | Config | Авторизація + push notifications |
+
+**Фото-генерація (2026-07): усі endpoints (`api/kling/generate`, `api/surface/generate`,
+`api/system-photo/generate`, `api/tripo/generate`+`status`, `api/lifeform/photo/generate`,
+`api/planet-skin/generate`, `api/creatures/generate`) генерують через Gemini
+`gemini-3.1-flash-lite-image` (Nano Banana 2 Lite, GA, max 1K) замість Kling.
+Override моделі: env `GEMINI_IMAGE_MODEL`. Kling лишається лише для відео
+(`KLING_VIDEO_MODEL`) та polling вже існуючих старих фото-задач у БД —
+kill-switch назад на Kling для фото НЕ реалізовано (див. `packages/server/src/kling-client.ts`
+та `.env.local.example` для деталей).
 
 ---
 
@@ -236,7 +245,8 @@ Home Intro → Galaxy → System → Planet View → Surface
 | `packages/server/src/db.ts` | Neon PostgreSQL CRUD (~1700 рядків) |
 | `packages/server/src/cluster-manager.ts` | Cluster lifecycle (find/create/assign) |
 | `packages/server/src/education-generator.ts` | Gemini prompts for academy (language-aware) |
-| `packages/server/src/kling-client.ts` | Kling API wrapper |
+| `packages/server/src/kling-client.ts` | Kling API wrapper (video generation only — фото-генерація мігрована на Gemini) |
+| `packages/server/src/gemini-client.ts` | Gemini API wrapper — `generateImageWithGemini()` тепер основний шлях для ВСІХ фото |
 
 ---
 

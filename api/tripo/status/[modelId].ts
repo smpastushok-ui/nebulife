@@ -1,7 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import type { Planet, Star } from '@nebulife/core';
 import { getPlanetModel, updatePlanetModel } from '../../../packages/server/src/db.js';
-import { checkTaskStatus as checkKlingStatus, generateImage } from '../../../packages/server/src/kling-client.js';
+// Legacy Kling task polling — kept only for in-flight rows created before
+// the Gemini switch. New "generating_photo" rows never get a kling_task_id
+// (see the recovery branch below), so this path is unreachable going
+// forward but still resolves any pre-existing tasks.
+import { checkTaskStatus as checkKlingStatus } from '../../../packages/server/src/kling-client.js';
+import { generateImageWithGemini } from '../../../packages/server/src/gemini-client.js';
 import { checkModelTask, createModelTask } from '../../../packages/server/src/tripo-client.js';
 import { buildPlanetModelPrompt } from '../../../packages/server/src/planet-model-prompt-builder.js';
 
@@ -112,14 +117,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ status: 'generating_photo', klingPhotoUrl: null });
     }
 
-    // --- Recovery: no kling_task_id and no photo → (re)start Kling ---
+    // --- Recovery: no photo yet → generate synchronously via Gemini, then
+    // start the Tripo task immediately (no async task/polling needed) ---
     if (model.status === 'generating_photo' && !model.kling_task_id && !model.kling_photo_url) {
       const prompt = model.planet_data && model.star_data
         ? buildPlanetModelPrompt(model.planet_data as unknown as Planet, model.star_data as unknown as Star)
         : buildKlingPrompt(model.planet_id, model.system_id);
-      const { taskId: klingTaskId } = await generateImage({ prompt, aspectRatio: '1:1', model: 'kling-v3', resolution: '2K' });
-      await updatePlanetModel(modelId, { kling_task_id: klingTaskId });
-      return res.status(200).json({ status: 'generating_photo', klingPhotoUrl: null });
+      const generated = await generateImageWithGemini({
+        prompt,
+        aspectRatio: '1:1',
+        imageSize: '1K',
+        uploadPrefix: 'planet-models',
+      });
+      await updatePlanetModel(modelId, { kling_photo_url: generated.imageUrl, status: 'generating_3d' });
+      const { taskId: tripoTaskId } = await createModelTask(generated.imageUrl);
+      await updatePlanetModel(modelId, { tripo_task_id: tripoTaskId });
+      return res.status(200).json({
+        status: 'generating_3d',
+        progress: 0,
+        klingPhotoUrl: generated.imageUrl,
+      });
     }
 
     // --- Recovery: has photo but no tripo task → create Tripo task ---

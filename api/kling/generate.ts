@@ -1,14 +1,21 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getCatalogEntry } from '@nebulife/core';
-import { generateImage } from '../../packages/server/src/kling-client.js';
-import { saveKlingTask, saveDiscovery, deductQuarks, creditQuarks } from '../../packages/server/src/db.js';
+import { generateImageWithGemini } from '../../packages/server/src/gemini-client.js';
+import {
+  saveKlingTask,
+  updateKlingTask,
+  saveDiscovery,
+  updateDiscoveryPhoto,
+  deductQuarks,
+  creditQuarks,
+} from '../../packages/server/src/db.js';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
 import { verifyPhotoToken } from '../../packages/server/src/photo-token.js';
 
-function isKlingInsufficientBalance(err: unknown): boolean {
-  const message = err instanceof Error ? err.message : String(err);
-  return message.includes('Kling API error 429') && message.includes('Account balance not enough');
-}
+// Allow up to 60s for the (synchronous) Gemini image generation.
+export const config = {
+  maxDuration: 60,
+};
 
 /**
  * POST /api/kling/generate
@@ -29,6 +36,12 @@ function isKlingInsufficientBalance(err: unknown): boolean {
  * }
  *
  * Returns: { taskId: string, discoveryId: string, quarksRemaining?: number }
+ *
+ * NOTE: despite the historical "kling" route/table naming, generation now
+ * runs synchronously through Gemini (Nano Banana 2 Lite) — Kling is no
+ * longer called here. A `kling_tasks` row is still written and immediately
+ * marked 'succeed' so the existing client contract (POST here, then poll
+ * GET /api/kling/status/:taskId) keeps working without any client changes.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -65,8 +78,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(403).json({ error: 'Forbidden: player mismatch' });
     }
 
-    // Common cosmic events ship with bundled images and must not invoke Kling
-    // or persist generated prompts. The client saves their bundled URL directly.
+    // Common cosmic events ship with bundled images and must not invoke
+    // generation, or persist generated prompts. The client saves their
+    // bundled URL directly.
     const catalogEntry = getCatalogEntry(objectType);
     if (rarity === 'common' || catalogEntry?.rarity === 'common') {
       return res.status(400).json({ error: 'Common cosmic events use bundled assets — no generation needed' });
@@ -106,33 +120,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       scientificReport,
     });
 
-    // 2. Submit generation to Kling AI
-    // Model is read from KLING_IMAGE_MODEL env var. Default: kling-v1-5.
-    const { taskId } = await generateImage({
+    // 2. Generate synchronously via Gemini (Nano Banana 2 Lite, max 1K).
+    const generated = await generateImageWithGemini({
       prompt,
       aspectRatio: aspectRatio ?? '16:9',
-      resolution: '2K',
+      imageSize: '1K',
+      uploadPrefix: 'discoveries',
     });
 
-    // 3. Save kling task to DB for tracking
-    await saveKlingTask({
-      taskId,
-      playerId,
-      discoveryId,
-    });
+    // 3. Persist the photo on the discovery immediately (no status-poll
+    // round trip needed to do this like the old async Kling flow).
+    await updateDiscoveryPhoto(discoveryId, generated.imageUrl);
+
+    // 4. Record a completed "task" so GET /api/kling/status/:taskId — still
+    // called by the client's existing poll loop — resolves on its very
+    // first check.
+    const taskId = `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    await saveKlingTask({ taskId, playerId, discoveryId });
+    await updateKlingTask(taskId, 'succeed', generated.imageUrl);
 
     return res.status(200).json({ taskId, discoveryId, quarksRemaining });
   } catch (err) {
     if (debitedQuarks > 0) {
       await creditQuarks(auth.playerId, debitedQuarks).catch((refundErr) => {
         console.error('[kling/generate] Failed to refund quarks after generation error:', refundErr);
-      });
-    }
-    if (isKlingInsufficientBalance(err)) {
-      console.warn('[kling/generate] Kling account balance is not enough; generation skipped.');
-      return res.status(503).json({
-        error: 'Image generation is temporarily unavailable',
-        code: 'KLING_INSUFFICIENT_BALANCE',
       });
     }
     console.error('Kling generate error:', err);

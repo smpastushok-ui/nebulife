@@ -157,6 +157,53 @@ export async function createShipTextModelTask(
   return { taskId: result.data.task_id };
 }
 
+/**
+ * Submit a mobile-safe image-to-model task for a player-generated biosphere
+ * creature. Same conservative budget as ships (face_limit 5000, smart low
+ * poly) so a planet's up-to-3 creatures stay within the Biosphere scene's
+ * mid-phone performance budget (Game Bible §NEXT_GEN_PLAN Section C).
+ */
+export async function createCreatureModelTask(imageUrl: string): Promise<{ taskId: string }> {
+  const apiKey = getApiKey();
+
+  const body = {
+    type: 'image_to_model',
+    file: {
+      type: 'url',
+      url: imageUrl,
+    },
+    face_limit: 5000,
+    smart_low_poly: true,
+    texture_quality: 'standard',
+    geometry_quality: 'standard',
+    pbr: false,
+    texture: true,
+    model_version: 'v2.5-20250123',
+  };
+
+  const response = await fetch(`${TRIPO_API_BASE}/task`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Tripo3D creature API error ${response.status}: ${errText}`);
+  }
+
+  const result = (await response.json()) as TripoCreateTaskResponse;
+
+  if (result.code !== 0) {
+    throw new Error(`Tripo3D creature API error code ${result.code}`);
+  }
+
+  return { taskId: result.data.task_id };
+}
+
 // ---------------------------------------------------------------------------
 // Check Task Status
 // ---------------------------------------------------------------------------

@@ -142,10 +142,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const skinId = existing?.id ?? `ps_${kind}_${systemId}_${planetId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
       .replace(/[^a-zA-Z0-9_-]+/g, '_');
     const prompt = buildPlanetSkinPrompt(system, planet, kind);
+    // Nano Banana 2 Lite maxes out at 1K — convertGeneratedSkinToTextureMap()
+    // below still resizes to a fixed 2048x1024 texture (upscaled from the
+    // lower-res source), so this stays a quality tradeoff, not a bug.
     const generated = await generateImageWithGemini({
       prompt,
       aspectRatio: '21:9',
-      imageSize: '2K',
+      imageSize: '1K',
       uploadPrefix: 'planet-skins/raw-21x9',
     });
     const textureUrl = await convertGeneratedSkinToTextureMap(generated.imageUrl, skinId);

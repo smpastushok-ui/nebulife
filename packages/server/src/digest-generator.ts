@@ -13,7 +13,9 @@ import type { Language } from '@nebulife/core';
 // 2026-05-25, gemini-3.1-flash-image-preview on 2026-06-25 — migrated to the
 // GA replacements (same request format, no other changes needed).
 const CORE_MODEL = 'gemini-3.1-flash-lite';
-const IMAGE_MODEL = 'gemini-3.1-flash-image';
+// Image model shares the GEMINI_IMAGE_MODEL override with gemini-client.ts.
+// Default: gemini-3.1-flash-lite-image (Nano Banana 2 Lite, GA, max 1K).
+const IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL ?? 'gemini-3.1-flash-lite-image';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -290,7 +292,10 @@ export async function generateDigestImage(
       responseModalities: ['IMAGE', 'TEXT'],
       imageConfig: {
         aspectRatio: '9:16',
-        imageSize: '2K',
+        // Nano Banana 2 Lite maxes out at 1K — digest infographics render
+        // at a lower resolution than the previous 2K (quality tradeoff
+        // accepted as part of the Kling/Nano-Banana-2 → Lite model swap).
+        imageSize: '1K',
       },
     },
   });

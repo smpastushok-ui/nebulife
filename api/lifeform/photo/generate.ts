@@ -44,7 +44,7 @@ function seedFromId(id: string): number {
  *
  * Pipeline:
  *   1. Gemini 3.5 Flash → unique creative brief (appearance/action/sound)
- *   2. Nano Banana 2 (gemini-3.1-flash-image, 1K) → still Alpha-photo (sync)
+ *   2. Nano Banana 2 Lite (gemini-3.1-flash-lite-image, 1K) → still Alpha-photo (sync)
  *   3. Persist photo + brief; the brief's video/sound prompts are reused by
  *      the Alpha-video step so the clip matches the same organism.
  * Common lifeforms use bundled assets and must not call this endpoint.

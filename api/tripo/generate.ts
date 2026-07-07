@@ -1,8 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getPlanetModel, updatePlanetModel } from '../../packages/server/src/db.js';
-import { generateImage, checkTaskStatus as checkKlingStatus } from '../../packages/server/src/kling-client.js';
+import { generateImageWithGemini } from '../../packages/server/src/gemini-client.js';
 import { createModelTask } from '../../packages/server/src/tripo-client.js';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
+
+// Allow up to 60s for the (synchronous) Gemini concept-photo generation.
+export const config = {
+  maxDuration: 60,
+};
 
 /**
  * POST /api/tripo/generate
@@ -10,11 +15,11 @@ import { authenticate } from '../../packages/server/src/auth-middleware.js';
  * Auth: Bearer token (Firebase)
  * Body: {
  *   modelId: string,        // planet_model record ID
- *   klingPhotoUrl?: string,  // optional: skip Kling, use existing photo
+ *   klingPhotoUrl?: string, // optional: skip generation, use existing photo
  * }
  *
  * Manually trigger generation (if payment already confirmed).
- * Can re-use an existing Kling photo or generate a new one.
+ * Can re-use an existing concept photo or generate a new one via Gemini.
  *
  * Returns: { modelId, status, tripoTaskId? }
  */
@@ -58,37 +63,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let imageUrl = klingPhotoUrl || model.kling_photo_url;
 
     if (!imageUrl) {
-      // Generate new Kling photo
+      // Generate a new concept photo synchronously via Gemini (Nano Banana 2
+      // Lite) — no async task/polling needed like the old Kling pipeline.
       await updatePlanetModel(modelId, { status: 'generating_photo' });
 
       const prompt = `Hyperrealistic photograph of an alien planet surface and atmosphere from space orbit, planet ID: ${model.planet_id}, star system: ${model.system_id}. Dramatic lighting, volumetric clouds, detailed terrain, photorealistic quality, cinematic composition, 8K resolution.`;
 
-      const { taskId: klingTaskId } = await generateImage({ prompt, aspectRatio: '1:1', model: 'kling-v3', resolution: '2K' });
+      const generated = await generateImageWithGemini({
+        prompt,
+        aspectRatio: '1:1',
+        imageSize: '1K',
+        uploadPrefix: 'planet-models',
+      });
+      imageUrl = generated.imageUrl;
 
-      // Poll Kling (within serverless timeout ~25s, do limited polling)
-      for (let i = 0; i < 8; i++) {
-        await sleep(3000);
-        const result = await checkKlingStatus(klingTaskId);
-        if (result.status === 'succeed' && result.imageUrl) {
-          imageUrl = result.imageUrl;
-          break;
-        }
-        if (result.status === 'failed') {
-          await updatePlanetModel(modelId, { status: 'failed' });
-          return res.status(500).json({ error: 'Photo generation failed' });
-        }
-      }
-
-      if (!imageUrl) {
-        // Photo still generating — client should poll status
-        await updatePlanetModel(modelId, { status: 'generating_photo' });
-        return res.status(202).json({
-          modelId,
-          status: 'generating_photo',
-          message: 'Photo still generating, poll /api/tripo/status/:modelId',
-        });
-      }
-
+      // Field name is historical (kling_photo_url) — now holds the Gemini
+      // output URL; renaming would require a DB migration for no benefit.
       await updatePlanetModel(modelId, { kling_photo_url: imageUrl });
     }
 
@@ -107,8 +97,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error('Tripo generate error:', err);
     return res.status(500).json({ error: err instanceof Error ? err.message : 'Internal error' });
   }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }

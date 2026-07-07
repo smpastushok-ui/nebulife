@@ -11,8 +11,9 @@ export interface PlanetPhotoPromptOptions {
 }
 
 /**
- * Build a Kling prompt for generating a telescope photo of a star system.
+ * Build a prompt for generating a telescope photo of a star system.
  * Describes the star, each planet with its characteristics, and artistic direction.
+ * @deprecated unused by the current Gemini pipeline — see buildGeminiSystemPhotoPrompt.
  */
 export function buildSystemPhotoPrompt(system: StarSystem): string {
   const { star, planets } = system;
@@ -279,7 +280,7 @@ export function buildGeminiSystemPhotoPrompt(system: StarSystem): string {
 
 /**
  * Build a prompt for a generated planet mission photo.
- * Exosphere shots are submitted to Kling; surface/aerial shots use Nano Banana 2.
+ * All kinds (exosphere/biosphere/aerial) render via Gemini (Nano Banana 2 Lite).
  */
 export function buildGeminiPlanetPhotoPrompt(
   system: StarSystem,
@@ -324,6 +325,15 @@ export function buildGeminiPlanetPhotoPrompt(
     atmoDesc = 'Visible atmospheric halo at the limb with subtle cloud formations.';
   else if (planet.atmosphere && planet.atmosphere.surfacePressureAtm > 0.01)
     atmoDesc = 'Thin atmospheric haze barely visible at the planet limb.';
+
+  // Atmosphere chemistry → haze/limb tint. Previously every planet with the
+  // same pressure bucket looked identical; the dominant gas gives each world
+  // a distinct color signature (player feedback: planet photos too samey).
+  const gasDesc = describeAtmosphereChemistry(planet);
+  // Crust mineralogy → surface coloration for rocky/dwarf worlds.
+  const crustDesc = describeCrustColoration(planet);
+  // Deterministic per-planet visual motif (same seed → same photo character).
+  const seedMotif = pickSeedMotif(planet);
 
   // Moons
   const moonCount = planet.moons?.length ?? 0;
@@ -390,7 +400,10 @@ export function buildGeminiPlanetPhotoPrompt(
     `Place the parent star ${star.name} in the background as a distant bright ${starColor} point with realistic glare.`,
     moonDesc || `If no moons are present, keep the background clean with distant stars and no invented large moons.`,
     atmoDesc,
+    gasDesc,
+    crustDesc,
     hydroDesc,
+    seedMotif,
     cinematicDir,
     sharedStyle,
   ];
@@ -411,6 +424,9 @@ export function buildGeminiPlanetPhotoPrompt(
       ? `The camera platform must not be visible: no rover chassis, no wheel, no robotic arm, no camera mast, no drone, no spacecraft, only the inhabited biosphere landscape.`
       : `Show only a small part of the rover chassis, wheel, robotic arm, or camera mast at the lower edge or side of the frame, subtle and believable.`,
     `Use eye-level or low rover perspective, natural terrain scale, realistic shadows, no humans.`,
+    gasDesc,
+    crustDesc,
+    seedMotif,
     cinematicDir,
     sharedStyle,
   ];
@@ -428,6 +444,9 @@ export function buildGeminiPlanetPhotoPrompt(
     `The exploration craft must not be visible in the frame: no drone body, no landing skid, no rotor guard, no sensor boom, only the photographed surface below.`,
     `Make altitude feel like tens to hundreds of meters above ground, not orbital imagery.`,
     `No humans, no fantasy buildings, no impossible blue skies unless the atmosphere supports it.`,
+    gasDesc,
+    crustDesc,
+    seedMotif,
     cinematicDir,
     sharedStyle,
   ];
@@ -477,4 +496,83 @@ function getCinematicDirection(spectralClass: SpectralClass): string {
     case 'M':
       return 'Deep crimson starlight creates a dramatic, moody atmosphere. Blood-red illumination casts long shadows across planetary surfaces. The scene feels alien and primordial, with a haunting beauty.';
   }
+}
+
+// ---------------------------------------------------------------------------
+// Per-planet variety helpers — derive distinct visual character from data the
+// prompt previously ignored (atmosphere chemistry, crust mineralogy, seed).
+// Player feedback: planet research photos looked generically the same, unlike
+// specimen photos which already use this planetary context.
+// ---------------------------------------------------------------------------
+
+/** Dominant atmospheric gas → visible haze/cloud color signature. */
+function describeAtmosphereChemistry(planet: Planet): string {
+  const atm = planet.atmosphere;
+  if (!atm || atm.surfacePressureAtm < 0.01) return '';
+  const dominant = Object.entries(atm.composition ?? {}).sort(([, a], [, b]) => b - a)[0];
+  if (!dominant) return '';
+  const gasVisual: Record<string, string> = {
+    CO2: 'The carbon-dioxide atmosphere gives the limb and haze a dusty pale-ochre greenhouse tint.',
+    N2: 'The nitrogen-rich atmosphere scatters starlight into a subtle cool blue-grey limb glow.',
+    O2: 'The oxygen-rich atmosphere produces a crisp pale-blue limb and vivid, clean cloud whites.',
+    CH4: 'The methane atmosphere tints the haze layers orange-brown with hydrocarbon smog banding.',
+    H2: 'The hydrogen envelope gives the limb a soft pearl-white puffiness with faint iridescence.',
+    He: 'The helium-rich envelope renders the limb faint, translucent and almost colorless.',
+    H2O: 'The humid water-vapour atmosphere builds towering bright cloud cells and misty limb glow.',
+    SO2: 'The sulfurous atmosphere stains the haze sickly yellow with volcanic smog streaks.',
+    Ar: 'The argon-dominated atmosphere leaves a thin, glassy, faintly violet limb sheen.',
+  };
+  return gasVisual[dominant[0]] ?? '';
+}
+
+/** Dominant crust element → surface coloration for solid worlds. */
+function describeCrustColoration(planet: Planet): string {
+  if (planet.type === 'gas-giant' || planet.type === 'ice-giant') return '';
+  // Ocean-dominated worlds show water, not crust.
+  if (planet.hydrosphere && planet.hydrosphere.waterCoverageFraction > 0.5) return '';
+  const crust = planet.resources?.crustComposition;
+  if (!crust) return '';
+  const pigments: Record<string, string> = {
+    Fe: 'Iron-rich crust: rust-red and ochre surface tones with dark oxidized basins.',
+    Si: 'Silicate crust: pale grey-tan plains with glassy bright reflective patches.',
+    Mg: 'Magnesium-rich crust: olive-green and grey-green rock fields.',
+    S: 'Sulfur-rich crust: striking yellow and mustard deposits streaking the surface.',
+    C: 'Carbon-rich crust: charcoal-dark graphitic plains with low albedo.',
+    Ti: 'Titanium-bearing crust: blue-grey metallic sheen across ridges.',
+    Ca: 'Calcium-rich crust: chalk-white bright highland patches.',
+    Na: 'Sodium-bearing crust: faint pink-tinged salt flats.',
+    Ni: 'Nickel-iron crust: dull silver metallic exposures.',
+    Al: 'Aluminous crust: light grey-white mineral skin.',
+    K: 'Potassic crust: faint violet mineral tinting.',
+    P: 'Phosphorus-bearing crust: pale-green mineral veining.',
+  };
+  const dominant = Object.entries(crust)
+    .filter(([el]) => pigments[el])
+    .sort(([, a], [, b]) => b - a)[0];
+  return dominant ? pigments[dominant[0]] : '';
+}
+
+/** Deterministic per-planet composition/terrain motif from the planet seed. */
+function pickSeedMotif(planet: Planet): string {
+  const gasMotifs = [
+    'A colossal oval storm system dominates one hemisphere.',
+    'Fine latitudinal band structure with turbulent eddies between belts.',
+    'A chain of small vortex storms strung along one temperate band.',
+    'High bright polar hood clouds contrasting with darker equatorial bands.',
+    'A great dark spot with swirling white companion clouds.',
+    'Delicate high-altitude haze layers catching the starlight at the limb.',
+  ];
+  const solidMotifs = [
+    'A giant rift canyon system scars one visible hemisphere.',
+    'A huge ancient impact basin with concentric ring structure is visible.',
+    'Bright rayed craters spread across the darker plains.',
+    'A massive shield volcano region rises near the terminator.',
+    'Long dune fields and wind streaks texture the equatorial zone.',
+    'Fractured chaotic terrain with intersecting ridge networks.',
+    'Smooth young plains contrast with heavily cratered ancient highlands.',
+    'Sinuous dry channel networks wind across the surface.',
+  ];
+  const motifs = (planet.type === 'gas-giant' || planet.type === 'ice-giant') ? gasMotifs : solidMotifs;
+  const seed = Math.abs(Math.floor(planet.seed ?? 0));
+  return motifs[seed % motifs.length];
 }

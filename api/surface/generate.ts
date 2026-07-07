@@ -3,16 +3,23 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import {
   getSurfaceMap,
   saveSurfaceMap,
+  updateSurfaceMap,
   deductQuarks,
   creditQuarks,
   getPlayer,
-  generateImage,
+  generateImageWithGemini,
+  analyzePhotoForZones,
   buildSurfacePrompt,
   authenticate,
   RATE_LIMITS,
 } from '@nebulife/server';
 
 const SURFACE_GENERATION_COST = 10; // quarks
+
+// Allow up to 60s for Gemini image generation + zone analysis.
+export const config = {
+  maxDuration: 60,
+};
 
 /**
  * POST /api/surface/generate
@@ -26,7 +33,11 @@ const SURFACE_GENERATION_COST = 10; // quarks
  *   starData: { Star object with all properties }
  * }
  *
- * Returns: { surfaceMapId: string, klingTaskId: string, status: string }
+ * Returns: { surfaceMapId: string, status: string, photoUrl: string, zoneMap: object[] }
+ *
+ * Generates synchronously via Gemini (Nano Banana 2 Lite) — no async task
+ * to poll. The satellite photo is analyzed for terrain zones immediately
+ * and the surface map is saved already 'ready'.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -59,7 +70,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Check if surface map already exists for this planet
     const existingMap = await getSurfaceMap(systemId, planetId);
-    
+
     // Determine pricing
     // First generation of home planet is free; all others cost 10⚛
     if (!existingMap && planetData.isHomePlanet) {
@@ -88,36 +99,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Build prompt from planet and star data
     const prompt = buildSurfacePrompt(planetData, starData);
 
-    // Call Kling to generate satellite image
-    // Model is read from KLING_IMAGE_MODEL env var (server-side, Vercel dashboard).
-    // Default: kling-v1-5. Set KLING_IMAGE_MODEL=kling-v3 or kling-v2-1 to upgrade.
-    const klingResponse = await generateImage({
+    // Generate the satellite image synchronously via Gemini (Nano Banana 2
+    // Lite, max 1K — the previous Kling pipeline requested 2K).
+    const generated = await generateImageWithGemini({
       prompt,
       aspectRatio: '16:9',
-      resolution: '2K',
+      imageSize: '1K',
+      uploadPrefix: 'surface-maps',
     });
 
-    const klingTaskId = klingResponse.taskId;
+    // Analyze the photo for terrain zones right away — no polling needed.
+    const zones = await analyzePhotoForZones(generated.imageUrl);
 
-    // Save surface map to database
-    const surfaceMapId = randomUUID();
-    const surfaceMap = await saveSurfaceMap({
+    // Save surface map, already complete.
+    const surfaceMapId = existingMap?.id ?? randomUUID();
+    await saveSurfaceMap({
       id: surfaceMapId,
       playerId,
       planetId,
       systemId,
-      klingTaskId,
+    });
+    const surfaceMap = await updateSurfaceMap(surfaceMapId, {
+      status: 'ready',
+      photo_url: generated.imageUrl,
+      zone_map: {
+        zones,
+        gridWidth: 64,
+        gridHeight: 36,
+      },
     });
 
     return res.status(200).json({
-      surfaceMapId: surfaceMap.id,
-      klingTaskId,
-      status: 'generating',
-      message: 'Surface generation started',
+      surfaceMapId,
+      status: 'ready',
+      photoUrl: surfaceMap?.photo_url ?? generated.imageUrl,
+      zoneMap: surfaceMap?.zone_map,
+      generationCount: surfaceMap?.generation_count,
     });
   } catch (error) {
     console.error('Surface generation error:', error);
-    
+
     // Refund quarks if they were deducted but generation failed
     if (quarksDeducted && req.body?.playerId) {
       try {

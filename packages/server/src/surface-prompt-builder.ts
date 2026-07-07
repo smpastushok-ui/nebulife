@@ -1,9 +1,10 @@
 import type { Planet, Star } from '@nebulife/core';
 
 /**
- * Build a detailed Kling prompt for generating satellite imagery of an alien planet.
- * The prompt creates a satellite photograph looking straight down at the planet surface,
- * suitable for a flat equirectangular map projection.
+ * Build a detailed prompt for generating satellite imagery of an alien planet
+ * (rendered via Gemini / Nano Banana 2 Lite). The prompt creates a satellite
+ * photograph looking straight down at the planet surface, suitable for a
+ * flat equirectangular map projection.
  */
 export function buildSurfacePrompt(planet: Planet, star: Star): string {
   // Determine planet type description

@@ -6,7 +6,7 @@
 // brief generator. Each spec carries three coordinated fragments:
 //
 //   • appearance — what the organism LOOKS like (feeds the still image:
-//     Nano Banana 2 / gemini-3.1-flash-image, or Kling image).
+//     Nano Banana 2 Lite / gemini-3.1-flash-lite-image).
 //   • action     — what the organism DOES (feeds Kling V3 image-to-video).
 //   • sound      — the ambient soundtrack, NO VOICE (feeds Kling V3 audio).
 //
@@ -255,7 +255,7 @@ export function lifeformVariationHints(seed: number): string {
 }
 
 /**
- * Compose a still-image prompt (Nano Banana 2 / Kling image) from an appearance
+ * Compose a still-image prompt (Nano Banana 2 Lite) from an appearance
  * fragment. `envClause` (optional) describes the living medium/habitat so the
  * organism matches its planet. `scale` selects the framing (microscope → epic
  * in-situ); defaults to 'micro' for backward compatibility.
