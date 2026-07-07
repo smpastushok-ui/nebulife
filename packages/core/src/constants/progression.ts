@@ -101,6 +101,16 @@ export const XP_REWARDS = {
   HEX_UNLOCK_RING3: 320,
   /** Planet terraforming fully completed (overall >= 95%) */
   TERRAFORM_COMPLETED: 1600,
+  /** Civilization diplomacy contact stages (NEXT_GEN_PLAN §B) — scaled to
+   *  core-zone research XP (200-500) since this is a rare, L20+, core-only
+   *  activity gated behind the Ксенодипломатія tech node. */
+  CIVILIZATION_FIRST_CONTACT: 220,
+  CIVILIZATION_LANGUAGE_EXCHANGE: 320,
+  CIVILIZATION_ALLIANCE: 480,
+  /** Megastructures — first cluster megastructure contribution of the UTC
+   *  day (see packages/core/src/game/megastructure.ts). Deliberately small
+   *  and flat, like other "come back today" actions (creature care, quiz). */
+  MEGASTRUCTURE_CONTRIBUTION: 40,
 } as const;
 
 // ── Ring-based XP rewards ────────────────────────────────────────────────────

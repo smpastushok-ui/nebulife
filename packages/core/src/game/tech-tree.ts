@@ -42,6 +42,7 @@ export type TechEffectType =
   | 'terraforming_speed_mult'
   | 'drone_production_unlock'
   | 'ship_production_unlock'
+  | 'xeno_diplomacy_unlock'      // bio-xeno-diplo: enables civilization contact missions
   // Terraforming unlock flags
   | 'terraform_magnetic_unlock'   // phy-magnetics: enables magnetic field param
   | 'ship_tier_3_unlock';         // phy-warp-1: enables tier-3 transport ships
@@ -694,6 +695,14 @@ export const BIOLOGY_NODES: TechNode[] = [
       { type: 'regrowth_speed_mult', value: 1.2 },
     ],
     iconSymbol: '\u2618', // ☘
+  },
+  {
+    id: 'bio-xeno-diplo', branch: 'biology',
+    name: 'Ксенодипломатія',
+    description: 'Розблоковує контакт із розумними цивілізаціями на планетах ядра галактики.',
+    levelRequired: 20, prerequisiteId: 'bio-life-support', epoch: 2, xpReward: 45,
+    effects: [{ type: 'xeno_diplomacy_unlock', value: 1 }],
+    iconSymbol: '\u2727', // ✧
   },
   {
     id: 'bio-terraforming', branch: 'biology',

@@ -319,3 +319,145 @@ export {
   applyLevelDepletion,
   STOCK_SCALE,
 } from './planet-stocks.js';
+
+// Civilization diplomacy (NEXT_GEN_PLAN §B, phases 1-2 MVP)
+export {
+  XENO_DIPLOMACY_MIN_LEVEL,
+  hasXenoDiplomacyUnlocked,
+  getIntegrationPathAvailability,
+  CONTACT_STAGE_ORDER,
+  CONTACT_STAGE_DURATION_MS,
+  CONTACT_STAGE_TRUST_REWARD,
+  CONTACT_STAGE_XP_REWARD,
+  createTrustState,
+  createCivilizationContactState,
+  isCivilizationIntegrated,
+  getNextContactStage,
+  canStartContactStage,
+  startContactStage,
+  getContactStageProgress,
+  completeContactStage,
+  AGGRESSIVE_ACTION_TRUST_PENALTY,
+  applyAggressiveAction,
+  WORKFORCE_MULTIPLIER_CAP,
+  getWorkforceProductionMultiplier,
+  STRIKE_TRUST_THRESHOLD,
+  STRIKE_DURATION_MS,
+  STRIKE_COOLDOWN_MS,
+  STRIKE_PRODUCTION_MULTIPLIER,
+  tickTrustState,
+  getEffectiveWorkforceMultiplier,
+  getTemperamentFlavorKey,
+} from './civilization.js';
+export type { ContactStageBlockReason, ContactStageProgress } from './civilization.js';
+
+// Biosphere creature evolution — daily care, growth stages, generations
+export {
+  CREATURE_VITALITY_MAX,
+  CREATURE_VITALITY_FLOOR,
+  CREATURE_VITALITY_DECAY_PER_DAY,
+  CREATURE_VITALITY_CARE_GAIN,
+  CREATURE_VITALITY_LOW_THRESHOLD,
+  CARE_DAYS_TO_ADULT,
+  CARE_DAYS_TO_ELDER,
+  utcDayKey,
+  computeEffectiveVitality,
+  canCareToday,
+  computeStageFromCareDays,
+  getCareBlockReason,
+  applyDailyCare,
+  CARE_TYPES,
+  OFFSPRING_COST_QUARKS,
+  TRAIT_CATEGORIES,
+  TRAIT_OPTIONS,
+  pickMutations,
+  HYBRID_PHOTO_COST_QUARKS,
+  HYBRID_FULL_COST_QUARKS,
+  HYBRID_UPGRADE_COST_QUARKS,
+  pickHybridTraits,
+} from './creature-evolution.js';
+export type {
+  CreatureStage,
+  CreatureCareState,
+  CareApplication,
+  CareBlockReason,
+  CareResourceType,
+  CareTypeDef,
+  TraitCategory,
+  TraitMutation,
+} from './creature-evolution.js';
+
+// Megastructures — "Мегаструктури кластера" collective cluster construction
+export {
+  MEGASTRUCTURE_RESOURCE_KEYS,
+  emptyResourceBundle,
+  resourceTotal,
+  MEGASTRUCTURE_REQUIREMENTS,
+  getMegastructureRequirements,
+  MEGASTRUCTURE_DAILY_CAP,
+  MEGASTRUCTURE_COMPLETION_POOL_QUARKS,
+  MEGASTRUCTURE_COMPLETION_POOL_XP,
+  MEGASTRUCTURE_MIN_PAYOUT_QUARKS,
+  MEGASTRUCTURE_MIN_PAYOUT_DAYS,
+  MEGASTRUCTURE_RESEARCH_SPEED_MULT,
+  clampContribution,
+  progressPercent,
+  isMegastructureComplete,
+  computeMegastructureBuilders,
+} from './megastructure.js';
+export type {
+  MegastructureType,
+  MegastructureStatus,
+  MegastructureResourceBundle,
+  MegastructureContributorStat,
+  MegastructureBuilderRecord,
+} from './megastructure.js';
+
+// Precursor Signals — collectible card system dropped from planet research
+export {
+  PRECURSOR_CARDS,
+  PRECURSOR_CARD_TOTAL,
+  PRECURSOR_RARITY_WEIGHTS,
+  PRECURSOR_DROP_CHANCE_DEFAULT,
+  PRECURSOR_DROP_CHANCE_BY_MISSION,
+  PRECURSOR_COMPLETION_REWARD_QUARKS,
+  getPrecursorCardDef,
+  getPrecursorDropChance,
+  rollPrecursorCardDrop,
+  isPrecursorCollectionComplete,
+} from './precursor-cards.js';
+export type { PrecursorDropResult } from './precursor-cards.js';
+
+// Observation Seasons — "Сезони спостережень" rotating seasonal anomalies
+export {
+  SEASON_LENGTH_WEEKS,
+  SEASON_LENGTH_MS,
+  SEASON_EPOCH_UTC_MS,
+  SEASON_FINALE_WINDOW_MS,
+  SEASON_FINALE_WEIGHT_MULTIPLIER,
+  SEASON_ANOMALY_COUNT,
+  SEASON_PITY_THRESHOLD,
+  SEASON_PITY_WEIGHT_MULTIPLIER,
+  SEASON_COLLECTION_REWARD_QUARKS,
+  SEASON_DEFINITIONS,
+  isSeasonalAnomalyType,
+  getSeasonalAnomalyAssetType,
+  getSeasonDefById,
+  seasonOccurrenceId,
+  getCurrentSeason,
+  getActiveSeasonalCatalogEntries,
+  buildObservatoryCatalogWithSeason,
+  createSeasonalProgressState,
+  normalizeSeasonalProgressState,
+  advanceSeasonalProgress,
+  applySeasonalObservatoryResult,
+  isSeasonCollectionComplete,
+} from './observation-seasons.js';
+
+// "Сага Ткача" — personal AI-written illustrated chronicle
+export {
+  SAGA_MILESTONE_ORDER,
+  SAGA_DAILY_CHAPTER_CAP,
+  queueSagaMilestone,
+  toRomanNumeral,
+} from './saga.js';

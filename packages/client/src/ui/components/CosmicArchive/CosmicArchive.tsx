@@ -17,6 +17,9 @@ import { LifeGallery } from './LifeGallery';
 import { ResourcesView } from './ResourcesView';
 import type { LifeformRecord } from '../../../api/lifeform-api';
 import type { SystemPhotoData } from '../SystemContextMenu';
+import { PrecursorGallery } from '../Precursor/PrecursorGallery.js';
+import type { PrecursorCardOwned, SeasonalProgressState } from '@nebulife/core';
+import { SeasonHallGallery } from './SeasonHallGallery.js';
 
 type PlanetSkinStatus = 'generating' | 'pending' | 'processing' | 'succeed' | 'failed';
 type PlanetSkinKind = 'system' | 'exosphere';
@@ -80,6 +83,8 @@ function buildTabs(t: (key: string) => string): TabDef[] {
         { id: 'mission-photos', label: t('archive.sub_mission_photos') },
         { id: 'life', label: t('archive.sub_life') },
         { id: 'aerial-photos', label: t('archive.sub_aerial_photos') },
+        { id: 'signals', label: t('archive.sub_signals') },
+        { id: 'seasons', label: t('archive.sub_seasons') },
       ],
     },
     {
@@ -237,6 +242,20 @@ export interface CosmicArchiveProps {
   /** When set, the Life gallery auto-opens this specimen's card. */
   openLifeformId?: string | null;
   onOpenLifeformConsumed?: () => void;
+  /** "Сигнали Предтеч" collection — owned cards keyed by card id. */
+  precursorOwned?: Record<string, PrecursorCardOwned>;
+  /** True when there's at least one unviewed newly-acquired precursor card. */
+  precursorHasNew?: boolean;
+  /** Called once the player opens the "Сигнали Предтеч" sub-tab (clears the new-card badge). */
+  onPrecursorArchiveViewed?: () => void;
+  precursorSfxSlot?: 1 | 2 | 3 | 4;
+  onPrecursorSfxSlotChange?: (slot: 1 | 2 | 3 | 4) => void;
+  precursorCompletionRewardClaimed?: boolean;
+  onClaimPrecursorCompletionReward?: () => void;
+  /** "Сезони спостережень" — current + past season collection progress. */
+  seasonalProgress?: SeasonalProgressState;
+  onClaimSeasonReward?: () => void;
+  seasonClaiming?: boolean;
   visible: boolean;
 }
 
@@ -413,10 +432,20 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
   onLifeformUpdated,
   openLifeformId,
   onOpenLifeformConsumed,
+  precursorOwned,
+  precursorHasNew,
+  onPrecursorArchiveViewed,
+  precursorSfxSlot,
+  onPrecursorSfxSlotChange,
+  precursorCompletionRewardClaimed,
+  onClaimPrecursorCompletionReward,
+  seasonalProgress,
+  onClaimSeasonReward,
+  seasonClaiming,
   visible,
   planetResourceStocks,
 }: CosmicArchiveProps, ref: React.Ref<CosmicArchiveHandle>) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const TABS = buildTabs(t);
 
   // Auto-switch to collections/cosmos tab when highlighting a new save
@@ -448,6 +477,13 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
       setSubTabMap((prev) => ({ ...prev, collections: 'cosmos' }));
     }
   }, [visible, highlightedType]);
+
+  // Clear the "Сигнали Предтеч" new-card badge once the player actually opens that sub-tab.
+  useEffect(() => {
+    if (visible && mainTab === 'collections' && subTabMap.collections === 'signals') {
+      onPrecursorArchiveViewed?.();
+    }
+  }, [visible, mainTab, subTabMap.collections, onPrecursorArchiveViewed]);
 
   // Terminal-loop mute toggle, persisted per device. Effect at the top of
   // the component applies the volume (0 when muted, 0.4 otherwise).
@@ -636,6 +672,28 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
     }
     if (mainTab === 'collections' && currentSubTab === 'mission-photos') {
       return <TelescopeGallery photos={systemPhotos} type="mission" allSystems={allSystems} aliases={aliases} onGoToExosphere={onViewPlanetExosphere} />;
+    }
+    if (mainTab === 'collections' && currentSubTab === 'signals') {
+      return (
+        <PrecursorGallery
+          owned={precursorOwned ?? {}}
+          sfxSlot={precursorSfxSlot ?? 1}
+          onSfxSlotChange={(slot) => onPrecursorSfxSlotChange?.(slot)}
+          completionRewardClaimed={precursorCompletionRewardClaimed ?? false}
+          onClaimCompletionReward={() => onClaimPrecursorCompletionReward?.()}
+          lang={i18n.language}
+        />
+      );
+    }
+    if (mainTab === 'collections' && currentSubTab === 'seasons') {
+      return (
+        <SeasonHallGallery
+          seasonalProgress={seasonalProgress}
+          onClaimSeasonReward={onClaimSeasonReward}
+          seasonClaiming={seasonClaiming}
+          lang={i18n.language}
+        />
+      );
     }
     if (mainTab === 'collections' && currentSubTab === 'life') {
       return (
@@ -1020,6 +1078,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
             active={mainTab === tab.id}
             onClick={() => changeMainTab(tab.id)}
             tutorialId={`maintab-${tab.id}`}
+            badge={tab.id === 'collections' && !!precursorHasNew}
           />
         ))}
       </div>
@@ -1034,6 +1093,7 @@ export const CosmicArchive = forwardRef<CosmicArchiveHandle, CosmicArchiveProps>
             onClick={() => selectSubTab(sub.id)}
             small
             tutorialId={`subtab-${sub.id}`}
+            badge={sub.id === 'signals' && !!precursorHasNew}
           />
         ))}
       </div>
@@ -1055,6 +1115,7 @@ function TabButton({
   small,
   dimmed,
   tutorialId,
+  badge,
 }: {
   label: string;
   active: boolean;
@@ -1062,6 +1123,7 @@ function TabButton({
   small?: boolean;
   dimmed?: boolean;
   tutorialId?: string;
+  badge?: boolean;
 }) {
   const [hover, setHover] = useState(false);
   return (
@@ -1071,6 +1133,7 @@ function TabButton({
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
+        position: 'relative',
         background: active
           ? 'linear-gradient(180deg, rgba(20, 38, 58, 0.62), rgba(10, 18, 32, 0.36))'
           : hover
@@ -1093,6 +1156,20 @@ function TabButton({
       }}
     >
       {label}
+      {badge && (
+        <span
+          style={{
+            position: 'absolute',
+            top: 4,
+            right: 4,
+            width: 6,
+            height: 6,
+            borderRadius: '50%',
+            background: '#44ff88',
+            boxShadow: '0 0 5px rgba(68,255,136,0.8)',
+          }}
+        />
+      )}
     </button>
   );
 }

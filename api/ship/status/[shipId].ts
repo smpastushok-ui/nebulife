@@ -5,6 +5,7 @@ import { checkTaskStatus as checkKlingStatus } from '../../../packages/server/sr
 import { checkModelTask, createShipModelTask, createShipTextModelTask } from '../../../packages/server/src/tripo-client.js';
 import { buildShipModelNegativePrompt, buildShipModelPrompt } from '../../../packages/server/src/ship-prompt.js';
 import { enqueueShipModelReadyPush } from '../../../packages/server/src/push-events.js';
+import { tryStoreGlbFromUrl } from '../../../packages/server/src/glb-storage.js';
 
 export const config = {
   maxDuration: 60,
@@ -57,8 +58,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const result = await checkModelTask(ship.tripo_task_id);
 
       if (result.status === 'success' && result.glbUrl) {
+        // Tripo's GLB URL is temporary — re-host on Vercel Blob so the ship
+        // keeps working after the Tripo task's CDN link expires/rotates.
+        // Best-effort: falls back to the raw Tripo URL if Blob upload fails.
+        const stored = await tryStoreGlbFromUrl(result.glbUrl, 'ship-models');
         const updated = await updateShipModel(shipId, {
-          glb_url: result.glbUrl,
+          glb_url: stored?.url ?? result.glbUrl,
           status: 'ready',
           completed_at: new Date().toISOString(),
         });

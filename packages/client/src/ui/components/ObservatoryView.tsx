@@ -8,6 +8,8 @@ import {
   getCatalogName,
   buildPrompt,
   generateScientificReport,
+  isSeasonalAnomalyType,
+  getSeasonalAnomalyAssetType,
 } from '@nebulife/core';
 import {
   requestGeneration,
@@ -98,9 +100,15 @@ export function ObservatoryView({
     const run = async () => {
       try {
         // Common cosmic events ship as bundled art. Do not ask the core prompt
-        // builder or image-generation endpoint for them.
-        if (discovery.rarity === 'common') {
-          const url = getCommonEventImageUrl(discovery.type);
+        // builder or image-generation endpoint for them. Seasonal anomalies
+        // ("Сезони спостережень") are rare-tier for search weighting but
+        // reuse an existing bundled common-event asset too — no new AI
+        // generation for time-limited seasonal content.
+        const seasonalAssetType = isSeasonalAnomalyType(discovery.type)
+          ? getSeasonalAnomalyAssetType(discovery.type)
+          : undefined;
+        if (discovery.rarity === 'common' || seasonalAssetType) {
+          const url = getCommonEventImageUrl(seasonalAssetType ?? discovery.type);
           setImageUrl(url);
           const blob = await downloadImage(url);
           if (cancelled) return;

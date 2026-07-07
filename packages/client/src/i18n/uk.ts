@@ -34,6 +34,8 @@ export const uk = {
   'cmd.planet_names':    'НАЗВИ',
   'cmd.planet_names_on': 'НАЗВИ УВІМК.',
   'cmd.planet_names_tooltip': 'Показати назви планет у цій системі',
+  'cmd.biosphere_title':   'БІОСФЕРА',
+  'cmd.biosphere_tooltip': 'Переглянути істот, поселених на цій планеті',
   'cmd.fly_cluster':     'Полетiти до мого скупчення',
   'cmd.fly_center':      'Полетiти до центру галактики',
   'cmd.fly_star':        'Полетiти до моєї зiрки',
@@ -43,8 +45,8 @@ export const uk = {
 
   'unlock.combat.kicker': 'Бойовий протокол',
   'unlock.combat.title': 'Арена та рейд відкриті',
-  'unlock.combat.body': 'З 10 рівня доступні тренувальні бої Арени та щоденний рейд на носій у веб/ультра режимі.',
-  'unlock.combat.body_limited': 'З 10 рівня доступна Арена. Рейд на носій відкривається на веб-версії або ультра пристроях.',
+  'unlock.combat.body': 'З 10 рівня доступні тренувальні бої Арени та щоденний рейд на носій.',
+  'unlock.combat.body_limited': 'З 10 рівня доступні тренувальні бої Арени та щоденний рейд на носій.',
   'unlock.terraform.kicker': 'Етап терраформування',
   'unlock.terraform.title': 'Терраформування доступне',
   'unlock.terraform.body': 'З 48 рівня відкривається терраформування: Genesis Vault, потрібні транспортні ланцюги та доставка ресурсів між колоніями.',
@@ -681,6 +683,10 @@ export const uk = {
   'mission_report.saved_photo_title':      'Фото місії · {planet}',
   'mission_report.system_notif':           'Дані місії з планети {planet} отримано. Звіт T{tier} готовий.',
   'mission_report.system_log':             'Місія на планеті {planet} завершена. Отримано дані T{tier}; звіт доступний у системному чаті та меню планети.',
+
+  // Civilization contact — system notifications (NEXT_GEN_PLAN §B)
+  'civilization.contact_stage_complete_notif': 'Етап контакту з цивілізацією на планеті {planet} завершено.',
+  'civilization.strike_started_notif':         'Робоча сила цивілізації на планеті {planet} страйкує — виробництво знижено.',
 
   // Planet exploration missions
   'planet_terminal.free_ships_short':       '{count} кораб.',

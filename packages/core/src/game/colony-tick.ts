@@ -44,6 +44,9 @@ export interface ColonyTickResult {
  * @param now - current timestamp (ms)
  * @param planetStocks - optional finite planet stocks; when provided, extraction
  *   buildings will deplete them and have their output scaled by depletion efficiency
+ * @param workforceMultiplier - production multiplier from an integrated planetary
+ *   civilization's workforce (NEXT_GEN_PLAN §B), defaults to 1 (no civilization).
+ *   See `getEffectiveWorkforceMultiplier()` in `game/civilization.ts`.
  * @returns aggregated tick result
  */
 export function runColonyTicks(
@@ -54,6 +57,7 @@ export function runColonyTicks(
   now: number,
   planetStocks?: PlanetResourceStocks,
   starLuminosityLSun = 1,
+  workforceMultiplier = 1,
 ): ColonyTickResult {
   const elapsed = now - colony.lastTickAt;
   const tickCount = Math.floor(elapsed / COLONY_TICK_INTERVAL_MS);
@@ -81,7 +85,7 @@ export function runColonyTicks(
   let currentStocks: PlanetResourceStocks | undefined = planetStocks;
 
   for (let t = 0; t < effectiveTicks; t++) {
-    const result = runSingleTick(colony, planet, techState, tileAt, currentStocks, starLuminosityLSun);
+    const result = runSingleTick(colony, planet, techState, tileAt, currentStocks, starLuminosityLSun, workforceMultiplier);
     totalShutdownIds = [...totalShutdownIds, ...result.shutdownIds];
     totalRestoredIds = [...totalRestoredIds, ...result.restoredIds];
     totalResearchData += result.researchDataProduced;
@@ -182,6 +186,7 @@ function runSingleTick(
   tileAt: (x: number, y: number) => SurfaceTile | undefined,
   planetStocks?: PlanetResourceStocks,
   starLuminosityLSun = 1,
+  workforceMultiplier = 1,
 ): { shutdownIds: string[]; restoredIds: string[]; researchDataProduced: number; elementsProduced: Record<string, number>; updatedStocks?: PlanetResourceStocks } {
   const buildings = colony.buildings;
 
@@ -247,7 +252,7 @@ function runSingleTick(
     for (const prod of def.production) {
       const baseMult = prod.resource === 'minerals' || prod.resource === 'volatiles' || prod.resource === 'isotopes'
         ? miningMult : 1;
-      const baseAmount = prod.amount * baseMult * terrainMult * envMult;
+      const baseAmount = prod.amount * baseMult * terrainMult * envMult * workforceMultiplier;
 
       if (prod.resource === 'researchData') {
         researchDataProduced += baseAmount;

@@ -14,7 +14,9 @@ import {
   type DMChannelInfo,
 } from '../../api/messages-api.js';
 import { askAstra, type AstraMessage } from '../../api/ai-api.js';
+import { getActivePoll, castPollVote, type ActivePollView } from '../../api/polls-api.js';
 import { NewDMModal } from './NewDMModal.js';
+import { PlayerFeedbackPrompt } from './PlayerFeedbackPrompt.js';
 import { AstraFabButton, getAstraFabPosition, isVerticalSideChatLayout } from './AstraFabButton.js';
 import type { LogEntry, LogCategory } from './CosmicArchive/SystemLog.js';
 import type { Discovery } from '@nebulife/core';
@@ -83,6 +85,8 @@ interface ChatWidgetProps {
   latestDigestWeekDate?: string | null;
   /** Player's preferred language for ASTRA digest message */
   preferredLanguage?: string;
+  /** True while the weekly digest is being fetched (disables "open digest" buttons). */
+  digestLoading?: boolean;
   /** Callback to award XP (e.g. for quiz correct answers) */
   onAwardXP?: (amount: number, reason: string) => void;
   quizAnswers?: Record<string, number>;
@@ -172,7 +176,7 @@ function getDigestWeekDateFromMessage(msg: MessageData): string | null {
 // research ticks, countdown, etc.) previously forced a full re-render of
 // the entire chat tree. Memo blocks those; real chat updates come from
 // this component's own internal polling + setState so they still render.
-function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = [], logEntries = [], onSystemNotifRead, onNavigateToPlanet, onNavigateToSystem, onOpenPlanetMissionReport, onOpenSystemReport, onOpenLogDiscovery, onOpenLifeform, onOpenObservatoryReport, onOpenResult, lastDigestSeen, latestDigestWeekDate, preferredLanguage, onAwardXP, quizAnswers = {}, onQuizAnswer, onDigestSeen, playerLevel = 1, forceCollapsed = false, forceExpanded = false, hideCollapsedButton = false, isPremium = false }: ChatWidgetProps) {
+function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = [], logEntries = [], onSystemNotifRead, onNavigateToPlanet, onNavigateToSystem, onOpenPlanetMissionReport, onOpenSystemReport, onOpenLogDiscovery, onOpenLifeform, onOpenObservatoryReport, onOpenResult, lastDigestSeen, latestDigestWeekDate, preferredLanguage, digestLoading = false, onAwardXP, quizAnswers = {}, onQuizAnswer, onDigestSeen, playerLevel = 1, forceCollapsed = false, forceExpanded = false, hideCollapsedButton = false, isPremium = false }: ChatWidgetProps) {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(true);
   const [viewport, setViewport] = useState(() => ({
@@ -214,6 +218,12 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [showNewDM, setShowNewDM] = useState(false);
+  const [showWeaverFeedback, setShowWeaverFeedback] = useState(false);
+  // Community poll (голосування) card shown in the global tab
+  const [activePoll, setActivePoll] = useState<ActivePollView | null>(null);
+  const [pollExpanded, setPollExpanded] = useState(false);
+  const [pollVoting, setPollVoting] = useState(false);
+  const [pollError, setPollError] = useState<string | null>(null);
   const [unreadGlobal, setUnreadGlobal] = useState(0);
   const [unreadAstraMessages, setUnreadAstraMessages] = useState(0);
   const [unreadSystemMessages, setUnreadSystemMessages] = useState(0);
@@ -410,6 +420,38 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
     if (collapsed || tab !== 'dm-list' || dmChannels.length === 0) return;
     markDmChannelsRead(dmChannels);
   }, [collapsed, dmChannels, markDmChannelsRead, tab]);
+
+  // Fetch the active community poll — refetched every time the global tab is
+  // opened, since the server is the source of truth for "have I voted".
+  useEffect(() => {
+    if (collapsed || tab !== 'global') return;
+    let cancelled = false;
+    setPollError(null);
+    getActivePoll()
+      .then((poll) => { if (!cancelled) setActivePoll(poll); })
+      .catch((err) => { console.warn('[chat] failed to load active poll:', err); });
+    return () => { cancelled = true; };
+  }, [collapsed, tab]);
+
+  const handlePollVote = useCallback(async (optionId: string) => {
+    if (!activePoll || pollVoting) return;
+    playSfx('ui-click', 0.05);
+    setPollVoting(true);
+    setPollError(null);
+    try {
+      const result = await castPollVote(activePoll.id, optionId);
+      setActivePoll((prev) => (prev ? {
+        ...prev,
+        hasVoted: true,
+        votedOptionId: result.votedOptionId,
+        percentages: result.percentages,
+      } : prev));
+    } catch (err) {
+      setPollError(err instanceof Error ? err.message : 'vote_failed');
+    } finally {
+      setPollVoting(false);
+    }
+  }, [activePoll, pollVoting]);
 
   // Fetch system channel messages (fun facts, moderation notices)
   const [systemMessages, setSystemMessages] = useState<MessageData[]>([]);
@@ -968,6 +1010,62 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
         {/* Content area */}
         {(tab === 'global' || tab === 'dm-chat') && (
           <>
+            {/* Weaver direct-feedback teaser — global tab only, always visible
+                (unlike the level-12+ auto-popup, opt-in and not level-gated). */}
+            {tab === 'global' && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 8,
+                padding: '6px 12px',
+                borderBottom: '1px solid #223344',
+                background: 'rgba(15,22,34,0.55)',
+              }}>
+                <span style={{
+                  color: '#8899aa',
+                  fontFamily: 'monospace',
+                  fontSize: 10,
+                  lineHeight: 1.3,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {t('weaver_feedback.chat_teaser')}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => { playSfx('ui-click', 0.06); setShowWeaverFeedback(true); }}
+                  style={{
+                    flexShrink: 0,
+                    background: 'rgba(123,184,255,0.12)',
+                    border: '1px solid rgba(123,184,255,0.45)',
+                    borderRadius: 3,
+                    color: '#7bb8ff',
+                    fontFamily: 'monospace',
+                    fontSize: 10,
+                    padding: '4px 9px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t('weaver_feedback.chat_button')}
+                </button>
+              </div>
+            )}
+
+            {/* Community poll — collapsed by default so it doesn't permanently
+                crowd the chat; expands to show options / results in place. */}
+            {tab === 'global' && activePoll && (
+              <PollCard
+                poll={activePoll}
+                expanded={pollExpanded}
+                onToggleExpand={() => { playSfx('ui-click', 0.05); setPollExpanded((v) => !v); }}
+                onVote={handlePollVote}
+                voting={pollVoting}
+                error={pollError}
+              />
+            )}
+
             {/* Messages */}
             <div
               ref={messagesScrollRef}
@@ -1390,9 +1488,12 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
                   </div>
                   <button
                     onClick={() => {
+                      if (digestLoading) return;
                       markDigestSeen(latestDigestWeekDate);
                       window.dispatchEvent(new CustomEvent('nebulife:open-digest'));
                     }}
+                    disabled={digestLoading}
+                    aria-busy={digestLoading}
                     style={{
                       background: 'rgba(68,255,136,0.12)',
                       border: '1px solid rgba(68,255,136,0.4)',
@@ -1401,10 +1502,13 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
                       fontFamily: 'monospace',
                       fontSize: 10,
                       padding: '4px 10px',
-                      cursor: 'pointer',
+                      cursor: digestLoading ? 'not-allowed' : 'pointer',
+                      opacity: digestLoading ? 0.5 : 1,
                     }}
                   >
-                    {preferredLanguage === 'en' ? 'Open digest' : 'Відкрити дайджест'}
+                    {digestLoading
+                      ? t('common.loading')
+                      : (preferredLanguage === 'en' ? 'Open digest' : 'Відкрити дайджест')}
                   </button>
                 </div>
               )}
@@ -1431,6 +1535,7 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
                     selectedQuizAnswer={quizAnswers[msg.id]}
                     onQuizAnswer={onQuizAnswer}
                     onDigestOpen={markDigestSeen}
+                    digestLoading={digestLoading}
                   />
                 )
               ))}
@@ -1505,6 +1610,22 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
         <NewDMModal
           onSelect={handleNewDM}
           onClose={() => setShowNewDM(false)}
+        />
+      )}
+
+      {/* "Message the Weaver" — reuses the level-12+ feedback modal with
+          alternate copy, always available from the global chat tab. */}
+      {showWeaverFeedback && (
+        <PlayerFeedbackPrompt
+          playerLevel={playerLevel}
+          onClose={() => setShowWeaverFeedback(false)}
+          kickerKey="weaver_feedback.kicker"
+          titleKey="weaver_feedback.title"
+          bodyKey="weaver_feedback.body"
+          likesLabelKey="weaver_feedback.likes_label"
+          likesPlaceholderKey="weaver_feedback.likes_placeholder"
+          dislikesLabelKey="weaver_feedback.dislikes_label"
+          dislikesPlaceholderKey="weaver_feedback.dislikes_placeholder"
         />
       )}
     </>
@@ -1840,15 +1961,165 @@ function MessageItem({
   );
 }
 
+// Community poll card — global tab, collapsed to a single-line banner by
+// default with an expand toggle. Before voting: question + option buttons,
+// no results. After voting: percentage bars only (never counts) — the
+// server enforces this by simply never sending a count in the response.
+function PollCard({
+  poll,
+  expanded,
+  onToggleExpand,
+  onVote,
+  voting,
+  error,
+}: {
+  poll: ActivePollView;
+  expanded: boolean;
+  onToggleExpand: () => void;
+  onVote: (optionId: string) => void;
+  voting: boolean;
+  error: string | null;
+}) {
+  const { t, i18n } = useTranslation();
+  const isUk = i18n.language.startsWith('uk');
+  const question = isUk ? poll.questionUk : poll.questionEn;
+  const percentByOption = useMemo(
+    () => new Map((poll.percentages ?? []).map((p) => [p.optionId, p.percentage])),
+    [poll.percentages],
+  );
+
+  return (
+    <div style={{
+      margin: '6px 12px 0',
+      background: 'rgba(10,15,25,0.92)',
+      border: '1px solid #334455',
+      borderRadius: 4,
+      overflow: 'hidden',
+      flexShrink: 0,
+    }}>
+      <button
+        type="button"
+        onClick={onToggleExpand}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8,
+          padding: '7px 10px',
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          textAlign: 'left',
+          fontFamily: 'monospace',
+        }}
+      >
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+          <span style={{ color: '#7bb8ff', fontSize: 9, fontWeight: 'bold', letterSpacing: '0.05em', flexShrink: 0 }}>
+            {t('polls.badge')}
+          </span>
+          <span style={{
+            color: '#aabbcc',
+            fontSize: 11,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
+            {question}
+          </span>
+        </span>
+        <span style={{ color: '#667788', fontSize: 10, flexShrink: 0 }}>
+          {expanded ? '\u25b2' : (poll.hasVoted ? t('polls.results_short') : t('polls.vote_short'))}
+        </span>
+      </button>
+
+      {expanded && (
+        <div style={{ padding: '0 10px 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ color: '#aabbcc', fontSize: 12, lineHeight: 1.4 }}>{question}</div>
+
+          {!poll.hasVoted && poll.status === 'active' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              {poll.options.map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  disabled={voting}
+                  onClick={() => onVote(opt.id)}
+                  style={{
+                    textAlign: 'left',
+                    background: 'rgba(68,136,170,0.12)',
+                    border: '1px solid #446688',
+                    borderRadius: 3,
+                    color: '#aabbcc',
+                    fontFamily: 'monospace',
+                    fontSize: 11,
+                    padding: '6px 9px',
+                    cursor: voting ? 'not-allowed' : 'pointer',
+                    opacity: voting ? 0.6 : 1,
+                  }}
+                >
+                  {isUk ? opt.labelUk : opt.labelEn}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {!poll.hasVoted && poll.status === 'closed' && (
+            <div style={{ color: '#8899aa', fontSize: 10 }}>{t('polls.closed')}</div>
+          )}
+
+          {poll.hasVoted && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {poll.options.map((opt) => {
+                const pct = percentByOption.get(opt.id) ?? 0;
+                const isMine = opt.id === poll.votedOptionId;
+                return (
+                  <div key={opt.id}>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: 10,
+                      color: isMine ? '#7bb8ff' : '#8899aa',
+                      marginBottom: 2,
+                    }}>
+                      <span>{isUk ? opt.labelUk : opt.labelEn}{isMine ? ` \u2014 ${t('polls.your_vote')}` : ''}</span>
+                      <span>{pct}%</span>
+                    </div>
+                    <div style={{ height: 5, borderRadius: 3, background: 'rgba(51,68,85,0.6)', overflow: 'hidden' }}>
+                      <div style={{
+                        height: '100%',
+                        width: `${Math.min(100, Math.max(0, pct))}%`,
+                        background: '#4488aa',
+                        borderRadius: 3,
+                      }} />
+                    </div>
+                  </div>
+                );
+              })}
+              <div style={{ color: '#667788', fontSize: 9, marginTop: 2 }}>
+                {poll.status === 'closed' ? t('polls.closed') : t('polls.total_hidden')}
+              </div>
+            </div>
+          )}
+
+          {error && <div style={{ color: '#ff9988', fontSize: 10 }}>{t('polls.vote_error')}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Digest card extracted to its own component so it can use useTranslation
 function DigestCard({
   time,
   parsed,
   onOpen,
+  loading,
 }: {
   time: string;
   parsed: { weekDate?: string };
   onOpen?: (weekDate: string | null | undefined) => void;
+  loading?: boolean;
 }) {
   const { t } = useTranslation();
   return (
@@ -1869,9 +2140,12 @@ function DigestCard({
       </div>
       <button
         onClick={() => {
+          if (loading) return;
           onOpen?.(parsed.weekDate);
           window.dispatchEvent(new CustomEvent('nebulife:open-digest', { detail: { weekDate: parsed.weekDate } }));
         }}
+        disabled={loading}
+        aria-busy={loading}
         style={{
           background: 'rgba(34,102,170,0.25)',
           border: '1px solid #4488aa',
@@ -1880,10 +2154,11 @@ function DigestCard({
           fontFamily: 'monospace',
           fontSize: 10,
           padding: '4px 12px',
-          cursor: 'pointer',
+          cursor: loading ? 'not-allowed' : 'pointer',
+          opacity: loading ? 0.5 : 1,
         }}
       >
-        {t('chat.open_digest')}
+        {loading ? t('common.loading') : t('chat.open_digest')}
       </button>
     </div>
   );
@@ -2045,6 +2320,7 @@ function AstraMessageItem({
   selectedQuizAnswer,
   onQuizAnswer,
   onDigestOpen,
+  digestLoading,
 }: {
   msg: AstraMessage;
   messageId: string;
@@ -2052,6 +2328,7 @@ function AstraMessageItem({
   selectedQuizAnswer?: number;
   onQuizAnswer?: (messageId: string, selectedIndex: number) => void;
   onDigestOpen?: (weekDate: string | null | undefined) => void;
+  digestLoading?: boolean;
 }) {
   const { t } = useTranslation();
   const isUser = msg.role === 'user';
@@ -2080,7 +2357,7 @@ function AstraMessageItem({
         );
       }
       if (parsed?.type === 'digest') {
-        return <DigestCard time="" parsed={parsed} onOpen={onDigestOpen} />;
+        return <DigestCard time="" parsed={parsed} onOpen={onDigestOpen} loading={digestLoading} />;
       }
       // Bilingual plain text (daily fact + future bilingual broadcasts):
       // stored as {"uk":"...","en":"..."}. Pick the player's language

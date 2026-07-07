@@ -1,5 +1,23 @@
 import { randomUUID } from 'node:crypto';
 import { neon } from '@neondatabase/serverless';
+import {
+  getCareBlockReason,
+  applyDailyCare,
+  pickMutations,
+  pickHybridTraits,
+  type CreatureCareState,
+  type CreatureStage,
+  type CareBlockReason,
+  type TraitMutation,
+  emptyResourceBundle,
+  resourceTotal,
+  getMegastructureRequirements,
+  clampContribution,
+  isMegastructureComplete,
+  computeMegastructureBuilders,
+  type MegastructureResourceBundle,
+  type MegastructureBuilderRecord,
+} from '@nebulife/core';
 
 // ---------------------------------------------------------------------------
 // Neon serverless client — one per cold-start, reused across invocations
@@ -848,6 +866,294 @@ export async function updateShipModel(
 }
 
 // ---------------------------------------------------------------------------
+// Creature Model helpers (Biosphere — player creatures via image + Tripo3D)
+// ---------------------------------------------------------------------------
+// See NEXT_GEN_PLAN.md Section C. Mirrors the ship_models pattern: a text
+// brief is moderated, turned into a reference image, then into a GLB via
+// Tripo image_to_model. GLB is re-hosted on Vercel Blob (glb-storage.ts)
+// before being marked ready, so creatures never depend on Tripo's CDN.
+
+export interface CreatureModelRow {
+  id: string;
+  player_id: string;
+  planet_id: string;
+  name: string | null;
+  description: string;
+  prompt_used: string | null;
+  image_url: string | null;
+  glb_url: string | null;
+  tripo_task_id: string | null;
+  status: string; // queued | generating | ready | failed
+  quarks_paid: number;
+  created_at: string;
+  completed_at: string | null;
+  // Evolution (Еволюція біосфери — migration 041)
+  vitality: number;
+  stage: string; // juvenile | adult | elder | legacy
+  care_days: number;
+  last_care_at: string | null;
+  generation: number;
+  parent_id: string | null;
+  traits: unknown; // JSONB — TraitMutation[] from @nebulife/core
+  // Hybridization ("дослід схрещування" — migration 042)
+  parent_b_id: string | null;
+  is_hybrid: boolean;
+  hybrid_photo_url: string | null;
+}
+
+export async function createCreatureModel(m: {
+  id: string;
+  playerId: string;
+  planetId: string;
+  description: string;
+  promptUsed?: string;
+  status?: string;
+  quarksPaid?: number;
+  name?: string;
+  /** Set when this creature is an offspring (Еволюція біосфери — migration 041). */
+  generation?: number;
+  parentId?: string;
+  traits?: unknown;
+}): Promise<CreatureModelRow> {
+  const sql = getSQL();
+  const rows = await sql`
+    INSERT INTO creature_models (
+      id, player_id, planet_id, name, description, prompt_used, status, quarks_paid,
+      generation, parent_id, traits
+    )
+    VALUES (
+      ${m.id}, ${m.playerId}, ${m.planetId}, ${m.name ?? null}, ${m.description},
+      ${m.promptUsed ?? null}, ${m.status ?? 'queued'}, ${m.quarksPaid ?? 0},
+      ${m.generation ?? 1}, ${m.parentId ?? null}, ${m.traits ? JSON.stringify(m.traits) : null}
+    )
+    RETURNING *
+  `;
+  return rows[0] as CreatureModelRow;
+}
+
+export async function getCreatureModel(id: string): Promise<CreatureModelRow | null> {
+  const sql = getSQL();
+  const rows = await sql`SELECT * FROM creature_models WHERE id = ${id}`;
+  return (rows[0] as CreatureModelRow) ?? null;
+}
+
+export async function listCreaturesByPlanet(planetId: string, playerId: string): Promise<CreatureModelRow[]> {
+  const sql = getSQL();
+  return (await sql`
+    SELECT * FROM creature_models
+    WHERE planet_id = ${planetId} AND player_id = ${playerId}
+    ORDER BY created_at ASC
+  `) as CreatureModelRow[];
+}
+
+export async function countPlayerCreatures(playerId: string): Promise<number> {
+  const sql = getSQL();
+  const rows = await sql`SELECT COUNT(*)::int AS count FROM creature_models WHERE player_id = ${playerId}`;
+  return (rows[0] as { count: number } | undefined)?.count ?? 0;
+}
+
+/** Offspring already spawned by this account — used to gate the "first
+ *  generation offspring is free" discount (Еволюція біосфери). */
+export async function countPlayerOffspring(playerId: string): Promise<number> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT COUNT(*)::int AS count FROM creature_models
+    WHERE player_id = ${playerId} AND parent_id IS NOT NULL
+  `;
+  return (rows[0] as { count: number } | undefined)?.count ?? 0;
+}
+
+export async function updateCreatureModel(
+  id: string,
+  updates: Partial<{
+    status: string;
+    prompt_used: string;
+    image_url: string;
+    glb_url: string;
+    tripo_task_id: string;
+    name: string;
+    quarks_paid: number;
+    completed_at: string;
+    hybrid_photo_url: string;
+  }>,
+): Promise<CreatureModelRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    UPDATE creature_models
+    SET status = COALESCE(${updates.status ?? null}, status),
+        prompt_used = COALESCE(${updates.prompt_used ?? null}, prompt_used),
+        image_url = COALESCE(${updates.image_url ?? null}, image_url),
+        glb_url = COALESCE(${updates.glb_url ?? null}, glb_url),
+        tripo_task_id = COALESCE(${updates.tripo_task_id ?? null}, tripo_task_id),
+        name = COALESCE(${updates.name ?? null}, name),
+        quarks_paid = COALESCE(${updates.quarks_paid ?? null}, quarks_paid),
+        completed_at = COALESCE(${updates.completed_at ?? null}::timestamptz, completed_at),
+        hybrid_photo_url = COALESCE(${updates.hybrid_photo_url ?? null}, hybrid_photo_url)
+    WHERE id = ${id}
+    RETURNING *
+  `;
+  return (rows[0] as CreatureModelRow) ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Creature Evolution — daily care loop, growth stages, generations (041)
+// ---------------------------------------------------------------------------
+// Pure vitality/stage math lives in packages/core/src/game/creature-evolution.ts
+// so the server (source of truth) and the client (decay preview) agree. These
+// helpers apply that logic against the DB row and persist the result.
+
+export type CareOutcome =
+  | { ok: true; creature: CreatureModelRow }
+  | { ok: false; reason: 'not_found' | 'forbidden' | CareBlockReason };
+
+/** Validates once-per-UTC-day server-side, then updates vitality/care_days/stage. */
+export async function careForCreature(id: string, playerId: string, nowMs = Date.now()): Promise<CareOutcome> {
+  const creature = await getCreatureModel(id);
+  if (!creature) return { ok: false, reason: 'not_found' };
+  if (creature.player_id !== playerId) return { ok: false, reason: 'forbidden' };
+
+  const state: CreatureCareState = {
+    vitality: creature.vitality,
+    careDays: creature.care_days,
+    stage: creature.stage as CreatureStage,
+    lastCareAtMs: creature.last_care_at ? new Date(creature.last_care_at).getTime() : null,
+    createdAtMs: new Date(creature.created_at).getTime(),
+  };
+  const blockReason = getCareBlockReason(state, nowMs);
+  if (blockReason) return { ok: false, reason: blockReason };
+
+  const result = applyDailyCare(state, nowMs);
+  if (!result) return { ok: false, reason: 'already_cared_today' };
+
+  const sql = getSQL();
+  const nowIso = new Date(nowMs).toISOString();
+  const rows = await sql`
+    UPDATE creature_models
+    SET vitality = ${result.vitality},
+        care_days = ${result.careDays},
+        stage = ${result.stage},
+        last_care_at = ${nowIso}::timestamptz
+    WHERE id = ${id}
+    RETURNING *
+  `;
+  return { ok: true, creature: rows[0] as CreatureModelRow };
+}
+
+export interface SpawnOffspringInput {
+  parentId: string;
+  playerId: string;
+  offspringId: string;
+  /** Offspring description text (parent brief + mutation phrases) — built by
+   *  the caller via creature-prompt.ts so db.ts stays free of prompt copy. */
+  description: string;
+  quarksPaid: number;
+}
+
+export type SpawnOffspringOutcome =
+  | { ok: true; parent: CreatureModelRow; offspring: CreatureModelRow }
+  | { ok: false; reason: 'not_found' | 'forbidden' | 'not_elder' };
+
+/** Marks the elder parent as `legacy` (frees its planet slot, no longer needs
+ *  care) and inserts the mutated offspring row. Mutations are recomputed here
+ *  deterministically from (parentId, generation) — see pickMutations — so the
+ *  stored `traits` always match what the caller used to build the prompt. */
+export async function spawnOffspring(input: SpawnOffspringInput): Promise<SpawnOffspringOutcome> {
+  const parent = await getCreatureModel(input.parentId);
+  if (!parent) return { ok: false, reason: 'not_found' };
+  if (parent.player_id !== input.playerId) return { ok: false, reason: 'forbidden' };
+  if (parent.stage !== 'elder') return { ok: false, reason: 'not_elder' };
+
+  const generation = parent.generation + 1;
+  const mutations = pickMutations(parent.id, generation);
+
+  const sql = getSQL();
+  const parentRows = await sql`
+    UPDATE creature_models SET stage = 'legacy' WHERE id = ${parent.id} RETURNING *
+  `;
+  const offspringRows = await sql`
+    INSERT INTO creature_models (
+      id, player_id, planet_id, description, status, quarks_paid, generation, parent_id, traits
+    )
+    VALUES (
+      ${input.offspringId}, ${input.playerId}, ${parent.planet_id}, ${input.description},
+      'generating', ${input.quarksPaid}, ${generation}, ${parent.id}, ${JSON.stringify(mutations)}
+    )
+    RETURNING *
+  `;
+  return {
+    ok: true,
+    parent: parentRows[0] as CreatureModelRow,
+    offspring: offspringRows[0] as CreatureModelRow,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Creature Hybridization — "дослід схрещування" (migration 042)
+// ---------------------------------------------------------------------------
+// Two same-planet non-legacy creatures fuse into a hybrid via the multi-image
+// Gemini path (both parents' portraits as inputs). A hybrid row starts as
+// 'generating'; the photo-only tier lands on 'photo_ready' (no GLB, no planet
+// slot), the full tier continues through the usual Tripo poll to 'ready'.
+// Trait mix is recomputed here from both parents via pickHybridTraits (same
+// determinism pattern as spawnOffspring) so stored traits always match the
+// prompt the caller built.
+
+export interface CreateHybridInput {
+  hybridId: string;
+  playerId: string;
+  parentAId: string;
+  parentBId: string;
+  /** Fused description text — built by the caller via creature-prompt.ts. */
+  description: string;
+  quarksPaid: number;
+}
+
+export type CreateHybridOutcome =
+  | { ok: true; parentA: CreatureModelRow; parentB: CreatureModelRow; hybrid: CreatureModelRow }
+  | { ok: false; reason: 'not_found' | 'forbidden' | 'same_creature' | 'different_planets' | 'parent_not_ready' | 'legacy_parent' };
+
+/** Validates the parent pair and inserts the hybrid row (status 'generating').
+ *  Parents keep their stage — hybridization never archives them. */
+export async function createHybridCreature(input: CreateHybridInput): Promise<CreateHybridOutcome> {
+  if (input.parentAId === input.parentBId) return { ok: false, reason: 'same_creature' };
+
+  const [parentA, parentB] = await Promise.all([
+    getCreatureModel(input.parentAId),
+    getCreatureModel(input.parentBId),
+  ]);
+  if (!parentA || !parentB) return { ok: false, reason: 'not_found' };
+  if (parentA.player_id !== input.playerId || parentB.player_id !== input.playerId) {
+    return { ok: false, reason: 'forbidden' };
+  }
+  if (parentA.planet_id !== parentB.planet_id) return { ok: false, reason: 'different_planets' };
+  if (parentA.status !== 'ready' || parentB.status !== 'ready') return { ok: false, reason: 'parent_not_ready' };
+  if (parentA.stage === 'legacy' || parentB.stage === 'legacy') return { ok: false, reason: 'legacy_parent' };
+
+  const generation = Math.max(parentA.generation ?? 1, parentB.generation ?? 1) + 1;
+  const traits = pickHybridTraits(
+    parentA.id,
+    parentB.id,
+    parentA.traits as TraitMutation[] | null,
+    parentB.traits as TraitMutation[] | null,
+  );
+
+  const sql = getSQL();
+  const rows = await sql`
+    INSERT INTO creature_models (
+      id, player_id, planet_id, description, status, quarks_paid,
+      generation, parent_id, parent_b_id, is_hybrid, traits
+    )
+    VALUES (
+      ${input.hybridId}, ${input.playerId}, ${parentA.planet_id}, ${input.description},
+      'generating', ${input.quarksPaid}, ${generation}, ${parentA.id}, ${parentB.id},
+      TRUE, ${JSON.stringify(traits)}
+    )
+    RETURNING *
+  `;
+  return { ok: true, parentA, parentB, hybrid: rows[0] as CreatureModelRow };
+}
+
+// ---------------------------------------------------------------------------
 // Planet Skin helpers (shared Kling texture maps for planet spheres)
 // ---------------------------------------------------------------------------
 
@@ -1488,12 +1794,18 @@ export async function saveSurfaceMap(data: {
   playerId: string;
   planetId: string;
   systemId: string;
-  klingTaskId: string;
+  /**
+   * Legacy Kling task id. Omitted for the current Gemini pipeline, which
+   * generates the photo synchronously and calls updateSurfaceMap() with the
+   * final status right after — no async task to track.
+   */
+  klingTaskId?: string | null;
 }): Promise<SurfaceMapRow> {
   const sql = getSQL();
+  const klingTaskId = data.klingTaskId ?? null;
   const rows = await sql`
     INSERT INTO surface_maps (id, player_id, planet_id, system_id, kling_task_id, status)
-    VALUES (${data.id}, ${data.playerId}, ${data.planetId}, ${data.systemId}, ${data.klingTaskId}, 'generating')
+    VALUES (${data.id}, ${data.playerId}, ${data.planetId}, ${data.systemId}, ${klingTaskId}, 'generating')
     ON CONFLICT (system_id, planet_id) DO UPDATE SET
       kling_task_id = EXCLUDED.kling_task_id,
       status = 'generating',
@@ -4586,8 +4898,8 @@ export async function getRatingAchievements(playerId: string): Promise<{
 
 /**
  * Finalize the week that just ended: pick each cluster's champion, rank the
- * top-10 globally, pay quarks (rank 1 → 100, ranks 2-10 → 1), bump
- * champion_weeks and reset every player's weekly window.
+ * top-10 globally, pay quarks (rank 1 → 100, rank 2 → 50, rank 3 → 30,
+ * ranks 4-10 → 1), bump champion_weeks and reset every player's weekly window.
  *
  * Idempotent: skips if champions for `finishedWeek` already exist.
  * Returns the champion rows (with ranks) for downstream notifications.
@@ -4644,7 +4956,7 @@ export async function finalizeWeeklyChampions(): Promise<{
     )
     UPDATE cluster_champions c
     SET global_rank = ranked.rnk,
-        reward_quarks = CASE WHEN ranked.rnk = 1 THEN 100 WHEN ranked.rnk <= 10 THEN 1 ELSE 0 END
+        reward_quarks = CASE WHEN ranked.rnk = 1 THEN 100 WHEN ranked.rnk = 2 THEN 50 WHEN ranked.rnk = 3 THEN 30 WHEN ranked.rnk <= 10 THEN 1 ELSE 0 END
     FROM ranked
     WHERE c.id = ranked.id AND ranked.rnk <= 10
   `;
@@ -4712,4 +5024,551 @@ export async function getCometPushCandidates(): Promise<Array<{
       AND push_notifications = TRUE
       AND COALESCE(last_seen_at, last_login, created_at) > NOW() - INTERVAL '14 days'
   ` as unknown as Array<{ id: string; preferred_language: string }>;
+}
+
+// ---------------------------------------------------------------------------
+// Polls (community "голосування" — admin-created, shown in global chat)
+// ---------------------------------------------------------------------------
+//
+// Players vote once per poll (server-enforced via UNIQUE(poll_id, player_id)).
+// getPollResultsPublic computes percentages here, server-side, so raw vote
+// counts never need to be sent to the client — only getPollResultsAdmin
+// (gated by ADMIN_PUSH_SECRET at the API layer) exposes absolute counts and
+// the per-voter breakdown.
+// ---------------------------------------------------------------------------
+
+export interface PollOption {
+  id: string;
+  label_uk: string;
+  label_en: string;
+}
+
+export interface PollRow {
+  id: string;
+  question_uk: string;
+  question_en: string;
+  options: PollOption[];
+  status: 'active' | 'closed';
+  created_at: string;
+  closes_at: string | null;
+}
+
+export interface PollVoteRow {
+  id: number;
+  poll_id: string;
+  player_id: string;
+  option_id: string;
+  created_at: string;
+}
+
+export async function createPoll(input: {
+  questionUk: string;
+  questionEn: string;
+  options: PollOption[];
+  closesAt?: string | null;
+}): Promise<PollRow> {
+  const sql = getSQL();
+  const id = `poll_${Date.now()}_${randomUUID().slice(0, 8)}`;
+  const rows = await sql`
+    INSERT INTO polls (id, question_uk, question_en, options, status, closes_at)
+    VALUES (
+      ${id}, ${input.questionUk}, ${input.questionEn},
+      ${JSON.stringify(input.options)}::jsonb, 'active', ${input.closesAt ?? null}
+    )
+    RETURNING *
+  `;
+  return rows[0] as unknown as PollRow;
+}
+
+/** Most recently created active poll, or null when none is active. */
+export async function getActivePoll(): Promise<PollRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT * FROM polls WHERE status = 'active' ORDER BY created_at DESC LIMIT 1
+  `;
+  return rows.length ? (rows[0] as unknown as PollRow) : null;
+}
+
+export async function getPollById(pollId: string): Promise<PollRow | null> {
+  const sql = getSQL();
+  const rows = await sql`SELECT * FROM polls WHERE id = ${pollId}`;
+  return rows.length ? (rows[0] as unknown as PollRow) : null;
+}
+
+/** Newest-first page of polls for the admin console, plus total count. */
+export async function listPolls(limit: number = 50, offset: number = 0): Promise<{ rows: PollRow[]; total: number }> {
+  const sql = getSQL();
+  const [rows, countRows] = await Promise.all([
+    sql`SELECT * FROM polls ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`,
+    sql`SELECT COUNT(*)::int AS count FROM polls`,
+  ]);
+  return { rows: rows as unknown as PollRow[], total: (countRows[0] as { count: number }).count };
+}
+
+export async function closePoll(pollId: string): Promise<PollRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    UPDATE polls SET status = 'closed' WHERE id = ${pollId} RETURNING *
+  `;
+  return rows.length ? (rows[0] as unknown as PollRow) : null;
+}
+
+export type CastVoteResult =
+  | { ok: true; vote: PollVoteRow }
+  | { ok: false; reason: 'already_voted' | 'poll_not_found' | 'poll_closed' | 'invalid_option' };
+
+/** Casts a single vote. Server-enforced one-vote-per-player via the unique
+ *  index — a second attempt for the same poll/player is rejected, never
+ *  silently overwritten. */
+export async function castVote(input: {
+  pollId: string;
+  playerId: string;
+  optionId: string;
+}): Promise<CastVoteResult> {
+  const sql = getSQL();
+
+  const pollRows = await sql`SELECT * FROM polls WHERE id = ${input.pollId}`;
+  if (!pollRows.length) return { ok: false, reason: 'poll_not_found' };
+  const poll = pollRows[0] as unknown as PollRow;
+  if (poll.status !== 'active') return { ok: false, reason: 'poll_closed' };
+  const validOption = poll.options.some((o) => o.id === input.optionId);
+  if (!validOption) return { ok: false, reason: 'invalid_option' };
+
+  const rows = await sql`
+    INSERT INTO poll_votes (poll_id, player_id, option_id)
+    VALUES (${input.pollId}, ${input.playerId}, ${input.optionId})
+    ON CONFLICT (poll_id, player_id) DO NOTHING
+    RETURNING *
+  `;
+  if (!rows.length) return { ok: false, reason: 'already_voted' };
+  return { ok: true, vote: rows[0] as unknown as PollVoteRow };
+}
+
+export async function getPlayerVoteForPoll(pollId: string, playerId: string): Promise<PollVoteRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT * FROM poll_votes WHERE poll_id = ${pollId} AND player_id = ${playerId}
+  `;
+  return rows.length ? (rows[0] as unknown as PollVoteRow) : null;
+}
+
+export interface PollResultOption {
+  optionId: string;
+  percentage: number;
+}
+
+/** Player-facing results: percentages only, rounded to 1 decimal. Counts are
+ *  aggregated and discarded here — they never leave this function for the
+ *  public path (see getPollResultsAdmin for the counted admin view). */
+export async function getPollResultsPublic(pollId: string): Promise<{
+  totalVotes: number;
+  options: PollResultOption[];
+}> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT option_id, COUNT(*)::int AS count
+    FROM poll_votes
+    WHERE poll_id = ${pollId}
+    GROUP BY option_id
+  `;
+  const counts = rows as unknown as Array<{ option_id: string; count: number }>;
+  const total = counts.reduce((sum, r) => sum + r.count, 0);
+  const options = counts.map((r) => ({
+    optionId: r.option_id,
+    percentage: total > 0 ? Math.round((r.count / total) * 1000) / 10 : 0,
+  }));
+  return { totalVotes: total, options };
+}
+
+export interface PollVoterRow {
+  playerId: string;
+  callsign: string | null;
+  level: number;
+  optionId: string;
+  createdAt: string;
+}
+
+/** Admin-only view: absolute per-option counts + percentages, plus the full
+ *  voter list (callsign/level/option/timestamp) joined against players. */
+export async function getPollResultsAdmin(pollId: string): Promise<{
+  totalVotes: number;
+  options: Array<{ optionId: string; count: number; percentage: number }>;
+  voters: PollVoterRow[];
+}> {
+  const sql = getSQL();
+  const [countRows, voterRows] = await Promise.all([
+    sql`
+      SELECT option_id, COUNT(*)::int AS count
+      FROM poll_votes
+      WHERE poll_id = ${pollId}
+      GROUP BY option_id
+    `,
+    sql`
+      SELECT
+        v.player_id AS player_id,
+        p.callsign AS callsign,
+        COALESCE(p.player_level, 0) AS level,
+        v.option_id AS option_id,
+        v.created_at AS created_at
+      FROM poll_votes v
+      LEFT JOIN players p ON p.id = v.player_id
+      WHERE v.poll_id = ${pollId}
+      ORDER BY v.created_at DESC
+    `,
+  ]);
+  const counts = countRows as unknown as Array<{ option_id: string; count: number }>;
+  const total = counts.reduce((sum, r) => sum + r.count, 0);
+  const options = counts.map((r) => ({
+    optionId: r.option_id,
+    count: r.count,
+    percentage: total > 0 ? Math.round((r.count / total) * 1000) / 10 : 0,
+  }));
+  const voters = (voterRows as unknown as Array<{
+    player_id: string; callsign: string | null; level: number; option_id: string; created_at: string;
+  }>).map((r) => ({
+    playerId: r.player_id,
+    callsign: r.callsign,
+    level: r.level,
+    optionId: r.option_id,
+    createdAt: r.created_at,
+  }));
+  return { totalVotes: total, options, voters };
+}
+
+// ---------------------------------------------------------------------------
+// Megastructures — "Мегаструктури кластера" (migration 043)
+// ---------------------------------------------------------------------------
+// Pure sizing/clamp/payout math lives in packages/core/src/game/megastructure.ts
+// so client previews and the server (source of truth) agree. One active
+// megastructure per cluster; MVP only ever provisions a 'beacon' tier 1 —
+// see getMegastructureRequirements for the sizing derivation.
+
+export interface MegastructureRow {
+  id: string;
+  cluster_id: string;
+  type: string;
+  tier: number;
+  status: 'building' | 'completed';
+  requirements: MegastructureResourceBundle;
+  progress: MegastructureResourceBundle;
+  research_bonus_active: boolean;
+  builders: MegastructureBuilderRecord[] | null;
+  started_at: string;
+  completed_at: string | null;
+}
+
+/** Auto-provisions the cluster's beacon on first view; otherwise returns the
+ *  most recently started structure for the cluster (building or completed —
+ *  no new tier is auto-started yet, only 'beacon' tier 1 exists). */
+export async function getOrCreateClusterMegastructure(clusterId: string): Promise<MegastructureRow> {
+  const sql = getSQL();
+  const existing = await sql`
+    SELECT * FROM megastructures WHERE cluster_id = ${clusterId}
+    ORDER BY started_at DESC LIMIT 1
+  `;
+  if (existing[0]) return existing[0] as unknown as MegastructureRow;
+
+  const requirements = getMegastructureRequirements('beacon', 1);
+  const id = `${clusterId}-beacon-1`;
+  const rows = await sql`
+    INSERT INTO megastructures (id, cluster_id, type, tier, status, requirements)
+    VALUES (${id}, ${clusterId}, 'beacon', 1, 'building', ${JSON.stringify(requirements)})
+    ON CONFLICT (id) DO NOTHING
+    RETURNING *
+  `;
+  if (rows[0]) return rows[0] as unknown as MegastructureRow;
+  // ON CONFLICT fired (race with a concurrent request) — fetch the row it created.
+  const fallback = await sql`SELECT * FROM megastructures WHERE id = ${id}`;
+  return fallback[0] as unknown as MegastructureRow;
+}
+
+/** Today's cumulative contribution (units per resource) for a player on a
+ *  given structure — used both for the server-side cap check and the "X
+ *  remaining today" UI hint. */
+export async function getMegastructureContributionToday(
+  megastructureId: string,
+  playerId: string,
+): Promise<MegastructureResourceBundle> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT resources FROM megastructure_contributions
+    WHERE megastructure_id = ${megastructureId} AND player_id = ${playerId} AND day = CURRENT_DATE
+  `;
+  return (rows[0]?.resources as MegastructureResourceBundle | undefined) ?? emptyResourceBundle();
+}
+
+export type ContributeOutcome =
+  | {
+      ok: true;
+      megastructure: MegastructureRow;
+      applied: MegastructureResourceBundle;
+      /** Player's cumulative contributed units today, AFTER this call. */
+      todayTotalAfter: number;
+      isFirstContributionToday: boolean;
+      justCompleted: boolean;
+    }
+  | { ok: false; reason: 'not_found' | 'already_completed' | 'no_capacity' };
+
+/**
+ * Validates the daily cap server-side (against the fresh row read here — see
+ * the module comment above the `progress`/`resources` UPDATE statements for
+ * why the actual increments are still race-safe even though this pre-check
+ * uses a moment-in-time read), clamps the request against remaining
+ * structure need, applies it atomically, and detects completion.
+ */
+export async function contributeToMegastructure(input: {
+  megastructureId: string;
+  playerId: string;
+  playerName: string;
+  requested: Partial<MegastructureResourceBundle>;
+}): Promise<ContributeOutcome> {
+  const sql = getSQL();
+
+  const structRows = await sql`SELECT * FROM megastructures WHERE id = ${input.megastructureId}`;
+  const structure = structRows[0] as unknown as MegastructureRow | undefined;
+  if (!structure) return { ok: false, reason: 'not_found' };
+  if (structure.status === 'completed') return { ok: false, reason: 'already_completed' };
+
+  const todayBundle = await getMegastructureContributionToday(input.megastructureId, input.playerId);
+  const todayTotal = resourceTotal(todayBundle);
+  const applied = clampContribution(input.requested, structure.progress, structure.requirements, todayTotal);
+  const appliedTotal = resourceTotal(applied);
+  if (appliedTotal <= 0) return { ok: false, reason: 'no_capacity' };
+
+  const isFirstContributionToday = todayTotal <= 0;
+
+  // The UPDATE statements below always add `applied` to the table's live
+  // (fresh, lock-protected) column value — not to the JS-side snapshot read
+  // above — so concurrent contributions never lose an update or corrupt
+  // progress/resources totals. Only the *decision* of how much to allow was
+  // based on a moment-in-time read; a very tight race between two calls from
+  // the same player could in theory let them exceed the daily cap by a small
+  // bounded amount. Acceptable for a non-monetary, cooperative game economy.
+  const results = await sql.transaction(
+    [
+      sql`SELECT pg_advisory_xact_lock(hashtext(${input.megastructureId}))`,
+      sql`
+        INSERT INTO megastructure_contributions (megastructure_id, player_id, player_name, resources, day)
+        VALUES (
+          ${input.megastructureId}, ${input.playerId}, ${input.playerName},
+          ${JSON.stringify(applied)}, CURRENT_DATE
+        )
+        ON CONFLICT (megastructure_id, player_id, day) DO UPDATE SET
+          resources = jsonb_build_object(
+            'minerals',  COALESCE((megastructure_contributions.resources->>'minerals')::numeric, 0)  + ${applied.minerals},
+            'volatiles', COALESCE((megastructure_contributions.resources->>'volatiles')::numeric, 0) + ${applied.volatiles},
+            'isotopes',  COALESCE((megastructure_contributions.resources->>'isotopes')::numeric, 0)  + ${applied.isotopes},
+            'water',     COALESCE((megastructure_contributions.resources->>'water')::numeric, 0)     + ${applied.water}
+          ),
+          player_name = ${input.playerName}
+      `,
+      sql`
+        UPDATE megastructures SET
+          progress = jsonb_build_object(
+            'minerals',  LEAST((requirements->>'minerals')::numeric,  COALESCE((progress->>'minerals')::numeric, 0)  + ${applied.minerals}),
+            'volatiles', LEAST((requirements->>'volatiles')::numeric, COALESCE((progress->>'volatiles')::numeric, 0) + ${applied.volatiles}),
+            'isotopes',  LEAST((requirements->>'isotopes')::numeric,  COALESCE((progress->>'isotopes')::numeric, 0)  + ${applied.isotopes}),
+            'water',     LEAST((requirements->>'water')::numeric,     COALESCE((progress->>'water')::numeric, 0)     + ${applied.water})
+          )
+        WHERE id = ${input.megastructureId}
+        RETURNING *
+      `,
+    ],
+    { isolationLevel: 'ReadCommitted' },
+  );
+
+  const updatedRows = results[2] as unknown as MegastructureRow[];
+  let updated = updatedRows[0];
+
+  const justCompleted = updated.status === 'building' && isMegastructureComplete(updated.progress, updated.requirements);
+  if (justCompleted) {
+    updated = await completeMegastructure(input.megastructureId);
+  }
+
+  return {
+    ok: true,
+    megastructure: updated,
+    applied,
+    todayTotalAfter: todayTotal + appliedTotal,
+    isFirstContributionToday,
+    justCompleted,
+  };
+}
+
+/** Sums all-time contributions per player, computes the share-based payout
+ *  (see computeMegastructureBuilders in @nebulife/core), credits every
+ *  contributor's quarks + XP directly (server-authoritative — most
+ *  contributors won't be online at the exact completing moment), and stores
+ *  the final "Будівничі" record + flips status/research_bonus_active. */
+async function completeMegastructure(megastructureId: string): Promise<MegastructureRow> {
+  const sql = getSQL();
+
+  const contribRows = await sql`
+    SELECT
+      player_id,
+      (array_agg(player_name ORDER BY day DESC))[1] AS player_name,
+      SUM(
+        COALESCE((resources->>'minerals')::numeric, 0) + COALESCE((resources->>'volatiles')::numeric, 0)
+        + COALESCE((resources->>'isotopes')::numeric, 0) + COALESCE((resources->>'water')::numeric, 0)
+      ) AS total_units,
+      COUNT(DISTINCT day)::int AS days
+    FROM megastructure_contributions
+    WHERE megastructure_id = ${megastructureId}
+    GROUP BY player_id
+  `;
+  const contributors = (contribRows as unknown as Array<{
+    player_id: string; player_name: string; total_units: string | number; days: number;
+  }>).map((r) => ({
+    playerId: r.player_id,
+    playerName: r.player_name,
+    totalUnits: Number(r.total_units),
+    days: r.days,
+  }));
+
+  const builders = computeMegastructureBuilders(contributors);
+
+  // Reward crediting is best-effort per contributor — one bad row must not
+  // block the others or leave the structure stuck in 'building'.
+  for (const builder of builders) {
+    try {
+      await sql`
+        UPDATE players
+        SET quarks = quarks + ${builder.quarksAwarded},
+            player_xp = player_xp + ${builder.xpAwarded}
+        WHERE id = ${builder.playerId}
+      `;
+    } catch (err) {
+      console.error('[megastructure] reward credit failed for', builder.playerId, err);
+    }
+  }
+
+  const rows = await sql`
+    UPDATE megastructures
+    SET status = 'completed',
+        completed_at = NOW(),
+        research_bonus_active = TRUE,
+        builders = ${JSON.stringify(builders)}
+    WHERE id = ${megastructureId}
+    RETURNING *
+  `;
+  return rows[0] as unknown as MegastructureRow;
+}
+
+export type MegastructureBuilderView = MegastructureBuilderRecord;
+
+/** Top contributors for a structure. Once completed, returns the frozen
+ *  "Будівничі" record (`builders` column); while building, computes a live
+ *  leaderboard (share relative to ALL contributors, not just the returned
+ *  top N) so the UI can show an accurate percentage at any time. */
+export async function getMegastructureBuilders(
+  megastructureId: string,
+  limit = 15,
+): Promise<MegastructureBuilderView[]> {
+  const sql = getSQL();
+  const structRows = await sql`SELECT status, builders FROM megastructures WHERE id = ${megastructureId}`;
+  const structure = structRows[0] as { status?: string; builders?: MegastructureBuilderRecord[] | null } | undefined;
+  if (structure?.status === 'completed' && structure.builders) {
+    return structure.builders.slice(0, limit);
+  }
+
+  const rows = await sql`
+    WITH totals AS (
+      SELECT
+        player_id,
+        (array_agg(player_name ORDER BY day DESC))[1] AS player_name,
+        SUM(
+          COALESCE((resources->>'minerals')::numeric, 0) + COALESCE((resources->>'volatiles')::numeric, 0)
+          + COALESCE((resources->>'isotopes')::numeric, 0) + COALESCE((resources->>'water')::numeric, 0)
+        ) AS total_units,
+        COUNT(DISTINCT day)::int AS days
+      FROM megastructure_contributions
+      WHERE megastructure_id = ${megastructureId}
+      GROUP BY player_id
+    )
+    SELECT *, CASE WHEN SUM(total_units) OVER () > 0 THEN total_units / SUM(total_units) OVER () ELSE 0 END AS share
+    FROM totals
+    ORDER BY total_units DESC
+    LIMIT ${limit}
+  `;
+  return (rows as unknown as Array<{
+    player_id: string; player_name: string; total_units: string | number; days: number; share: string | number;
+  }>).map((r) => ({
+    playerId: r.player_id,
+    playerName: r.player_name,
+    totalUnits: Number(r.total_units),
+    days: r.days,
+    share: Number(r.share),
+    quarksAwarded: 0,
+    xpAwarded: 0,
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// Saga Chapters ("Сага Ткача" — migration 044)
+// ---------------------------------------------------------------------------
+// One row per (player, milestone_type). Written once by
+// api/saga/generate-chapter.ts; read by api/saga/list.ts for the reader UI.
+
+export interface SagaChapterRow {
+  id: string;
+  player_id: string;
+  milestone_type: string;
+  title: string;
+  body_text: string;
+  image_url: string | null;
+  language: string;
+  created_at: string;
+}
+
+export async function createSagaChapter(m: {
+  id: string;
+  playerId: string;
+  milestoneType: string;
+  title: string;
+  bodyText: string;
+  imageUrl: string | null;
+  language: string;
+}): Promise<SagaChapterRow> {
+  const sql = getSQL();
+  const rows = await sql`
+    INSERT INTO saga_chapters (id, player_id, milestone_type, title, body_text, image_url, language)
+    VALUES (${m.id}, ${m.playerId}, ${m.milestoneType}, ${m.title}, ${m.bodyText}, ${m.imageUrl}, ${m.language})
+    ON CONFLICT (player_id, milestone_type) DO NOTHING
+    RETURNING *
+  `;
+  if (rows[0]) return rows[0] as SagaChapterRow;
+  // Lost the race to a concurrent request for the same milestone — return
+  // the row that won instead of throwing, so the client still gets a chapter.
+  const existing = await sql`
+    SELECT * FROM saga_chapters WHERE player_id = ${m.playerId} AND milestone_type = ${m.milestoneType}
+  `;
+  return existing[0] as SagaChapterRow;
+}
+
+export async function listSagaChapters(playerId: string): Promise<SagaChapterRow[]> {
+  const sql = getSQL();
+  return (await sql`
+    SELECT * FROM saga_chapters WHERE player_id = ${playerId} ORDER BY created_at ASC
+  `) as SagaChapterRow[];
+}
+
+export async function hasSagaChapter(playerId: string, milestoneType: string): Promise<boolean> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT 1 FROM saga_chapters WHERE player_id = ${playerId} AND milestone_type = ${milestoneType} LIMIT 1
+  `;
+  return rows.length > 0;
+}
+
+/** Server-side daily generation cap (SAGA_DAILY_CHAPTER_CAP) — any chapter
+ *  written by this player in the last 24h blocks a new one, independent of
+ *  milestone type. */
+export async function hasRecentSagaChapter(playerId: string, withinMs = 24 * 60 * 60 * 1000): Promise<boolean> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT 1 FROM saga_chapters
+    WHERE player_id = ${playerId} AND created_at > NOW() - make_interval(secs => ${withinMs / 1000.0})
+    LIMIT 1
+  `;
+  return rows.length > 0;
 }

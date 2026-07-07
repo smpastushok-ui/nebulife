@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import type { BuildingType, Discovery, FleetState, ObservatorySearchDuration, ObservatorySearchProgram, ObservatoryState, PlacedBuilding, Planet, PlanetResourceStocks, ProducibleType, SeparationJob, SeparationGroup, ExtractionJob, CosmicEvent } from '@nebulife/core';
-import { BUILDING_DEFS, ELEMENTS, PRODUCIBLE_ASSET_PATHS, PRODUCIBLE_DEFS, RARITY_COLORS, getAvailableObservatoryPrograms, getCatalogEntry, getCatalogName, getObservatoryLevel, getObservatoryMaxActiveSearches, getObservatorySearchChance, getObservatoryXpProgress, isShipProducible, SEPARATION_BATCH, SEPARATION_DURATION_MS, SEPARATION_RESEARCH_DATA_COST, getSeparationElements, EXTRACTION_BATCH, EXTRACTION_RESEARCH_DATA_COST, getExtractionElements } from '@nebulife/core';
+import type { BuildingType, Discovery, FleetState, ObservatorySearchDuration, ObservatorySearchProgram, ObservatoryState, PlacedBuilding, Planet, PlanetResourceStocks, ProducibleType, SeparationJob, SeparationGroup, ExtractionJob, CosmicEvent, SeasonalProgressState } from '@nebulife/core';
+import { BUILDING_DEFS, ELEMENTS, PRODUCIBLE_ASSET_PATHS, PRODUCIBLE_DEFS, RARITY_COLORS, getAvailableObservatoryPrograms, getCatalogEntry, getCatalogName, getObservatoryLevel, getObservatoryMaxActiveSearches, getObservatorySearchChance, getObservatoryXpProgress, isShipProducible, SEPARATION_BATCH, SEPARATION_DURATION_MS, SEPARATION_RESEARCH_DATA_COST, getSeparationElements, EXTRACTION_BATCH, EXTRACTION_RESEARCH_DATA_COST, getExtractionElements, getCurrentSeason, isSeasonCollectionComplete, SEASON_COLLECTION_REWARD_QUARKS } from '@nebulife/core';
 
 import { ResourceIcon, RESOURCE_COLORS, type ResourceType } from '../ResourceIcon.js';
 import { buildingName, buildingDesc } from '../../../i18n/building-labels.js';
@@ -68,6 +68,10 @@ export interface BuildingDetailPanelProps {
   onStartObservatorySearch?: (duration: ObservatorySearchDuration, program: ObservatorySearchProgram, observatoryCount?: number) => boolean | void;
   /** Re-open a completed report's discovery reveal (Quantum Focus / telemetry). */
   onViewReportDiscovery?: (discovery: Discovery) => void;
+  /** "Сезони спостережень" — current season's collection progress + finale claim. */
+  seasonalProgress?: SeasonalProgressState;
+  onClaimSeasonReward?: () => void;
+  seasonClaiming?: boolean;
   isPremium?: boolean;
   onResourceChange?: (delta: Partial<ColonyResources>) => void;
   onResearchDataChange?: (delta: number) => void;
@@ -1367,6 +1371,9 @@ export function BuildingDetailPanel({
   onStartPayloadProduction,
   onStartObservatorySearch,
   onViewReportDiscovery,
+  seasonalProgress,
+  onClaimSeasonReward,
+  seasonClaiming = false,
   elementYieldHistory,
   experimentHistory,
   onViewResult,
@@ -1390,6 +1397,12 @@ export function BuildingDetailPanel({
   const [extractionNow, setExtractionNow] = useState(() => Date.now());
   const [separationGroup, setSeparationGroup] = useState<SeparationGroup>('mineral');
   const [researchedEventIds, setResearchedEventIds] = useState<Set<string>>(() => readResearchedEventIds());
+  /** Transient in-panel confirmation toast (observatory search started, etc.). */
+  const [infoToast, setInfoToast] = useState<{ title: string; body: string } | null>(null);
+  const infoToastTimerRef = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (infoToastTimerRef.current !== null) window.clearTimeout(infoToastTimerRef.current);
+  }, []);
   const type = building?.type ?? buildingType;
   const def = type ? BUILDING_DEFS[type] : null;
   const hasOrbitalTelescope = useMemo(
@@ -1529,6 +1542,16 @@ export function BuildingDetailPanel({
     ? observatoryProgram
     : observatoryPrograms[observatoryPrograms.length - 1] ?? 'routine_sky_watch';
 
+  // ── "Сезони спостережень" — current season snapshot (recomputed on every
+  // render; `observatoryNow` above already ticks per-second while any search
+  // is active, which is all the freshness a day-granularity countdown needs). ──
+  const currentSeason = useMemo(() => getCurrentSeason(observatoryNow), [observatoryNow]);
+  const seasonResearchedTypes = seasonalProgress && seasonalProgress.seasonIndex === currentSeason.seasonIndex
+    ? seasonalProgress.researchedTypes
+    : [];
+  const seasonCollectionComplete = seasonalProgress ? isSeasonCollectionComplete(seasonalProgress, observatoryNow) : false;
+  const seasonRewardClaimed = seasonalProgress?.claimedSeasons.includes(currentSeason.occurrenceId) ?? false;
+
   // ── Manual element separation batch state ──
   const activeSeparationJob = (separationJobs ?? []).find((j) => j.buildingId === building?.id) ?? null;
   const separationElapsed = activeSeparationJob ? separationNow - activeSeparationJob.startedAt : 0;
@@ -1560,10 +1583,16 @@ export function BuildingDetailPanel({
   const canAffordExtraction =
     (colonyResources.minerals ?? 0) >= EXTRACTION_BATCH && researchData >= EXTRACTION_RESEARCH_DATA_COST;
 
-  const addInfoReport = (title: string, body: string, impact = t('building_detail.report_no_persistent_effect')) => {
-    void title;
-    void body;
-    void impact;
+  // In-panel confirmation toast. The panel is a fullscreen overlay
+  // (zIndex 9900), so App-level toasts (zIndex 9800) render BEHIND it —
+  // feedback for actions taken here must be shown inside the panel itself.
+  const addInfoReport = (title: string, body: string) => {
+    if (infoToastTimerRef.current !== null) window.clearTimeout(infoToastTimerRef.current);
+    setInfoToast({ title, body });
+    infoToastTimerRef.current = window.setTimeout(() => {
+      setInfoToast(null);
+      infoToastTimerRef.current = null;
+    }, 3600);
   };
 
   return (
@@ -2187,6 +2216,48 @@ export function BuildingDetailPanel({
           </div>
         </Section>
 
+        {/* Requirements & levels help — player feedback: upgrade/level
+            requirements had no in-game explanation at all. */}
+        <Section title={t('building_detail.requirements_title')}>
+          <div style={{ display: 'grid', gridTemplateColumns: compact ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8 }}>
+            <MetricCard
+              label={t('building_detail.req_level')}
+              value={`L${def.levelRequired}`}
+              sub={t('building_detail.req_level_desc')}
+            />
+            <MetricCard
+              label={t('building_detail.req_tech')}
+              value={def.techRequired
+                ? t(`tech.${def.techRequired}.name`, { defaultValue: def.techRequired })
+                : t('building_detail.req_none')}
+              sub={def.techRequired ? t('building_detail.req_tech_desc') : undefined}
+            />
+            <MetricCard
+              label={t('building_detail.req_limit')}
+              value={def.maxPerPlanet > 0 ? `${stats.count} / ${def.maxPerPlanet}` : t('building_detail.req_unlimited')}
+              sub={t('building_detail.req_limit_desc')}
+            />
+            <MetricCard
+              label={t('building_detail.req_cost')}
+              value={def.cost.length > 0
+                ? def.cost.map((c) => `${c.amount} ${t(`colony_center.resource.${c.resource}`, { defaultValue: c.resource })}`).join(', ')
+                : t('building_detail.req_cost_free')}
+              sub={t('building_detail.req_cost_desc')}
+            />
+          </div>
+          <div style={{
+            background: 'rgba(68,136,170,0.08)',
+            border: '1px solid rgba(68,136,170,0.30)',
+            borderRadius: 5,
+            padding: '10px 12px',
+            color: '#8899aa',
+            fontSize: 11,
+            lineHeight: 1.5,
+          }}>
+            {t('building_detail.level_help')}
+          </div>
+        </Section>
+
         {type === 'resource_storage' && (
           <Section title={t('resource_widget.storage_title')}>
             <div style={{
@@ -2409,7 +2480,8 @@ export function BuildingDetailPanel({
                         // (AdMob = native shells). On web showRewardedAd
                         // instantly returns rewarded:false, which silently
                         // blocked the search for every non-premium player.
-                        if (!isPremium && isNativePlatform()) {
+                        const adsGated = !isPremium && isNativePlatform();
+                        if (adsGated) {
                           setObservatoryAdsRunning(true);
                           const result = await watchAdsWithProgress('research_data', 3, () => {});
                           setObservatoryAdsRunning(false);
@@ -2419,8 +2491,11 @@ export function BuildingDetailPanel({
                           }
                         }
                         const started = onStartObservatorySearch?.(duration, selectedObservatoryProgram, observatoryCount);
-                        if (started === false) return;
-                        addInfoReport(t('observatory.in_progress'), isPremium ? t('observatory.search_started') : t('observatory.search_started_after_ads'));
+                        if (started === false) {
+                          addInfoReport(t('observatory.title_short'), t('observatory.search_not_started'));
+                          return;
+                        }
+                        addInfoReport(t('observatory.in_progress'), adsGated ? t('observatory.search_started_after_ads') : t('observatory.search_started'));
                       }}
                     />
                   );
@@ -2460,6 +2535,104 @@ export function BuildingDetailPanel({
                   </div>
                 )}
               </div>
+            </div>
+          </Section>
+        )}
+
+        {type === 'observatory' && (
+          <Section title={t('seasons.section_title')}>
+            <div style={{
+              background: 'rgba(10,15,25,0.48)',
+              border: `1px solid ${currentSeason.isFinale ? 'rgba(255,136,68,0.5)' : 'rgba(68,136,170,0.35)'}`,
+              borderRadius: 5,
+              padding: compact ? 10 : 12,
+              display: 'grid',
+              gap: 12,
+            }}>
+              {currentSeason.isFinale && (
+                <div style={{
+                  background: 'rgba(255,136,68,0.12)',
+                  border: '1px solid rgba(255,136,68,0.45)',
+                  borderRadius: 4,
+                  padding: '7px 10px',
+                  color: '#ff8844',
+                  fontSize: 10,
+                  letterSpacing: 1,
+                  textTransform: 'uppercase',
+                  textAlign: 'center',
+                }}>
+                  {t('seasons.finale_banner')}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                <div style={{ color: '#9fd0ff', fontSize: 13, fontWeight: 600 }}>
+                  {t(`seasons.name.${currentSeason.def.id}`)}
+                </div>
+                <div style={{ color: '#8899aa', fontSize: 10 }}>
+                  {t('seasons.days_remaining', { count: currentSeason.daysRemaining })}
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 6 }}>
+                {currentSeason.def.anomalies.map((anomaly) => {
+                  const owned = seasonResearchedTypes.includes(anomaly.type);
+                  const entry = getCatalogEntry(anomaly.type);
+                  const name = entry ? getCatalogName(entry, i18n.language) : anomaly.type;
+                  return (
+                    <div
+                      key={anomaly.type}
+                      title={owned ? name : t('seasons.slot_unresearched')}
+                      style={{
+                        aspectRatio: '1',
+                        borderRadius: 4,
+                        border: `1px solid ${owned ? '#44ff88' : BORDER}`,
+                        background: owned ? 'rgba(68,255,136,0.12)' : 'rgba(5,10,20,0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 16,
+                        color: owned ? '#44ff88' : '#334455',
+                      }}
+                    >
+                      {owned ? '\u2726' : '?'}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={{ color: '#667788', fontSize: 9, lineHeight: 1.4 }}>
+                {t('seasons.collection_progress', { current: seasonResearchedTypes.length, total: currentSeason.def.anomalies.length })}
+              </div>
+
+              {seasonCollectionComplete && !seasonRewardClaimed && (
+                <button
+                  type="button"
+                  onClick={() => onClaimSeasonReward?.()}
+                  disabled={seasonClaiming || !onClaimSeasonReward}
+                  style={{
+                    background: 'rgba(68,255,136,0.14)',
+                    border: '1px solid #44ff88',
+                    borderRadius: 4,
+                    color: '#44ff88',
+                    fontFamily: 'monospace',
+                    fontSize: 11,
+                    letterSpacing: 0.5,
+                    padding: '9px 10px',
+                    cursor: seasonClaiming ? 'default' : 'pointer',
+                    opacity: seasonClaiming ? 0.6 : 1,
+                  }}
+                >
+                  {seasonClaiming
+                    ? t('seasons.claiming')
+                    : t('seasons.claim_reward', { amount: SEASON_COLLECTION_REWARD_QUARKS })}
+                </button>
+              )}
+              {seasonRewardClaimed && (
+                <div style={{ color: '#556677', fontSize: 10, textAlign: 'center' }}>
+                  {t('seasons.reward_claimed')}
+                </div>
+              )}
             </div>
           </Section>
         )}
@@ -2580,6 +2753,33 @@ export function BuildingDetailPanel({
           </Section>
         )}
       </div>
+
+      {/* In-panel confirmation toast — the panel overlay sits above the
+          App-level toast layer, so confirmations must render here. */}
+      {infoToast && (
+        <div style={{
+          position: 'fixed',
+          bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 9950,
+          maxWidth: 'min(460px, calc(100vw - 32px))',
+          background: 'rgba(10,15,25,0.95)',
+          border: '1px solid #4488aa',
+          borderRadius: 4,
+          padding: '10px 18px',
+          fontFamily: 'monospace',
+          pointerEvents: 'none',
+          boxShadow: '0 0 18px rgba(68,136,170,0.20)',
+        }}>
+          <div style={{ fontSize: 10, color: '#7bb8ff', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4 }}>
+            {infoToast.title}
+          </div>
+          <div style={{ fontSize: 11, color: '#aabbcc', lineHeight: 1.45 }}>
+            {infoToast.body}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -8,11 +8,32 @@ type PromptMode = 'form' | 'thanks';
 interface PlayerFeedbackPromptProps {
   playerLevel: number;
   onClose: () => void;
+  /** Overrides for the copy shown, used to reuse this component for entry
+   *  points other than the level-12+ auto-popup (e.g. the chat "Message the
+   *  Weaver" button). Falls back to the default feedback_prompt.* i18n keys
+   *  when omitted, so the original popup is unaffected. */
+  kickerKey?: string;
+  titleKey?: string;
+  bodyKey?: string;
+  likesLabelKey?: string;
+  likesPlaceholderKey?: string;
+  dislikesLabelKey?: string;
+  dislikesPlaceholderKey?: string;
 }
 
 const MAX_FIELD_LENGTH = 2000;
 
-export function PlayerFeedbackPrompt({ playerLevel, onClose }: PlayerFeedbackPromptProps) {
+export function PlayerFeedbackPrompt({
+  playerLevel,
+  onClose,
+  kickerKey = 'feedback_prompt.kicker',
+  titleKey = 'feedback_prompt.title',
+  bodyKey = 'feedback_prompt.body',
+  likesLabelKey = 'feedback_prompt.likes_label',
+  likesPlaceholderKey = 'feedback_prompt.likes_placeholder',
+  dislikesLabelKey = 'feedback_prompt.dislikes_label',
+  dislikesPlaceholderKey = 'feedback_prompt.dislikes_placeholder',
+}: PlayerFeedbackPromptProps) {
   const { t, i18n } = useTranslation();
   const [mode, setMode] = useState<PromptMode>('form');
   const [likes, setLikes] = useState('');
@@ -97,7 +118,7 @@ export function PlayerFeedbackPrompt({ playerLevel, onClose }: PlayerFeedbackPro
 
       <div style={styles.card} role="dialog" aria-modal="true" aria-labelledby="feedback-prompt-title">
         <div style={styles.closeRow}>
-          <div style={styles.kicker}>{t('feedback_prompt.kicker')}</div>
+          <div style={styles.kicker}>{t(kickerKey)}</div>
           <button type="button" style={styles.closeButton} onClick={close} aria-label={t('common.close')}>
             x
           </button>
@@ -111,26 +132,26 @@ export function PlayerFeedbackPrompt({ playerLevel, onClose }: PlayerFeedbackPro
 
         {mode === 'form' && (
           <>
-            <h2 id="feedback-prompt-title" style={styles.title}>{t('feedback_prompt.title')}</h2>
-            <p style={styles.body}>{t('feedback_prompt.body')}</p>
+            <h2 id="feedback-prompt-title" style={styles.title}>{t(titleKey)}</h2>
+            <p style={styles.body}>{t(bodyKey)}</p>
 
             <div style={styles.field}>
-              <div style={styles.fieldLabel}>{t('feedback_prompt.likes_label')}</div>
+              <div style={styles.fieldLabel}>{t(likesLabelKey)}</div>
               <textarea
                 value={likes}
                 onChange={(event) => setLikes(event.target.value)}
-                placeholder={t('feedback_prompt.likes_placeholder')}
+                placeholder={t(likesPlaceholderKey)}
                 style={styles.textarea}
                 maxLength={MAX_FIELD_LENGTH}
               />
             </div>
 
             <div style={styles.field}>
-              <div style={styles.fieldLabel}>{t('feedback_prompt.dislikes_label')}</div>
+              <div style={styles.fieldLabel}>{t(dislikesLabelKey)}</div>
               <textarea
                 value={dislikes}
                 onChange={(event) => setDislikes(event.target.value)}
-                placeholder={t('feedback_prompt.dislikes_placeholder')}
+                placeholder={t(dislikesPlaceholderKey)}
                 style={styles.textarea}
                 maxLength={MAX_FIELD_LENGTH}
               />

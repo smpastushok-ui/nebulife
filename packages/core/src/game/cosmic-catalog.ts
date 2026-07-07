@@ -1050,6 +1050,205 @@ const ROGUES: CatalogEntry[] = [
 ];
 
 // ---------------------------------------------------------------------------
+// 11. SEASONAL ANOMALIES (20) — "Сезони спостережень" module. 5 variants per
+// rotating season theme (pulsars / comets / nebulae / binaries — see
+// `game/observation-seasons.ts`). Always `eventOnly: true` here (never rolled
+// by a normal search); `observation-seasons.ts` clones the active season's 5
+// entries with `eventOnly: false` when building the catalog passed into
+// `completeReadyObservatorySearches` for that search — see GAME_MODULES.md.
+// No new AI generation: rendering reuses an existing bundled common-event
+// asset per anomaly (see `getSeasonalAnomalyAssetType`), so seasonal finds
+// stay free to research.
+// ---------------------------------------------------------------------------
+
+const SEASONAL_ANOMALIES: CatalogEntry[] = [
+  // ── Сезон Пульсарів (Pulsar Season) ──────────────────────────────────────
+  {
+    type: 'season-pulsar-millisecond', category: 'stars', rarity: 'rare', galleryCategory: 'cosmos', eventOnly: true,
+    nameUk: 'Мілісекундний пульсар', nameEn: 'Millisecond Pulsar',
+    descriptionUk: 'Нейтронна зоря, розкручена акрецією речовини від компаньйона до сотень обертів за секунду. Найточніший природний годинник у Всесвіті.',
+    descriptionEn: 'A neutron star spun up to hundreds of rotations per second by accreting matter from a companion — the most precise natural clock in the universe, rivaling atomic clocks.',
+    promptTemplate: 'A millisecond pulsar spinning at extreme speed, twin lighthouse beams of radiation sweeping across space, faint accretion stream from a companion star, intense blue-white glow',
+    scientificFacts: ['Обертається до 700 разів за секунду', 'Розкручений перетіканням маси від зорі-компаньйона', 'Використовуються для перевірки загальної теорії відносності'],
+    scientificFactsEn: ['Can spin up to 700 times per second', 'Spun up by mass transfer from a companion star ("recycled pulsar")', 'Used as precision clocks to test general relativity and detect gravitational waves'],
+  },
+  {
+    type: 'season-pulsar-spider', category: 'stars', rarity: 'rare', galleryCategory: 'cosmos', eventOnly: true,
+    nameUk: 'Пульсар-павук', nameEn: 'Spider Pulsar',
+    descriptionUk: 'Мілісекундний пульсар, що поступово випаровує свого компаньйона потоком випромінювання та вітру частинок — "чорна вдова" або "редбек" космосу.',
+    descriptionEn: 'A millisecond pulsar slowly evaporating a companion star with its particle wind and radiation — the "black widow" or "redback" of the cosmos, eventually consuming its partner entirely.',
+    promptTemplate: 'A spider pulsar with a bow-shock wind evaporating a small companion star, streams of ablated material trailing away from the companion, harsh pulsar wind visible as a glowing nebula',
+    scientificFacts: ['Компаньйон поступово випаровується вітром пульсара', '"Чорні вдови" мають дуже легких компаньйонів, "редбеки" — важчих', 'Деякі компаньйони можуть зникнути повністю за мільярди років'],
+    scientificFactsEn: ['The companion is gradually ablated away by the pulsar wind', '"Black widows" have very light companions, "redbacks" heavier ones', 'Some companions may be fully consumed over billions of years'],
+  },
+  {
+    type: 'season-pulsar-xray', category: 'stars', rarity: 'rare', galleryCategory: 'cosmos', eventOnly: true,
+    nameUk: 'Рентгенівський пульсар', nameEn: 'X-ray Pulsar',
+    descriptionUk: 'Нейтронна зоря в тісній подвійній системі, що приймає речовину на магнітні полюси, викликаючи потужні періодичні спалахи рентгенівського випромінювання.',
+    descriptionEn: 'A neutron star in a close binary that funnels infalling matter onto its magnetic poles, producing powerful periodic bursts of X-ray radiation as hot spots rotate into view.',
+    promptTemplate: 'An X-ray pulsar with matter funneling along magnetic field lines onto glowing hot polar caps, intense X-ray emission rendered as piercing white-blue light, accretion disk from a companion star',
+    scientificFacts: ['Речовина падає вздовж магнітних ліній на полюси', 'Herкулес X-1 — один з перших відкритих рентгенівських пульсарів', 'Магнітне поле в мільярди разів сильніше за земне'],
+    scientificFactsEn: ['Infalling matter is funneled along magnetic field lines onto the poles', 'Hercules X-1 was one of the first X-ray pulsars discovered', 'Magnetic fields can be a trillion times stronger than Earth\'s'],
+  },
+  {
+    type: 'season-pulsar-binary', category: 'stars', rarity: 'rare', galleryCategory: 'cosmos', eventOnly: true,
+    nameUk: 'Пульсар у подвійній системі', nameEn: 'Binary Pulsar',
+    descriptionUk: 'Пульсар на орбіті з іншою нейтронною зорею. Орбіта поступово звужується через випромінювання гравітаційних хвиль — точне підтвердження теорії Ейнштейна.',
+    descriptionEn: 'A pulsar orbiting another neutron star, its orbit slowly decaying as the system radiates gravitational waves — the first indirect confirmation of Einstein\'s general relativity.',
+    promptTemplate: 'A binary pulsar system with two compact neutron stars orbiting closely, faint distortion of spacetime implied by gravitational lensing effects, radio beams sweeping from the visible pulsar',
+    scientificFacts: ['Пульсар Халса-Тейлора (PSR B1913+16) — перше непряме підтвердження гравітаційних хвиль', 'Орбіта звужується на кілька метрів на рік', 'За відкриття вручено Нобелівську премію 1993 року'],
+    scientificFactsEn: ['The Hulse-Taylor binary pulsar gave the first indirect proof of gravitational waves', 'The orbit shrinks by a few meters per year as energy radiates away', 'The discovery won the 1993 Nobel Prize in Physics'],
+  },
+  {
+    type: 'season-pulsar-magnetar', category: 'stars', rarity: 'rare', galleryCategory: 'cosmos', eventOnly: true,
+    nameUk: 'Магнітарний пульсар', nameEn: 'Magnetar-class Pulsar',
+    descriptionUk: 'Молода нейтронна зоря з надзвичайно сильним магнітним полем, що поєднує повільне обертання пульсара з катастрофічними "зорятрусами" — раптовими перебудовами кори.',
+    descriptionEn: 'A young neutron star with an extraordinarily powerful magnetic field, combining slow pulsar-like rotation with sudden "starquakes" — catastrophic crust rearrangements that release enormous bursts of energy.',
+    promptTemplate: 'A magnetar-class pulsar with an intensely twisted magnetic field visualized as glowing filaments, a sudden crustal starquake releasing a brilliant flare of energy, deep violet and white light',
+    scientificFacts: ['Магнітне поле в 1000 разів сильніше за звичайний пульсар', '"Зорятруси" викликають раптові спалахи гамма- та рентгенівського випромінювання', 'Лише близько 30 магнітарів відомі в нашій Галактиці'],
+    scientificFactsEn: ['Magnetic fields are around 1000 times stronger than an ordinary pulsar', 'Starquakes trigger sudden bursts of gamma-ray and X-ray radiation', 'Only about 30 magnetars are known in our Galaxy'],
+  },
+  // ── Сезон Комет (Comet Season) ───────────────────────────────────────────
+  {
+    type: 'season-comet-long-period', category: 'small-bodies', rarity: 'rare', galleryCategory: 'cosmos', eventOnly: true,
+    nameUk: 'Довгоперіодична комета', nameEn: 'Long-period Comet',
+    descriptionUk: 'Комета з періодом обертання понад 200 років, що прибуває з далекої хмари Оорта на витягнутій параболічній орбіті — гість, що завітає лише раз.',
+    descriptionEn: 'A comet with an orbital period exceeding 200 years, arriving from the distant Oort cloud on a highly elongated near-parabolic orbit — a once-in-a-lifetime visitor.',
+    promptTemplate: 'A long-period comet on a dramatic parabolic trajectory from the outer solar system, a brilliant dust and ion tail stretching far behind, pristine icy nucleus outgassing near perihelion',
+    scientificFacts: ['Прибувають з хмари Оорта на відстані до 1 світлового року', 'Орбітальний період може сягати мільйонів років', 'Хейл-Бопп (1997) мав період понад 2000 років'],
+    scientificFactsEn: ['They arrive from the Oort cloud, up to a light-year away', 'Orbital periods can reach millions of years', 'Comet Hale-Bopp (1997) had a period of over 2000 years'],
+  },
+  {
+    type: 'season-comet-short-period', category: 'small-bodies', rarity: 'rare', galleryCategory: 'cosmos', eventOnly: true,
+    nameUk: 'Короткоперіодична комета', nameEn: 'Short-period Comet',
+    descriptionUk: 'Комета родини Юпітера з періодом обертання менше 20 років, гравітаційно "приручена" газовим гігантом на компактнішу, передбачувану орбіту.',
+    descriptionEn: 'A Jupiter-family comet with an orbital period under 20 years, gravitationally "tamed" by the gas giant into a compact, predictable orbit close to the ecliptic plane.',
+    promptTemplate: 'A short-period Jupiter-family comet on a compact predictable orbit, active jets of gas and dust from a well-observed nucleus, faint tail curving along its repeated path',
+    scientificFacts: ['Орбіта сформована гравітацією Юпітера', 'Комета Галлея — найвідоміша, період 75-79 років', 'Втрачають матеріал з кожним проходом і зрештою розпадаються'],
+    scientificFactsEn: ['Their orbits are shaped by Jupiter\'s gravity', 'Halley\'s Comet is the most famous, with a 75-79 year period', 'They lose material on each pass and eventually disintegrate'],
+  },
+  {
+    type: 'season-comet-sungrazer', category: 'small-bodies', rarity: 'rare', galleryCategory: 'cosmos', eventOnly: true,
+    nameUk: 'Сонцекрапна комета', nameEn: 'Sungrazing Comet',
+    descriptionUk: 'Комета, що проходить в межах кількох радіусів зорі під час перигелію. Більшість — уламки давнього розпаду однієї гігантської комети групи Крейца.',
+    descriptionEn: 'A comet that passes within a few stellar radii at perihelion. Most belong to the Kreutz group, fragments from the ancient breakup of a single giant progenitor comet.',
+    promptTemplate: 'A sungrazing comet skimming perilously close to a blazing star, intense heating vaporizing its surface into a brilliant elongated tail, dramatic solar corona in the background',
+    scientificFacts: ['Група Крейца — уламки однієї гігантської комети', 'Багато сонцекрапних комет не переживають проходження', 'Виявляються сотнями космічною обсерваторією SOHO'],
+    scientificFactsEn: ['The Kreutz group are fragments of one ancient giant comet', 'Many sungrazers do not survive their close solar passage', 'Hundreds have been discovered by the SOHO space observatory'],
+  },
+  {
+    type: 'season-comet-fragmenting', category: 'small-bodies', rarity: 'rare', galleryCategory: 'cosmos', eventOnly: true,
+    nameUk: 'Розпадна комета', nameEn: 'Fragmenting Comet',
+    descriptionUk: 'Комета, що розколюється на кілька уламків під дією припливних сил або термічного напруження — рідкісна мить спостереження руйнування ядра наживо.',
+    descriptionEn: 'A comet breaking apart into multiple fragments under tidal stress or thermal shock — a rare chance to observe a cometary nucleus disintegrating in real time.',
+    promptTemplate: 'A fragmenting comet nucleus splitting into a chain of smaller icy pieces, each fragment trailing its own faint tail, dramatic tidal disruption lighting against deep space',
+    scientificFacts: ['Комета Шумейкерів-Леві 9 розкололася на 21 фрагмент перед падінням на Юпітер (1994)', 'Припливні сили планет можуть розірвати слабко зв\'язані ядра', 'Термічний удар при наближенні до зорі теж викликає розкол'],
+    scientificFactsEn: ['Comet Shoemaker-Levy 9 broke into 21 fragments before striking Jupiter (1994)', 'A planet\'s tidal forces can tear apart loosely bound nuclei', 'Thermal shock on approach to a star can also trigger fragmentation'],
+  },
+  {
+    type: 'season-comet-interstellar', category: 'small-bodies', rarity: 'rare', galleryCategory: 'cosmos', eventOnly: true,
+    nameUk: 'Міжзоряна комета', nameEn: 'Interstellar Comet',
+    descriptionUk: 'Кометне ядро, народжене в іншій зоряній системі, що пролітає крізь нашу на гіперболічній траєкторії — гість з-поза меж рідної системи.',
+    descriptionEn: 'A cometary nucleus born in another star system, passing through ours on an unbound hyperbolic trajectory — a genuine visitor from beyond the home system.',
+    promptTemplate: 'An interstellar comet on a hyperbolic trajectory through the system, unusual elongated icy nucleus with faint outgassing, alien composition hinted by unusual coma coloration',
+    scientificFacts: ['2I/Борисов (2019) — перша підтверджена міжзоряна комета', 'Гіперболічна траєкторія доводить походження поза системою', 'Склад льоду може відрізнятися від комет рідної системи'],
+    scientificFactsEn: ['2I/Borisov (2019) was the first confirmed interstellar comet', 'Its hyperbolic trajectory proves an origin outside the home system', 'Its ice composition can differ meaningfully from home-system comets'],
+  },
+  // ── Сезон Туманностей (Nebula Season) ────────────────────────────────────
+  {
+    type: 'season-nebula-filamentary', category: 'nebulae', rarity: 'rare', galleryCategory: 'cosmos', eventOnly: true,
+    nameUk: 'Волокниста емісійна туманність', nameEn: 'Filamentary Emission Nebula',
+    descriptionUk: 'Хмара іонізованого газу, витягнута в тонкі світні нитки ударними хвилями від сусідніх молодих зір або залишків наднових.',
+    descriptionEn: 'A cloud of ionized gas stretched into thin glowing filaments by shockwaves from nearby young stars or supernova remnants, tracing the turbulent structure of the interstellar medium.',
+    promptTemplate: 'A filamentary emission nebula with delicate glowing threads of ionized gas, deep red hydrogen-alpha light interlaced with faint blue-green oxygen emission, wispy shockwave structure',
+    scientificFacts: ['Нитки формуються ударними хвилями та магнітними полями', 'Водневе світіння Hα дає характерний червоний колір', 'Часто межують із зонами активного зореутворення'],
+    scientificFactsEn: ['Filaments are shaped by shockwaves and interstellar magnetic fields', 'Hydrogen-alpha emission gives the characteristic red glow', 'They often border regions of active star formation'],
+  },
+  {
+    type: 'season-nebula-dark-absorption', category: 'nebulae', rarity: 'rare', galleryCategory: 'cosmos', eventOnly: true,
+    nameUk: 'Темна поглинаюча туманність', nameEn: 'Dark Absorption Nebula',
+    descriptionUk: 'Щільна хмара пилу та молекулярного газу, що блокує світло зір позаду неї, вирізаючи темний силует на тлі яскравого зоряного поля.',
+    descriptionEn: 'A dense cloud of dust and molecular gas that blocks the light of stars behind it, carving a dark silhouette against a bright background starfield.',
+    promptTemplate: 'A dark absorption nebula silhouetted against a dense bright starfield, intricate dust lane structure blocking background light, subtle rim glow from nearby illuminating stars',
+    scientificFacts: ['Кінська Голова — найвідоміший приклад темної туманності', 'Складається переважно з молекулярного водню та пилу', 'Часто є колискою для майбутнього зореутворення'],
+    scientificFactsEn: ['The Horsehead Nebula is the most famous example of a dark nebula', 'Composed mostly of molecular hydrogen and dust grains', 'Often serves as a future cradle for star formation'],
+  },
+  {
+    type: 'season-nebula-butterfly', category: 'nebulae', rarity: 'rare', galleryCategory: 'cosmos', eventOnly: true,
+    nameUk: 'Туманність-метелик', nameEn: 'Butterfly Planetary Nebula',
+    descriptionUk: 'Біполярна планетарна туманність з двома симетричними "крилами" газу, викинутого вмираючою зорею вздовж осі обертання щільного диска.',
+    descriptionEn: 'A bipolar planetary nebula with two symmetric wing-like lobes of gas, expelled by a dying star along the axis of a dense equatorial disk that shapes the outflow.',
+    promptTemplate: 'A butterfly-shaped bipolar planetary nebula with two symmetric glowing lobes of gas, a hot white dwarf core at the center, intricate structure in the expanding wings',
+    scientificFacts: ['Форма метелика формується щільним екваторіальним диском', 'У центрі залишається гарячий білий карлик', 'NGC 6302 ("Метелик") має температуру центральної зорі понад 200 000 К'],
+    scientificFactsEn: ['The butterfly shape is sculpted by a dense equatorial disk', 'A hot white dwarf remains at the center', 'NGC 6302 (the "Butterfly Nebula") has a central star hotter than 200,000 K'],
+  },
+  {
+    type: 'season-nebula-nursery', category: 'nebulae', rarity: 'rare', galleryCategory: 'cosmos', eventOnly: true,
+    nameUk: 'Туманність зоряної колиски', nameEn: 'Stellar Nursery Nebula',
+    descriptionUk: 'Гігантська хмара газу та пилу, де гравітаційний колапс щільних вузлів народжує нові зорі та їхні протопланетні диски.',
+    descriptionEn: 'A giant cloud of gas and dust where gravitational collapse of dense clumps gives birth to new stars and their surrounding protoplanetary disks.',
+    promptTemplate: 'A vast stellar nursery nebula with newborn stars emerging from dense glowing gas pillars, protoplanetary disks silhouetted against bright ionized clouds, dramatic scale',
+    scientificFacts: ['Туманність Оріона — найближча активна зоряна колиска', 'Гравітаційний колапс щільних вузлів утворює протозорі', 'Молоді зорі облучають газ, формуючи яскраві HII-зони'],
+    scientificFactsEn: ['The Orion Nebula is the nearest active stellar nursery', 'Gravitational collapse of dense clumps forms protostars', 'Young stars ionize surrounding gas, forming bright HII regions'],
+  },
+  {
+    type: 'season-nebula-remnant-wisp', category: 'nebulae', rarity: 'rare', galleryCategory: 'cosmos', eventOnly: true,
+    nameUk: 'Волокно залишку наднової', nameEn: 'Supernova Remnant Wisp',
+    descriptionUk: 'Тонка нитка розжареного газу — уламок оболонки давньої наднової, що досі розширюється крізь міжзоряне середовище через тисячі років.',
+    descriptionEn: 'A thin wisp of glowing gas — a fragment of an ancient supernova\'s expanding shell, still plowing outward through the interstellar medium thousands of years after the explosion.',
+    promptTemplate: 'A delicate wispy filament of a supernova remnant glowing against deep space, shockwave structure compressing surrounding interstellar gas, subtle blue-green and red emission tones',
+    scientificFacts: ['Залишки наднових розширюються тисячі років', 'Петля Лебедя — приклад давнього залишку віком ~20 000 років', 'Ударна хвиля збагачує міжзоряне середовище важкими елементами'],
+    scientificFactsEn: ['Supernova remnants keep expanding for thousands of years', 'The Cygnus Loop is an example of an ancient remnant roughly 20,000 years old', 'The shockwave enriches the interstellar medium with heavy elements'],
+  },
+  // ── Сезон Подвійних Зір (Binary Star Season) ─────────────────────────────
+  {
+    type: 'season-binary-eclipsing-variant', category: 'binaries', rarity: 'rare', galleryCategory: 'cosmos', eventOnly: true,
+    nameUk: 'Затемнювана подвійна зоря', nameEn: 'Eclipsing Binary Variant',
+    descriptionUk: 'Тісна подвійна система, чия орбітальна площина лежить майже точно на лінії зору — компоненти по черзі затьмарюють одна одну, змінюючи загальну яскравість.',
+    descriptionEn: 'A close binary system whose orbital plane lies nearly edge-on to our line of sight, with each star periodically eclipsing the other and producing a distinctive dip in combined brightness.',
+    promptTemplate: 'An eclipsing binary star system viewed nearly edge-on, one star passing in front of the other causing a dramatic brightness dip, subtle limb darkening on both stellar disks',
+    scientificFacts: ['Затемнення дозволяють точно виміряти маси та радіуси зір', 'Алголь — перша відкрита затемнювана подвійна (1783)', 'Крива блиску показує характерні періодичні провали'],
+    scientificFactsEn: ['Eclipses let astronomers precisely measure stellar masses and radii', 'Algol was the first eclipsing binary discovered (1783)', 'The light curve shows characteristic periodic dips'],
+  },
+  {
+    type: 'season-binary-spectroscopic-variant', category: 'binaries', rarity: 'rare', galleryCategory: 'cosmos', eventOnly: true,
+    nameUk: 'Спектроскопічна подвійна зоря', nameEn: 'Spectroscopic Binary Variant',
+    descriptionUk: 'Подвійна система занадто тісна для роздільного спостереження — її природу видає лише періодичне доплерівське зміщення спектральних ліній.',
+    descriptionEn: 'A binary system too close to resolve visually — its dual nature is revealed only by periodic Doppler shifts in its spectral lines as the stars orbit their common center of mass.',
+    promptTemplate: 'A spectroscopic binary star rendered as a single bright point with a faint visual hint of orbital motion, spectral lines overlay suggesting periodic Doppler shift, elegant minimalist composition',
+    scientificFacts: ['Виявляються лише через доплерівське зміщення спектральних ліній', 'Дозволяють обчислити мінімальну масу компонентів', 'Більшість тісних подвійних зір саме такого типу'],
+    scientificFactsEn: ['Detected only through periodic Doppler shifts in spectral lines', 'Allow astronomers to compute a minimum mass for each component', 'Most very close binary stars are of this type'],
+  },
+  {
+    type: 'season-binary-contact', category: 'binaries', rarity: 'rare', galleryCategory: 'cosmos', eventOnly: true,
+    nameUk: 'Контактна подвійна зоря', nameEn: 'Contact Binary',
+    descriptionUk: 'Дві зорі настільки близькі, що фізично діляться спільною зовнішньою оболонкою, утворюючи єдину видовжену "гантелеподібну" структуру.',
+    descriptionEn: 'Two stars so close together that they physically share a common outer envelope, forming a single elongated dumbbell-shaped structure orbiting a shared center of mass.',
+    promptTemplate: 'A contact binary star system with two stellar cores sharing a single elongated glowing envelope, dumbbell silhouette, smooth continuous surface between the two lobes',
+    scientificFacts: ['Компоненти фізично торкаються, ділячи спільну оболонку', 'W Великої Ведмедиці — типовий приклад контактної подвійної', 'Можуть зрештою злитися в одну зорю'],
+    scientificFactsEn: ['The components physically touch, sharing a common envelope', 'W Ursae Majoris is a typical example of a contact binary', 'They may eventually merge into a single star'],
+  },
+  {
+    type: 'season-binary-mass-transfer', category: 'binaries', rarity: 'rare', galleryCategory: 'cosmos', eventOnly: true,
+    nameUk: 'Подвійна зоря з перетіканням маси', nameEn: 'Mass-transfer Binary',
+    descriptionUk: 'Подвійна система, де речовина перетікає від однієї зорі до іншої через точку Лагранжа, формуючи яскравий акреційний диск навколо компактнішого компаньйона.',
+    descriptionEn: 'A binary system where matter streams from one star to the other through the inner Lagrange point, forming a bright accretion disk around the more compact companion.',
+    promptTemplate: 'A mass-transfer binary star with a visible stream of matter flowing between two stars, a swirling accretion disk glowing around the compact companion, dramatic tidal distortion',
+    scientificFacts: ['Речовина тече через точку Лагранжа L1', 'Формує акреційний диск навколо компактного компаньйона', 'Може призвести до катастрофічних спалахів (новоподібні змінні)'],
+    scientificFactsEn: ['Matter flows through the inner Lagrange point (L1)', 'Forms an accretion disk around the compact companion', 'Can lead to catastrophic outbursts (nova-like variables)'],
+  },
+  {
+    type: 'season-binary-hierarchical-triple', category: 'binaries', rarity: 'rare', galleryCategory: 'cosmos', eventOnly: true,
+    nameUk: 'Ієрархічна потрійна система', nameEn: 'Hierarchical Triple System',
+    descriptionUk: 'Тісна подвійна зоря, навколо якої на набагато ширшій орбіті обертається третій компонент — стабільна багаторівнева архітектура гравітаційно зв\'язаних зір.',
+    descriptionEn: 'A close binary pair orbited at a much wider separation by a third star — a stable multi-tier architecture of gravitationally bound stars, common among multiple-star systems.',
+    promptTemplate: 'A hierarchical triple star system with a tight inner binary pair and a distant third companion star orbiting the whole system, layered orbital scale clearly implied',
+    scientificFacts: ['Альфа Центавра — найближчий приклад: тісна пара A/B і далекий Проксима', 'Стабільність вимагає, щоб зовнішня орбіта була значно ширшою за внутрішню', 'Більшість зір Чумацького Шляху народжуються в кратних системах'],
+    scientificFactsEn: ['Alpha Centauri is the nearest example: a close A/B pair with distant Proxima', 'Stability requires the outer orbit to be much wider than the inner one', 'Most stars in the Milky Way are born in multiple-star systems'],
+  },
+];
+
+// ---------------------------------------------------------------------------
 // Complete catalog
 // ---------------------------------------------------------------------------
 
@@ -1064,7 +1263,8 @@ export const COSMIC_CATALOG: ReadonlyArray<CatalogEntry> = [
   ...BINARIES,          // 6
   ...SMALL_BODIES,      // 8
   ...ROGUES,            // 8
-  // Total: 116 (6 short of 122 — remaining will be biological from expeditions)
+  ...SEASONAL_ANOMALIES, // 20 (eventOnly — see observation-seasons.ts)
+  // Total: 136 (116 rollable + 20 seasonal eventOnly)
 ] as const;
 
 /** Quick lookup by type key */

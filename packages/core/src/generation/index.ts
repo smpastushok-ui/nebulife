@@ -36,3 +36,10 @@ export {
   distanceLY as systemDistanceLY,
   nearestColonyDistance,
 } from './distances.js';
+export {
+  CIVILIZATION_MIN_CORE_DEPTH,
+  CIVILIZATION_CHANCE,
+  isCivilizationEligiblePlanet,
+  generateCivilization,
+  getCivilizationPopulationFactor,
+} from './civilization-generator.js';

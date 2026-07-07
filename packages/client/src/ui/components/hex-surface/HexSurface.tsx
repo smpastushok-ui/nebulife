@@ -19,7 +19,7 @@ import React, {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { Planet, Star, BuildingType, SurfaceObjectType, TechTreeState, PlacedBuilding, PlanetResourceStocks, ProducibleType, FleetState, ObservatoryState, ObservatorySearchDuration, ObservatorySearchProgram, SeparationJob, SeparationGroup, Discovery, ExtractionJob, CosmicEvent } from '@nebulife/core';
+import type { Planet, Star, BuildingType, SurfaceObjectType, TechTreeState, PlacedBuilding, PlanetResourceStocks, ProducibleType, FleetState, ObservatoryState, ObservatorySearchDuration, ObservatorySearchProgram, SeparationJob, SeparationGroup, Discovery, ExtractionJob, CosmicEvent, SeasonalProgressState } from '@nebulife/core';
 import { getPlanetSize, RARITY_COLORS } from '@nebulife/core';
 
 import { useHexState, type SurfaceAccessMode } from './useHexState.js';
@@ -118,8 +118,12 @@ interface HexSurfaceProps {
   explorationProductionQueue?: Array<{ id: string; type: ProducibleType; planetId: string; startedAt: number; durationMs: number }>;
   onStartPayloadProduction?: (type: ProducibleType) => void;
   observatoryState?: ObservatoryState;
-  onStartObservatorySearch?: (duration: ObservatorySearchDuration, program: ObservatorySearchProgram, observatoryCount?: number) => void;
+  onStartObservatorySearch?: (duration: ObservatorySearchDuration, program: ObservatorySearchProgram, observatoryCount?: number) => boolean | void;
   onViewReportDiscovery?: (discovery: Discovery) => void;
+  /** "Сезони спостережень" — current season's collection progress + finale claim. */
+  seasonalProgress?: SeasonalProgressState;
+  onClaimSeasonReward?: () => void;
+  seasonClaiming?: boolean;
   separationJobs?: SeparationJob[];
   onStartSeparation?: (buildingId: string, planetId: string, group?: SeparationGroup, sourceBuildingType?: string) => boolean | void;
   elementYieldHistory?: ElementResult[];
@@ -256,6 +260,9 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       observatoryState,
       onStartObservatorySearch,
       onViewReportDiscovery,
+      seasonalProgress,
+      onClaimSeasonReward,
+      seasonClaiming,
       separationJobs,
       onStartSeparation,
       elementYieldHistory,
@@ -395,6 +402,16 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       return undefined;
     }, [onHarvestFull]);
 
+    // Stable wrapper — an inline arrow here gets a new identity every render,
+    // which cascades through useHexState's placeBuilding callback into the
+    // returned hexState memo, making hexState change identity on EVERY render.
+    // That churn turned the "mark results as seen" effect below into an
+    // infinite setState loop (Maximum update depth exceeded) whenever a
+    // building detail panel was open.
+    const handleBuildingPlaced = useCallback((type: BuildingType) => {
+      onBuildingPlaced?.(type);
+    }, [onBuildingPlaced]);
+
     const hexState = useHexState(
       planet,
       star,
@@ -403,9 +420,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
       surfaceAccessMode,
       colonyResources,
       handleResourceChange,
-      (type) => {
-        onBuildingPlaced?.(type);
-      },
+      handleBuildingPlaced,
       chemicalInventory,
       onElementChange,
       handleDroneHarvest,
@@ -533,12 +548,12 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
     }, [hexState, onHexUnlocked, quarksUnlockSlotId]);
 
     const handleHarvest = useCallback(
-      (slotId: string, sx: number, sy: number) => {
+      (slotId: string, sx: number, sy: number): number | null => {
         const slot = hexState.getSlot(slotId);
-        if (!slot?.resourceType || !slot.yieldPerHour) return;
+        if (!slot?.resourceType || !slot.yieldPerHour) return null;
 
         const objType = RESOURCE_TO_OBJECT[slot.resourceType] as SurfaceObjectType | undefined;
-        if (!objType) return;
+        if (!objType) return null;
 
         const bonus = resourceBonusFor(slot.resourceType, hexState.slots);
         const boostedAmount = slot.yieldPerHour * (1 + bonus);
@@ -546,7 +561,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
         // If storage is full, keep the resource ready and avoid XP/FX.
         const result = onHarvestFull?.(objType, boostedAmount);
         const actualAmount = result?.actualAmount ?? boostedAmount;
-        if (actualAmount <= 0) return;
+        if (actualAmount <= 0) return null;
 
         const amount = hexState.harvestResource(slotId, actualAmount);
         if (amount !== null) {
@@ -556,7 +571,11 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
           onHarvestFx?.(objType, sx, sy);
           // Award XP = amount collected (burst harvest reward)
           onHarvestAmount?.(actualAmount);
+          // Return the credited amount so the hex "+N" float shows the truth
+          // (storage caps / stock depletion / building bonuses included).
+          return actualAmount;
         }
+        return null;
       },
       [hexState, onHarvest, onHarvestFx, onHarvestAmount, onHarvestFull],
     );
@@ -653,9 +672,14 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
     }, [elementYieldHistory, experimentHistory]);
 
     // Opening a building marks its type's results as seen (clears the beacon).
+    // NOTE: depend on the stable `getSlot`, NOT the whole `hexState` object —
+    // hexState gets a new identity whenever slots change, and because setSeenAt
+    // stamps Date.now() (strictly increasing, guard below never short-circuits)
+    // an unstable dependency here becomes an infinite setState loop.
+    const { getSlot } = hexState;
     useEffect(() => {
       if (!detailSlotId) return;
-      const slot = hexState.getSlot(detailSlotId);
+      const slot = getSlot(detailSlotId);
       const bt = slot?.buildingType;
       if (!bt) return;
       setSeenAt((prev) => {
@@ -668,7 +692,7 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
         try { localStorage.setItem('nebulife_building_seen_at', JSON.stringify(next)); } catch { /* ignore */ }
         return next;
       });
-    }, [detailSlotId, hexState, latestResultTimestampForBuilding]);
+    }, [detailSlotId, getSlot, latestResultTimestampForBuilding]);
 
     // ── Cosmic-event countdown overlay (telescope first, observatory fallback) ─
     // Shows a small countdown pill above the relevant building tile. The pill
@@ -986,6 +1010,9 @@ export const HexSurface = forwardRef<SurfaceViewHandle, HexSurfaceProps>(
             observatoryState={observatoryState}
             onStartObservatorySearch={onStartObservatorySearch}
             onViewReportDiscovery={onViewReportDiscovery}
+            seasonalProgress={seasonalProgress}
+            onClaimSeasonReward={onClaimSeasonReward}
+            seasonClaiming={seasonClaiming}
             separationJobs={separationJobs}
             onStartSeparation={onStartSeparation}
             elementYieldHistory={elementYieldHistory}

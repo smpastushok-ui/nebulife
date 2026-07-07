@@ -74,3 +74,38 @@ export type {
   ResourceCost,
   PlanetOverride,
 } from './terraform.js';
+export type {
+  TechEra,
+  Temperament,
+  Civilization,
+  IntegrationPath,
+  SiegeIntegrationHook,
+  AggressiveActionType,
+  TrustState,
+  ContactStageId,
+  ContactStageStatus,
+  ContactStageState,
+  CivilizationContactState,
+} from './civilization.js';
+export type {
+  PrecursorRarity,
+  PrecursorCardDef,
+  PrecursorCardOwned,
+  PrecursorCollectionState,
+} from './precursor-cards.js';
+export {
+  createPrecursorCollectionState,
+  normalizePrecursorCollectionState,
+} from './precursor-cards.js';
+export type {
+  SeasonAnomalyDef,
+  SeasonDefinition,
+  CurrentSeasonInfo,
+  SeasonalProgressState,
+} from './observation-seasons.js';
+export type {
+  SagaMilestoneType,
+  SagaMilestoneContext,
+  SagaMilestoneQueueItem,
+  SagaChapterSummary,
+} from './saga.js';

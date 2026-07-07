@@ -117,6 +117,19 @@ export const RATE_LIMITS = {
   poll: (playerId: string) => checkRateLimit(`poll:${playerId}`, 150, 60_000),
   /** Player feedback submissions: a one-shot prompt, but allow a few retries/hour. */
   feedback: (playerId: string) => checkRateLimit(`feedback:${playerId}`, 5, 3_600_000),
+  /** Poll votes: one real vote per poll (DB-enforced), a few retries/minute is plenty. */
+  pollVote: (playerId: string) => checkRateLimit(`poll-vote:${playerId}`, 10, 60_000),
+  /** Biosphere daily care: DB-enforced to once/creature/day, but allow a few
+   *  retries/minute for the client's optimistic-then-confirm flow. */
+  creatureCare: (playerId: string) => checkRateLimit(`creature-care:${playerId}`, 10, 60_000),
+  /** Megastructure status/progress polling — read-only, generous like `poll`. */
+  megastructureView: (playerId: string) => checkRateLimit(`megastructure-view:${playerId}`, 60, 60_000),
+  /** Megastructure contributions: DB-enforced daily cap, but allow a handful
+   *  of separate resource-type contributions per minute. */
+  megastructureContribute: (playerId: string) => checkRateLimit(`megastructure-contribute:${playerId}`, 15, 60_000),
+  /** Saga chapter generation: DB-enforced to 1/day (SAGA_DAILY_CHAPTER_CAP),
+   *  but allow a few retries/minute for the client's queue-processing loop. */
+  sagaGenerate: (playerId: string) => checkRateLimit(`saga-generate:${playerId}`, 6, 60_000),
 } as const;
 
 /** Extract client IP from Vercel request headers. */

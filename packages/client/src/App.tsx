@@ -44,6 +44,7 @@ import { PlanetDetailWindow } from './ui/components/PlanetDetailWindow.js';
 import { RenameModal } from './ui/components/RenameModal.js';
 import { SceneControlsPanel } from './ui/components/SceneControlsPanel.js';
 import { TelescopeOverlay } from './ui/components/TelescopeOverlay.js';
+import { PrecursorAcquisitionOverlay } from './ui/components/Precursor/PrecursorAcquisitionOverlay.js';
 import type {
   Planet, Star, StarSystem, ResearchState, SystemResearchState, Discovery, CatalogEntry,
 } from '@nebulife/core';
@@ -61,7 +62,9 @@ import {
 } from '@nebulife/core';
 import type { CometSchedule, DailyDirectiveState, DirectiveMetric, CosmicEvent } from '@nebulife/core';
 import { OperationsHub, SIGNAL_REWARD_XP, SIGNAL_REWARD_RESEARCH, type OpsTab } from './ui/components/OperationsHub/index.js';
-import { claimDirectivesReward, getDirectiveStreakInfo, claimCometReward } from './api/retention-api.js';
+import { claimDirectivesReward, getDirectiveStreakInfo, claimCometReward, claimSeasonReward } from './api/retention-api.js';
+import { fetchCurrentMegastructure } from './api/megastructure-api.js';
+import { MEGASTRUCTURE_RESEARCH_SPEED_MULT } from '@nebulife/core';
 import type { LifeformPlanetContext } from '@nebulife/core';
 import type { DiscoveryRarity, LifeformIngredientId, LifeSparkType } from '@nebulife/core';
 import { checkPremiumStatus, initIAP, redeemPremiumCode } from './api/iap-service.js';
@@ -133,10 +136,47 @@ import {
   EXTRACTION_DURATION_MS,
   EXTRACTION_RESEARCH_DATA_COST,
   rollParticleExtraction,
+  generateCivilization,
+  createCivilizationContactState,
+  startContactStage,
+  completeContactStage,
+  getContactStageProgress,
+  canStartContactStage,
+  tickTrustState,
+  CONTACT_STAGE_XP_REWARD,
+  isCivilizationIntegrated,
+  getEffectiveWorkforceMultiplier,
 } from '@nebulife/core';
 import type { TechTreeState, TechNode, SurfaceObjectType, BuildingType, PlanetColonyState, PlacedBuilding, PlanetResourceStocks, ProducibleType, FleetState, Ship, CargoShipment, ObservatoryState, ObservatorySearchDuration, ObservatorySearchProgram, SeparationJob, SeparationGroup, ExtractionJob } from '@nebulife/core';
 import type { PlanetTerraformState, Mission, MissionPhase, TerraformParamId, ShipTier as TfShipTier, PlanetOverride } from '@nebulife/core';
 import type { PlanetMission, PlanetMissionType, PlanetReportSummary, PlanetRevealLevel } from '@nebulife/core';
+import type { Civilization, CivilizationContactState, ContactStageId } from '@nebulife/core';
+import {
+  rollPrecursorCardDrop,
+  isPrecursorCollectionComplete,
+  PRECURSOR_COMPLETION_REWARD_QUARKS,
+  PRECURSOR_CARDS,
+} from '@nebulife/core';
+import {
+  createPrecursorCollectionState,
+  normalizePrecursorCollectionState,
+  type PrecursorCollectionState,
+  type PrecursorRarity,
+  type PrecursorCardOwned,
+} from '@nebulife/core';
+import {
+  createSeasonalProgressState,
+  normalizeSeasonalProgressState,
+  advanceSeasonalProgress,
+  applySeasonalObservatoryResult,
+  buildObservatoryCatalogWithSeason,
+  getCurrentSeason,
+  isSeasonalAnomalyType,
+  isSeasonCollectionComplete,
+  SEASON_PITY_THRESHOLD,
+  SEASON_COLLECTION_REWARD_QUARKS,
+  type SeasonalProgressState,
+} from '@nebulife/core';
 import {
   getInitialTerraformState,
   computeParamRequirement,
@@ -154,6 +194,10 @@ import {
   applyEnergyTick,
   restoreShutdownBuildings,
 } from '@nebulife/core';
+import { queueSagaMilestone, type SagaMilestoneQueueItem, type SagaMilestoneType, type SagaMilestoneContext } from '@nebulife/core';
+import { useSagaChapters } from './hooks/useSagaChapters.js';
+import { SagaReader } from './ui/components/Saga/SagaReader.js';
+import { listPlanetCreatures } from './api/creature-api.js';
 import { MissionTracker } from './ui/components/Terraform/MissionTracker.js';
 import { TerraformPanel } from './ui/components/Terraform/TerraformPanel.js';
 import { TerraformCutscene, type TerraformCompletionPayload } from './ui/components/Terraform/TerraformCutscene.js';
@@ -227,6 +271,7 @@ const SYNCED_UI_FLAG_PREFIXES = [
   'nebulife_unlock_popup_',        // buildings/arena/raid/terraform unlock popups
   'nebulife_home_resource_floor_', // home-planet resource hint
   'nebulife_building_seen_at',     // per-building result beacons / surface lesson state
+  'nebulife_alpha_promo_seen_',    // Alpha-promo videos already shown to this player (no-repeat)
 ];
 function isSyncedUiFlagKey(key: string): boolean {
   return SYNCED_UI_FLAG_KEYS.has(key)
@@ -271,7 +316,7 @@ import type { PerfTierChoice } from './utils/device-tier.js';
 import { ChatWidget } from './ui/components/ChatWidget.js';
 import type { SystemNotif } from './ui/components/ChatWidget.js';
 import { getMessages as getChatMessages } from './api/messages-api.js';
-import { DigestModal } from './ui/components/DigestModal.js';
+import { DigestModal, DigestLoadingOverlay } from './ui/components/DigestModal.js';
 import { EntryDigestPopup } from './ui/components/EntryDigestPopup.js';
 import { CosmicArchive } from './ui/components/CosmicArchive/CosmicArchive.js';
 import { AcademyDashboard } from './ui/components/Academy/AcademyDashboard.js';
@@ -282,6 +327,8 @@ import { PlayerFeedbackPrompt } from './ui/components/PlayerFeedbackPrompt.js';
 import { EncyclopediaScreen } from './ui/components/Encyclopedia/EncyclopediaScreen.js';
 import { SpaceArena } from './ui/components/SpaceArena/SpaceArena.js';
 import { HangarPage } from './ui/components/Hangar/HangarPage.js';
+import { BiosphereView } from './ui/components/Biosphere/BiosphereView.js';
+import { useBiosphereCareAvailable } from './hooks/useBiosphereCareAvailable.js';
 import { CarrierRaid } from './ui/components/Raid/CarrierRaid.js';
 import { CosmicBattlePage } from './ui/components/CosmicBattle/CosmicBattlePage.js';
 import type { CosmicBattleRewardBundle } from './ui/components/CosmicBattle/cosmic-battle-engine.js';
@@ -680,6 +727,8 @@ interface SyncedGameState {
   planet_reveal_levels?: Record<string, PlanetRevealLevel>;
   planet_missions?: Record<string, PlanetMission>;
   planet_reports?: Record<string, PlanetReportSummary>;
+  civilization_contacts?: Record<string, CivilizationContactState>;
+  precursor_cards?: PrecursorCollectionState;
   exploration_payloads?: Partial<Record<ProducibleType, number>>;
   exploration_production_queue?: ExplorationPayloadProductionItem[];
   separation_jobs?: SeparationJob[];
@@ -688,10 +737,17 @@ interface SyncedGameState {
   custom_ship_id?: string | null;
   custom_ship_glb_url?: string | null;
   observatory_state?: ObservatoryState;
+  // "Сезони спостережень" — this season's researched anomalies + permanent hall
+  seasonal_progress?: SeasonalProgressState;
   astra_quiz_answers?: Record<string, number>;
   // Retention: daily directives progress + claimed comet occurrences
   daily_directives?: DailyDirectiveState;
   comet_claims?: string[];
+  // "Сага Ткача" — milestone triggers waiting for a Gemini-written chapter,
+  // and the set of milestone types already triggered (queued or written) so
+  // each one only ever fires once. See packages/core/src/game/saga.ts.
+  saga_milestone_queue?: SagaMilestoneQueueItem[];
+  saga_triggered_milestones?: string[];
   system_notifs?: unknown[];
   /** Rescue/fallback mirror of account-scoped localStorage keys from older builds. */
   local_storage_snapshot?: Record<string, string>;
@@ -709,8 +765,9 @@ interface ColonizedPlanetRecord {
 function normalizeColonizedPlanets(value: unknown): Record<string, ColonizedPlanetRecord> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
   const out: Record<string, ColonizedPlanetRecord> = {};
-  for (const [planetId, rawRecord] of Object.entries(value as Record<string, unknown>)) {
-    if (!planetId || !rawRecord || typeof rawRecord !== 'object' || Array.isArray(rawRecord)) continue;
+  for (const [storedPlanetId, rawRecord] of Object.entries(value as Record<string, unknown>)) {
+    if (!storedPlanetId || !rawRecord || typeof rawRecord !== 'object' || Array.isArray(rawRecord)) continue;
+    const planetId = barePlanetKey(storedPlanetId);
     const record = rawRecord as Record<string, unknown>;
     const systemId = typeof record.systemId === 'string' ? record.systemId : '';
     if (!systemId) continue;
@@ -720,7 +777,14 @@ function normalizeColonizedPlanets(value: unknown): Record<string, ColonizedPlan
     const population = typeof record.population === 'number' && Number.isFinite(record.population)
       ? Math.max(0, Math.round(record.population))
       : 5000;
-    out[planetId] = { systemId, foundedAt, population };
+    const existing = out[planetId];
+    out[planetId] = existing
+      ? {
+          systemId: systemId || existing.systemId,
+          foundedAt: Math.min(existing.foundedAt, foundedAt),
+          population: Math.max(existing.population, population),
+        }
+      : { systemId, foundedAt, population };
   }
   return out;
 }
@@ -731,7 +795,8 @@ function mergeColonizedPlanets(
   const out: Record<string, ColonizedPlanetRecord> = {};
   for (const map of maps) {
     if (!map) continue;
-    for (const [planetId, record] of Object.entries(map)) {
+    for (const [storedPlanetId, record] of Object.entries(map)) {
+      const planetId = barePlanetKey(storedPlanetId);
       const existing = out[planetId];
       if (!existing) {
         out[planetId] = record;
@@ -1047,7 +1112,7 @@ function markSessionProcessed(ref: { current: Set<string> }, key: string): void 
   } catch { /* ignore */ }
 }
 
-type CommandModeIconKind = 'surface' | 'terminal' | 'academy' | 'arena' | 'web' | 'ops';
+type CommandModeIconKind = 'surface' | 'terminal' | 'academy' | 'arena' | 'web' | 'ops' | 'biosphere';
 
 function CommandModeIcon({
   kind,
@@ -1133,6 +1198,16 @@ function CommandModeIcon({
           <circle cx="16.8" cy="15.6" r="0.9" fill="currentColor" stroke="none" opacity="0.55" />
         </svg>
       )}
+      {kind === 'biosphere' && (
+        // Small creature silhouette on a terrain mound — Biosphere entry
+        <svg style={iconStyle} viewBox="0 0 28 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 17 C7 12 21 12 25 17" opacity="0.55" />
+          <ellipse cx="13.5" cy="12.5" rx="4" ry="3.2" fill="currentColor" fillOpacity="0.18" />
+          <circle cx="16.6" cy="10.5" r="1.9" fill="currentColor" fillOpacity="0.22" />
+          <path d="M9.8 12.8 L7.5 11.6 M9.8 10.6 L7.6 8.8" opacity="0.55" />
+          <circle cx="17.3" cy="9.9" r="0.5" fill="currentColor" stroke="none" />
+        </svg>
+      )}
     </span>
   );
 }
@@ -1184,6 +1259,36 @@ const LOCAL_STORAGE_SNAPSHOT_EXCLUDED_KEYS = new Set([
   'nebulife_push_prompted',
 ]);
 
+/**
+ * Ephemeral / session-local UI & dedup keys that must stay "account scoped"
+ * (cleared on account switch, counted as local progress) but must NEVER be
+ * captured into — or restored from — the generic `local_storage_snapshot`
+ * cross-device backup mirror.
+ *
+ * Root cause of the "same discovery / Hangar every launch" bug: that mirror
+ * snapshots *every* `nebulife_*` key not in the canonical list and restores
+ * it whenever the matching local key is absent (see
+ * `restoreAccountScopedLocalStorageSnapshot`). The keys below are normally
+ * cleared locally the instant their transient condition ends (discovery
+ * dismissed, Hangar closed, research session processed) — but the
+ * *server's* copy of `local_storage_snapshot` only catches up on the next
+ * full sync. Any hydrate landing between "cleared locally" and "next full
+ * sync" (cold boot, or the far more frequent visibilitychange→visible
+ * foreground re-hydrate) sees the local key as absent and blindly restores
+ * the server's stale value right back into localStorage — silently
+ * re-arming a dismissed discovery or a closed Hangar to reappear on the
+ * *next* launch, with no bound on how long this keeps re-triggering. These
+ * are ephemeral/derived state, never "progress" worth backing up, so they
+ * are excluded from the mirror outright rather than raced against a
+ * debounce.
+ */
+const LOCAL_STORAGE_MIRROR_EXCLUDED_KEYS = new Set([
+  'nebulife_discovery_queue',
+  'nebulife_hangar_active',
+  'nebulife_arena_active',
+  'nebulife_processed_research_sessions',
+]);
+
 const CANONICAL_GAME_STATE_STORAGE_KEYS = new Set([
   'nebulife_player_xp',
   'nebulife_player_level',
@@ -1228,16 +1333,21 @@ const CANONICAL_GAME_STATE_STORAGE_KEYS = new Set([
   'nebulife_planet_reveal_levels',
   'nebulife_planet_missions',
   'nebulife_planet_reports',
+  'nebulife_civilization_contacts',
+  'nebulife_precursor_cards',
   'nebulife_exploration_payloads',
   'nebulife_exploration_production_queue',
   'nebulife_separation_jobs',
   'nebulife_arena_stats',
   'nebulife_observatory_state',
+  'nebulife_seasonal_progress',
   'nebulife_astra_quiz_answers',
   'nebulife_daily_directives',
   'nebulife_comet_claims',
   'nebulife_planet_overrides',
   'nebulife_planet_resource_stocks',
+  'nebulife_saga_milestone_queue',
+  'nebulife_saga_triggered_milestones',
 ]);
 
 function isAccountScopedStorageKey(key: string): boolean {
@@ -1251,7 +1361,9 @@ function isAccountScopedStorageKey(key: string): boolean {
 }
 
 function isLocalStorageSnapshotKey(key: string): boolean {
-  return isAccountScopedStorageKey(key) && !CANONICAL_GAME_STATE_STORAGE_KEYS.has(key);
+  return isAccountScopedStorageKey(key)
+    && !CANONICAL_GAME_STATE_STORAGE_KEYS.has(key)
+    && !LOCAL_STORAGE_MIRROR_EXCLUDED_KEYS.has(key);
 }
 
 function collectAccountScopedLocalStorageSnapshot(): Record<string, string> {
@@ -1288,6 +1400,26 @@ function hasAccountScopedLocalProgress(): boolean {
   }
 }
 
+function normalizeTutorialStepForReturningPlayer(
+  step: number,
+  level: unknown,
+  onboardingDone: boolean,
+): number {
+  const playerLevelValue = typeof level === 'number' && Number.isFinite(level)
+    ? level
+    : Number(level);
+  if (
+    onboardingDone
+    && Number.isFinite(playerLevelValue)
+    && playerLevelValue > 1
+    && step >= 0
+    && step < TUTORIAL_STEPS.length
+  ) {
+    return TUTORIAL_STEPS.length;
+  }
+  return step;
+}
+
 function clearAccountScopedLocalStorage(nextUid?: string): void {
   try {
     Object.keys(localStorage)
@@ -1305,9 +1437,10 @@ function getUnlockPopupStorageKey(playerId: string, id: UnlockPopupKind): string
 }
 
 function canRunCarrierRaidOnDevice(): boolean {
-  const tier = getDeviceTier();
-  const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
-  return tier === 'ultra' || !isMobile;
+  // The raid runs on a single PixiJS v8 engine with tier-scaled sprite/particle
+  // budgets (see RaidEngine.ts) — no more desktop-only Three.js path, so every
+  // device tier (including mobile) is supported.
+  return true;
 }
 
 function isPlanetTextureMapUrl(url: string | null | undefined): url is string {
@@ -2201,6 +2334,116 @@ function AppInner() {
     } catch { /* ignore */ }
     return {};
   });
+
+  // ── Civilization contact (NEXT_GEN_PLAN §B, phases 1-2) ───────────────────
+  // Keyed by planetObjectKey(systemId, planetId). The `Civilization` itself is
+  // never persisted (derived lazily from the planet seed) — only the player's
+  // diplomacy progress lives here.
+  const [civilizationContacts, setCivilizationContacts] = useState<Record<string, CivilizationContactState>>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_civilization_contacts');
+      if (saved) return JSON.parse(saved) as Record<string, CivilizationContactState>;
+    } catch { /* ignore */ }
+    return {};
+  });
+  const civilizationContactsRef = useRef(civilizationContacts);
+  civilizationContactsRef.current = civilizationContacts;
+
+  // ── "Сага Ткача" — personal AI-written illustrated chronicle ──────────────
+  // Milestone triggers are detected client-side (see triggerSagaMilestone
+  // below) and queued here until useSagaChapters turns them into a written
+  // chapter server-side. `sagaTriggeredMilestones` guards against re-queueing
+  // the same milestone across sessions (mirrors civilization_contacts' write-
+  // once semantics, but flat since each milestone type only ever fires once).
+  const [sagaMilestoneQueue, setSagaMilestoneQueue] = useState<SagaMilestoneQueueItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_saga_milestone_queue');
+      if (saved) return JSON.parse(saved) as SagaMilestoneQueueItem[];
+    } catch { /* ignore */ }
+    return [];
+  });
+  const [sagaTriggeredMilestones, setSagaTriggeredMilestones] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_saga_triggered_milestones');
+      if (saved) return JSON.parse(saved) as string[];
+    } catch { /* ignore */ }
+    return [];
+  });
+  const sagaTriggeredMilestonesRef = useRef(sagaTriggeredMilestones);
+  sagaTriggeredMilestonesRef.current = sagaTriggeredMilestones;
+  const [showSagaReader, setShowSagaReader] = useState(false);
+
+  const triggerSagaMilestone = useCallback((milestoneType: SagaMilestoneType, context: SagaMilestoneContext) => {
+    const result = queueSagaMilestone(sagaMilestoneQueue, sagaTriggeredMilestonesRef.current, milestoneType, context);
+    if (!result.added) return;
+    setSagaMilestoneQueue(result.queue);
+    setSagaTriggeredMilestones(result.triggered);
+  }, [sagaMilestoneQueue]);
+
+  // ── Precursor Signals ("Сигнали Предтеч") — collectible cards dropped from
+  // planet research missions. See GAME_MODULES.md → Соціальне та спільнота.
+  const [precursorCollection, setPrecursorCollection] = useState<PrecursorCollectionState>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_precursor_cards');
+      if (saved) return normalizePrecursorCollectionState(JSON.parse(saved));
+    } catch { /* ignore */ }
+    return createPrecursorCollectionState();
+  });
+  const precursorCollectionRef = useRef(precursorCollection);
+  precursorCollectionRef.current = precursorCollection;
+  // Queue (rather than single value) because multiple planet missions can
+  // report_ready in the same tick — cinematics are shown one at a time.
+  const [precursorAcquisitionQueue, setPrecursorAcquisitionQueue] = useState<{ cardId: string; rarity: PrecursorRarity }[]>([]);
+
+  // DEV-ONLY verification hook — `?precursor_test=1` grants one unowned test
+  // card and immediately plays the acquisition cinematic, so the flow can be
+  // checked without waiting on the 15% mission drop roll. Strictly
+  // `import.meta.env.DEV`-gated; dead code (and its URL param) in production.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    if (new URLSearchParams(window.location.search).get('precursor_test') !== '1') return;
+    const owned = new Set(Object.keys(precursorCollectionRef.current.owned));
+    const testCard = PRECURSOR_CARDS.find((c) => !owned.has(c.id)) ?? PRECURSOR_CARDS[0];
+    setPrecursorCollection((prev) => ({
+      ...prev,
+      owned: { ...prev.owned, [testCard.id]: { acquiredAt: Date.now(), missionType: 'orbital_scan', systemId: 'dev-test' } },
+      archiveViewed: false,
+    }));
+    setPrecursorAcquisitionQueue((q) => [...q, { cardId: testCard.id, rarity: testCard.rarity }]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // "Сезони спостережень" — which of the current season's 5 anomalies have
+  // been researched, soft-pity counter, and the permanent hall of completed
+  // seasons. Persists the same way as precursorCollection above.
+  const [seasonalProgress, setSeasonalProgress] = useState<SeasonalProgressState>(() => {
+    try {
+      const saved = localStorage.getItem('nebulife_seasonal_progress');
+      if (saved) return normalizeSeasonalProgressState(JSON.parse(saved));
+    } catch { /* ignore */ }
+    return createSeasonalProgressState();
+  });
+  const seasonalProgressRef = useRef(seasonalProgress);
+  seasonalProgressRef.current = seasonalProgress;
+  const [seasonClaiming, setSeasonClaiming] = useState(false);
+
+  // DEV-ONLY verification hook — `?season_test=1` force-fills all 5 slots of
+  // the currently active season so the collection UI + finale claim can be
+  // checked without grinding observatory searches. Strictly
+  // `import.meta.env.DEV`-gated; dead code (and its URL param) in production.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    if (new URLSearchParams(window.location.search).get('season_test') !== '1') return;
+    const now = Date.now();
+    const current = getCurrentSeason(now);
+    setSeasonalProgress((prev) => ({
+      ...advanceSeasonalProgress(prev, now),
+      seasonIndex: current.seasonIndex,
+      researchedTypes: current.def.anomalies.map((a) => a.type),
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [planetReportTarget, setPlanetReportTarget] = useState<{ planet: Planet; report: PlanetReportSummary } | null>(null);
   const [missionPhotoSaving, setMissionPhotoSaving] = useState(false);
   const [missionAlphaGenerating, setMissionAlphaGenerating] = useState(false);
@@ -2278,6 +2521,31 @@ function AppInner() {
     try { localStorage.setItem('nebulife_planet_reports', JSON.stringify(planetReports)); }
     catch { /* ignore quota */ }
   }, [planetReports]);
+
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_civilization_contacts', JSON.stringify(civilizationContacts)); }
+    catch { /* ignore quota */ }
+  }, [civilizationContacts]);
+
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_saga_milestone_queue', JSON.stringify(sagaMilestoneQueue)); }
+    catch { /* ignore quota */ }
+  }, [sagaMilestoneQueue]);
+
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_saga_triggered_milestones', JSON.stringify(sagaTriggeredMilestones)); }
+    catch { /* ignore quota */ }
+  }, [sagaTriggeredMilestones]);
+
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_precursor_cards', JSON.stringify(precursorCollection)); }
+    catch { /* ignore quota */ }
+  }, [precursorCollection]);
+
+  useEffect(() => {
+    try { localStorage.setItem('nebulife_seasonal_progress', JSON.stringify(seasonalProgress)); }
+    catch { /* ignore quota */ }
+  }, [seasonalProgress]);
 
   useEffect(() => {
     try { localStorage.setItem('nebulife_exploration_payloads', JSON.stringify(explorationPayloads)); }
@@ -2567,6 +2835,13 @@ function AppInner() {
   const [directiveClaimedToday, setDirectiveClaimedToday] = useState(false);
   const [directiveClaimStatusLoaded, setDirectiveClaimStatusLoaded] = useState(false);
   const [directiveClaiming, setDirectiveClaiming] = useState(false);
+  // Megastructure cluster research-speed bonus (see megastructure.ts +
+  // App.tsx research duration calc below) — a ref mirror is kept so the
+  // ticking research-timer effects (which read refs, not state) pick it up
+  // without needing to be re-subscribed to this state.
+  const [clusterResearchBonusActive, setClusterResearchBonusActive] = useState(false);
+  const clusterResearchBonusActiveRef = useRef(false);
+  clusterResearchBonusActiveRef.current = clusterResearchBonusActive;
   const [opsRewardSeenDate, setOpsRewardSeenDate] = useState<string | null>(() => {
     try {
       return localStorage.getItem('nebulife_ops_reward_seen_date');
@@ -3024,6 +3299,18 @@ function AppInner() {
   } | null>(null);
 
   /**
+   * Telemetry to open once the Alpha-promo overlay closes. The promo and
+   * Telemetry are both full-screen overlays triggered from the same
+   * "Telemetry" button click (handleTelemetry below) — without this, both
+   * could mount at once and visually stack. We open the promo first (if it
+   * fires) and defer Telemetry until the player dismisses it.
+   */
+  const [pendingTelemetryAfterPromo, setPendingTelemetryAfterPromo] = useState<{
+    discovery: Discovery;
+    system: StarSystem;
+  } | null>(null);
+
+  /**
    * Derived: first pending discovery.
    * Blocked when: telemetry/observatory active, completedModal active, popup queue gated,
    * cinematic intro playing, or initial onboarding active.
@@ -3184,7 +3471,7 @@ function AppInner() {
         id: 'combat',
         kicker: t('unlock.combat.kicker'),
         title: t('unlock.combat.title'),
-        body: canRunCarrierRaidOnDevice() ? t('unlock.combat.body') : t('unlock.combat.body_limited'),
+        body: t('unlock.combat.body'),
         accent: '#7bb8ff',
       })) return;
     }
@@ -3627,10 +3914,19 @@ function AppInner() {
     try { localStorage.setItem('nebulife_quark_unlocked_systems', JSON.stringify(Array.from(quarkUnlockedSystems))); }
     catch { /* ignore */ }
   }, [quarkUnlockedSystems]);
-  // On refresh: bot arena state is lost (GPU memory), redirect to hangar.
-  // For future multiplayer: restore arena session from server instead.
-  const wasInBotArena = localStorage.getItem('nebulife_arena_active') === '1';
-  if (wasInBotArena) localStorage.removeItem('nebulife_arena_active'); // clear stale flag
+  // On refresh: combat modes are lost (GPU memory / transient React state).
+  // Never auto-restore Hangar from localStorage on cold boot: stale
+  // `nebulife_hangar_active` values were causing returning players to start
+  // in Hangar instead of the stellar research web. Players can still open
+  // Hangar explicitly from the command bar after boot.
+  const startupCombatFlagsClearedRef = useRef(false);
+  const wasInBotArena = !startupCombatFlagsClearedRef.current
+    && localStorage.getItem('nebulife_arena_active') === '1';
+  if (!startupCombatFlagsClearedRef.current) {
+    startupCombatFlagsClearedRef.current = true;
+    localStorage.removeItem('nebulife_arena_active'); // clear stale flag
+    localStorage.removeItem('nebulife_hangar_active'); // clear stale flag
+  }
   const [showArena, setShowArenaRaw] = useState(false); // never auto-restore bot arena
   const setShowArena = useCallback((val: boolean) => {
     setShowArenaRaw(val);
@@ -3654,15 +3950,16 @@ function AppInner() {
   // Post-arena popup queue — popups that were deferred while arena was active
   // are flushed here 1.5 s apart once the arena closes.
   const [pendingPostArenaPopups, setPendingPostArenaPopups] = useState<Array<() => void>>([]);
-  const [showHangar, setShowHangarRaw] = useState(() =>
-    localStorage.getItem('nebulife_hangar_active') === '1' || wasInBotArena,
-  );
+  const [showHangar, setShowHangarRaw] = useState(false);
   const setShowHangar = useCallback((val: boolean) => {
     if (val) setShowCosmicArchive(false);
     setShowHangarRaw(val);
     if (val) localStorage.setItem('nebulife_hangar_active', '1');
     else localStorage.removeItem('nebulife_hangar_active');
   }, []);
+  // Biosphere — NEXT_GEN_PLAN.md Section C MVP: separate full-screen scene
+  // (like the ship viewer), entered from planet-view / surface tool dock.
+  const [biosphereTarget, setBiosphereTarget] = useState<{ planet: Planet; star: Star } | null>(null);
   const [arenaTeamMode, setArenaTeamMode] = useState(false);
 
   const closeChatDeepLinkOverlays = useCallback(() => {
@@ -3898,6 +4195,16 @@ function AppInner() {
         setPlanetResourceStocks(prev => ({ ...prev, [planetKey]: stocks! }));
       }
 
+      // Integrated civilization workforce (NEXT_GEN_PLAN §B) scales this
+      // planet's production — see `getEffectiveWorkforceMultiplier()`.
+      let workforceMultiplier = 1;
+      const contact = civilizationContactsRef.current[planetKey];
+      if (contact && isCivilizationIntegrated(contact)) {
+        const coreDepth = Math.max(0, (planetCtx.system.ringIndex ?? 0) - 3);
+        const civ = generateCivilization(planetCtx.planet, coreDepth);
+        if (civ) workforceMultiplier = getEffectiveWorkforceMultiplier(civ, contact.trust);
+      }
+
       const result = runColonyTicks(
         mutableColony,
         planetCtx.planet,
@@ -3906,6 +4213,7 @@ function AppInner() {
         Date.now(),
         stocks,
         planetCtx.star.luminositySolar,
+        workforceMultiplier,
       );
       const before = beforeResources;
       const after  = result.colony.resources;
@@ -4280,8 +4588,11 @@ function AppInner() {
 
     const addPlanetById = (planetId?: string | null, preferredSystemId?: string | null) => {
       if (!planetId) return;
-      const system = preferredSystemId
-        ? allSystems.find((candidate) => candidate.id === preferredSystemId && candidate.planets.some((planet) => planet.id === planetId))
+      const preferredSystem = preferredSystemId
+        ? (engineRef.current?.findSystemById?.(preferredSystemId) ?? null)
+        : null;
+      const system = preferredSystem?.planets.some((planet) => planet.id === planetId)
+        ? preferredSystem
         : allSystems.find((candidate) => candidate.planets.some((planet) => planet.id === planetId));
       const planet = system?.planets.find((candidate) => candidate.id === planetId);
       const key = system ? colonizedPlanetKey(system.id, planetId) : planetId;
@@ -4317,12 +4628,16 @@ function AppInner() {
       seen.add(homeKey);
     }
 
+    if (colonyState?.buildings?.some((building) => building.type === 'colony_hub')) {
+      addPlanetById(colonyState.planetId);
+    }
+
     for (const [key, record] of Object.entries(colonizedPlanetsRef.current)) {
       addPlanetById(barePlanetKey(key), record.systemId);
     }
 
     return planets;
-  }, [isExodusPhase, homeInfo]);
+  }, [colonyState?.buildings, colonyState?.planetId, isExodusPhase, homeInfo]);
 
   const getColonySystems = useCallback((): StarSystem[] => {
     const allSystems = engineRef.current?.getAllSystems?.() ?? [];
@@ -4331,8 +4646,11 @@ function AppInner() {
 
     const addPlanetSystem = (planetId?: string | null, preferredSystemId?: string | null) => {
       if (!planetId) return;
-      const system = preferredSystemId
-        ? allSystems.find((candidate) => candidate.id === preferredSystemId && candidate.planets.some((planet) => planet.id === planetId))
+      const preferredSystem = preferredSystemId
+        ? (engineRef.current?.findSystemById?.(preferredSystemId) ?? null)
+        : null;
+      const system = preferredSystem?.planets.some((planet) => planet.id === planetId)
+        ? preferredSystem
         : allSystems.find((candidate) => candidate.planets.some((planet) => planet.id === planetId));
       if (system && !seen.has(system.id)) {
         systems.push(system);
@@ -4432,6 +4750,148 @@ function AppInner() {
       && mission.status !== 'report_ready'
     )) ?? null;
   }, [planetMissions]);
+
+  // ── Civilization (NEXT_GEN_PLAN §B) ────────────────────────────────────────
+  // A civilization is never persisted — it's re-derived every time from the
+  // planet's own (already-deterministic) seed plus its core-zone depth.
+  // `StarSystem.ringIndex` encodes core depth as `3 + min(depth, 9)` (see
+  // `generateCoreStarSystem()`), so client code without direct `CoreSystem`
+  // access recovers it the same way `civilization-generator.ts` documents.
+  const selectedPlanetCivilization: Civilization | null = useMemo(() => {
+    const planet = state.selectedPlanet;
+    const system = state.selectedSystem;
+    if (!planet || !system) return null;
+    const coreDepth = Math.max(0, (system.ringIndex ?? 0) - 3);
+    const civ = generateCivilization(planet, coreDepth);
+    if (civ) return civ;
+    // DEV-ONLY visual verification hook (NEXT_GEN_PLAN §B) — civilizations are
+    // ~4% of eligible core-zone planets, too rare to reliably hit while
+    // testing the Civilization card. `?force_civ=1` forces a synthetic one
+    // onto whichever planet is selected. Strictly `import.meta.env.DEV`-gated;
+    // dead code (and its URL param) in production builds. Remove once the
+    // Civilization card has real end-to-end coverage.
+    if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('force_civ') === '1') {
+      return {
+        id: `civ-dev-${planet.id}`,
+        planetId: planet.id,
+        planetSeed: planet.seed,
+        techEra: 'industrial',
+        population: 4_200_000,
+        temperament: 'peaceful',
+        aestheticSeed: 12345,
+      };
+    }
+    return null;
+  }, [state.selectedPlanet, state.selectedSystem]);
+
+  const selectedCivilizationContactKey = state.selectedSystem && state.selectedPlanet
+    ? planetObjectKey(state.selectedSystem.id, state.selectedPlanet.id)
+    : null;
+  const selectedCivilizationContactState: CivilizationContactState | null = selectedCivilizationContactKey
+    ? civilizationContacts[selectedCivilizationContactKey] ?? null
+    : null;
+
+  const handleStartCivilizationContactStage = useCallback((planet: Planet, civ: Civilization, stageId: ContactStageId) => {
+    const systemId = state.selectedSystem?.id;
+    if (!systemId) return;
+    const planetKey = planetObjectKey(systemId, planet.id);
+    setCivilizationContacts((prev) => {
+      const existing = prev[planetKey] ?? createCivilizationContactState(civ.id, planetKey);
+      const check = canStartContactStage({
+        state: existing,
+        civ,
+        stageId,
+        playerLevel: playerLevelRef.current ?? 1,
+        techState: techTreeStateRef.current,
+      });
+      if (!check.canStart) return prev;
+      return { ...prev, [planetKey]: startContactStage(existing, stageId, Date.now()) };
+    });
+    scheduleSyncToServer();
+  }, [state.selectedSystem, scheduleSyncToServer]);
+
+  // Advances active diplomacy contact stages (auto-completes when their timer
+  // elapses, mirroring the planet-mission report-ready pattern) and ticks
+  // trust/strike state for every planet with a civilization contact on record.
+  useEffect(() => {
+    if (Object.keys(civilizationContacts).length === 0) return;
+    const tick = () => {
+      const now = Date.now();
+      const current = civilizationContactsRef.current;
+      let changed = false;
+      const next: Record<string, CivilizationContactState> = { ...current };
+      const completedStages: Array<{ planetKey: string; stageId: ContactStageId }> = [];
+      const strikesStarted: string[] = [];
+
+      for (const [planetKey, contact] of Object.entries(current)) {
+        let updated = contact;
+        const trustTicked = tickTrustState(updated.trust, now);
+        if (trustTicked !== updated.trust) {
+          if (trustTicked.strikeActive && !updated.trust.strikeActive) strikesStarted.push(planetKey);
+          updated = { ...updated, trust: trustTicked };
+          changed = true;
+        }
+        if (updated.activeStageId) {
+          const progress = getContactStageProgress(updated, now);
+          if (progress?.ready) {
+            const stageId = updated.activeStageId;
+            updated = completeContactStage(updated, now);
+            completedStages.push({ planetKey, stageId });
+            changed = true;
+          }
+        }
+        if (updated !== contact) next[planetKey] = updated;
+      }
+
+      if (!changed) return;
+      setCivilizationContacts(next);
+
+      if (completedStages.length > 0 || strikesStarted.length > 0) {
+        const allSystems = engineRef.current?.getAllSystems?.() ?? [];
+        const nowTs = Date.now();
+        const stageNotifs = completedStages.map(({ planetKey, stageId }, index) => {
+          awardXP(CONTACT_STAGE_XP_REWARD[stageId], 'civilization_contact');
+          const [sysId, planetId] = planetKey.split('::');
+          const system = allSystems.find((s) => s.id === sysId);
+          const planet = system?.planets.find((p) => p.id === planetId);
+          if (stageId === 'alliance') {
+            triggerSagaMilestone('civilization_integrated', {
+              planetName: planet?.name ?? planetId ?? '',
+              systemName: system?.name ?? sysId ?? '',
+            });
+          }
+          return {
+            id: `notif-civ-${nowTs}-${planetId}-${index}`,
+            text: t('civilization.contact_stage_complete_notif').replace('{planet}', planet?.name ?? planetId ?? ''),
+            planetName: planet?.name ?? planetId ?? '',
+            systemId: sysId,
+            planetId,
+            timestamp: nowTs + index,
+            read: false,
+          };
+        });
+        const strikeNotifs = strikesStarted.map((planetKey, index) => {
+          const [sysId, planetId] = planetKey.split('::');
+          const system = allSystems.find((s) => s.id === sysId);
+          const planet = system?.planets.find((p) => p.id === planetId);
+          return {
+            id: `notif-civ-strike-${nowTs}-${planetId}-${index}`,
+            text: t('civilization.strike_started_notif').replace('{planet}', planet?.name ?? planetId ?? ''),
+            planetName: planet?.name ?? planetId ?? '',
+            systemId: sysId,
+            planetId,
+            timestamp: nowTs + 500 + index,
+            read: false,
+          };
+        });
+        setSystemNotifs((prev) => mergeSystemNotifs(prev, [...stageNotifs, ...strikeNotifs], []));
+        scheduleSyncToServer();
+      }
+    };
+    tick();
+    const id = window.setInterval(tick, 2000);
+    return () => window.clearInterval(id);
+  }, [civilizationContacts, awardXP, scheduleSyncToServer, t, triggerSagaMilestone]);
 
   const syncSystemPlanetMissionVisuals = useCallback((missions: Record<string, PlanetMission>, clock = Date.now()): void => {
     if (state.scene !== 'system' || !state.selectedSystem) {
@@ -4876,7 +5336,7 @@ function AppInner() {
       foundedAt: now,
       population: COLONY_CENTER_POPULATION,
     };
-    const nextColonies = mergeColonizedPlanets(colonizedPlanetsRef.current, { [colonizedPlanetKey(system.id, planet.id)]: record });
+    const nextColonies = mergeColonizedPlanets(colonizedPlanetsRef.current, { [planet.id]: record });
     colonizedPlanetsRef.current = nextColonies;
     setColonizedPlanets(nextColonies);
     try { localStorage.setItem('nebulife_colonized_planets', JSON.stringify(nextColonies)); } catch { /* ignore */ }
@@ -4919,8 +5379,16 @@ function AppInner() {
     awardXP(XP_REWARDS.COLONY_FOUNDED, 'colony_founded');
     setToastMessage(tr('colony.founded_arrival', { planet: planet.name }));
     window.setTimeout(() => setToastMessage(null), 4500);
+    // "Сага Ткача" — covers colonization via a dispatched colony ship (the
+    // triggered-set dedup means this is a no-op if handleCutsceneLandingComplete
+    // already fired first_colonization for the doomsday landing).
+    triggerSagaMilestone('first_colonization', {
+      planetName: planet.name,
+      planetType: planet.type,
+      systemName: system.name,
+    });
     return true;
-  }, [awardXP, ensureColonyHubInHexSlots, runImmediateEnergyCheck, tr]);
+  }, [awardXP, ensureColonyHubInHexSlots, runImmediateEnergyCheck, tr, triggerSagaMilestone]);
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -5384,6 +5852,44 @@ function AppInner() {
         });
         const allSystems = engineRef.current?.getAllSystems() ?? [];
         const nowTs = Date.now();
+
+        // ── Precursor Signals drop roll (GAME_MODULES.md → "Сигнали Предтеч") ──
+        // One roll per completed mission report. Core-only cards only enter the
+        // pool when the researched planet sits in a core-zone system — same
+        // coreDepth convention used by the civilization module (ringIndex - 3).
+        for (const report of reportsToAdd) {
+          const dropSystem = allSystems.find((entry) => entry.id === report.systemId);
+          const isCoreZone = ((dropSystem?.ringIndex ?? 0) - 3) > 0;
+          const ownedIds = new Set(Object.keys(precursorCollectionRef.current.owned));
+          const drop = rollPrecursorCardDrop({
+            missionType: report.missionType,
+            isCoreZone,
+            ownedCardIds: ownedIds,
+          });
+          if (!drop) continue;
+
+          if (drop.cardId) {
+            const cardId = drop.cardId;
+            setPrecursorCollection((prev) => {
+              if (prev.owned[cardId]) return prev; // already granted this tick (defensive)
+              const next: PrecursorCollectionState = {
+                ...prev,
+                owned: {
+                  ...prev.owned,
+                  [cardId]: { acquiredAt: Date.now(), missionType: report.missionType, systemId: report.systemId },
+                },
+                archiveViewed: false,
+              };
+              precursorCollectionRef.current = next;
+              return next;
+            });
+            setPrecursorAcquisitionQueue((q) => [...q, { cardId, rarity: drop.rarity }]);
+          } else if (drop.allOwnedInRarity && drop.consolationQuarks > 0) {
+            setQuarks((prev) => prev + drop.consolationQuarks);
+            enqueueQuarkToast({ amount: drop.consolationQuarks, reason: 'precursor' });
+          }
+        }
+
         const missionNotifs = reportsToAdd.map((report) => {
           const system = allSystems.find((entry) => entry.id === report.systemId);
           const planet = system?.planets.find((entry) => entry.id === report.planetId);
@@ -5599,13 +6105,25 @@ function AppInner() {
   const [tutorialStep, setTutorialStep] = useState<number>(() => {
     try {
       const saved = localStorage.getItem('nebulife_tutorial_step');
-      if (saved !== null) return parseInt(saved, 10);
+      if (saved !== null) {
+        const parsed = parseInt(saved, 10);
+        if (Number.isFinite(parsed)) {
+          return normalizeTutorialStepForReturningPlayer(
+            parsed,
+            localStorage.getItem('nebulife_player_level') ?? 1,
+            localStorage.getItem('nebulife_onboarding_done') === '1',
+          );
+        }
+      }
     } catch { /* ignore */ }
     return -1; // -1 = inactive, set to 0 after onboarding
   });
   const [tutorialFreeCount, setTutorialFreeCount] = useState(0);
   const [tutorialSubStep, setTutorialSubStep] = useState(0);
-  const activeTutorialStep = tutorialStep >= 0 && tutorialStep < TUTORIAL_STEPS.length
+  const tutorialStepConfirmed = needsOnboarding
+    || serverHydrated
+    || localStorage.getItem('nebulife_onboarding_done') !== '1';
+  const activeTutorialStep = tutorialStepConfirmed && tutorialStep >= 0 && tutorialStep < TUTORIAL_STEPS.length
     ? TUTORIAL_STEPS[tutorialStep]
     : null;
   const isTutorialActive = activeTutorialStep !== null;
@@ -6115,6 +6633,10 @@ function AppInner() {
   const [latestDigestWeekDate, setLatestDigestWeekDate] = useState<string | null>(null);
   const [showDigestEntryPopup, setShowDigestEntryPopup] = useState(false);
   const digestEntryShownRef = useRef(false);
+  // Visible while the digest is being fetched — covers the gap between
+  // tapping "Open digest" and the modal actually mounting with its images.
+  const [digestLoading, setDigestLoading] = useState(false);
+  const digestLoadingRef = useRef(false);
   const [isPremiumActive, setIsPremiumActive] = useState(() => localStorage.getItem('nebulife_premium') === '1');
   const [premiumExpiresAt, setPremiumExpiresAt] = useState<string | null>(null);
   const [premiumProductId, setPremiumProductId] = useState<string | null>(null);
@@ -6355,9 +6877,13 @@ function AppInner() {
       'nebulife_planet_reveal_levels',
       'nebulife_planet_missions',
       'nebulife_planet_reports',
+      'nebulife_civilization_contacts',
+      'nebulife_saga_milestone_queue',
+      'nebulife_saga_triggered_milestones',
       'nebulife_exploration_payloads',
       'nebulife_exploration_production_queue',
       'nebulife_observatory_state',
+      'nebulife_seasonal_progress',
       'nebulife_astra_quiz_answers',
       // Per-planet resources (Phase 7A)
       'nebulife_colony_resources_by_planet',
@@ -6549,10 +7075,12 @@ function AppInner() {
       setResearchState(createResearchState(HOME_OBSERVATORY_COUNT));
       setResearchData(INITIAL_RESEARCH_DATA);
       setObservatoryState(createObservatoryState());
+      setSeasonalProgress(createSeasonalProgressState());
       setIsExodusPhase(true);
       try { localStorage.setItem('nebulife_research_state', JSON.stringify(createResearchState(HOME_OBSERVATORY_COUNT))); } catch { /* ignore */ }
       try { localStorage.setItem('nebulife_research_data', String(INITIAL_RESEARCH_DATA)); } catch { /* ignore */ }
       try { localStorage.setItem('nebulife_observatory_state', JSON.stringify(createObservatoryState())); } catch { /* ignore */ }
+      try { localStorage.setItem('nebulife_seasonal_progress', JSON.stringify(createSeasonalProgressState())); } catch { /* ignore */ }
       try { localStorage.setItem('nebulife_exodus_phase', 'true'); } catch { /* ignore */ }
       // Clear stale home/evacuation IDs so they don't corrupt the new generation
       try {
@@ -6951,8 +7479,13 @@ function AppInner() {
       setCinematicActive(false);
     }
     if (typeof gs.tutorial_step === 'number') {
-      setTutorialStep(gs.tutorial_step);
-      try { localStorage.setItem('nebulife_tutorial_step', String(gs.tutorial_step)); } catch { /* ignore */ }
+      const resolvedTutorialStep = normalizeTutorialStepForReturningPlayer(
+        gs.tutorial_step,
+        gs.level ?? playerLevel,
+        Boolean(gs.onboarding_done || localStorage.getItem('nebulife_onboarding_done') === '1'),
+      );
+      setTutorialStep(resolvedTutorialStep);
+      try { localStorage.setItem('nebulife_tutorial_step', String(resolvedTutorialStep)); } catch { /* ignore */ }
     }
     // Tech tree
     if (gs.tech_tree && typeof gs.tech_tree === 'object') {
@@ -7218,6 +7751,44 @@ function AppInner() {
       });
     }
 
+    if (gs.civilization_contacts && typeof gs.civilization_contacts === 'object') {
+      const serverContacts = gs.civilization_contacts as Record<string, CivilizationContactState>;
+      setCivilizationContacts((localContacts) => {
+        const merged: Record<string, CivilizationContactState> = { ...localContacts };
+        for (const [planetKey, serverContact] of Object.entries(serverContacts)) {
+          const localContact = localContacts[planetKey];
+          if (!localContact) {
+            merged[planetKey] = serverContact;
+            continue;
+          }
+          // Prefer whichever progressed further: more completed stages, then higher trust.
+          const localCompleted = localContact.stages.filter((s) => s.status === 'completed').length;
+          const serverCompleted = serverContact.stages.filter((s) => s.status === 'completed').length;
+          if (serverCompleted > localCompleted || (serverCompleted === localCompleted && serverContact.trust.value > localContact.trust.value)) {
+            merged[planetKey] = serverContact;
+          }
+        }
+        return merged;
+      });
+    }
+
+    if (gs.precursor_cards && typeof gs.precursor_cards === 'object') {
+      const serverPrecursor = normalizePrecursorCollectionState(gs.precursor_cards);
+      setPrecursorCollection((local) => {
+        const owned: Record<string, PrecursorCardOwned> = { ...local.owned };
+        for (const [cardId, serverEntry] of Object.entries(serverPrecursor.owned)) {
+          if (!owned[cardId]) owned[cardId] = serverEntry;
+        }
+        return {
+          owned,
+          // A card unseen on either side keeps the new-card badge visible.
+          archiveViewed: local.archiveViewed && serverPrecursor.archiveViewed,
+          completionRewardClaimed: local.completionRewardClaimed || serverPrecursor.completionRewardClaimed,
+          sfxSlot: local.sfxSlot,
+        };
+      });
+    }
+
     if (gs.exploration_payloads && typeof gs.exploration_payloads === 'object') {
       const serverPayloads = gs.exploration_payloads as Partial<Record<ProducibleType, number>>;
       setExplorationPayloads((localPayloads) => {
@@ -7236,6 +7807,20 @@ function AppInner() {
         for (const item of serverQueue) byId.set(item.id, item);
         return [...byId.values()];
       });
+    }
+
+    if (Array.isArray(gs.saga_milestone_queue) && gs.saga_milestone_queue.length > 0) {
+      const serverQueue = gs.saga_milestone_queue as SagaMilestoneQueueItem[];
+      setSagaMilestoneQueue((localQueue) => {
+        const byId = new Map(localQueue.map((item) => [item.id, item]));
+        for (const item of serverQueue) if (!byId.has(item.id)) byId.set(item.id, item);
+        return [...byId.values()];
+      });
+    }
+
+    if (Array.isArray(gs.saga_triggered_milestones) && gs.saga_triggered_milestones.length > 0) {
+      const serverTriggered = gs.saga_triggered_milestones as string[];
+      setSagaTriggeredMilestones((local) => [...new Set([...local, ...serverTriggered])]);
     }
 
     if (Array.isArray(gs.separation_jobs) && gs.separation_jobs.length > 0) {
@@ -7279,6 +7864,26 @@ function AppInner() {
           reports: [...reportsById.values()]
             .sort((a, b) => a.completedAt - b.completedAt)
             .slice(-25),
+        };
+      });
+    }
+
+    if (gs.seasonal_progress && typeof gs.seasonal_progress === 'object') {
+      const hydrateNow = Date.now();
+      const serverSeasonal = normalizeSeasonalProgressState(gs.seasonal_progress, hydrateNow);
+      setSeasonalProgress((localRaw) => {
+        const local = normalizeSeasonalProgressState(localRaw, hydrateNow);
+        // Different occurrences (device caught up to a new season already) —
+        // whichever side already advanced further wins outright.
+        if (local.seasonIndex !== serverSeasonal.seasonIndex) {
+          return local.seasonIndex >= serverSeasonal.seasonIndex ? local : serverSeasonal;
+        }
+        return {
+          seasonIndex: local.seasonIndex,
+          researchedTypes: [...new Set([...local.researchedTypes, ...serverSeasonal.researchedTypes])],
+          searchesSinceDrop: Math.min(local.searchesSinceDrop, serverSeasonal.searchesSinceDrop),
+          completedSeasons: [...new Set([...local.completedSeasons, ...serverSeasonal.completedSeasons])],
+          claimedSeasons: [...new Set([...local.claimedSeasons, ...serverSeasonal.claimedSeasons])],
         };
       });
     }
@@ -7837,8 +8442,11 @@ function AppInner() {
         let changed = false;
         const newTimers: Record<number, string> = {};
 
-        // Apply tech tree speed multiplier to research duration
-        const speedMult = getEffectValue(techTreeStateRef.current, 'research_speed_mult', 1.0);
+        // Apply tech tree speed multiplier, plus the cluster megastructure
+        // research-speed bonus (if the cluster's beacon is complete), to
+        // research duration.
+        const speedMult = getEffectValue(techTreeStateRef.current, 'research_speed_mult', 1.0)
+          * (clusterResearchBonusActiveRef.current ? MEGASTRUCTURE_RESEARCH_SPEED_MULT : 1);
         const effectiveDuration = Math.round(RESEARCH_DURATION_MS * speedMult);
 
         // Self-heal: if a slot has been "researching" for more than 6 × effectiveDuration
@@ -8082,7 +8690,8 @@ function AppInner() {
     if (!engine) return;
     if (researchState.slots.length === 0) return;
 
-    const speedMult = getEffectValue(techTreeStateRef.current, 'research_speed_mult', 1.0);
+    const speedMult = getEffectValue(techTreeStateRef.current, 'research_speed_mult', 1.0)
+      * (clusterResearchBonusActiveRef.current ? MEGASTRUCTURE_RESEARCH_SPEED_MULT : 1);
     const effectiveDuration = Math.round(RESEARCH_DURATION_MS * speedMult);
     const now = Date.now();
 
@@ -8537,27 +9146,25 @@ function AppInner() {
       engine.showGalaxyScene();
       setState(prev => ({ ...prev, scene: 'galaxy', selectedSystem: null, selectedPlanet: null }));
 
-      // Returning (onboarded) players: don't restore deep scenes — galaxy is the
-      // neutral landing. Deep scenes are entered intentionally from the UI.
-      if (localStorage.getItem('nebulife_onboarding_done') === '1') {
-        return;
-      }
-
-      // Restore saved scene only for non-standard pre-onboarding/dev states.
+      // Restore the saved stellar map context. The safe boot default remains
+      // the galaxy research web, but if the last saved game scene was a star
+      // system (or a planet view inside a star system), return to the system
+      // research map rather than dropping the player into unrelated overlays
+      // or the home-intro exosphere.
       // Use refs captured at component mount — by this point localStorage is already
       // overwritten by the persistence useEffect (engine.init() → showHomePlanetScene()
       // → onSceneChange('home-intro') → setState → useEffect writes 'home-intro').
       const savedScene = savedNavSceneRef.current;
       const savedSystemId = savedNavSystemRef.current;
 
-      if (savedScene === 'system' && savedSystemId) {
+      if ((savedScene === 'system' || savedScene === 'planet-view') && savedSystemId) {
         const sys = allSystems.find(s => s.id === savedSystemId);
         if (sys) {
           engine.showSystemScene(sys);
           setState(prev => ({ ...prev, scene: 'system', selectedSystem: sys }));
         }
       }
-      // 'planet-view' / 'galaxy' / empty / 'home-intro' all stay on the galaxy
+      // 'galaxy' / empty / 'home-intro' all stay on the galaxy
       // landing set above — no home-planet exosphere flash during onboarding.
     }).catch((err) => {
       console.error('GameEngine init error:', err);
@@ -10121,21 +10728,31 @@ function AppInner() {
 
   const handleTelemetry = useCallback(() => {
     if (pendingDiscovery) {
-      maybeShowAlphaPromo({
+      const target = pendingDiscovery;
+      const promoShown = maybeShowAlphaPromo({
         trigger: 'event_locked',
-        objectId: pendingDiscovery.discovery.id,
-        rarity: pendingDiscovery.discovery.rarity,
+        objectId: target.discovery.id,
+        rarity: target.discovery.rarity,
       });
-      setTelemetryTarget(pendingDiscovery);
       setDiscoveryQueue(q => q.slice(1));
       setShowCosmicArchive(false); // Close archive so telemetry is visible
       awardXP(XP_REWARDS.TELEMETRY_SCAN, 'telemetry');
+      // Never mount the Alpha-promo overlay and Telemetry at the same time —
+      // open Telemetry immediately, or defer it until the promo is dismissed.
+      if (promoShown) {
+        setPendingTelemetryAfterPromo(target);
+      } else {
+        setTelemetryTarget(target);
+      }
     }
   }, [maybeShowAlphaPromo, pendingDiscovery]);
 
   const handleQuantumFocus = useCallback(() => {
     if (pendingDiscovery) {
-      const isCommon = pendingDiscovery.discovery.rarity === 'common';
+      // Seasonal anomalies are "rare" tier for search-weighting purposes but
+      // reuse bundled common visuals and stay free to research (no AI gen).
+      const isCommon = pendingDiscovery.discovery.rarity === 'common'
+        || isSeasonalAnomalyType(pendingDiscovery.discovery.type);
       const isFree = isCommon
         || playerStats.totalDiscoveries <= 1
         || (playerStats.totalDiscoveries >= 3 && (pendingDiscovery.discovery.timestamp % 50) === 0);
@@ -10357,6 +10974,13 @@ function AppInner() {
         planetId: disc.planetId ?? null,
         photoUrl: imgUrl,
       }).catch((err) => console.error('[Gallery] Save failed:', err));
+
+      if (disc.rarity === 'legendary') {
+        triggerSagaMilestone('first_legendary_discovery', {
+          objectType: disc.type,
+          systemName: disc.systemId,
+        });
+      }
     };
 
     if (existing && existing.photo_url) {
@@ -10383,7 +11007,7 @@ function AppInner() {
         handleTutorialAdvance();
       }
     }
-  }, [observatoryTarget, telemetryTarget, galleryMap, tutorialStep, handleTutorialAdvance, unblockPopupQueue]);
+  }, [observatoryTarget, telemetryTarget, galleryMap, tutorialStep, handleTutorialAdvance, unblockPopupQueue, triggerSagaMilestone]);
 
   /** Replace existing gallery entry with new one */
   const handleGalleryReplace = useCallback(() => {
@@ -10417,6 +11041,12 @@ function AppInner() {
       planetId: newDiscovery.planetId ?? null,
       photoUrl: newImageUrl,
     }).catch((err) => console.error('[Gallery] Replace save failed:', err));
+    if (newDiscovery.rarity === 'legendary') {
+      triggerSagaMilestone('first_legendary_discovery', {
+        objectType: newDiscovery.type,
+        systemName: newDiscovery.systemId,
+      });
+    }
     setGalleryCompare(null);
     if (TUTORIAL_STEPS[tutorialStep]?.id === 'save-gallery') {
       setTelemetryTarget(null);
@@ -10427,7 +11057,7 @@ function AppInner() {
       setTimeout(() => setHighlightedGalleryType(null), 3000);
       handleTutorialAdvance();
     }
-  }, [galleryCompare, tutorialStep, unblockPopupQueue, handleTutorialAdvance]);
+  }, [galleryCompare, tutorialStep, unblockPopupQueue, handleTutorialAdvance, triggerSagaMilestone]);
 
   /** Keep old gallery entry */
   const handleGalleryKeepOld = useCallback(() => {
@@ -10746,7 +11376,21 @@ function AppInner() {
     }
     // Also schedule normal sync for the rest of the state
     setTimeout(() => syncGameStateRef.current(), 500);
-  }, [commitColonyResourcesByPlanet, evacuationTarget, ensureHomePlanetStockFloor, homeInfo]);
+
+    // "Сага Ткача" milestones — the rescue ship landing is both the doomsday
+    // arrival AND, since this planet becomes the very first colony, the
+    // first_colonization milestone. Later colony ships (foundColonyFromShipArrival)
+    // never re-fire first_colonization thanks to the triggered-set dedup.
+    triggerSagaMilestone('doomsday_arrival', {
+      planetName: evacuationTarget.planet.name,
+      systemName: evacuationTarget.system.name,
+    });
+    triggerSagaMilestone('first_colonization', {
+      planetName: evacuationTarget.planet.name,
+      planetType: evacuationTarget.planet.type,
+      systemName: evacuationTarget.system.name,
+    });
+  }, [commitColonyResourcesByPlanet, evacuationTarget, ensureHomePlanetStockFloor, homeInfo, triggerSagaMilestone]);
 
   // Keep currentSceneRef in sync with state.scene for use in async callbacks
   useEffect(() => { currentSceneRef.current = state.scene; }, [state.scene]);
@@ -11025,18 +11669,26 @@ function AppInner() {
     ]);
   }, []);
 
-  const handleStartObservatorySearch = useCallback((duration: ObservatorySearchDuration, program: ObservatorySearchProgram, observatoryCount = 1): void => {
+  const handleStartObservatorySearch = useCallback((duration: ObservatorySearchDuration, program: ObservatorySearchProgram, observatoryCount = 1): boolean => {
     const now = Date.now();
-    setObservatoryState((prev) => startObservatorySearch(
-      normalizeObservatoryState(prev),
+    // Compute from the live ref so we can report success/failure back to the
+    // caller (the Observatory panel shows a confirmation toast on success).
+    // startObservatorySearch returns the SAME state object when its guards
+    // reject the request (program level too low / no free session slot).
+    const current = normalizeObservatoryState(observatoryStateRef.current);
+    const next = startObservatorySearch(
+      current,
       duration,
       program,
       now,
       `${playerId.current || 'local'}:${homeInfo?.system.id ?? 'home'}`,
       observatoryCount,
-    ));
+    );
+    if (next === current) return false;
+    setObservatoryState(next);
     bumpDirectiveRef.current('observatory_search');
     scheduleSyncToServer();
+    return true;
   }, [homeInfo?.system.id, scheduleSyncToServer]);
 
   // ── Quantum separator: start a 100-unit bulk → elements batch (1h) ──
@@ -11373,6 +12025,17 @@ function AppInner() {
       .catch(() => { /* offline-tolerant */ });
   }, [serverHydrated, showOpsHub, dailyDirectives.date]);
 
+  // Cluster megastructure research-speed bonus — refreshed once hydrated and
+  // again whenever the Operations Hub opens (covers "just completed it").
+  useEffect(() => {
+    if (!serverHydrated || !playerId.current) return;
+    fetchCurrentMegastructure()
+      .then((data) => {
+        setClusterResearchBonusActive(Boolean(data.megastructure?.researchBonusActive));
+      })
+      .catch(() => { /* offline-tolerant */ });
+  }, [serverHydrated, showOpsHub]);
+
   const handleClaimDirectives = useCallback(() => {
     if (directiveClaiming) return;
     setDirectiveClaiming(true);
@@ -11390,6 +12053,23 @@ function AppInner() {
       .catch(() => { /* keep claimable; player can retry */ })
       .finally(() => setDirectiveClaiming(false));
   }, [directiveClaiming, addLogEntry]);
+
+  /** "Сигнали Предтеч" 14/14 completion reward. Client-side one-time flag —
+   *  this collection has no server table (see GAME_MODULES.md), so the
+   *  credit mirrors the same local-only `setQuarks` pattern already used for
+   *  Cosmic Battle rewards (`handleCosmicBattleReward` above) rather than a
+   *  server-validated spend/credit endpoint.
+   *  TODO: move to a server-validated claim once/if a lightweight precursor
+   *  endpoint is justified (would need at least a completion flag column). */
+  const handleClaimPrecursorReward = useCallback(() => {
+    setPrecursorCollection((prev) => {
+      if (prev.completionRewardClaimed) return prev;
+      if (!isPrecursorCollectionComplete(Object.keys(prev.owned))) return prev;
+      setQuarks((q) => q + PRECURSOR_COMPLETION_REWARD_QUARKS);
+      enqueueQuarkToast({ amount: PRECURSOR_COMPLETION_REWARD_QUARKS, reason: 'precursor' });
+      return { ...prev, completionRewardClaimed: true };
+    });
+  }, []);
 
   /** Signal decoder win: XP + research data + directive metric. */
   const handleSignalDecodeWin = useCallback(() => {
@@ -11470,6 +12150,46 @@ function AppInner() {
     window.setTimeout(() => { finishCometTracking(); }, COMET_TRACKING_DURATION_MS);
   }, [cometTrackingStartedAt, cometClaiming, finishCometTracking]);
 
+  /**
+   * "Сезони спостережень" finale reward — collect all 5 seasonal anomalies in
+   * one season occurrence → +150⚛. Forces an immediate game-state sync first
+   * so the server sees this device's up-to-date `seasonal_progress` display
+   * state, then relies purely on the server's own idempotency key (one claim
+   * per `season-<index>` occurrence per player) — same trust model as the
+   * comet event above.
+   */
+  const handleClaimSeasonReward = useCallback(() => {
+    if (seasonClaiming) return;
+    const now = Date.now();
+    if (!isSeasonCollectionComplete(seasonalProgressRef.current, now)) return;
+    const occurrenceId = getCurrentSeason(now).occurrenceId;
+    if (seasonalProgressRef.current.claimedSeasons.includes(occurrenceId)) return;
+    setSeasonClaiming(true);
+    syncGameStateRef.current();
+    claimSeasonReward()
+      .then((result) => {
+        setSeasonalProgress((prev) => prev.claimedSeasons.includes(result.occurrenceId)
+          ? prev
+          : { ...prev, claimedSeasons: [...prev.claimedSeasons, result.occurrenceId] });
+        window.dispatchEvent(new CustomEvent('nebulife:quark-balance', { detail: result.newBalance }));
+        enqueueQuarkToast({ amount: result.quarksGranted, reason: 'gift' });
+        // `as any`: the generated i18next key union for this file hits a
+        // recursion/instantiation-depth ceiling (2800+ leaf keys across the
+        // whole locale tree) that makes some valid, existing keys resolve
+        // inconsistently depending on call site — verified both keys exist
+        // identically in uk.json/en.json and resolve fine from smaller files
+        // (e.g. BuildingDetailPanel.tsx, SeasonHallGallery.tsx).
+        addLogEntry('science', t('seasons.claim_success_log' as any));
+        scheduleSyncToServer();
+      })
+      .catch((err) => {
+        console.warn('[season] claim failed:', err);
+        setToastMessage(t('seasons.claim_failed' as any));
+        setTimeout(() => setToastMessage(null), 3500);
+      })
+      .finally(() => setSeasonClaiming(false));
+  }, [seasonClaiming, addLogEntry, scheduleSyncToServer, t]);
+
   // Academy completions bump the academy directive (event from academy-api).
   useEffect(() => {
     const handler = () => bumpDirectiveRef.current('academy_lessons');
@@ -11481,8 +12201,28 @@ function AppInner() {
     if (!homeInfo) return;
     const completeReady = () => {
       const now = Date.now();
-      const result = completeReadyObservatorySearches(observatoryStateRef.current, COSMIC_CATALOG, now);
+      // Keep seasonal progress rolled forward to the current occurrence even
+      // on ticks with no completed search (so the collection UI never shows
+      // a stale/expired season while the app stays open across a rollover).
+      setSeasonalProgress((prev) => advanceSeasonalProgress(prev, now));
+      const seasonalCatalog = buildObservatoryCatalogWithSeason(
+        COSMIC_CATALOG,
+        now,
+        seasonalProgressRef.current.searchesSinceDrop >= SEASON_PITY_THRESHOLD,
+      );
+      const result = completeReadyObservatorySearches(observatoryStateRef.current, seasonalCatalog, now);
       if (result.results.length === 0) return;
+
+      // Feed every completed search's outcome (hit or no-signal) through the
+      // seasonal tracker in order, so the soft-pity counter and collection
+      // slots stay accurate even when several searches land in one tick.
+      setSeasonalProgress((prev) => {
+        let next = prev;
+        for (const searchResult of result.results) {
+          next = applySeasonalObservatoryResult(next, now, searchResult.discovery?.type ?? null);
+        }
+        return next;
+      });
 
       // Attach the home-corrected discovery to each hit report so the report
       // card and the system-chat notification can re-open it later.
@@ -11548,11 +12288,15 @@ function AppInner() {
     completeReady();
     const id = window.setInterval(completeReady, 30_000);
     return () => window.clearInterval(id);
-  }, [addLogEntry, addObservatoryReportNotif, homeInfo, i18n.language, scheduleSyncToServer, t]);
+  }, [addLogEntry, addObservatoryReportNotif, homeInfo, i18n.language, scheduleSyncToServer, t]); // eslint-disable-line react-hooks/exhaustive-deps -- seasonalProgressRef mirrors state; setSeasonalProgress is stable
 
   // ── Digest modal event listener ──
   useEffect(() => {
     const handleOpenDigest = async (_e: Event) => {
+      // Ignore repeated triggers (e.g. double-clicks) while a fetch is already in flight.
+      if (digestLoadingRef.current) return;
+      digestLoadingRef.current = true;
+      setDigestLoading(true);
       try {
         const res = await apiFetch('/api/digest/latest', {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('nebulife_firebase_token') ?? ''}` },
@@ -11593,6 +12337,9 @@ function AppInner() {
         playSfx('ui-error', 0.2);
         setToastMessage(t('digest.load_error'));
         setTimeout(() => setToastMessage(null), 3500);
+      } finally {
+        digestLoadingRef.current = false;
+        setDigestLoading(false);
       }
     };
     window.addEventListener('nebulife:open-digest', handleOpenDigest);
@@ -11823,6 +12570,12 @@ function AppInner() {
         setPlayerLevel(newLevel);
         setLevelUpQueue(q => [...q, newLevel]);
         addLogEntry('system', t('app.log.level_up').replace('{level}', String(newLevel)));
+
+        // "Сага Ткача" milestones — L10/L20/L35 (a large XP grant can cross
+        // more than one threshold at once, so check each independently).
+        if (oldLevel < 10 && newLevel >= 10) triggerSagaMilestone('level_10', { level: newLevel });
+        if (oldLevel < 20 && newLevel >= 20) triggerSagaMilestone('level_20', { level: newLevel });
+        if (oldLevel < 35 && newLevel >= 35) triggerSagaMilestone('level_35', { level: newLevel });
         void trackEvent('level_up', {
           level: newLevel,
           previous_level: oldLevel,
@@ -12062,6 +12815,10 @@ function AppInner() {
       planet_reveal_levels: planetRevealLevels,
       planet_missions: planetMissions,
       planet_reports: planetReports,
+      civilization_contacts: civilizationContacts,
+      saga_milestone_queue: sagaMilestoneQueue,
+      saga_triggered_milestones: sagaTriggeredMilestones,
+      precursor_cards: precursorCollection,
       exploration_payloads: explorationPayloads,
       exploration_production_queue: explorationProductionQueue,
       separation_jobs: separationJobs,
@@ -12070,6 +12827,7 @@ function AppInner() {
       custom_ship_id: localStorage.getItem('nebulife_custom_ship_id'),
       custom_ship_glb_url: localStorage.getItem('nebulife_custom_ship_glb_url'),
       observatory_state: observatoryState,
+      seasonal_progress: seasonalProgress,
       // MERGE with the server-hydrated baseline instead of replacing: a device
       // with freshly-cleared localStorage would otherwise sync an empty map and
       // wipe every quiz answer stored in game_state (quizzes appear unanswered).
@@ -12218,7 +12976,7 @@ function AppInner() {
     if (!pid) return;
     if (isFirebaseConfigured && !serverHydrated) return;
     scheduleSyncToServer();
-  }, [serverHydrated, playerXP, playerLevel, researchState, isExodusPhase, colonyResources, colonyResourcesByPlanet, colonyState, colonizedPlanets, playerStats, arenaStats, researchData, techTreeState, logEntries, systemNotifs, favoritePlanets, pinnedSystems, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet, shipFleet, planetRevealLevels, planetMissions, planetReports, explorationPayloads, explorationProductionQueue, separationJobs, observatoryState, astraQuizAnswers, planetOverrides, planetResourceStocks, dailyDirectives, cometClaims, dnaSparkSynthesis, chemicalInventory, chemicalInventoryByPlanet, lifeIngredients, lifeSparks]);
+  }, [serverHydrated, playerXP, playerLevel, researchState, isExodusPhase, colonyResources, colonyResourcesByPlanet, colonyState, colonizedPlanets, playerStats, arenaStats, researchData, techTreeState, logEntries, systemNotifs, favoritePlanets, pinnedSystems, tutorialStep, state.scene, gameStartedAt, timeMultiplier, accelAt, gameTimeAtAccel, forcedEvacuation, terraformStates, fleet, shipFleet, planetRevealLevels, planetMissions, planetReports, civilizationContacts, sagaMilestoneQueue, sagaTriggeredMilestones, precursorCollection, explorationPayloads, explorationProductionQueue, separationJobs, observatoryState, seasonalProgress, astraQuizAnswers, planetOverrides, planetResourceStocks, dailyDirectives, cometClaims, dnaSparkSynthesis, chemicalInventory, chemicalInventoryByPlanet, lifeIngredients, lifeSparks]);
 
   // Sync on page hide / beforeunload (best-effort) + re-sync from server on foreground
   useEffect(() => {
@@ -12824,6 +13582,48 @@ function AppInner() {
   // navigation path (handleBreadcrumbNavigate, warp to universe) clears it.
   const effectiveScene: ExtendedScene = surfaceTarget ? 'surface' : state.scene;
 
+  // Biosphere CommandBar badge (Еволюція біосфери) — only polls while a
+  // planet with a Biosphere tool button is on screen. Mirrors the biosphere
+  // button's own planet-resolution below so the glow always matches what
+  // tapping the button would open.
+  const biospherePlanetIdForBadge = (!isExodusPhase && (effectiveScene === 'planet-view' || effectiveScene === 'surface'))
+    ? (surfaceTarget?.planet.id ?? state.selectedPlanet?.id ?? null)
+    : null;
+  const biosphereCareAvailable = useBiosphereCareAvailable(biospherePlanetIdForBadge);
+
+  // "Сага Ткача" — turns queued milestones (see triggerSagaMilestone above)
+  // into written chapters. Gated on serverHydrated so it never fires with a
+  // stale/empty queue before the persisted one has loaded. `?saga_test=1`
+  // (DEV-only) also enables it directly, so the reader can be verified via a
+  // stubbed /api/saga/list without needing a real server-hydrated session.
+  const sagaTestMode = import.meta.env.DEV && new URLSearchParams(window.location.search).get('saga_test') === '1';
+  const sagaChapters = useSagaChapters({
+    enabled: serverHydrated || sagaTestMode,
+    queue: sagaMilestoneQueue,
+    onResolved: useCallback((itemId: string) => {
+      setSagaMilestoneQueue((prev) => prev.filter((item) => item.id !== itemId));
+    }, []),
+  });
+
+  useEffect(() => {
+    if (!sagaChapters.justWrittenTitle) return;
+    setToastMessage(tr('saga.new_chapter_toast', { title: sagaChapters.justWrittenTitle }));
+    const id = window.setTimeout(() => setToastMessage(null), 4200);
+    sagaChapters.clearJustWritten();
+    return () => window.clearTimeout(id);
+  }, [sagaChapters.justWrittenTitle, sagaChapters.clearJustWritten, tr]);
+
+  // DEV-ONLY verification hook — `?saga_test=1` opens the reader directly
+  // (chapters come from the real /api/saga/list call, stubbed by the tester
+  // when needed) so the reader UI can be checked without grinding milestones.
+  // Strictly `import.meta.env.DEV`-gated; dead code (and its URL param) in production.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    if (new URLSearchParams(window.location.search).get('saga_test') !== '1') return;
+    setShowSagaReader(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Fetch galaxy (cluster) stats once while the stats bar is on screen.
   useEffect(() => {
     if (topBarMode !== 'stats') return;
@@ -12958,6 +13758,32 @@ function AppInner() {
         onClick: handleGoToHomeSurface,
       }],
     });
+  }
+
+  // Biosphere — NEXT_GEN_PLAN.md Section C MVP. Available on the exosphere
+  // (planet-view) and surface tool docks whenever a planet is selected;
+  // opens as its own full-screen scene (like the ship viewer), not nested
+  // inside Colony Center / HexSurface.
+  if (!isExodusPhase && (effectiveScene === 'planet-view' || effectiveScene === 'surface')) {
+    const biospherePlanet = surfaceTarget?.planet ?? state.selectedPlanet;
+    const biosphereStar = surfaceTarget?.star ?? state.selectedSystem?.star;
+    if (biospherePlanet && biosphereStar) {
+      toolGroups.push({
+        type: 'buttons',
+        items: [{
+          id: 'biosphere',
+          label: t('cmd.biosphere_title'),
+          variant: 'terminal' as const,
+          icon: <CommandModeIcon kind="biosphere" />,
+          tooltip: t('cmd.biosphere_tooltip'),
+          highlight: biosphereCareAvailable ? 'success' as const : undefined,
+          onClick: () => {
+            playSfx('ui-click', 0.08);
+            setBiosphereTarget({ planet: biospherePlanet, star: biosphereStar });
+          },
+        }],
+      });
+    }
   }
 
   // Operations Center — daily directives, cluster rating, signal minigames and
@@ -13161,14 +13987,13 @@ function AppInner() {
       ?? Object.keys(colonyResourcesByPlanetRef.current)[0]
       ?? '';
 
+    // Quark/reward HUD count updates silently here; the Cosmic Battle victory
+    // modal (CosmicBattlePage.tsx) already shows a single clear reward line
+    // (`cosmic_battle.reward_line`) while it's open, so we must not also fire
+    // the floating quark toast or the generic toast below — both render at a
+    // higher z-index than the modal and would visually stack on top of it,
+    // reading as garbled overlapping text instead of one clean message.
     setQuarks((prev) => prev + bundle.quarks);
-    if (bundle.quarks > 0) {
-      enqueueQuarkToast({
-        amount: bundle.quarks,
-        reason: 'gift',
-        customLabel: t('cosmic_battle.reward_source' as Parameters<typeof t>[0]),
-      });
-    }
 
     const reward = bundle.reward;
     if (reward.kind === 'resource' && targetPlanetId) {
@@ -13193,10 +14018,8 @@ function AppInner() {
       setLifeIngredients((prev) => ({ ...prev, [reward.ingredient]: (prev[reward.ingredient] ?? 0) + reward.amount }));
     }
 
-    setToastMessage(t('cosmic_battle.reward_toast' as Parameters<typeof t>[0]));
-    window.setTimeout(() => setToastMessage(null), 2800);
     scheduleSyncToServer();
-  }, [addResources, createDockedShipFromProduction, scheduleSyncToServer, t]);
+  }, [addResources, createDockedShipFromProduction, scheduleSyncToServer]);
 
   const resourceHudPlanet = (() => {
     if (surfaceTarget) return surfaceTarget.planet;
@@ -14182,6 +15005,11 @@ function AppInner() {
           getCargoRouteLY={getCargoRouteLY}
           getPlanetLabel={getPlanetLabel}
           onStartCargoShipment={handleStartCargoShipment}
+          civilization={selectedPlanetCivilization}
+          civilizationContactState={selectedCivilizationContactState}
+          techTreeState={techTreeState}
+          civilizationClock={planetMissionClock}
+          onStartCivilizationContactStage={handleStartCivilizationContactStage}
         />
       )}
       {state.showPlanetInfo && state.selectedPlanet && state.scene === 'system' && isCurrentSystemFullyAccessible && (
@@ -14783,6 +15611,9 @@ function AppInner() {
           onStartPayloadProduction={handleStartPayloadProduction}
           observatoryState={observatoryState}
           onStartObservatorySearch={handleStartObservatorySearch}
+          seasonalProgress={seasonalProgress}
+          onClaimSeasonReward={handleClaimSeasonReward}
+          seasonClaiming={seasonClaiming}
           onViewReportDiscovery={handleOpenDiscoveryFromLog}
           separationJobs={separationJobs}
           onStartSeparation={handleStartSeparation}
@@ -14884,6 +15715,10 @@ function AppInner() {
           cometTrackingStartedAt={cometTrackingStartedAt}
           cometClaiming={cometClaiming}
           onStartCometTracking={handleStartCometTracking}
+          colonyResources={totalResources()}
+          onSpendMegastructureResources={(delta) => spendResourcesAcrossPlanets(homeInfo?.planet.id ?? '', delta)}
+          onAwardXP={awardXP}
+          onQuarksAwarded={(amount) => setQuarks((prev) => prev + amount)}
         />
       )}
       {/* Cosmic event countdown moved off-screen into the orbital telescope /
@@ -14928,6 +15763,16 @@ function AppInner() {
             return { success: result.success, error: result.error };
           }}
           onNameChanged={(newName) => setState((prev) => ({ ...prev, playerName: newName }))}
+          sagaUnreadCount={sagaChapters.unreadCount}
+          onOpenSaga={() => { setShowPlayerPage(false); setShowSagaReader(true); }}
+        />
+      )}
+
+      {/* "Сага Ткача" — personal AI-written illustrated chronicle reader */}
+      {showSagaReader && (
+        <SagaReader
+          chapters={sagaChapters.chapters}
+          onClose={() => { sagaChapters.markAllRead(); setShowSagaReader(false); }}
         />
       )}
 
@@ -14995,6 +15840,11 @@ function AppInner() {
             setShowAlphaSignalPromo(false);
             setAlphaSignalPromoVideoSrc(undefined);
             setAlphaSignalPromoVideoFallbackSrc(undefined);
+            // Open Telemetry now if it was deferred to avoid stacking with the promo.
+            if (pendingTelemetryAfterPromo) {
+              setTelemetryTarget(pendingTelemetryAfterPromo);
+              setPendingTelemetryAfterPromo(null);
+            }
           }}
           onQuarksClick={() => {
             if (isGuest) setShowLinkModal(true);
@@ -15138,6 +15988,16 @@ function AppInner() {
           onLifeformUpdated={(lf) => setLifeforms((prev) => new Map(prev).set(lf.id, lf))}
           openLifeformId={archiveLifeformId}
           onOpenLifeformConsumed={() => setArchiveLifeformId(null)}
+          precursorOwned={precursorCollection.owned}
+          precursorHasNew={!precursorCollection.archiveViewed}
+          onPrecursorArchiveViewed={() => setPrecursorCollection((prev) => (prev.archiveViewed ? prev : { ...prev, archiveViewed: true }))}
+          precursorSfxSlot={precursorCollection.sfxSlot}
+          onPrecursorSfxSlotChange={(slot) => setPrecursorCollection((prev) => ({ ...prev, sfxSlot: slot }))}
+          precursorCompletionRewardClaimed={precursorCollection.completionRewardClaimed}
+          onClaimPrecursorCompletionReward={handleClaimPrecursorReward}
+          seasonalProgress={seasonalProgress}
+          onClaimSeasonReward={handleClaimSeasonReward}
+          seasonClaiming={seasonClaiming}
           allSystems={engineRef.current?.getAllSystems() ?? []}
           aliases={aliases}
           logEntries={logEntries}
@@ -15568,6 +16428,35 @@ function AppInner() {
         />
       )}
 
+      {/* Biosphere — NEXT_GEN_PLAN.md Section C MVP: procedural terrain patch
+          with the player's settled creatures. Own full-screen scene, entered
+          via the planet-view/surface tool dock. */}
+      {biosphereTarget && (
+        <BiosphereView
+          planet={biosphereTarget.planet}
+          star={biosphereTarget.star}
+          playerId={playerId.current}
+          onClose={() => {
+            const planetId = biosphereTarget.planet.id;
+            setBiosphereTarget(null);
+            // "Сага Ткача" — checked on close (not on open) so it reflects any
+            // creature that finished generating/settling during this visit.
+            if (!sagaTriggeredMilestonesRef.current.includes('first_creature_settled')) {
+              listPlanetCreatures(planetId)
+                .then((creatures) => {
+                  if (creatures.some((c) => c.status === 'ready' || c.status === 'photo_ready')) {
+                    triggerSagaMilestone('first_creature_settled', {});
+                  }
+                })
+                .catch(() => { /* ignore — best-effort milestone detection */ });
+            }
+          }}
+          colonyResources={getResources(biosphereTarget.planet.id)}
+          onSpendResources={(delta) => spendResourcesAcrossPlanets(biosphereTarget.planet.id, delta)}
+          onCareCompleted={() => bumpDirectiveRef.current('creature_care')}
+        />
+      )}
+
       {/* Space Arena */}
       {showArena && (
         <SpaceArena
@@ -15693,6 +16582,9 @@ function AppInner() {
         />
       )}
 
+      {/* Digest loading — visible while the digest is being fetched, before the modal mounts */}
+      {digestLoading && !digestModalImages && <DigestLoadingOverlay />}
+
       {/* Digest modal */}
       {digestModalImages && (
         <DigestModal
@@ -15723,6 +16615,18 @@ function AppInner() {
 
       {/* Quark accrual toast queue (singleton renderer; enqueueQuarkToast from anywhere) */}
       {!arenaPopupGate && <QuarkToastRenderer />}
+
+      {/* Precursor Signals acquisition cinematic — shown one at a time from the queue */}
+      {precursorAcquisitionQueue[0] && (
+        <PrecursorAcquisitionOverlay
+          key={precursorAcquisitionQueue[0].cardId + precursorAcquisitionQueue[0].rarity + precursorAcquisitionQueue.length}
+          cardId={precursorAcquisitionQueue[0].cardId}
+          rarity={precursorAcquisitionQueue[0].rarity}
+          name={tr(`precursor.names.${precursorAcquisitionQueue[0].cardId}`)}
+          sfxSlot={precursorCollection.sfxSlot}
+          onComplete={() => setPrecursorAcquisitionQueue((q) => q.slice(1))}
+        />
+      )}
 
       {/* Toast notification */}
       {toastMessage && !arenaPopupGate && (
@@ -15935,6 +16839,7 @@ function AppInner() {
           lastDigestSeen={lastDigestSeen}
           latestDigestWeekDate={latestDigestWeekDate}
           preferredLanguage={lang}
+          digestLoading={digestLoading}
           quizAnswers={astraQuizAnswers}
           onQuizAnswer={handleAstraQuizAnswer}
           onDigestSeen={handleAstraDigestSeen}
@@ -16026,8 +16931,12 @@ function AppInner() {
               shutdown: fallback?.shutdown,
             };
           });
-        const findSystemForPlanetId = (planetId: string, planetRef?: Planet): StarSystem | null => {
+        const findSystemForPlanetId = (planetId: string, planetRef?: Planet, preferredSystemId?: string | null): StarSystem | null => {
           const allSystems = engineRef.current?.getAllSystems?.() ?? [];
+          if (preferredSystemId) {
+            const preferred = engineRef.current?.findSystemById?.(preferredSystemId) ?? null;
+            if (preferred?.planets.some((planet) => planet.id === planetId)) return preferred;
+          }
           if (planetRef) {
             const byRef = allSystems.find((system) => system.planets.includes(planetRef));
             if (byRef) return byRef;
@@ -16103,10 +17012,10 @@ function AppInner() {
 
         const allColonies: ColonyCenterPlanet[] = [];
         const seenColonyIds = new Set<string>();
-        const addColonyToRoster = (planet: Planet) => {
+        const addColonyToRoster = (planet: Planet, preferredSystemId?: string | null) => {
           const sys = planet.id === surfaceTarget.planet.id
             ? surfaceTarget.system
-            : findSystemForPlanetId(planet.id, planet);
+            : findSystemForPlanetId(planet.id, planet, preferredSystemId);
           const scopedColonyId = sys ? colonizedPlanetKey(sys.id, planet.id) : planet.id;
           if (seenColonyIds.has(scopedColonyId)) return;
           if (!sys) return;
@@ -16148,6 +17057,12 @@ function AppInner() {
         };
         addColonyToRoster(surfaceTarget.planet);
         for (const planet of getColonyPlanets()) addColonyToRoster(planet);
+        for (const [key, record] of Object.entries(colonizedPlanetsRef.current)) {
+          const planetId = barePlanetKey(key);
+          const sys = findSystemForPlanetId(planetId, undefined, record.systemId);
+          const planet = sys?.planets.find((candidate) => candidate.id === planetId);
+          if (planet) addColonyToRoster(planet, record.systemId);
+        }
 
         // Resource hexes — passive extraction from natural deposits. Each
         // resource hex has a yieldPerHour (already /h, not /min) and maps

@@ -4,6 +4,8 @@
     "title": "Directorate Signal",
     "close": "Close",
     "receiving": "Signal crossing interference",
+    "launch_cta": "Launch broadcast",
+    "launch_hint": "Tap to receive the transmission with sound",
     "tap_to_play": "Tap to receive transmission",
     "body": "Rare findings deserve an Alpha image: a full visual record for your Archive.",
     "complete": "Transmission received. Choose how to power the next discovery.",
@@ -181,7 +183,9 @@
     "planet_statuses_tooltip": "Show orbiting statuses around planets in this system",
     "planet_names": "NAMES",
     "planet_names_on": "NAMES ON",
-    "planet_names_tooltip": "Show planet names in this system"
+    "planet_names_tooltip": "Show planet names in this system",
+    "biosphere_title": "BIOSPHERE",
+    "biosphere_tooltip": "View creatures settled on this planet"
   },
   "context": {
     "actions": {
@@ -193,8 +197,8 @@
     "combat": {
       "kicker": "Combat Protocol",
       "title": "Arena and Raid Unlocked",
-      "body": "From level 10 you can enter Arena training and the daily carrier raid on web/ultra mode.",
-      "body_limited": "From level 10 Arena is available. Carrier Raid opens on the web version or ultra devices."
+      "body": "From level 10 you can enter Arena training and the daily carrier raid.",
+      "body_limited": "From level 10 you can enter Arena training and the daily carrier raid."
     },
     "terraform": {
       "kicker": "Terraforming Stage",
@@ -205,6 +209,112 @@
       "kicker": "Engineering Access",
       "title": "Buildings Unlocked",
       "body": "Colony buildings are available with passive effects: faster missions, resource production and stronger research."
+    }
+  },
+  "biosphere": {
+    "title": "Biosphere",
+    "new_creature": "NEW CREATURE",
+    "close": "Close",
+    "loading": "Reading biosphere signal...",
+    "error_load": "Could not load the biosphere. Try again later.",
+    "empty_hint": "No creatures settled here yet. Generate one to bring this biosphere to life.",
+    "generation_short": "generation {{gen}}",
+    "generation_label": "Generation {{gen}}",
+    "vitality_label": "Vitality: {{value}}%",
+    "low_vitality_hint": "needs care",
+    "care_days_progress": "Care: {{current}}/{{target}} days",
+    "generate": {
+      "title": "New creature",
+      "body": "Describe the creature you want to settle here. We will craft a personal 3D organism for this planet's biosphere. Quarks are charged only after the description passes review.",
+      "placeholder": "Example: a small six-legged creature with pale bioluminescent patterns, soft fur, large curious eyes and a short tail...",
+      "cost_hint": "1st free, then 60⚛",
+      "free": "Generated for free (first creature)",
+      "cost_paid": "Charged {{cost}}⚛",
+      "no_quarks": "Not enough quarks to craft this creature.",
+      "revision_generic": "The description needs revision.",
+      "status_model": "Crafting the 3D organism...",
+      "status_failed": "Could not craft the creature. Try again.",
+      "generate": "GENERATE",
+      "working": "PROCESSING..."
+    },
+    "stage": {
+      "juvenile": "Juvenile",
+      "adult": "Adult",
+      "elder": "Elder",
+      "legacy": "Lineage ancestor"
+    },
+    "care": {
+      "button": "FEED",
+      "done_today": "Cared for today",
+      "choose_resource": "Choose a resource to feed:",
+      "no_resources": "Not enough colony resources to care for this creature.",
+      "type_mineral_feed": "Mineral feed — {{amount}} minerals",
+      "type_water_feed": "Water feed — {{amount}} water",
+      "type_volatile_feed": "Volatile feed — {{amount}} volatiles",
+      "error_generic": "Could not care for this creature. Try again.",
+      "error_already_cared_today": "This creature has already been cared for today.",
+      "error_no_longer_needs_care": "This creature no longer needs daily care."
+    },
+    "evolve": {
+      "button": "NEW GENERATION",
+      "preview_label": "Next generation mutations:",
+      "cost_hint": "1st generation free, then {{cost}}⚛",
+      "confirm": "SPAWN GENERATION",
+      "error_generic": "Could not spawn a new generation. Try again.",
+      "error_not_elder": "Only an elder can spawn a new generation."
+    },
+    "lineage": {
+      "button": "LINEAGE",
+      "title": "Biosphere lineage",
+      "empty": "No lineage ancestors yet."
+    },
+    "hybrid": {
+      "button": "HYBRIDIZE",
+      "title": "Hybridization experiment",
+      "body": "Pick two creatures from this planet. The laboratory will fuse their portraits and traits into a single hybrid organism.",
+      "select_hint": "Select 2 parent creatures:",
+      "traits_preview": "Predicted hybrid traits:",
+      "tier_photo": "HYBRID PHOTO — {{cost}}⚛",
+      "tier_full": "HYBRID WITH 3D — {{cost}}⚛",
+      "upgrade_button": "CREATE 3D MODEL — {{cost}}⚛",
+      "result_ready": "Hybrid created. The portrait is stored in the lineage.",
+      "badge": "hybrid",
+      "photo_badge": "hybrid photo",
+      "parents_label": "Parents: {{parentA}} + {{parentB}}",
+      "error_generic": "The experiment failed. Quarks were refunded.",
+      "error_planet_full": "The planet already has the maximum of active creatures."
+    },
+    "trait": {
+      "size": {
+        "dwarf": "dwarf size",
+        "gigantic": "gigantic size",
+        "elongated": "elongated body",
+        "compact": "compact body"
+      },
+      "coloring": {
+        "iridescent": "iridescent coloring",
+        "melanistic": "darker pigmentation",
+        "translucent": "translucent skin",
+        "banded": "banded pattern"
+      },
+      "appendages": {
+        "extra_limbs": "extra limb pair",
+        "finned": "fin-like appendages",
+        "long_tail": "longer tail",
+        "clawed": "clawed digits"
+      },
+      "bioluminescence": {
+        "glowing_spots": "glowing spots",
+        "pulsing_veins": "pulsing bioluminescent veins",
+        "luminous_eyes": "luminous eyes",
+        "faint_aura": "faint bioluminescent aura"
+      },
+      "texture": {
+        "crystalline_scales": "crystalline scales",
+        "feathered_ridges": "feathered ridges",
+        "chitin_plating": "chitin plating",
+        "smooth_hide": "smoother hide"
+      }
     }
   },
   "hangar": {
@@ -254,8 +364,6 @@
     "play_again": "Play again",
     "return_hangar": "Return to Hangar",
     "reward_line": "+{{quarks}} quark · {{reward}}",
-    "reward_source": "Cosmic Battle",
-    "reward_toast": "Cosmic Battle trophies added",
     "status": {
       "player_turn": "Your turn",
       "commander_turn": "Commander turn",
@@ -1112,6 +1220,8 @@
     "search_explainer": "Space research searches for unique events and objects for the catalog. Level chance: {{chance}}% at this observatory level; levels 1-5 give 10%, 20%, 30%, 35%, and 40%. Longer searches change the target rarity, and 24-hour searches never return empty.",
     "search_started": "Observatory search started. Results will arrive when the session completes.",
     "search_started_after_ads": "3 ads watched. Observatory search started.",
+    "title_short": "Observatory",
+    "search_not_started": "Search not started: no free observatory slot, or the program is unavailable at this level.",
     "ad_gate_title": "Observatory ads",
     "ad_gate_failed": "Watch 3 ads before starting the search. Premium removes this wait.",
     "search_no_signal_log": "Observatory search completed: no stable cosmic signal detected.",
@@ -1693,7 +1803,8 @@
     "quiz": "correct answer",
     "refund": "refund",
     "topup": "top-up",
-    "gift": "gift"
+    "gift": "gift",
+    "precursor": "redundant signal"
   },
   "share": {
     "found_life": "I found new life in Nebulife",
@@ -1717,6 +1828,7 @@
     "tab_rating": "RATING",
     "tab_signals": "SIGNALS",
     "tab_event": "EVENT",
+    "tab_megastructure": "BEACON",
     "loading": "Loading…",
     "you": "you",
     "quarks_short": "quarks",
@@ -1731,6 +1843,7 @@
     "task_planet_scan": "Launch a planet mission: {{target}}",
     "task_decode": "Decode a signal in the Operations Center: {{target}}",
     "task_academy": "Finish an Academy lesson or quiz: {{target}}",
+    "task_creature_care": "Care for a creature in the Biosphere: {{target}}",
     "claim_reward": "CLAIM REWARD",
     "claiming": "Claiming…",
     "claimed_today": "Today's reward claimed",
@@ -1754,7 +1867,7 @@
     "hof_empty": "The first champions arrive on Monday — keep the pace!",
     "galaxy_champion": "Galaxy champion of the week",
     "my_cluster_champion": "Your cluster's champion: {{name}}",
-    "hof_rules": "Every Monday the best player of each cluster becomes its champion. Champions form the galaxy top-10: #1 earns 100 quarks, #2–#10 earn 1 quark each. Titles are permanent.",
+    "hof_rules": "Every Monday the best player of each cluster becomes its champion. Champions form the galaxy top-10: #1 earns 100 quarks, #2 earns 50, #3 earns 30, #4–#10 earn 1 quark each. Titles are permanent.",
     "achievements": "ACHIEVEMENTS",
     "ach_champion": "Cluster champion ×{{count}}",
     "ach_top10": "Galaxy top-10 ×{{count}}",
@@ -1806,6 +1919,39 @@
     "log_comet_claimed": "Herald Comet captured! Legendary entry added to the Archive.",
     "chip_upcoming": "COMET IN",
     "chip_active": "WINDOW OPEN"
+  },
+  "megastructure": {
+    "title": "GALACTIC BEACON",
+    "subtitle": "A cluster-wide science structure, built together by all 50 members over several weeks. Contribute colony resources daily — when every track fills, the cluster gains a permanent research bonus.",
+    "status_building": "UNDER CONSTRUCTION",
+    "status_completed": "COMPLETE",
+    "overall_progress": "Overall progress",
+    "resource_minerals": "Minerals",
+    "resource_volatiles": "Volatiles",
+    "resource_isotopes": "Isotopes",
+    "resource_water": "Water",
+    "contribute_title": "CONTRIBUTE RESOURCES",
+    "not_contributed_today": "No contribution today yet",
+    "available": "Available in colonies: {{amount}}",
+    "cap_remaining": "Daily cap left: {{amount}}/{{cap}}",
+    "max_button": "MAX",
+    "no_capacity": "No remaining daily cap or structure need for this resource",
+    "contributing": "Contributing…",
+    "contribute_button": "CONTRIBUTE",
+    "first_contribution_xp": "First contribution today: +{{xp}} XP",
+    "builders_title": "BUILDERS",
+    "builders_empty": "No contributions yet — be the first!",
+    "you_tag": "(you)",
+    "days_label": "{{count}}d",
+    "your_share": "Your share: {{pct}}%",
+    "completed_banner": "The Beacon is complete! The cluster gained a permanent bonus.",
+    "research_bonus": "Research speed +5% — ACTIVE",
+    "research_bonus_note": "The bonus applies to every cluster member, forever.",
+    "completed_at": "Completed {{date}}",
+    "completion_reward_toast": "Beacon complete! +{{quarks}} quarks, +{{xp}} XP",
+    "error": "Failed to load the megastructure",
+    "loading": "Loading…",
+    "no_cluster": "You are not assigned to a cluster yet"
   },
   "resource_display": {
     "observatories_title": "Observatories — research stations",
@@ -1870,6 +2016,8 @@
     "sub_mission_photos": "Mission Photos",
     "sub_life": "Life",
     "sub_aerial_photos": "Aerial",
+    "sub_signals": "Precursor Signals",
+    "sub_seasons": "Seasons",
     "sub_astronomy": "Astronomy",
     "sub_physics": "Physics",
     "sub_chemistry": "Chemistry",
@@ -2050,7 +2198,11 @@
       "reveal": "Your home system awakens",
       "skip": "Skip"
     },
-    "exosphereSync": "Syncing exosphere telemetry"
+    "exosphereSync": "Syncing exosphere telemetry",
+    "exosphereSlow": "Loading the exosphere may take a few seconds",
+    "returningToOrbit": "Returning to orbit...",
+    "syncingNavigation": "Syncing navigation...",
+    "syncingNavigationSlow": "This may take a few seconds"
   },
   "gallery": {
     "discovered_count": "Discovered: {{count}} / {{total}}",
@@ -2231,6 +2383,14 @@
     "pro_messages_today": "{{count}}/10 messages",
     "pro_daily_limit": "A.S.T.R.A. is recharging. Return in the next hour."
   },
+  "digest": {
+    "load_error": "Failed to load digest",
+    "not_available": "Digest not yet available",
+    "opening": "Receiving transmission...",
+    "loading_page": "Loading page...",
+    "image_error": "Failed to load image",
+    "retry": "Retry"
+  },
   "premium": {
     "title": "Premium",
     "no_ads": "No ads · 10 A.S.T.R.A. messages every hour · +5 Quarks daily",
@@ -2307,6 +2467,26 @@
     "error": "Could not send feedback. Please try again later.",
     "thanks_title": "Thanks for the feedback",
     "thanks_body": "Your input has been saved and will help make Nebulife better."
+  },
+  "weaver_feedback": {
+    "kicker": "DIRECT CHANNEL",
+    "title": "Message the Weaver",
+    "body": "This goes straight to the creator of Nebulife. Praise, a complaint, an idea, or just a \"thanks\" — it all works. The signal is received, decoded, translated, and read carefully. The best feedback and ideas make it straight into the game.",
+    "chat_teaser": "Want to message the creator of this universe directly?",
+    "chat_button": "Message the Weaver",
+    "likes_label": "What you love / want to thank us for",
+    "likes_placeholder": "e.g. I love the galaxy design...",
+    "dislikes_label": "What's missing, broken, or you'd like to see",
+    "dislikes_placeholder": "e.g. needs a better explanation for..."
+  },
+  "polls": {
+    "badge": "POLL",
+    "vote_short": "Vote",
+    "results_short": "Results",
+    "your_vote": "your vote",
+    "total_hidden": "Only percentages are shown — vote counts are not public.",
+    "closed": "This poll is closed.",
+    "vote_error": "Could not submit your vote. Please try again."
   },
   "premium_help": {
     "common": {
@@ -2779,6 +2959,19 @@
     "rates": "Live rates",
     "production": "Production",
     "consumption": "Consumption",
+    "requirements_title": "Requirements & levels",
+    "req_level": "Player level",
+    "req_level_desc": "Minimum commander level to construct",
+    "req_tech": "Technology",
+    "req_tech_desc": "Must be researched in the Tech Tree",
+    "req_none": "None",
+    "req_limit": "Per planet",
+    "req_limit_desc": "Built / maximum on one planet",
+    "req_unlimited": "Unlimited",
+    "req_cost": "Build cost",
+    "req_cost_desc": "Resources per new module",
+    "req_cost_free": "Free",
+    "level_help": "Module level is informational for now — building upgrades are in development and will be announced in updates. Output depends on the building type, module count and adjacency bonuses. To build more modules, meet the player level, technology and resource requirements above.",
     "no_production": "Does not directly produce resources",
     "no_consumption": "Does not directly consume resources",
     "rate_per_hour": "{{amount}}/hr",
@@ -3056,6 +3249,146 @@
   "format": {
     "k": "k",
     "kk": "kk"
+  },
+  "precursor": {
+    "title": "Signals of the Precursors",
+    "subtitle": "Fragments intercepted from a vanished civilization",
+    "counter": "{{count}}/{{total}} intercepted",
+    "locked_label": "SIGNAL NOT INTERCEPTED",
+    "locked_core_hint": "Detected only in the depths of the Core",
+    "close": "Close",
+    "detail_unknown_origin": "System of origin unknown",
+    "detail_acquired": "Intercepted {{date}}",
+    "detail_acquired_at": "Intercepted at {{system}}",
+    "sfx_picker_label": "Acquisition signal",
+    "sfx_slot": "Signal {{n}}",
+    "completion_reward_available": "Full sequence decoded — claim reward",
+    "completion_reward_claim": "Claim +{{amount}}",
+    "completion_reward_claimed": "Reward claimed",
+    "new_badge": "NEW",
+    "acquisition_scanning": "DECODING SIGNAL...",
+    "acquisition_intercepted": "SIGNAL INTERCEPTED",
+    "acquisition_duplicate_title": "SIGNAL ALREADY CATALOGUED",
+    "acquisition_duplicate_body": "Every known signal of this class is already archived",
+    "acquisition_consolation": "+{{amount}} for a redundant transmission",
+    "acquisition_skip": "Tap to skip",
+    "names": {
+      "signal-origin": "Origin Point",
+      "signal-weaver": "The Weaver's Seal",
+      "signal-engine": "Heart of the Precursor Engine",
+      "signal-archive": "Archive of Civilization Zero",
+      "signal-gate": "Gate Fragment",
+      "signal-lattice": "Precursor Lattice",
+      "signal-helix": "Genome Helix",
+      "signal-mirror": "Mirror Signal",
+      "signal-beacon": "The Dimmed Beacon",
+      "signal-echo": "Echo of the Void",
+      "signal-pulse": "Pulse of a Distant Star",
+      "signal-dust": "Whisper of Stardust",
+      "signal-ice": "Frozen Code",
+      "signal-drift": "Frequency Drift"
+    },
+    "lore": {
+      "signal-origin": "The first pulse ever cast into the void a billion years ago — the moment the Precursors realized they were not alone in the universe.",
+      "signal-weaver": "The seal of the being Precursor records call the Weaver — the one who wove the galaxy's first neural networks.",
+      "signal-engine": "A fragment of the engine-heart that once drove Precursor ships through folded space without effort.",
+      "signal-archive": "A compressed shard of Civilization Zero's library — all that remains after the silence that came without warning.",
+      "signal-gate": "A fragment of a gate through which the Precursors crossed between stars faster than light could report it.",
+      "signal-lattice": "A crystalline lattice preserving the geometry of space as the Precursors saw it — not Euclidean.",
+      "signal-helix": "A fragment of genetic code the Precursors are said to have woven into this galaxy's first life.",
+      "signal-mirror": "A signal that returns from the place it was sent — as if space-time had been folded in half.",
+      "signal-beacon": "A beacon that once marked the way home — now it is silent, and no one knows why.",
+      "signal-echo": "A faint echo left behind by something vast passing through the emptiness of space.",
+      "signal-pulse": "A single rhythmic pulse that traveled from a star that died long before humanity existed.",
+      "signal-dust": "A whisper hidden in interstellar dust — a fragment of a message that can no longer be fully restored.",
+      "signal-ice": "Code frozen in the ice crystals of a distant moon, waiting millions of years to be decoded.",
+      "signal-drift": "A signal slowly drifting between frequencies, as if still searching for someone to hear it."
+    }
+  },
+  "seasons": {
+    "section_title": "Observation Season",
+    "finale_banner": "Season finale — double seasonal anomaly odds",
+    "days_remaining": "{{count}}d remaining",
+    "slot_unresearched": "Not yet researched",
+    "collection_progress": "Researched {{current}}/{{total}} seasonal anomalies",
+    "claiming": "Claiming reward...",
+    "claim_reward": "Claim +{{amount}}",
+    "reward_claimed": "Season reward claimed",
+    "claim_success_log": "Observation season reward claimed",
+    "claim_failed": "Failed to claim the season reward",
+    "archive_counter": "{{count}} seasons completed",
+    "hall_title": "Hall of completed seasons",
+    "hall_empty": "No season fully completed yet",
+    "hall_complete": "Collection complete",
+    "name": {
+      "pulsars": "Pulsar Season",
+      "comets": "Comet Season",
+      "nebulae": "Nebula Season",
+      "binaries": "Binary Star Season"
+    }
+  },
+  "civilization": {
+    "tab_label": "Civilization",
+    "trust_label": "Trust",
+    "strike_active": "Workforce strike in progress — production reduced",
+    "population_label": "Population",
+    "integration_paths_label": "Integration paths",
+    "start_stage": "Begin",
+    "stage_in_progress": "In progress",
+    "anomaly_hint_title": "Anomaly detected",
+    "anomaly_hint_body": "Orbital scan picked up an unexplained signal — city lights, or a structured radio pattern. An orbital probe is needed to confirm what it is.",
+    "integrated_title": "Integrated into the Stellar Community",
+    "integrated_body": "This civilization has joined the Stellar Community through diplomacy. Its population now works alongside your colony, adding a trust-scaled production bonus.",
+    "workforce_multiplier_label": "Workforce production multiplier",
+    "locked_gate": "Requires player level {{level}} and the Xenodiplomacy tech (biology branch).",
+    "path": {
+      "diplomacy": "Diplomacy",
+      "siege": "Orbital siege",
+      "infiltration": "Infiltration"
+    },
+    "path_reason": {
+      "available": "Available",
+      "later": "Coming later",
+      "tech_required": "Technology required",
+      "hostile_temperament": "Hostile — diplomacy refused"
+    },
+    "contact_stage": {
+      "first_contact": "First contact",
+      "language_exchange": "Language exchange",
+      "alliance": "Alliance"
+    },
+    "contact_stage_desc": {
+      "first_contact": "Open a careful transmission and establish that you come in peace.",
+      "language_exchange": "Exchange linguistic data to build a shared vocabulary.",
+      "alliance": "Formalize the relationship and welcome this civilization into the Stellar Community."
+    },
+    "era": {
+      "stone": "Stone Age civilization",
+      "agrarian": "Agrarian civilization",
+      "industrial": "Industrial civilization",
+      "orbital": "Orbital-era civilization"
+    },
+    "temperament": {
+      "peaceful": "Peaceful",
+      "wary": "Wary",
+      "hostile": "Hostile"
+    },
+    "temperament_flavor": {
+      "peaceful": "Their transmissions are open and curious — first contact is likely to go smoothly.",
+      "wary": "Their transmissions are cautious and guarded — contact will take patience.",
+      "hostile": "Their transmissions carry clear territorial warnings — diplomacy is unlikely to be accepted."
+    }
+  },
+  "saga": {
+    "section": "The Weaver's Saga",
+    "open_reader": "Open the Saga",
+    "title": "The Weaver's Saga",
+    "subtitle": "A chronicle written for you alone",
+    "close": "Close",
+    "back_to_list": "Back",
+    "chapter_label": "Chapter {{roman}}",
+    "empty_state": "The Saga begins with your first step. Keep exploring — the Weaver is watching, and will write when the moment is worthy.",
+    "new_chapter_toast": "A new chapter is ready: \"{{title}}\""
   },
   "landing": {
     "badge": "Living Orrery",

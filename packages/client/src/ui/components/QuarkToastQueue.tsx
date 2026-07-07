@@ -27,7 +27,8 @@ export type QuarkAccrualReason =
   | 'quiz'
   | 'refund'
   | 'topup'
-  | 'gift';
+  | 'gift'
+  | 'precursor';
 
 export interface QuarkToast {
   id: string;

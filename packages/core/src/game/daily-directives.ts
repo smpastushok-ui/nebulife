@@ -16,7 +16,8 @@ export type DirectiveMetric =
   | 'observatory_search'  // observatory catalog searches started
   | 'planet_scans'        // planet missions launched
   | 'signal_decodes'      // signal decoder minigame wins
-  | 'academy_lessons';    // academy lessons/quests completed
+  | 'academy_lessons'     // academy lessons/quests completed
+  | 'creature_care';      // Biosphere daily care actions (Еволюція біосфери)
 
 export interface DirectiveDef {
   id: string;
@@ -42,6 +43,7 @@ export const DIRECTIVE_POOL: DirectiveDef[] = [
   { id: 'planet_scan_1', metric: 'planet_scans', target: 1, xp: 25, labelKey: 'task_planet_scan', minLevel: 6 },
   { id: 'decode_1', metric: 'signal_decodes', target: 1, xp: 25, labelKey: 'task_decode' },
   { id: 'academy_1', metric: 'academy_lessons', target: 1, xp: 20, labelKey: 'task_academy' },
+  { id: 'creature_care_1', metric: 'creature_care', target: 1, xp: 15, labelKey: 'task_creature_care', minLevel: 6 },
 ];
 
 export const DAILY_DIRECTIVE_COUNT = 3;

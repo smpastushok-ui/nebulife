@@ -101,3 +101,21 @@ export async function claimCometReward(): Promise<CometClaimResult> {
   }
   return res.json();
 }
+
+// ── Observation seasons ("Сезони спостережень") ────────────────────────────
+
+export interface SeasonClaimResult {
+  claimed: boolean;
+  occurrenceId: string;
+  quarksGranted: number;
+  newBalance: number;
+}
+
+export async function claimSeasonReward(): Promise<SeasonClaimResult> {
+  const res = await authFetch(`${API_BASE}/event/season-claim`, { method: 'POST' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'unknown' }));
+    throw new Error(err.error ?? `season claim failed: ${res.status}`);
+  }
+  return res.json();
+}

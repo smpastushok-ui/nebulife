@@ -182,6 +182,36 @@
     .feedback-card .fb-label.dislikes { color: var(--orange); }
     .feedback-card .fb-text { color: var(--text); font-size: 13px; white-space: pre-wrap; }
     .feedback-card .fb-empty { color: var(--muted); font-style: italic; }
+
+    /* Polls */
+    .poll-option-row {
+      display: flex; gap: 8px; align-items: flex-start; margin-bottom: 8px;
+    }
+    .poll-option-row .field { flex: 1; margin-bottom: 0; }
+    .poll-option-row button.danger { flex-shrink: 0; margin-top: 2px; }
+    .poll-card {
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 14px;
+      margin-bottom: 12px;
+      background: #070d18;
+    }
+    .poll-card .pc-head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 10px; margin-bottom: 6px; flex-wrap: wrap;
+    }
+    .poll-card .pc-question { color: var(--text); font-size: 13px; font-weight: 600; }
+    .poll-card .pc-meta { color: var(--muted); font-size: 11px; }
+    .poll-card .pc-status { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; padding: 2px 7px; border-radius: 3px; }
+    .poll-card .pc-status.active { color: var(--green); border: 1px solid rgba(68,255,136,0.4); background: rgba(68,255,136,0.08); }
+    .poll-card .pc-status.closed { color: var(--muted); border: 1px solid var(--border); background: rgba(102,119,136,0.08); }
+    .poll-card .pc-actions { display: flex; gap: 8px; margin-top: 10px; }
+    .poll-results-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+    .poll-results-table th, .poll-results-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+    .poll-results-table th { color: var(--muted); font-weight: normal; text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px; }
+    .poll-bar-track { height: 6px; border-radius: 3px; background: rgba(51,68,85,0.6); overflow: hidden; min-width: 80px; }
+    .poll-bar-fill { height: 100%; background: var(--accent); border-radius: 3px; }
+    .poll-voters-title { color: var(--text-2); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 14px 0 6px; }
   </style>
 </head>
 <body>
@@ -209,6 +239,14 @@
             </div>
             <div class="nav-items">
               <div class="nav-item" data-section="sec-feedback">Відгуки гравців</div>
+            </div>
+          </div>
+          <div class="nav-group" id="grpPolls">
+            <div class="nav-group-title" data-group="grpPolls">
+              <span class="chev">&#9662;</span> Голосування
+            </div>
+            <div class="nav-items">
+              <div class="nav-item" data-section="sec-polls">Опитування</div>
             </div>
           </div>
         </nav>
@@ -415,6 +453,53 @@
             <div class="out" id="feedbackStats"></div>
             <div id="feedbackList"><div class="daily-empty">Введи адмін-секрет і натисни «Оновити список».</div></div>
             <div class="out" id="feedbackOut"></div>
+          </div>
+        </div>
+
+        <!-- ════════════ SECTION: POLLS ════════════ -->
+        <div class="section" id="sec-polls">
+          <div class="panel">
+            <h2>Нове опитування</h2>
+            <p class="hint" style="margin-top:-6px;margin-bottom:12px">
+              Активне опитування зʼявляється як картка в загальному чаті. Гравець голосує
+              один раз; до голосу бачить лише питання й варіанти, після — тільки відсотки
+              (без кількості голосів). Тут, в адмінці, видно повну статистику й список
+              голосів по гравцях.
+            </p>
+            <div class="row">
+              <div class="field">
+                <label for="pollQuestionUk">Питання (UK)</label>
+                <input id="pollQuestionUk" type="text" maxlength="300" placeholder="Наприклад: Яку фічу додати першою?" />
+              </div>
+              <div class="field">
+                <label for="pollQuestionEn">Питання (EN)</label>
+                <input id="pollQuestionEn" type="text" maxlength="300" placeholder="e.g. Which feature should we build first?" />
+              </div>
+            </div>
+            <label>Варіанти відповіді (мінімум 2)</label>
+            <div id="pollOptionRows"></div>
+            <div class="actions" style="margin-bottom:14px">
+              <button id="btnPollAddOption" type="button">+ Додати варіант</button>
+            </div>
+            <div class="actions">
+              <button id="btnPollCreate" type="button" class="primary">Створити опитування</button>
+            </div>
+            <div class="out" id="pollCreateOut"></div>
+          </div>
+
+          <div class="panel">
+            <h2>Список опитувань</h2>
+            <div class="actions" style="margin-bottom:14px">
+              <button id="btnPollsLoad" type="button">Оновити список</button>
+            </div>
+            <div class="out" id="pollsStats"></div>
+            <div id="pollsList"><div class="daily-empty">Введи адмін-секрет і натисни «Оновити список».</div></div>
+            <div class="out" id="pollsOut"></div>
+          </div>
+
+          <div class="panel" id="pollResultsPanel" style="display:none">
+            <h2>Результати опитування</h2>
+            <div id="pollResultsBody"></div>
           </div>
         </div>
       </div>
@@ -861,6 +946,261 @@
 
     document.querySelector('.nav-item[data-section="sec-feedback"]').addEventListener('click', function () {
       if (!feedbackLoaded && $('secret').value.trim()) loadFeedbackList(false);
+    });
+
+    // ════════════ POLLS section logic ════════════
+    var pollsLoaded = false;
+
+    function setPollCreateOut(kind, msg) {
+      var el = $('pollCreateOut');
+      el.className = 'out ' + kind;
+      el.textContent = msg;
+    }
+    function setPollsOut(kind, msg) {
+      var el = $('pollsOut');
+      el.className = 'out ' + kind;
+      el.textContent = msg;
+    }
+
+    function pollOptionRowHtml() {
+      return '' +
+        '<div class="poll-option-row">' +
+          '<div class="field"><input type="text" class="f-opt-uk" maxlength="120" placeholder="Варіант (UK)" /></div>' +
+          '<div class="field"><input type="text" class="f-opt-en" maxlength="120" placeholder="Option (EN)" /></div>' +
+          '<button type="button" class="danger small btn-opt-remove">&times;</button>' +
+        '</div>';
+    }
+
+    function addPollOptionRow() {
+      var wrap = document.createElement('div');
+      wrap.innerHTML = pollOptionRowHtml();
+      var row = wrap.firstChild;
+      row.querySelector('.btn-opt-remove').addEventListener('click', function () {
+        if ($('pollOptionRows').querySelectorAll('.poll-option-row').length <= 2) return;
+        row.remove();
+      });
+      $('pollOptionRows').appendChild(row);
+    }
+
+    $('btnPollAddOption').addEventListener('click', addPollOptionRow);
+    // Seed with 2 empty option rows
+    addPollOptionRow();
+    addPollOptionRow();
+
+    async function createPollSubmit() {
+      var secret = $('secret').value.trim();
+      if (!secret) { setPollCreateOut('err', 'Спочатку введи адмін-секрет.'); return; }
+      persistSecret();
+
+      var questionUk = $('pollQuestionUk').value.trim();
+      var questionEn = $('pollQuestionEn').value.trim();
+      if (!questionUk || !questionEn) {
+        setPollCreateOut('err', 'Введи питання обома мовами.');
+        return;
+      }
+
+      var options = [];
+      $('pollOptionRows').querySelectorAll('.poll-option-row').forEach(function (row) {
+        var labelUk = row.querySelector('.f-opt-uk').value.trim();
+        var labelEn = row.querySelector('.f-opt-en').value.trim();
+        if (labelUk && labelEn) options.push({ labelUk: labelUk, labelEn: labelEn });
+      });
+      if (options.length < 2) {
+        setPollCreateOut('err', 'Потрібно щонайменше 2 варіанти, кожен обома мовами.');
+        return;
+      }
+
+      if (!confirm('Створити опитування і показати його всім гравцям у чаті?')) return;
+
+      var btn = $('btnPollCreate');
+      btn.disabled = true;
+      var label = btn.textContent;
+      btn.textContent = '…';
+      try {
+        var res = await fetch('/api/admin/poll-create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ secret: secret, questionUk: questionUk, questionEn: questionEn, options: options })
+        });
+        var data = await res.json().catch(function () { return {}; });
+        if (!res.ok) {
+          setPollCreateOut('err', '[' + res.status + '] ' + (data.message || data.error || 'Помилка запиту'));
+          return;
+        }
+        setPollCreateOut('ok', 'Опитування створено: ' + data.poll.id);
+        $('pollQuestionUk').value = '';
+        $('pollQuestionEn').value = '';
+        $('pollOptionRows').innerHTML = '';
+        addPollOptionRow();
+        addPollOptionRow();
+        loadPollsList();
+      } catch (e) {
+        setPollCreateOut('err', 'Помилка мережі: ' + (e && e.message ? e.message : e));
+      } finally {
+        btn.disabled = false;
+        btn.textContent = label;
+      }
+    }
+    $('btnPollCreate').addEventListener('click', createPollSubmit);
+
+    function pollCardHtml(item) {
+      var isActive = item.status === 'active';
+      return '' +
+        '<div class="poll-card" data-id="' + esc(item.id) + '">' +
+          '<div class="pc-head">' +
+            '<span class="pc-question">' + esc(item.question_uk) + ' / ' + esc(item.question_en) + '</span>' +
+            '<span class="pc-status ' + (isActive ? 'active' : 'closed') + '">' + (isActive ? 'активне' : 'закрите') + '</span>' +
+          '</div>' +
+          '<div class="pc-meta">' + esc(fmtDate(item.created_at)) + ' · ' + (item.options || []).length + ' варіант(ів)</div>' +
+          '<div class="pc-actions">' +
+            '<button type="button" class="small btn-poll-results">Результати</button>' +
+            (isActive ? '<button type="button" class="danger small btn-poll-close">Закрити голосування</button>' : '') +
+          '</div>' +
+        '</div>';
+    }
+
+    function bindPollCard(card, item) {
+      card.querySelector('.btn-poll-results').addEventListener('click', function () {
+        loadPollResults(item.id);
+      });
+      var closeBtn = card.querySelector('.btn-poll-close');
+      if (closeBtn) closeBtn.addEventListener('click', async function () {
+        if (!confirm('Закрити це опитування? Гравці більше не зможуть проголосувати.')) return;
+        var secret = $('secret').value.trim();
+        if (!secret) { setPollsOut('err', 'Спочатку введи адмін-секрет.'); return; }
+        persistSecret();
+        closeBtn.disabled = true;
+        try {
+          var res = await fetch('/api/admin/poll-close', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ secret: secret, pollId: item.id })
+          });
+          var data = await res.json().catch(function () { return {}; });
+          if (!res.ok) {
+            setPollsOut('err', '[' + res.status + '] ' + (data.message || data.error || 'Помилка запиту'));
+            return;
+          }
+          setPollsOut('ok', 'Опитування закрито.');
+          loadPollsList();
+        } finally {
+          closeBtn.disabled = false;
+        }
+      });
+    }
+
+    function renderPollsList(items) {
+      var list = $('pollsList');
+      if (!items.length) {
+        list.innerHTML = '<div class="daily-empty">Опитувань ще немає — створи перше вище.</div>';
+        return;
+      }
+      list.innerHTML = items.map(pollCardHtml).join('');
+      var cards = list.querySelectorAll('.poll-card');
+      cards.forEach(function (card, i) { bindPollCard(card, items[i]); });
+    }
+
+    async function loadPollsList() {
+      var secret = $('secret').value.trim();
+      if (!secret) { setPollsOut('err', 'Спочатку введи адмін-секрет.'); return; }
+      persistSecret();
+      var btn = $('btnPollsLoad'); btn.disabled = true;
+      try {
+        var res = await fetch('/api/admin/poll-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ secret: secret, op: 'list' })
+        });
+        var data = await res.json().catch(function () { return {}; });
+        if (!res.ok) {
+          setPollsOut('err', '[' + res.status + '] ' + (data.message || data.error || 'Помилка запиту'));
+          return;
+        }
+        pollsLoaded = true;
+        renderPollsList(data.items || []);
+        var st = $('pollsStats');
+        st.className = 'out ok';
+        st.textContent = 'Усього опитувань: ' + data.total;
+        setPollsOut('', ''); $('pollsOut').className = 'out';
+      } catch (e) {
+        setPollsOut('err', 'Помилка мережі: ' + (e && e.message ? e.message : e));
+      } finally {
+        btn.disabled = false;
+      }
+    }
+    $('btnPollsLoad').addEventListener('click', loadPollsList);
+
+    function pollVoterRowHtml(v) {
+      return '' +
+        '<tr>' +
+          '<td>' + esc(v.callsign || v.playerId || 'невідомий') + '</td>' +
+          '<td>' + esc(v.level) + '</td>' +
+          '<td>' + esc(v.optionId) + '</td>' +
+          '<td>' + esc(fmtDate(v.createdAt)) + '</td>' +
+        '</tr>';
+    }
+
+    async function loadPollResults(pollId) {
+      var secret = $('secret').value.trim();
+      if (!secret) { setPollsOut('err', 'Спочатку введи адмін-секрет.'); return; }
+      persistSecret();
+
+      var panel = $('pollResultsPanel');
+      var body = $('pollResultsBody');
+      panel.style.display = '';
+      body.innerHTML = 'Завантаження…';
+      panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+      try {
+        var res = await fetch('/api/admin/poll-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ secret: secret, op: 'results', pollId: pollId })
+        });
+        var data = await res.json().catch(function () { return {}; });
+        if (!res.ok) {
+          body.innerHTML = '<div class="out err">[' + res.status + '] ' + esc(data.message || data.error || 'Помилка запиту') + '</div>';
+          return;
+        }
+
+        var poll = data.poll;
+        var optionsById = {};
+        (poll.options || []).forEach(function (o) { optionsById[o.id] = o; });
+        var resultRows = (data.options || []).map(function (r) {
+          var opt = optionsById[r.optionId] || {};
+          var label = (opt.label_uk || r.optionId) + ' / ' + (opt.label_en || r.optionId);
+          return '' +
+            '<tr>' +
+              '<td>' + esc(label) + '</td>' +
+              '<td>' + esc(r.count) + '</td>' +
+              '<td style="display:flex;align-items:center;gap:8px">' +
+                '<div class="poll-bar-track" style="flex:1"><div class="poll-bar-fill" style="width:' + Math.max(0, Math.min(100, r.percentage)) + '%"></div></div>' +
+                '<span>' + esc(r.percentage) + '%</span>' +
+              '</td>' +
+            '</tr>';
+        }).join('');
+
+        var voterRows = (data.voters || []).map(pollVoterRowHtml).join('');
+
+        body.innerHTML = '' +
+          '<div class="pc-meta" style="margin-bottom:10px">' + esc(poll.question_uk) + ' / ' + esc(poll.question_en) + '</div>' +
+          '<div class="pc-meta">Усього голосів: <b style="color:var(--text)">' + esc(data.totalVotes) + '</b></div>' +
+          '<table class="poll-results-table">' +
+            '<thead><tr><th>Варіант</th><th>Кількість</th><th>Відсоток</th></tr></thead>' +
+            '<tbody>' + (resultRows || '<tr><td colspan="3" class="daily-empty">Ще немає голосів.</td></tr>') + '</tbody>' +
+          '</table>' +
+          '<div class="poll-voters-title">Хто проголосував (' + (data.voters || []).length + ')</div>' +
+          '<table class="poll-results-table">' +
+            '<thead><tr><th>Гравець</th><th>Рівень</th><th>Варіант</th><th>Коли</th></tr></thead>' +
+            '<tbody>' + (voterRows || '<tr><td colspan="4" class="daily-empty">Ще немає голосів.</td></tr>') + '</tbody>' +
+          '</table>';
+      } catch (e) {
+        body.innerHTML = '<div class="out err">Помилка мережі: ' + esc(e && e.message ? e.message : e) + '</div>';
+      }
+    }
+
+    document.querySelector('.nav-item[data-section="sec-polls"]').addEventListener('click', function () {
+      if (!pollsLoaded && $('secret').value.trim()) loadPollsList();
     });
   </script>
 </body>

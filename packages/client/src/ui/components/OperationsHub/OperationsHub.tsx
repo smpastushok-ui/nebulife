@@ -5,13 +5,16 @@ import { DirectivesTab } from './DirectivesTab.js';
 import { RatingTab } from './RatingTab.js';
 import { SignalsTab } from './SignalsTab.js';
 import { EventTab } from './EventTab.js';
+import { MegastructureTab } from './MegastructureTab.js';
+import type { MegastructureResourceBundle } from '../../../api/megastructure-api.js';
 
 // ---------------------------------------------------------------------------
 // OperationsHub — retention center: daily directives, cluster rating,
-// signal minigames and live events. Opened from the CommandBar.
+// signal minigames, live events and the cluster megastructure. Opened from
+// the CommandBar.
 // ---------------------------------------------------------------------------
 
-export type OpsTab = 'directives' | 'rating' | 'signals' | 'event';
+export type OpsTab = 'directives' | 'rating' | 'signals' | 'event' | 'megastructure';
 
 export interface OperationsHubProps {
   initialTab?: OpsTab;
@@ -33,6 +36,11 @@ export interface OperationsHubProps {
   cometTrackingStartedAt: number | null;
   cometClaiming: boolean;
   onStartCometTracking: () => void;
+  // Megastructure ("Мегаструктура")
+  colonyResources: MegastructureResourceBundle;
+  onSpendMegastructureResources: (delta: Partial<MegastructureResourceBundle>) => void;
+  onAwardXP: (amount: number, reason: string) => void;
+  onQuarksAwarded: (amount: number) => void;
 }
 
 const PANEL_BG = 'rgba(10,15,25,0.97)';
@@ -53,6 +61,7 @@ export function OperationsHub(props: OperationsHubProps) {
     { id: 'rating', label: t('ops.tab_rating') },
     { id: 'signals', label: t('ops.tab_signals') },
     { id: 'event', label: t('ops.tab_event'), badge: eventBadge },
+    { id: 'megastructure', label: t('ops.tab_megastructure') },
   ];
 
   return (
@@ -162,6 +171,15 @@ export function OperationsHub(props: OperationsHubProps) {
               trackingStartedAt={props.cometTrackingStartedAt}
               claiming={props.cometClaiming}
               onStartTracking={props.onStartCometTracking}
+            />
+          )}
+          {tab === 'megastructure' && (
+            <MegastructureTab
+              playerId={props.playerId}
+              colonyResources={props.colonyResources}
+              onSpendResources={props.onSpendMegastructureResources}
+              onAwardXP={props.onAwardXP}
+              onQuarksAwarded={props.onQuarksAwarded}
             />
           )}
         </div>

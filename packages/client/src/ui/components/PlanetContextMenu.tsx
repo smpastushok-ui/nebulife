@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Planet, Star, ResourceGroup, PlanetMission, PlanetMissionType, PlanetRevealLevel, PlacedBuilding, ProducibleType, PlanetReportSummary, Ship, PlanetTerraformState, CargoShipment } from '@nebulife/core';
+import type { Planet, Star, ResourceGroup, PlanetMission, PlanetMissionType, PlanetRevealLevel, PlacedBuilding, ProducibleType, PlanetReportSummary, Ship, PlanetTerraformState, CargoShipment, Civilization, CivilizationContactState, ContactStageId, TechTreeState } from '@nebulife/core';
 import {
   ELEMENTS, RESOURCE_GROUPS, GROUP_COLORS, getGroupElements, formatMassKg, isTerraformable,
   canStartPlanetMission, computePlanetMissionCost, getPlanetMissionProgress, getTargetRevealLevel, isSolidPlanetForLanding,
   PRODUCIBLE_DEFS,
 } from '@nebulife/core';
+import { CivilizationTab } from './Civilization/CivilizationTab.js';
 
 /** i18n key for each resource group label */
 const GROUP_T_KEY: Record<ResourceGroup, string> = {
@@ -39,7 +40,7 @@ function QuarkIcon() {
 
 const MENU_WIDTH = 300;
 
-type TabId = 'actions' | 'logistics' | 'characteristics' | 'terraform' | 'resources' | 'alpha';
+type TabId = 'actions' | 'logistics' | 'characteristics' | 'terraform' | 'resources' | 'civilization' | 'alpha';
 type PlanetPhotoKind = 'exosphere' | 'biosphere' | 'aerial';
 type PlanetSkinKind = 'system' | 'exosphere';
 export type CargoResource = 'minerals' | 'volatiles' | 'isotopes' | 'water';
@@ -265,10 +266,12 @@ function TabBar({
   activeTab,
   onChange,
   unlockedTabs,
+  showCivilizationTab,
 }: {
   activeTab: TabId;
   onChange: (t: TabId) => void;
   unlockedTabs: Set<TabId>;
+  showCivilizationTab?: boolean;
 }) {
   const { t } = useTranslation();
   const tabs: { id: TabId; label: string; color?: string }[] = [
@@ -277,6 +280,7 @@ function TabBar({
     { id: 'characteristics', label: t('planet.characteristics') },
     { id: 'terraform', label: t('planet_terminal.tab_terraform') },
     { id: 'resources', label: t('planet_terminal.tab_resources') },
+    ...(showCivilizationTab ? [{ id: 'civilization' as TabId, label: t('civilization.tab_label'), color: '#7bb8ff' }] : []),
     { id: 'alpha', label: `\u29B3 ${t('planet.tab_premium')}`, color: '#886622' },
   ];
 
@@ -1030,6 +1034,11 @@ export function PlanetContextMenu({
   onViewMissionPhoto,
   isFavorite = false,
   onToggleFavorite,
+  civilization,
+  civilizationContactState = null,
+  techTreeState,
+  civilizationClock = Date.now(),
+  onStartCivilizationContactStage,
 }: {
   planet: Planet;
   star: Star;
@@ -1088,6 +1097,13 @@ export function PlanetContextMenu({
   onViewMissionPhoto?: (planet: Planet, report: PlanetReportSummary, photoUrl: string) => void;
   isFavorite?: boolean;
   onToggleFavorite?: (planetId: string) => void;
+  /** Derived (never persisted) civilization for this planet, if any — see `generateCivilization()`. */
+  civilization?: Civilization | null;
+  /** Player progress for contacting this planet's civilization. */
+  civilizationContactState?: CivilizationContactState | null;
+  techTreeState?: TechTreeState;
+  civilizationClock?: number;
+  onStartCivilizationContactStage?: (planet: Planet, civ: Civilization, stageId: ContactStageId) => void;
 }) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabId>('actions');
@@ -1107,6 +1123,9 @@ export function PlanetContextMenu({
   const isSurfacePlanet = planet.type === 'rocky' || planet.type === 'terrestrial' || planet.type === 'dwarf';
   const hasSurfaceOrOrbitalView = isSurfacePlanet || planet.type === 'gas-giant' || planet.type === 'ice-giant';
   const isSystemAccessible = systemResearchProgress >= 100;
+  // Civilization tab appears once an orbital_scan hints at an anomaly (T1);
+  // full detail requires orbital_probe confirmation (T2) — see CivilizationTab.
+  const showCivilizationTab = Boolean(civilization) && revealLevel >= 1;
   const unlockedTabs = useMemo(() => {
     const tabs = new Set<TabId>(['actions', 'alpha']);
     if (isSystemAccessible) {
@@ -1115,8 +1134,9 @@ export function PlanetContextMenu({
       if (isTerraformable(planet)) tabs.add('terraform');
       tabs.add('resources');
     }
+    if (showCivilizationTab) tabs.add('civilization');
     return tabs;
-  }, [isSystemAccessible, planet]);
+  }, [isSystemAccessible, planet, showCivilizationTab]);
   const setGuardedTab = (tab: TabId) => {
     setActiveTab(unlockedTabs.has(tab) ? tab : 'actions');
   };
@@ -1242,7 +1262,7 @@ export function PlanetContextMenu({
         {isSurfacePlanet && <PlanetGlobe planet={planet} star={star} />}
 
         {/* ── Tab bar ── */}
-        <TabBar activeTab={activeTab} onChange={setGuardedTab} unlockedTabs={unlockedTabs} />
+        <TabBar activeTab={activeTab} onChange={setGuardedTab} unlockedTabs={unlockedTabs} showCivilizationTab={showCivilizationTab} />
 
         {/* ── Tab content ── */}
         <div style={{ padding: '4px 0', minHeight: 80 }}>
@@ -1397,6 +1417,18 @@ export function PlanetContextMenu({
               revealLevel={revealLevel}
               terraformState={terraformState}
               isColonized={isColonized}
+            />
+          )}
+
+          {activeTab === 'civilization' && civilization && techTreeState && (
+            <CivilizationTab
+              civ={civilization}
+              revealLevel={revealLevel}
+              playerLevel={playerLevel}
+              techTreeState={techTreeState}
+              contactState={civilizationContactState}
+              clock={civilizationClock}
+              onStartStage={(stageId) => onStartCivilizationContactStage?.(planet, civilization, stageId)}
             />
           )}
 

@@ -36,6 +36,8 @@ export const en: Record<TranslationKey, string> = {
   'cmd.planet_names':    'NAMES',
   'cmd.planet_names_on': 'NAMES ON',
   'cmd.planet_names_tooltip': 'Show planet names in this system',
+  'cmd.biosphere_title':   'BIOSPHERE',
+  'cmd.biosphere_tooltip': 'View creatures settled on this planet',
   'cmd.fly_cluster':     'Fly to my cluster',
   'cmd.fly_center':      'Fly to galaxy center',
   'cmd.fly_star':        'Fly to my star',
@@ -45,8 +47,8 @@ export const en: Record<TranslationKey, string> = {
 
   'unlock.combat.kicker': 'Combat Protocol',
   'unlock.combat.title': 'Arena and Raid Unlocked',
-  'unlock.combat.body': 'From level 10 you can enter Arena training and the daily carrier raid on web/ultra mode.',
-  'unlock.combat.body_limited': 'From level 10 Arena is available. Carrier Raid opens on the web version or ultra devices.',
+  'unlock.combat.body': 'From level 10 you can enter Arena training and the daily carrier raid.',
+  'unlock.combat.body_limited': 'From level 10 you can enter Arena training and the daily carrier raid.',
   'unlock.terraform.kicker': 'Terraforming Stage',
   'unlock.terraform.title': 'Terraforming Available',
   'unlock.terraform.body': 'Level 48 opens terraforming: Genesis Vault, transport chains and resource deliveries between colonies become the next progression layer.',
@@ -683,6 +685,10 @@ export const en: Record<TranslationKey, string> = {
   'mission_report.saved_photo_title':      'Mission photo · {planet}',
   'mission_report.system_notif':           'Mission data from planet {planet} received. T{tier} report is ready.',
   'mission_report.system_log':             'Mission on planet {planet} complete. T{tier} data received; report is available in system chat and planet menu.',
+
+  // Civilization contact — system notifications (NEXT_GEN_PLAN §B)
+  'civilization.contact_stage_complete_notif': 'Contact stage with the civilization on {planet} completed.',
+  'civilization.strike_started_notif':         'The civilization workforce on {planet} is striking — production reduced.',
 
   // Planet exploration missions
   'planet_terminal.free_ships_short':       '{count} ships',
