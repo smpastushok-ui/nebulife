@@ -384,7 +384,7 @@ nebulife/
 │   │       ├── constants/   # Physics, stellar, game, balance
 │   │       ├── math/        # SeededRNG, noise
 │   │       └── game/        # Research, timeline, exploration
-│   ├── client/        # PixiJS rendering (browser)
+│   ├── client/        # PixiJS rendering (mobile app via Capacitor)
 │   │   └── src/
 │   │       ├── game/
 │   │       │   ├── scenes/      # HomePlanet, Galaxy, System, PlanetView
