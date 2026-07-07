@@ -56,6 +56,8 @@ import {
   COMET_REWARD_XP,
   COMET_REWARD_RESOURCES,
   COMET_TRACKING_DURATION_MS,
+  getLiveEventDef,
+  liveEventPhotoUrl,
   pickDailyDirectives,
   normalizeDailyDirectiveState,
   bumpDirectiveMetric,
@@ -272,6 +274,7 @@ const SYNCED_UI_FLAG_PREFIXES = [
   'nebulife_home_resource_floor_', // home-planet resource hint
   'nebulife_building_seen_at',     // per-building result beacons / surface lesson state
   'nebulife_alpha_promo_seen_',    // Alpha-promo videos already shown to this player (no-repeat)
+  ASTRA_ONBOARDING_STORAGE_PREFIX, // one-shot ASTRA onboarding explainers (see Onboarding/)
 ];
 function isSyncedUiFlagKey(key: string): boolean {
   return SYNCED_UI_FLAG_KEYS.has(key)
@@ -280,6 +283,17 @@ function isSyncedUiFlagKey(key: string): boolean {
 import { ResourceDescriptionModal, type ResourceType } from './ui/components/ResourceDescriptionModal.js';
 import { ResourceWidget } from './ui/components/ResourceWidget.js';
 import { BuildingQuest } from './ui/components/BuildingQuest.js';
+import { AstraOnboardingModal } from './ui/components/Onboarding/AstraOnboardingModal.js';
+import {
+  ASTRA_ONBOARDING_BY_ID,
+  ASTRA_ONBOARDING_ENTRIES,
+  ASTRA_ONBOARDING_INITIAL_DELAY_MS,
+  ASTRA_ONBOARDING_MAX_PER_SESSION,
+  ASTRA_ONBOARDING_MIN_GAP_MS,
+  ASTRA_ONBOARDING_STORAGE_PREFIX,
+  getAstraOnboardingStorageKey,
+  type AstraOnboardingId,
+} from './ui/components/Onboarding/onboarding-catalog.js';
 import { ResourceFlyDot } from './ui/components/ResourceFlyDot.js';
 import { LevelUpBanner } from './ui/components/LevelUpBanner.js';
 import { ResearchToast } from './ui/components/ResearchToast.js';
@@ -328,7 +342,6 @@ import { EncyclopediaScreen } from './ui/components/Encyclopedia/EncyclopediaScr
 import { SpaceArena } from './ui/components/SpaceArena/SpaceArena.js';
 import { HangarPage } from './ui/components/Hangar/HangarPage.js';
 import { BiosphereView } from './ui/components/Biosphere/BiosphereView.js';
-import { useBiosphereCareAvailable } from './hooks/useBiosphereCareAvailable.js';
 import { CarrierRaid } from './ui/components/Raid/CarrierRaid.js';
 import { CosmicBattlePage } from './ui/components/CosmicBattle/CosmicBattlePage.js';
 import type { CosmicBattleRewardBundle } from './ui/components/CosmicBattle/cosmic-battle-engine.js';
@@ -1007,12 +1020,13 @@ export interface GameState {
 /**
  * One-shot starter wallet toast — fires the FIRST time a BRAND-NEW player
  * loads the app. Skipped entirely if the balance is above the starter amount
- * (STARTER_QUARKS=20), which means the player has already earned quarks
- * from ads / daily bonuses / gameplay and is NOT a fresh account.
+ * (must mirror STARTER_QUARKS in packages/server/src/db.ts), which means the
+ * player has already earned quarks from ads / daily bonuses / gameplay and is
+ * NOT a fresh account.
  * `nebulife_starter_toast_shown` in localStorage prevents repeats after
  * the toast has fired once on this device.
  */
-const STARTER_QUARKS_CLIENT = 30;
+const STARTER_QUARKS_CLIENT = 50;
 function maybeShowStarterToast(currentBalance: number): void {
   try {
     if (localStorage.getItem('nebulife_starter_toast_shown') === '1') return;
@@ -1112,7 +1126,7 @@ function markSessionProcessed(ref: { current: Set<string> }, key: string): void 
   } catch { /* ignore */ }
 }
 
-type CommandModeIconKind = 'surface' | 'terminal' | 'academy' | 'arena' | 'web' | 'ops' | 'biosphere';
+type CommandModeIconKind = 'surface' | 'terminal' | 'academy' | 'arena' | 'web' | 'ops';
 
 function CommandModeIcon({
   kind,
@@ -1196,16 +1210,6 @@ function CommandModeIcon({
           <path d="M14 12 L19.6 6.8 A8 8 0 0 1 22 12 Z" fill="currentColor" fillOpacity="0.14" stroke="none" />
           <circle cx="10.6" cy="14.6" r="1.1" fill="currentColor" stroke="none" opacity="0.85" />
           <circle cx="16.8" cy="15.6" r="0.9" fill="currentColor" stroke="none" opacity="0.55" />
-        </svg>
-      )}
-      {kind === 'biosphere' && (
-        // Small creature silhouette on a terrain mound — Biosphere entry
-        <svg style={iconStyle} viewBox="0 0 28 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 17 C7 12 21 12 25 17" opacity="0.55" />
-          <ellipse cx="13.5" cy="12.5" rx="4" ry="3.2" fill="currentColor" fillOpacity="0.18" />
-          <circle cx="16.6" cy="10.5" r="1.9" fill="currentColor" fillOpacity="0.22" />
-          <path d="M9.8 12.8 L7.5 11.6 M9.8 10.6 L7.6 8.8" opacity="0.55" />
-          <circle cx="17.3" cy="9.9" r="0.5" fill="currentColor" stroke="none" />
         </svg>
       )}
     </span>
@@ -2802,6 +2806,17 @@ function AppInner() {
   // Queue of pending level-up levels (shown one at a time, no overlap with major modals)
   const [levelUpQueue, setLevelUpQueue] = useState<number[]>([]);
   const [unlockPopup, setUnlockPopup] = useState<UnlockPopupInfo | null>(null);
+  // ── ASTRA onboarding explainers (Onboarding/onboarding-catalog.ts) ──────
+  // One-shot voiced popups queued by level-ups and first-time events. Shown
+  // strictly one at a time, never over other modals/cutscenes, with a minimum
+  // quiet gap between popups and a per-session cap.
+  const [astraOnboardingQueue, setAstraOnboardingQueue] = useState<AstraOnboardingId[]>([]);
+  const [activeAstraOnboarding, setActiveAstraOnboarding] = useState<AstraOnboardingId | null>(null);
+  /** Timestamp before which no ASTRA onboarding may appear (min-gap pacing). */
+  const astraOnboardingGateUntilRef = useRef<number>(Date.now() + ASTRA_ONBOARDING_INITIAL_DELAY_MS);
+  const astraOnboardingShownThisSessionRef = useRef(0);
+  /** Bumped by a timer when the min-gap elapses so the dispatcher effect re-runs. */
+  const [astraOnboardingGateTick, setAstraOnboardingGateTick] = useState(0);
   // Exit confirmation dialog (Android back button at root level)
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const gameStateRef = useRef<Record<string, unknown>>({});
@@ -2851,6 +2866,9 @@ function AppInner() {
   });
   const [showOpsHub, setShowOpsHub] = useState(false);
   const [opsHubTab, setOpsHubTab] = useState<OpsTab>('directives');
+  /** Tab the player currently LOOKS at inside the Operations Hub (initialTab
+   *  + live onTabChange) — drives the first-time Beacon onboarding trigger. */
+  const [opsHubViewedTab, setOpsHubViewedTab] = useState<OpsTab>('directives');
   /** Occurrence dates (YYYY-MM-DD) of already-claimed comet windows. */
   const [cometClaims, setCometClaims] = useState<string[]>(() => {
     try {
@@ -3349,10 +3367,11 @@ function AppInner() {
     if (levelUpNotification !== null) return; // Already showing one
     if (levelUpQueue.length === 0) return;
     if (telemetryTarget || observatoryTarget || pendingDiscovery || completedModal || popupQueueBlocked || arenaPopupGate) return;
+    if (activeAstraOnboarding !== null) return; // never slide the banner over an ASTRA explainer
     const [next, ...rest] = levelUpQueue;
     setLevelUpNotification(next);
     setLevelUpQueue(rest);
-  }, [levelUpNotification, levelUpQueue, telemetryTarget, observatoryTarget, pendingDiscovery, completedModal, popupQueueBlocked, arenaPopupGate]);
+  }, [activeAstraOnboarding, levelUpNotification, levelUpQueue, telemetryTarget, observatoryTarget, pendingDiscovery, completedModal, popupQueueBlocked, arenaPopupGate]);
 
   // Flush pending research toasts one at a time.
   // Wait until level-up banner is fully dismissed, then show first pending toast.
@@ -3388,6 +3407,25 @@ function AppInner() {
     playSfx('level-up', 0.32);
     return true;
   }, [unlockPopup]);
+
+  /**
+   * Queue an ASTRA onboarding explainer. Idempotent: skipped when the player
+   * has already seen it (per-player localStorage flag, mirrored into server
+   * game_state.ui_flags via SYNCED_UI_FLAG_PREFIXES) or when it is already
+   * queued/active. The seen-flag is written when the popup actually SHOWS
+   * (see the dispatcher effect), so queued-but-never-shown entries carry
+   * over to the next session.
+   */
+  const enqueueAstraOnboarding = useCallback((id: AstraOnboardingId): void => {
+    try {
+      if (localStorage.getItem(getAstraOnboardingStorageKey(playerId.current, id)) === '1') return;
+    } catch {
+      // If storage is unavailable, still allow a one-time show this session.
+    }
+    setAstraOnboardingQueue((queue) => (
+      queue.includes(id) ? queue : [...queue, id]
+    ));
+  }, []);
 
   useEffect(() => {
     if (needsOnboarding || needsCallsign || authLoading || !serverHydrated) return;
@@ -3465,6 +3503,7 @@ function AppInner() {
   useEffect(() => {
     if (needsOnboarding || needsCallsign || authLoading || !serverHydrated) return;
     if (levelUpNotification !== null || levelUpQueue.length > 0 || arenaPopupGate || unlockPopup) return;
+    if (activeAstraOnboarding !== null) return;
 
     if (playerLevel >= 10) {
       if (enqueueUnlockPopup({
@@ -3496,6 +3535,7 @@ function AppInner() {
       });
     }
   }, [
+    activeAstraOnboarding,
     arenaPopupGate,
     authLoading,
     colonyState?.buildings?.length,
@@ -3963,6 +4003,7 @@ function AppInner() {
   const [arenaTeamMode, setArenaTeamMode] = useState(false);
 
   const closeChatDeepLinkOverlays = useCallback(() => {
+    setBiosphereTarget(null);
     setSurfaceTarget(null);
     setShowCosmicArchive(false);
     setShowAcademy(false);
@@ -5022,6 +5063,8 @@ function AppInner() {
       } else if (check.reason === 'carrier_required' && check.requiredCarrier) {
         reasonMessage = tr('planet_missions.reason.carrier_required_named', { carrier: tr(`planet_missions.payload.${check.requiredCarrier}`) });
       }
+      // First carrier block → ASTRA explains research carriers (one-shot).
+      if (check.reason === 'carrier_required') enqueueAstraOnboarding('carriers');
       const reasonKey = {
         already_revealed: 'planet_missions.reason.already_revealed',
         active_mission: 'planet_missions.reason.active_mission',
@@ -5109,6 +5152,7 @@ function AppInner() {
     scheduleSyncToServer();
   }, [
     colonyState?.planetId,
+    enqueueAstraOnboarding,
     getEffectivePlanetRevealLevel,
     getAvailableMissionCarriers,
     getPlanetMissionResearchDataCost,
@@ -5226,7 +5270,9 @@ function AppInner() {
     }));
     setState((prev) => ({ ...prev, error: null }));
     scheduleSyncToServer();
-  }, [addResources, estimateShipFlightMs, getResources, scheduleSyncToServer, t]);
+    // First cargo run → ASTRA explains logistics / orbital cache (one-shot).
+    enqueueAstraOnboarding('logistics');
+  }, [addResources, enqueueAstraOnboarding, estimateShipFlightMs, getResources, scheduleSyncToServer, t]);
 
   // Robust per-planet resource lookup for the logistics donor list. The stored
   // map is keyed by the scoped `${systemId}::${planetId}` key (or legacy bare
@@ -5884,6 +5930,9 @@ function AppInner() {
               return next;
             });
             setPrecursorAcquisitionQueue((q) => [...q, { cardId, rarity: drop.rarity }]);
+            // First card → ASTRA explains the Precursor collection (one-shot,
+            // deferred by the queue until the acquisition overlay closes).
+            enqueueAstraOnboarding('precursor');
           } else if (drop.allOwnedInRarity && drop.consolationQuarks > 0) {
             setQuarks((prev) => prev + drop.consolationQuarks);
             enqueueQuarkToast({ amount: drop.consolationQuarks, reason: 'precursor' });
@@ -5974,7 +6023,7 @@ function AppInner() {
     }, 1000);
 
     return () => window.clearInterval(id);
-  }, [buildTerraformAssessment, i18n, planetMissions, planetRevealLevels, scheduleSyncToServer, t]);
+  }, [buildTerraformAssessment, enqueueAstraOnboarding, i18n, planetMissions, planetRevealLevels, scheduleSyncToServer, t]);
 
   useEffect(() => {
     syncSystemPlanetMissionVisuals(planetMissions, planetMissionClock);
@@ -6155,6 +6204,8 @@ function AppInner() {
   useEffect(() => {
     if (!guestNeedsLink) return;
     if (showPlayerPage || showLinkModal) return;
+    // Never pop the reminder over an ASTRA onboarding explainer.
+    if (activeAstraOnboarding !== null) return;
     let snoozeUntil = 0;
     try {
       const last = Number(localStorage.getItem('nebulife_link_prompt_at') || 0);
@@ -6163,7 +6214,7 @@ function AppInner() {
     if (Date.now() < snoozeUntil) return;
     const t = setTimeout(() => setShowGuestReminder(true), 2500);
     return () => clearTimeout(t);
-  }, [guestNeedsLink, showPlayerPage, showLinkModal]);
+  }, [activeAstraOnboarding, guestNeedsLink, showPlayerPage, showLinkModal]);
 
   /* Коментар українською: Стан згорнутого онбордингу */
   const [tutorialMinimized, setTutorialMinimized] = useState(false);
@@ -6306,6 +6357,7 @@ function AppInner() {
     if (playerLevel < FEEDBACK_PROMPT_MIN_LEVEL) return;
     if (levelUpNotification !== null || levelUpQueue.length > 0 || arenaPopupGate) return;
     if (unlockPopup || showAppReviewPrompt || appReviewPromptPending || showFeedbackPrompt) return;
+    if (activeAstraOnboarding !== null || astraOnboardingQueue.length > 0) return;
     try {
       if (localStorage.getItem('nebulife_feedback_prompt_done') === '1') return;
     } catch {
@@ -6318,8 +6370,10 @@ function AppInner() {
     }, 700);
     return () => window.clearTimeout(timer);
   }, [
+    activeAstraOnboarding,
     appReviewPromptPending,
     arenaPopupGate,
+    astraOnboardingQueue.length,
     authLoading,
     levelUpNotification,
     levelUpQueue.length,
@@ -6331,6 +6385,106 @@ function AppInner() {
     showFeedbackPrompt,
     unlockPopup,
   ]);
+
+  // ── ASTRA onboarding — queue dispatcher ─────────────────────────────────
+  // True while ANY other modal/overlay/cutscene occupies the screen. ASTRA
+  // onboarding never stacks: it defers until the screen is clear. Full-screen
+  // PAGES (Operations Hub, Hangar, Genesis Lab, Biosphere, Cosmic Archive)
+  // intentionally do NOT block — contextual explainers appear over them the
+  // same way unlock popups appear over scenes.
+  const astraOnboardingBlocked =
+    needsOnboarding || needsCallsign || authLoading || !serverHydrated
+    || cinematicActive || cinematicVideoPlaying
+    || activeTutorialStep !== null
+    || evacuationPhase !== 'idle'
+    || !!telemetryTarget || !!observatoryTarget
+    || discoveryQueue.length > 0 || completedModalQueue.length > 0
+    || popupQueueBlocked || arenaPopupGate
+    || !!unlockPopup
+    || levelUpNotification !== null || levelUpQueue.length > 0
+    || showFeedbackPrompt || showAppReviewPrompt || appReviewPromptPending
+    || precursorAcquisitionQueue.length > 0
+    || !!emergencyTransmission || showGuestReminder || showLinkModal
+    || !!activeLifeform || showAlphaSignalPromo
+    || showExitConfirm;
+
+  useEffect(() => {
+    if (activeAstraOnboarding !== null || astraOnboardingQueue.length === 0) return;
+    if (astraOnboardingBlocked) return;
+    if (astraOnboardingShownThisSessionRef.current >= ASTRA_ONBOARDING_MAX_PER_SESSION) return;
+    const wait = astraOnboardingGateUntilRef.current - Date.now();
+    if (wait > 0) {
+      // Min-gap pacing: re-run this effect once the quiet window elapses.
+      const timer = window.setTimeout(() => setAstraOnboardingGateTick((n) => n + 1), wait + 50);
+      return () => window.clearTimeout(timer);
+    }
+    const [next, ...rest] = astraOnboardingQueue;
+    // Mark seen at SHOW time (not enqueue) so unshown entries carry over.
+    try { localStorage.setItem(getAstraOnboardingStorageKey(playerId.current, next), '1'); } catch { /* ignore */ }
+    astraOnboardingShownThisSessionRef.current += 1;
+    setAstraOnboardingQueue(rest);
+    setActiveAstraOnboarding(next);
+    playSfx('level-up', 0.32);
+  }, [activeAstraOnboarding, astraOnboardingBlocked, astraOnboardingGateTick, astraOnboardingQueue]);
+
+  const closeAstraOnboarding = useCallback(() => {
+    astraOnboardingGateUntilRef.current = Date.now() + ASTRA_ONBOARDING_MIN_GAP_MS;
+    setActiveAstraOnboarding(null);
+  }, []);
+
+  // ── ASTRA onboarding — level-gated entries ──────────────────────────────
+  // Enqueued once the main tutorial is behind the player (done-flag, or L2+
+  // for accounts that skipped it) and the level threshold is reached.
+  useEffect(() => {
+    if (needsOnboarding || needsCallsign || authLoading || !serverHydrated) return;
+    if (activeTutorialStep !== null) return;
+    let tutorialDone = false;
+    try { tutorialDone = localStorage.getItem('nebulife_tutorial_main_done') === '1'; } catch { /* ignore */ }
+    if (!tutorialDone && playerLevel < 2) return;
+    for (const entry of ASTRA_ONBOARDING_ENTRIES) {
+      if (entry.minLevel !== undefined && playerLevel >= entry.minLevel) {
+        enqueueAstraOnboarding(entry.id);
+      }
+    }
+  }, [activeTutorialStep, authLoading, enqueueAstraOnboarding, needsCallsign, needsOnboarding, playerLevel, serverHydrated, tutorialStep]);
+
+  // ── ASTRA onboarding — first-time screen/context triggers ───────────────
+  useEffect(() => {
+    if (!showOpsHub) return;
+    setOpsHubViewedTab(opsHubTab);
+    enqueueAstraOnboarding('directives');
+  }, [enqueueAstraOnboarding, opsHubTab, showOpsHub]);
+
+  useEffect(() => {
+    if (!showOpsHub || opsHubViewedTab !== 'megastructure') return;
+    enqueueAstraOnboarding('beacon');
+  }, [enqueueAstraOnboarding, opsHubViewedTab, showOpsHub]);
+
+  useEffect(() => {
+    if (showGenesisLab) enqueueAstraOnboarding('genesis-lab');
+  }, [enqueueAstraOnboarding, showGenesisLab]);
+
+  useEffect(() => {
+    if (biosphereTarget) enqueueAstraOnboarding('biosphere');
+  }, [biosphereTarget, enqueueAstraOnboarding]);
+
+  useEffect(() => {
+    if (showHangar) enqueueAstraOnboarding('hangar');
+  }, [enqueueAstraOnboarding, showHangar]);
+
+  // Second colony → inter-planet logistics / orbital cache explainer.
+  useEffect(() => {
+    if (!serverHydrated) return;
+    if (Object.keys(colonizedPlanets).length >= 2) enqueueAstraOnboarding('logistics');
+  }, [colonizedPlanets, enqueueAstraOnboarding, serverHydrated]);
+
+  // First Orbital Telescope built → telescope event windows explainer.
+  useEffect(() => {
+    if (!serverHydrated) return;
+    if ((colonyState?.buildings ?? []).some((b) => b.type === 'orbital_telescope')) {
+      enqueueAstraOnboarding('observatory-events');
+    }
+  }, [colonyState?.buildings, enqueueAstraOnboarding, serverHydrated]);
 
   // Reset clock state when entering onboarding (account reset scenario)
   useEffect(() => {
@@ -6410,6 +6564,7 @@ function AppInner() {
     setShowTopUpModal(false);
     setShowColonyCenter(false);
     setSurfaceTarget(null);
+    setBiosphereTarget(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTutorialActive]);
 
@@ -8946,6 +9101,7 @@ function AppInner() {
     setShowTopUpModal(false);
     setShowColonyCenter(false);
     setSurfaceTarget(null);
+    setBiosphereTarget(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [evacuationTarget, evacuationPhase, evacuationPromptDismissed]);
 
@@ -9257,6 +9413,7 @@ function AppInner() {
     setShowObjectsPanel(false);
     setShowSystemResearch(false);
     setSurfaceTarget(null);
+    setBiosphereTarget(null);
     setPlanetReportTarget(null);
     setMissionPhotoViewer(null);
     setPlanetSkinReveal(null);
@@ -9315,8 +9472,9 @@ function AppInner() {
     // During active evacuation cutscenes, don't navigate to (possibly destroyed) home
     if (evacuationPhase !== 'idle') return;
     runDarkLevelTransition(() => {
-      // Close surface view if open
+      // Close surface + biosphere views if open
       setSurfaceTarget(null);
+      setBiosphereTarget(null);
       engineRef.current?.showHomePlanetScene(true);
       setState((prev) => ({ ...prev, scene: 'home-intro', selectedSystem: null, selectedPlanet: null }));
       setShowExploreBtn(true);
@@ -9360,6 +9518,7 @@ function AppInner() {
     if (target === 'universe') {
       // Transitioning TO universe (from PixiJS)
       setSurfaceTarget(null);
+      setBiosphereTarget(null);
       initUniverseEngine().then(() => {
         setUniverseVisible(true);
         universeEngineRef.current?.setVisible(true);
@@ -9408,6 +9567,7 @@ function AppInner() {
 
   const restoreStarGroupView = useCallback(() => {
     setSurfaceTarget(null);
+    setBiosphereTarget(null);
     setUniverseVisible(false);
     if (universeEngineRef.current) {
       universeEngineRef.current.destroy();
@@ -9888,6 +10048,7 @@ function AppInner() {
   const handleSystemMenuResearch = useCallback(() => {
     const sys = state.selectedSystem;
     if (!sys || Math.floor(researchData) < getSystemResearchDataCost(sys)) {
+      setResearchDataNeeded(sys ? getSystemResearchDataCost(sys) : null);
       setShowGetResearchData(true);
       return;
     }
@@ -11688,8 +11849,10 @@ function AppInner() {
     setObservatoryState(next);
     bumpDirectiveRef.current('observatory_search');
     scheduleSyncToServer();
+    // First observatory search → ASTRA explains observation seasons (one-shot).
+    enqueueAstraOnboarding('seasons');
     return true;
-  }, [homeInfo?.system.id, scheduleSyncToServer]);
+  }, [enqueueAstraOnboarding, homeInfo?.system.id, scheduleSyncToServer]);
 
   // ── Quantum separator: start a 100-unit bulk → elements batch (1h) ──
   const handleStartSeparation = useCallback((
@@ -12151,6 +12314,63 @@ function AppInner() {
   }, [cometTrackingStartedAt, cometClaiming, finishCometTracking]);
 
   /**
+   * Live cosmic events (rogue-flyby / supernova-echo / interstellar-visitor /
+   * aurora-storm) — the EventTab drives the tracking + server claim itself;
+   * this applies the client-side reward parts, mirroring the comet flow:
+   * quark balance/toast (server-credited), XP + research data, and the
+   * epic gallery entry with its bundled (free) art.
+   */
+  const handleLiveEventClaimed = useCallback((
+    eventId: string,
+    occurrenceDate: string,
+    quarksGranted: number,
+    newBalance: number,
+  ) => {
+    const def = getLiveEventDef(eventId);
+    const cat = getCatalogEntry(eventId);
+    if (!def || !cat) return;
+    window.dispatchEvent(new CustomEvent('nebulife:quark-balance', { detail: newBalance }));
+    enqueueQuarkToast({ amount: quarksGranted, reason: 'gift' });
+    awardXP(def.rewardXp, 'live_event');
+    setResearchData((prev) => prev + def.rewardResearchData);
+    // Epic gallery entry (event-only catalog type, bundled art)
+    const sysId = (surfaceTargetRef.current?.system ?? homeInfoRef.current?.system)?.id ?? 'home';
+    const photoUrl = liveEventPhotoUrl(eventId);
+    const entry: DiscoveryData = {
+      id: `${eventId}-${occurrenceDate}`,
+      player_id: playerId.current,
+      object_type: eventId,
+      rarity: def.rarity,
+      gallery_category: cat.galleryCategory,
+      system_id: sysId,
+      planet_id: null,
+      photo_url: photoUrl,
+      prompt_used: null,
+      scientific_report: null,
+      discovered_at: new Date().toISOString(),
+    };
+    setGalleryMap((prev) => {
+      const next = new Map(prev);
+      if (!next.has(eventId)) next.set(eventId, entry);
+      return next;
+    });
+    saveDiscoveryToServer({
+      id: entry.id,
+      playerId: playerId.current,
+      objectType: eventId,
+      rarity: def.rarity,
+      galleryCategory: cat.galleryCategory,
+      systemId: sysId,
+      planetId: null,
+      photoUrl,
+    }).catch((err) => console.warn('[live-event] gallery save failed:', err));
+    addLogEntry('science', i18n.t('ops.log_live_event_claimed', {
+      name: i18n.language === 'en' ? cat.nameEn : cat.nameUk,
+    }));
+    scheduleSyncToServer();
+  }, [awardXP, addLogEntry, scheduleSyncToServer]);
+
+  /**
    * "Сезони спостережень" finale reward — collect all 5 seasonal anomalies in
    * one season occurrence → +150⚛. Forces an immediate game-state sync first
    * so the server sees this device's up-to-date `seasonal_progress` display
@@ -12525,6 +12745,8 @@ function AppInner() {
     if (isTutorialActive || tutorialStep < tutorialCompleteStep) return;
     if (pendingDiscovery || completedModal || discoveryQueue.length > 0 || completedModalQueue.length > 0) return;
     if (activeLifeform || showDigestEntryPopup || showAlphaSignalPromo || showTopUpModal || showResourceModal || showChaosModal) return;
+    // Yield to ASTRA onboarding explainers (active or about to show).
+    if (activeAstraOnboarding !== null || astraOnboardingQueue.length > 0) return;
 
     const decision = shouldShowEmergencyTransmission({ playerId: playerId.current });
     if (!decision.show || !decision.episode) return;
@@ -12557,6 +12779,8 @@ function AppInner() {
     showTopUpModal,
     showResourceModal,
     showChaosModal,
+    activeAstraOnboarding,
+    astraOnboardingQueue.length,
   ]);
 
   // ── Award XP & level-up detection (assign to ref for stable callbacks) ──
@@ -13150,6 +13374,13 @@ function AppInner() {
     if (!Capacitor.isNativePlatform()) return;
 
     const handler = CapApp.addListener('backButton', () => {
+      // 0. If the Biosphere overlay is open — close it first (it covers
+      //    every scene at z 12000, so back must never navigate underneath it)
+      if (biosphereTarget) {
+        setBiosphereTarget(null);
+        return;
+      }
+
       // 1. If surface view is open — close it
       if (surfaceTarget) {
         setSurfaceTarget(null);
@@ -13198,7 +13429,7 @@ function AppInner() {
     });
 
     return () => { handler.then(h => h.remove()); };
-  }, [runDarkLevelTransition, state.scene, surfaceTarget, state.selectedSystem]);
+  }, [runDarkLevelTransition, state.scene, surfaceTarget, state.selectedSystem, biosphereTarget]);
 
   // ── Surface view handlers ─────────────────────────────────────────────
   const handleOpenSurface = useCallback(() => {
@@ -13328,6 +13559,9 @@ function AppInner() {
 
   // ── Breadcrumb navigation handler ──────────────────────────────────────
   const handleBreadcrumbNavigate = useCallback((targetScene: string) => {
+    // Any navigation closes the Biosphere overlay — otherwise it keeps
+    // covering the requested scene (reported as "stuck in the biosphere").
+    setBiosphereTarget(null);
     // Close surface if open
     if (surfaceTarget) {
       setSurfaceTarget(null);
@@ -13582,15 +13816,6 @@ function AppInner() {
   // navigation path (handleBreadcrumbNavigate, warp to universe) clears it.
   const effectiveScene: ExtendedScene = surfaceTarget ? 'surface' : state.scene;
 
-  // Biosphere CommandBar badge (Еволюція біосфери) — only polls while a
-  // planet with a Biosphere tool button is on screen. Mirrors the biosphere
-  // button's own planet-resolution below so the glow always matches what
-  // tapping the button would open.
-  const biospherePlanetIdForBadge = (!isExodusPhase && (effectiveScene === 'planet-view' || effectiveScene === 'surface'))
-    ? (surfaceTarget?.planet.id ?? state.selectedPlanet?.id ?? null)
-    : null;
-  const biosphereCareAvailable = useBiosphereCareAvailable(biospherePlanetIdForBadge);
-
   // "Сага Ткача" — turns queued milestones (see triggerSagaMilestone above)
   // into written chapters. Gated on serverHydrated so it never fires with a
   // stale/empty queue before the persisted one has loaded. `?saga_test=1`
@@ -13760,31 +13985,9 @@ function AppInner() {
     });
   }
 
-  // Biosphere — NEXT_GEN_PLAN.md Section C MVP. Available on the exosphere
-  // (planet-view) and surface tool docks whenever a planet is selected;
-  // opens as its own full-screen scene (like the ship viewer), not nested
-  // inside Colony Center / HexSurface.
-  if (!isExodusPhase && (effectiveScene === 'planet-view' || effectiveScene === 'surface')) {
-    const biospherePlanet = surfaceTarget?.planet ?? state.selectedPlanet;
-    const biosphereStar = surfaceTarget?.star ?? state.selectedSystem?.star;
-    if (biospherePlanet && biosphereStar) {
-      toolGroups.push({
-        type: 'buttons',
-        items: [{
-          id: 'biosphere',
-          label: t('cmd.biosphere_title'),
-          variant: 'terminal' as const,
-          icon: <CommandModeIcon kind="biosphere" />,
-          tooltip: t('cmd.biosphere_tooltip'),
-          highlight: biosphereCareAvailable ? 'success' as const : undefined,
-          onClick: () => {
-            playSfx('ui-click', 0.08);
-            setBiosphereTarget({ planet: biospherePlanet, star: biosphereStar });
-          },
-        }],
-      });
-    }
-  }
+  // Biosphere is intentionally NOT a CommandBar tool anymore — it is entered
+  // through the research lab building's detail panel (see BuildingDetailPanel
+  // onOpenBiosphere), matching the DNA-constructor / Genesis-lab pattern.
 
   // Operations Center — daily directives, cluster rating, signal minigames and
   // live events. Use only the soft green glow for claimable rewards; the old
@@ -14337,6 +14540,26 @@ function AppInner() {
           </div>
         </div>
       )}
+
+      {/* ASTRA onboarding explainer — one voiced popup at a time, queued by
+          the dispatcher effect so it never stacks on other modals. */}
+      {activeAstraOnboarding !== null && !arenaPopupGate && (() => {
+        const entry = ASTRA_ONBOARDING_BY_ID.get(activeAstraOnboarding);
+        if (!entry) return null;
+        const onAction =
+          entry.action === 'ops-directives' ? () => { setOpsHubTab('directives'); setShowOpsHub(true); }
+          : entry.action === 'ops-megastructure' ? () => { setOpsHubTab('megastructure'); setShowOpsHub(true); }
+          : entry.action === 'hangar' ? () => setShowHangar(true)
+          : entry.action === 'cosmic-archive' ? () => setShowCosmicArchive(true)
+          : undefined;
+        return (
+          <AstraOnboardingModal
+            entry={entry}
+            onClose={closeAstraOnboarding}
+            onAction={onAction}
+          />
+        );
+      })()}
 
       {/* Warp transition overlay (Three.js ↔ PixiJS) */}
       <WarpTransition
@@ -15623,6 +15846,10 @@ function AppInner() {
           extractionJobs={extractionJobs}
           onStartExtraction={handleStartExtraction}
           onOpenDnaLab={() => setShowDnaLab(true)}
+          onOpenBiosphere={() => {
+            playSfx('ui-click', 0.08);
+            setBiosphereTarget({ planet: surfaceTarget.planet, star: surfaceTarget.star });
+          }}
           dnaLabCompleted={dnaLabAllCompletedToday}
           upcomingEvents={combinedUpcomingEvents}
           onOpenSignals={() => {
@@ -15700,6 +15927,7 @@ function AppInner() {
       {showOpsHub && (
         <OperationsHub
           initialTab={opsHubTab}
+          onTabChange={setOpsHubViewedTab}
           onClose={() => setShowOpsHub(false)}
           playerId={playerId.current}
           playerLevel={playerLevel}
@@ -15715,6 +15943,7 @@ function AppInner() {
           cometTrackingStartedAt={cometTrackingStartedAt}
           cometClaiming={cometClaiming}
           onStartCometTracking={handleStartCometTracking}
+          onLiveEventClaimed={handleLiveEventClaimed}
           colonyResources={totalResources()}
           onSpendMegastructureResources={(delta) => spendResourcesAcrossPlanets(homeInfo?.planet.id ?? '', delta)}
           onAwardXP={awardXP}
@@ -15911,6 +16140,11 @@ function AppInner() {
             <div style={{ fontSize: 10, color: '#667788', lineHeight: 1.5 }}>
               {t('research.insufficient_data')}
             </div>
+            {researchDataNeeded !== null && (
+              <div style={{ fontSize: 11, color: '#aabbcc', lineHeight: 1.4 }}>
+                {tr('research.insufficient_amounts', { required: researchDataNeeded, available: Math.floor(researchData) })}
+              </div>
+            )}
             <div style={{ fontSize: 9, color: '#556677', lineHeight: 1.4, borderTop: '1px solid #223344', paddingTop: 10 }}>
               {t('research.regen_hint')}
             </div>
@@ -17188,6 +17422,10 @@ function AppInner() {
             extractionJobs={extractionJobs}
             onStartExtraction={handleStartExtraction}
             onOpenDnaLab={() => setShowDnaLab(true)}
+            onOpenBiosphere={() => {
+              playSfx('ui-click', 0.08);
+              setBiosphereTarget({ planet: active.planet, star: active.star });
+            }}
             dnaLabCompleted={dnaLabAllCompletedToday}
             upcomingEvents={combinedUpcomingEvents}
             onOpenSignals={() => {

@@ -183,9 +183,7 @@
     "planet_statuses_tooltip": "Show orbiting statuses around planets in this system",
     "planet_names": "NAMES",
     "planet_names_on": "NAMES ON",
-    "planet_names_tooltip": "Show planet names in this system",
-    "biosphere_title": "BIOSPHERE",
-    "biosphere_tooltip": "View creatures settled on this planet"
+    "planet_names_tooltip": "Show planet names in this system"
   },
   "context": {
     "actions": {
@@ -211,12 +209,107 @@
       "body": "Colony buildings are available with passive effects: faster missions, resource production and stronger research."
     }
   },
+  "astraOnboarding": {
+    "show_me": "Show me",
+    "got_it": "Got it",
+    "grand_idea": {
+      "kicker": "Mission Briefing",
+      "title": "Your Path to the Galactic Core",
+      "body": "Commander, here is the big picture. You begin with 19 star systems of your own: your home world and two rings around it. Beyond them lie the systems of 49 neighboring explorers in your cluster. And at its very center waits the Core — 500 ancient stars where the remains of a precursor civilization are still transmitting. Every scan, every colony, every technology brings you closer. Master your rings first. The signals of the Ancients are waiting for someone to answer."
+    },
+    "quarks": {
+      "kicker": "Explorer Economy",
+      "title": "Quarks — the Researcher's Currency",
+      "body": "Quarks pay for what no telescope can give you for free: AI photographs of your rarest discoveries, unique creatures and 3D models. You earn them every day — daily directives, Academy quizzes, login bonuses, seasonal rewards and the Precursor collection. Small steady habits become big expeditions. Check the Operations Center daily and your balance will never run dry."
+    },
+    "tech_tree": {
+      "kicker": "Research Terminal",
+      "title": "The Technology Tree",
+      "body": "Fifty technologies across four branches: astronomy, physics, chemistry and biology. Each node is a permanent upgrade — faster research, new mission types, farther reach. Start with the astronomy branch: it accelerates your observatories and eventually opens the path to neighboring systems and the galactic Core. Research points come from playing — spend them, they earn nothing while parked."
+    },
+    "arena": {
+      "kicker": "Combat Protocol",
+      "title": "Combat and Comms Online",
+      "body": "Level 10 unlocks the Arena, the daily carrier raid and the cluster chat. Assemble a fleet in the Hangar, then test it: victories bring rating, resources and respect from 49 fellow explorers. Combat is optional — but a strong fleet also protects everything your colonies have built."
+    },
+    "observatories": {
+      "kicker": "Observatory Network",
+      "title": "A Fourth Observatory",
+      "body": "Your research network just grew: from level 12 you can run four observatory scans in parallel. More parallel scans means faster system reveals and more discoveries per day. You can also construct the Orbital Telescope building now — it tracks upcoming cosmic events. The fifth slot opens at level 20 and the sixth at level 36."
+    },
+    "ast_probe": {
+      "kicker": "Deep Space Access",
+      "title": "Neighboring Systems in Reach",
+      "body": "Your probes can now reach the star systems of neighboring explorers. Research there pays double XP — foreign skies hold what your rings do not. This is the second phase of your journey: 50 explorers share this cluster, and their space is now yours to study. The Core Zone at the center is next."
+    },
+    "core_zone": {
+      "kicker": "The Final Frontier",
+      "title": "The Core Zone Awaits",
+      "body": "Five hundred ancient star systems at the heart of your cluster are now within reach. The deeper you push — depth 0 to 12 — the richer the science: 200 to 500 XP per discovery, and four Precursor cards that exist nowhere else. This is where the remains of the ancient civilization are hidden. Everything so far was preparation."
+    },
+    "carriers": {
+      "kicker": "Fleet Logistics",
+      "title": "Research Carriers",
+      "body": "This mission needs a carrier — a transport ship that delivers your probe to the target planet. Build one in the colony production queue; fabrication takes real time, so start it early. Once the mission launches, the carrier flies out, deploys the payload and returns home automatically when the mission ends. One carrier, many missions — it is an investment, not a consumable."
+    },
+    "directives": {
+      "kicker": "Operations Center",
+      "title": "Daily Directives",
+      "body": "Every day the Operations Center issues three directives — small tasks you would mostly do anyway. Complete them and claim quarks on the spot. Hold the streak: day seven pays a bonus. Directives are the steadiest quark income an explorer has, so make them a ritual."
+    },
+    "beacon": {
+      "kicker": "Cluster Project",
+      "title": "The Galactic Beacon",
+      "body": "Your cluster — all 50 explorers — is building one megastructure together. Contribute minerals, volatiles, isotopes and water within the daily limit, and watch the shared progress bar climb. When the Beacon lights up, the reward pool of up to 2000 quarks is split by contribution, the whole cluster gains a permanent research speed bonus, and every builder's name is recorded forever."
+    },
+    "precursor": {
+      "kicker": "Ancient Signal",
+      "title": "Precursor Signals",
+      "body": "What you just intercepted is a fragment of an archive left by a civilization that vanished long before yours. There are 14 cards in four rarities — they drop from planetary research missions, and four of them can only be found in the Core Zone. Duplicates convert to quarks; the complete collection pays 100 quarks and assembles the story of those who came before."
+    },
+    "seasons": {
+      "kicker": "Observation Season",
+      "title": "Seasons of the Sky",
+      "body": "Every observatory search takes part in a galaxy-wide observation season — pulsars, comets, nebulae or binary stars, rotating every seven weeks. Five seasonal anomalies hide in the search pool: collect all five before the season ends and claim 150 quarks. In the final 72 hours seasonal objects appear twice as often — the perfect time to push."
+    },
+    "observatory_events": {
+      "kicker": "Event Horizon",
+      "title": "Telescope Event Windows",
+      "body": "Your Orbital Telescope now tracks predicted cosmic events. Each event shows a countdown; when it hits zero, a 24-hour observation window opens with unique objects you cannot find in regular scans. Watch the countdowns and plan ahead — an event window missed is a discovery lost."
+    },
+    "logistics": {
+      "kicker": "Supply Lines",
+      "title": "Interplanetary Logistics",
+      "body": "Colonies do not have to survive alone. Load a cargo ship with resources and send it to another planet — a starving colony can be fed from a rich one. If the destination has no landing pad yet, the cargo waits in its orbital cache, an orbital warehouse you can draw from to build the first infrastructure. Ships return home automatically after unloading."
+    },
+    "genesis_lab": {
+      "kicker": "Vita Nova",
+      "title": "The Genesis Lab",
+      "body": "This laboratory can do what the universe does only by accident: create life. Combine the sparks of life you have gathered with the planet's environment in the DNA constructor and synthesize your first simple organism. Why bother? A living world is the rarest achievement an explorer can claim — and simple life is the first step toward a full biosphere."
+    },
+    "biosphere": {
+      "kicker": "Evolution Chamber",
+      "title": "Biosphere Experiments",
+      "body": "The Biosphere is your natural selection engine. Pick two to four elements — the order defines the creature's build, cover and accents — and let the planet's biome shape the result. Up to three creatures per planet. Care for them daily, evolve them through generations, and hybridize the best pairs: top specimens earn a unique AI portrait and a real 3D model."
+    },
+    "hangar": {
+      "kicker": "Shipyard",
+      "title": "The Hangar",
+      "body": "This is your shipyard. Here you build research carriers for planetary missions, cargo ships for supply lines and, from level 10, combat vessels for the Arena and raids. Early on, transports matter most — a mission without a carrier is a mission that never launches."
+    }
+  },
   "biosphere": {
     "title": "Biosphere",
     "new_creature": "NEW CREATURE",
     "close": "Close",
     "loading": "Reading biosphere signal...",
     "error_load": "Could not load the biosphere. Try again later.",
+    "error_creatures": "Could not load the creature list.",
+    "retry": "Retry",
+    "lab_entry_title": "Biosphere",
+    "lab_entry_desc": "Settled 3D creatures of this planet: generation, daily care, evolution and hybridization experiments.",
+    "lab_entry_open": "Open biosphere",
+    "lab_entry_care": "Care available",
     "empty_hint": "No creatures settled here yet. Generate one to bring this biosphere to life.",
     "generation_short": "generation {{gen}}",
     "generation_label": "Generation {{gen}}",
@@ -225,17 +318,46 @@
     "care_days_progress": "Care: {{current}}/{{target}} days",
     "generate": {
       "title": "New creature",
-      "body": "Describe the creature you want to settle here. We will craft a personal 3D organism for this planet's biosphere. Quarks are charged only after the description passes review.",
-      "placeholder": "Example: a small six-legged creature with pale bioluminescent patterns, soft fur, large curious eyes and a short tail...",
       "cost_hint": "1st free, then 60⚛",
       "free": "Generated for free (first creature)",
       "cost_paid": "Charged {{cost}}⚛",
       "no_quarks": "Not enough quarks to craft this creature.",
-      "revision_generic": "The description needs revision.",
       "status_model": "Crafting the 3D organism...",
       "status_failed": "Could not craft the creature. Try again.",
-      "generate": "GENERATE",
       "working": "PROCESSING..."
+    },
+    "experiment": {
+      "body": "Combine 2–4 elements and run a synthesis experiment. The combination shapes the organism's body plan, surface and coloring.",
+      "slots_hint": "Order matters: 1 — body plan, 2 — surface, 3–4 — accents.",
+      "selected_count": "Selected: {{num}}/{{max}}",
+      "env_label": "Environment",
+      "env_on": "INCLUDED",
+      "env_off": "OFF",
+      "run": "RUN EXPERIMENT",
+      "synth_mixing": "Mixing elements...",
+      "synth_stabilizing": "Stabilizing the sample...",
+      "synth_growing": "Synthesizing the organism...",
+      "hint": {
+        "C": "organic chitinous forms",
+        "Si": "crystalline structure",
+        "Fe": "armor and metallic sheen",
+        "Cu": "copper carapace with patina",
+        "S": "vivid warning coloration",
+        "P": "bioluminescence",
+        "Se": "photoreceptive mirror eyes",
+        "Li": "lightweight fast build",
+        "W": "massive dense frame",
+        "Xe": "gas bladders, inner glow"
+      },
+      "biome": {
+        "ocean": "ocean world",
+        "ice": "ice world",
+        "desert": "desert world",
+        "lava": "volcanic world",
+        "vegetation": "vegetated world",
+        "gasGiant": "gas giant atmosphere",
+        "rocky": "rocky world"
+      }
     },
     "stage": {
       "juvenile": "Juvenile",
@@ -314,6 +436,18 @@
         "feathered_ridges": "feathered ridges",
         "chitin_plating": "chitin plating",
         "smooth_hide": "smoother hide"
+      },
+      "element": {
+        "C": "carbon",
+        "Si": "silicon",
+        "Fe": "iron",
+        "Cu": "copper",
+        "S": "sulfur",
+        "P": "phosphorus",
+        "Se": "selenium",
+        "Li": "lithium",
+        "W": "tungsten",
+        "Xe": "xenon"
       }
     }
   },
@@ -947,6 +1081,7 @@
     "panel_no_slots": "No free observatories",
     "actions_unavailable": "Actions unavailable",
     "insufficient_data": "Insufficient research data. Collect more data by exploring the galaxy.",
+    "insufficient_amounts": "Required: {{required}} · You have: {{available}}",
     "regen_hint": "Data regenerates automatically (+1/hr) and from surface buildings.",
     "watch_ad": "Watch ad",
     "data_received": "+10 Data!"
@@ -1835,8 +1970,8 @@
 
     "streak_label": "DAILY DIRECTIVE STREAK",
     "streak_days": "{{count}} days in a row",
-    "streak_promise": "Complete directives every day: day 7 of the streak pays {{bonus}} quarks instead of 1!",
-    "streak_bonus_today": "Today is day 7 of your streak — the reward is {{bonus}} quarks!",
+    "streak_promise": "Complete directives every day: day 7 of the streak pays {{bonus}}⚛ instead of 1⚛!",
+    "streak_bonus_today": "Today is day 7 of your streak — the reward is {{bonus}}⚛!",
     "task_research": "Complete {{target}} research sessions",
     "task_harvest": "Harvest surface resources: {{target}}",
     "task_obs_search": "Start an observatory search: {{target}}",
@@ -1918,7 +2053,17 @@
     "comet_claim_failed": "Failed to capture the comet. Check your connection and try again.",
     "log_comet_claimed": "Herald Comet captured! Legendary entry added to the Archive.",
     "chip_upcoming": "COMET IN",
-    "chip_active": "WINDOW OPEN"
+    "chip_active": "WINDOW OPEN",
+    "live_title": "LIVE SKY EVENTS",
+    "live_explain": "Recurring cosmic phenomena over the home system. Each opens a 24-hour observation window — free for every explorer.",
+    "live_rarity": "EPIC EVENT · ONCE PER {{n}} DAYS",
+    "live_reward": "+{{q}} quarks · +{{rd}} research data · +{{xp}} XP",
+    "live_start_tracking": "START OBSERVATION",
+    "live_tracking": "Observation in progress…",
+    "live_claimed": "OBSERVED — ARCHIVED",
+    "live_next": "Next appearance in",
+    "live_claim_failed": "Failed to capture the event. Check your connection and try again.",
+    "log_live_event_claimed": "Live event captured: {{name}}. Epic entry added to the Archive."
   },
   "megastructure": {
     "title": "GALACTIC BEACON",

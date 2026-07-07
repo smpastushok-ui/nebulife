@@ -1,0 +1,90 @@
+{
+  "comment": "ASTRA onboarding voiceover scripts. Spoken variants of the i18n astraOnboarding.* bodies with Eleven v3 audio tags for emotional delivery. Keys match onboarding-catalog.ts entry.key and the audio file names <key>_<lang>.mp3.",
+  "entries": [
+    {
+      "key": "grand_idea",
+      "en": "[warm] Commander, here is the big picture. You begin with nineteen star systems of your own — your home world and two rings around it. [curious] Beyond them lie the systems of forty-nine neighboring explorers in your cluster. [awe] And at the very center waits the Core: five hundred ancient stars, where the remains of a precursor civilization are still transmitting. [warm] Every scan, every colony, every technology brings you closer. Master your rings first. [whispers] The signals of the Ancients are waiting for someone to answer.",
+      "uk": "[warm] Командире, ось загальна картина. Ти починаєш із дев'ятнадцяти власних зоряних систем — рідний світ і два кільця навколо нього. [curious] Далі — системи сорока дев'яти сусідніх дослідників твого кластера. [awe] А в самому центрі чекає Ядро: п'ятсот стародавніх зірок, де досі передають сигнали залишки цивілізації Попередників. [warm] Кожен скан, кожна колонія, кожна технологія наближає тебе. Спершу опануй свої кільця. [whispers] Сигнали Древніх чекають, поки хтось відповість."
+    },
+    {
+      "key": "quarks",
+      "en": "[warm] Quarks are the researcher's currency. They pay for what no telescope gives you for free: photographs of your rarest discoveries, unique creatures, and three-D models. [encouraging] You can earn them every day — daily directives, Academy quizzes, login bonuses and seasonal rewards. [warm] Small steady habits become big expeditions. Check the Operations Center daily, and your balance will never run dry.",
+      "uk": "[warm] Кварки — валюта дослідника. Вони оплачують те, чого жоден телескоп не дасть безкоштовно: фотографії найрідкісніших відкриттів, унікальних істот і тривимірні моделі. [encouraging] Заробляти їх можна щодня — щоденні директиви, вікторини Академії, бонуси за вхід і сезонні нагороди. [warm] Маленькі стабільні звички перетворюються на великі експедиції. Заглядай у Центр операцій щодня — і баланс не пересохне."
+    },
+    {
+      "key": "tech_tree",
+      "en": "[warm] Fifty technologies across four branches: astronomy, physics, chemistry and biology. Each node is a permanent upgrade — faster research, new missions, farther reach. [encouraging] Start with the astronomy branch: it accelerates your observatories and opens the path to neighboring systems and the galactic Core. [playful] Research points earn nothing while parked — spend them.",
+      "uk": "[warm] П'ятдесят технологій у чотирьох гілках: астрономія, фізика, хімія та біологія. Кожен вузол — постійне покращення: швидші дослідження, нові місії, дальший радіус. [encouraging] Починай з астрономічної гілки: вона прискорює обсерваторії і відкриває шлях до сусідніх систем та галактичного Ядра. [playful] У запасі очки досліджень не працюють — витрачай їх."
+    },
+    {
+      "key": "arena",
+      "en": "[excited] Level ten unlocks the Arena, the daily carrier raid, and the cluster chat. [warm] Assemble a fleet in the Hangar, then test it: victories bring rating, resources, and respect from forty-nine fellow explorers. [warm] Combat is optional — but a strong fleet also protects everything your colonies have built.",
+      "uk": "[excited] Десятий рівень відкриває Арену, щоденний рейд на носій і чат кластера. [warm] Збери флот в Ангарі та випробуй його: перемоги приносять рейтинг, ресурси й повагу сорока дев'яти колег-дослідників. [warm] Бій — за бажанням, але сильний флот також захищає все, що збудували твої колонії."
+    },
+    {
+      "key": "observatories",
+      "en": "[excited] Your research network just grew: from level twelve you can run four observatory scans in parallel. [warm] More parallel scans means faster system reveals and more discoveries per day. You can also construct the Orbital Telescope now — it tracks upcoming cosmic events. [encouraging] The fifth slot opens at level twenty, and the sixth at level thirty-six.",
+      "uk": "[excited] Твоя дослідницька мережа виросла: з дванадцятого рівня можна вести чотири скани обсерваторій паралельно. [warm] Більше паралельних сканів — швидше розкриття систем і більше відкриттів щодня. Також тепер доступний Орбітальний телескоп — він відстежує майбутні космічні події. [encouraging] П'ятий слот відкриється на двадцятому рівні, шостий — на тридцять шостому."
+    },
+    {
+      "key": "ast_probe",
+      "en": "[excited] Your probes can now reach the star systems of neighboring explorers. [warm] Research there pays double experience — foreign skies hold what your rings do not. [curious] This is the second phase of your journey: fifty explorers share this cluster, and their space is now yours to study. [whispers] The Core Zone at the center is next.",
+      "uk": "[excited] Твої зонди тепер сягають зоряних систем сусідніх дослідників. [warm] Дослідження там дають подвійний досвід — чужі небеса ховають те, чого немає у твоїх кільцях. [curious] Це друга фаза подорожі: п'ятдесят дослідників ділять цей кластер, і їхній простір тепер відкритий для твоєї науки. [whispers] Наступна ціль — Ядро в центрі."
+    },
+    {
+      "key": "core_zone",
+      "en": "[awe] Five hundred ancient star systems at the heart of your cluster are now within reach. [curious] The deeper you push, the richer the science: up to five hundred experience per discovery, and four Precursor cards that exist nowhere else. [whispers] This is where the remains of the ancient civilization are hidden. [warm] Everything so far was preparation.",
+      "uk": "[awe] П'ятсот стародавніх зоряних систем у серці твого кластера тепер досяжні. [curious] Що глибше проникаєш, то багатша наука: до п'ятисот досвіду за відкриття та чотири картки Попередників, яких більше немає ніде. [whispers] Саме тут заховані залишки стародавньої цивілізації. [warm] Усе дотепер було підготовкою."
+    },
+    {
+      "key": "carriers",
+      "en": "[warm] This mission needs a carrier — a transport ship that delivers your probe to the target planet. [encouraging] Build one in the colony production queue; fabrication takes real time, so start it early. [warm] Once the mission launches, the carrier flies out, deploys the payload, and returns home automatically when the mission ends. [playful] One carrier, many missions — it is an investment, not a consumable.",
+      "uk": "[warm] Для цієї місії потрібен носій — транспортний корабель, який доставляє зонд до цільової планети. [encouraging] Збудуй його в черзі виробництва колонії; виготовлення триває реальний час, тож запускай заздалегідь. [warm] Коли місія стартує, носій вилітає, розгортає корисне навантаження і після завершення місії автоматично повертається додому. [playful] Один носій — багато місій: це інвестиція, а не витратний матеріал."
+    },
+    {
+      "key": "directives",
+      "en": "[warm] Every day the Operations Center issues three directives — small tasks you would mostly do anyway. [encouraging] Complete them and claim quarks on the spot. Hold the streak: day seven pays a bonus. [warm] Directives are the steadiest quark income an explorer has — make them a ritual.",
+      "uk": "[warm] Щодня Центр операцій видає три директиви — невеликі завдання, які ти здебільшого і так виконуєш. [encouraging] Заверши їх і одразу забери кварки. Тримай стрік: сьомий день поспіль дає бонус. [warm] Директиви — найстабільніший дохід кварків для дослідника. Зроби їх ритуалом."
+    },
+    {
+      "key": "beacon",
+      "en": "[awe] Your cluster — all fifty explorers — is building one megastructure together. [warm] Contribute minerals, volatiles, isotopes and water within the daily limit, and watch the shared progress climb. [excited] When the Beacon lights up, the reward pool of up to two thousand quarks is split by contribution, the whole cluster gains a permanent research speed bonus — [warm] and every builder's name is recorded forever.",
+      "uk": "[awe] Твій кластер — усі п'ятдесят дослідників — будує одну мегаструктуру разом. [warm] Внось мінерали, леткі речовини, ізотопи та воду в межах денного ліміту і спостерігай, як росте спільний прогрес. [excited] Коли Маяк засяє, призовий фонд до двох тисяч кварків розділять за внеском, увесь кластер отримає постійний бонус до швидкості досліджень — [warm] а імена будівничих буде записано назавжди."
+    },
+    {
+      "key": "precursor",
+      "en": "[whispers] What you just intercepted is a fragment of an archive, left by a civilization that vanished long before yours. [curious] There are fourteen cards in four rarities — they drop from planetary research missions, and four of them can only be found in the Core Zone. [warm] Duplicates convert to quarks; the complete collection pays one hundred quarks — [awe] and assembles the story of those who came before.",
+      "uk": "[whispers] Те, що ти щойно перехопив, — фрагмент архіву цивілізації, яка зникла задовго до твоєї. [curious] Усього чотирнадцять карток чотирьох рідкостей — вони випадають із планетарних дослідницьких місій, а чотири з них можна знайти лише в Ядрі. [warm] Дублікати конвертуються у кварки; повна колекція дає сто кварків — [awe] і складає історію тих, хто був до нас."
+    },
+    {
+      "key": "seasons",
+      "en": "[warm] Every observatory search takes part in a galaxy-wide observation season — pulsars, comets, nebulae or binary stars, rotating every seven weeks. [curious] Five seasonal anomalies hide in the search pool: collect all five before the season ends and claim one hundred fifty quarks. [excited] In the final seventy-two hours, seasonal objects appear twice as often — the perfect time to push.",
+      "uk": "[warm] Кожен пошук обсерваторії бере участь у загальногалактичному сезоні спостережень — пульсари, комети, туманності чи подвійні зорі, зміна кожні сім тижнів. [curious] У пулі пошуку заховано п'ять сезонних аномалій: збери всі п'ять до кінця сезону і отримай сто п'ятдесят кварків. [excited] В останні сімдесят дві години сезонні об'єкти трапляються вдвічі частіше — ідеальний час для ривка."
+    },
+    {
+      "key": "observatory_events",
+      "en": "[excited] Your Orbital Telescope now tracks predicted cosmic events. [warm] Each event shows a countdown; when it hits zero, a twenty-four hour observation window opens, with unique objects you cannot find in regular scans. [serious] Watch the countdowns and plan ahead — an event window missed is a discovery lost.",
+      "uk": "[excited] Твій Орбітальний телескоп тепер відстежує передбачені космічні події. [warm] Кожна подія має зворотний відлік; коли він добігає нуля, відкривається двадцятичотиригодинне вікно спостереження з унікальними об'єктами, яких немає у звичайних сканах. [serious] Стеж за відліками та плануй наперед — пропущене вікно події означає втрачене відкриття."
+    },
+    {
+      "key": "logistics",
+      "en": "[warm] Colonies do not have to survive alone. Load a cargo ship with resources and send it to another planet — a starving colony can be fed from a rich one. [curious] If the destination has no landing pad yet, the cargo waits in its orbital cache — an orbital warehouse you can draw from to build the first infrastructure. [warm] Ships return home automatically after unloading.",
+      "uk": "[warm] Колонії не мусять виживати наодинці. Завантаж вантажний корабель ресурсами й відправ на іншу планету — голодну колонію можна годувати з багатої. [curious] Якщо на місці призначення ще немає посадкового майданчика, вантаж чекатиме в орбітальному кеші — орбітальному складі, з якого можна взяти ресурси на першу інфраструктуру. [warm] Після розвантаження кораблі повертаються додому автоматично."
+    },
+    {
+      "key": "genesis_lab",
+      "en": "[awe] This laboratory can do what the universe does only by accident: create life. [warm] Combine the sparks of life you have gathered with the planet's environment in the DNA constructor, and synthesize your first simple organism. [curious] Why bother? [warm] A living world is the rarest achievement an explorer can claim — and simple life is the first step toward a full biosphere.",
+      "uk": "[awe] Ця лабораторія вміє те, що всесвіт робить лише випадково: створювати життя. [warm] Поєднай зібрані іскри життя із середовищем планети в ДНК-конструкторі та синтезуй свій перший простий організм. [curious] Навіщо? [warm] Живий світ — найрідкісніше досягнення дослідника, а просте життя — перший крок до повноцінної біосфери."
+    },
+    {
+      "key": "biosphere",
+      "en": "[warm] The Biosphere is your natural selection engine. [curious] Pick two to four elements — the order defines the creature's build, cover and accents — and let the planet's biome shape the result. Up to three creatures per planet. [encouraging] Care for them daily, evolve them through generations, and hybridize the best pairs: [excited] top specimens earn a unique portrait and a real three-D model.",
+      "uk": "[warm] Біосфера — твій рушій природного відбору. [curious] Обери від двох до чотирьох елементів — порядок визначає будову, покрив і акценти істоти — і дозволь біому планети сформувати результат. До трьох істот на планету. [encouraging] Доглядай за ними щодня, розвивай крізь покоління і схрещуй найкращі пари: [excited] топові особини отримують унікальний портрет і справжню тривимірну модель."
+    },
+    {
+      "key": "hangar",
+      "en": "[warm] This is your shipyard. Here you build research carriers for planetary missions, cargo ships for supply lines, and, from level ten, combat vessels for the Arena and raids. [encouraging] Early on, transports matter most — [playful] a mission without a carrier is a mission that never launches.",
+      "uk": "[warm] Це твоя верф. Тут будуються дослідницькі носії для планетарних місій, вантажні кораблі для ліній постачання, а з десятого рівня — бойові кораблі для Арени та рейдів. [encouraging] Спочатку найважливіші транспорти: [playful] місія без носія — це місія, яка ніколи не стартує."
+    }
+  ]
+}
