@@ -1249,6 +1249,53 @@ const SEASONAL_ANOMALIES: CatalogEntry[] = [
 ];
 
 // ---------------------------------------------------------------------------
+// 12. LIVE EVENT REWARDS (4) — "Live cosmic events" module. Each entry is the
+// eventOnly reward granted by completing the matching timed observation
+// window (see `game/live-events.ts`). Never rolled by regular observatory
+// searches or research discoveries. Art ships bundled at
+// `/cosmic-events/live/<type>.webp` — free for every player, no AI generation.
+// ---------------------------------------------------------------------------
+
+const LIVE_EVENT_REWARDS: CatalogEntry[] = [
+  {
+    type: 'rogue-flyby', category: 'rogues', rarity: 'epic', galleryCategory: 'cosmos', eventOnly: true,
+    nameUk: 'Проліт планети-блукача', nameEn: 'Rogue Planet Flyby',
+    descriptionUk: 'Беззоряна планета, викинута зі своєї системи мільярди років тому, проходить крізь околиці домашньої системи. Її крижана поверхня ледь мерехтить у світлі чужої зорі — і за добу вона знову зникне у міжзоряній темряві.',
+    descriptionEn: 'A starless planet, ejected from its birth system billions of years ago, drifts through the outskirts of the home system. Its frozen surface glimmers faintly in the light of a foreign star — and within a day it vanishes back into interstellar darkness.',
+    promptTemplate: 'A dark rogue planet drifting through the edge of a star system, frozen nitrogen surface faintly lit by a distant star, thin haze of a collapsed atmosphere, no parent star, deep interstellar darkness behind it',
+    scientificFacts: ['У Галактиці може бути більше планет-блукачів, ніж зір', 'Викидаються з систем гравітаційними взаємодіями з гігантами', 'Деякі зберігають тепло надр і підповерхневі океани мільярди років'],
+    scientificFactsEn: ['The Galaxy may host more rogue planets than stars', 'They are ejected from their systems by gravitational encounters with giant planets', 'Some retain internal heat and subsurface oceans for billions of years'],
+  },
+  {
+    type: 'supernova-echo', category: 'phenomena', rarity: 'epic', galleryCategory: 'anomalies', eventOnly: true,
+    nameUk: 'Світлова луна наднової', nameEn: 'Supernova Light Echo',
+    descriptionUk: 'Спалах давно згаслої наднової, відбитий міжзоряним пилом, прокочується по сусідніх пилових завісах, як хвиля світла. Спостерігати луну можна лише поки фронт освітлює пил — одне земне доба.',
+    descriptionEn: 'The flash of a long-dead supernova, reflected by interstellar dust, sweeps across nearby dust sheets like a wave of light. The echo is observable only while the front illuminates the dust — a single day.',
+    promptTemplate: 'An expanding ring of ghostly light sweeping across dark interstellar dust sheets, the light echo of an ancient supernova, illuminated dust filaments glowing pale blue and amber, the dead remnant faint at the center',
+    scientificFacts: ['Світлові луни дозволяють "переглянути" спалах століття потому', 'Луна наднової Кассіопея A допомогла визначити її тип через 300 років', 'Фронт луни рухається по пилу зі швидкістю світла'],
+    scientificFactsEn: ['Light echoes let astronomers "replay" an explosion centuries later', 'The echo of Cassiopeia A revealed its supernova type 300 years after the blast', 'The echo front sweeps across the dust at the speed of light'],
+  },
+  {
+    type: 'interstellar-visitor', category: 'small-bodies', rarity: 'epic', galleryCategory: 'cosmos', eventOnly: true,
+    nameUk: 'Міжзоряний гість', nameEn: 'Interstellar Visitor',
+    descriptionUk: 'Об\'єкт з іншої зоряної системи перетинає внутрішню частину домашньої системи на гіперболічній траєкторії. Витягнуте вкрите органічною кіркою тіло ніколи не повернеться — вікно спостереження триває лише добу.',
+    descriptionEn: 'An object from another star system crosses the inner home system on a hyperbolic trajectory. The elongated body, crusted with dark organics, will never return — the observation window lasts only a day.',
+    promptTemplate: 'A dark elongated interstellar object tumbling through the inner star system on a hyperbolic trajectory, reddish organic-rich crust catching harsh starlight, faint outgassing, motion implied against a dense starfield',
+    scientificFacts: ['1I/Оумуамуа (2017) — перший підтверджений міжзоряний об\'єкт', '2I/Борисов виявився міжзоряною кометою з активною комою', 'Гіперболічна орбіта означає: об\'єкт не зв\'язаний із зорею і покине систему назавжди'],
+    scientificFactsEn: ['1I/\'Oumuamua (2017) was the first confirmed interstellar object', '2I/Borisov proved to be an active interstellar comet', 'A hyperbolic orbit means the object is unbound and will leave the system forever'],
+  },
+  {
+    type: 'aurora-storm', category: 'phenomena', rarity: 'epic', galleryCategory: 'anomalies', eventOnly: true,
+    nameUk: 'Авроральний шторм', nameEn: 'Aurora Storm',
+    descriptionUk: 'Потужний спалах домашньої зорі жбурляє хмару заряджених частинок у магнітосфери планет. Протягом доби полярні сяйва охоплюють цілі півкулі — рідкісний шанс виміряти відгук магнітних полів системи.',
+    descriptionEn: 'A powerful flare from the home star hurls a cloud of charged particles into the planets\' magnetospheres. For a day, aurorae engulf entire hemispheres — a rare chance to measure the magnetic response of the whole system.',
+    promptTemplate: 'A planet-wide aurora storm seen from orbit, vast curtains of green and violet light wrapping around the polar regions and spilling toward the equator, the flaring star visible as a distant point, charged particle streams implied',
+    scientificFacts: ['Подія Каррінгтона 1859 року — найпотужніший зафіксований геомагнітний шторм', 'Аврори виникають, коли заряджені частинки збуджують атоми у верхній атмосфері', 'На газових гігантах полярні сяйва в сотні разів потужніші за земні'],
+    scientificFactsEn: ['The 1859 Carrington Event was the most powerful geomagnetic storm on record', 'Aurorae occur when charged particles excite atoms in the upper atmosphere', 'Gas giant aurorae are hundreds of times more powerful than Earth\'s'],
+  },
+];
+
+// ---------------------------------------------------------------------------
 // Complete catalog
 // ---------------------------------------------------------------------------
 
@@ -1264,7 +1311,8 @@ export const COSMIC_CATALOG: ReadonlyArray<CatalogEntry> = [
   ...SMALL_BODIES,      // 8
   ...ROGUES,            // 8
   ...SEASONAL_ANOMALIES, // 20 (eventOnly — see observation-seasons.ts)
-  // Total: 136 (116 rollable + 20 seasonal eventOnly)
+  ...LIVE_EVENT_REWARDS, // 4 (eventOnly — see live-events.ts)
+  // Total: 140 (116 rollable + 20 seasonal eventOnly + 4 live-event eventOnly)
 ] as const;
 
 /** Quick lookup by type key */

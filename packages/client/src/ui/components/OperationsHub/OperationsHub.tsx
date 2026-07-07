@@ -18,6 +18,8 @@ export type OpsTab = 'directives' | 'rating' | 'signals' | 'event' | 'megastruct
 
 export interface OperationsHubProps {
   initialTab?: OpsTab;
+  /** Notifies the host about tab switches (drives first-time onboarding triggers). */
+  onTabChange?: (tab: OpsTab) => void;
   onClose: () => void;
   playerId: string;
   playerLevel: number;
@@ -36,6 +38,14 @@ export interface OperationsHubProps {
   cometTrackingStartedAt: number | null;
   cometClaiming: boolean;
   onStartCometTracking: () => void;
+  /** Live events (rogue-flyby / supernova-echo / …) — App applies the
+   *  client-side reward part (XP, research data, gallery entry). */
+  onLiveEventClaimed: (
+    eventId: string,
+    occurrenceDate: string,
+    quarksGranted: number,
+    newBalance: number,
+  ) => void;
   // Megastructure ("Мегаструктура")
   colonyResources: MegastructureResourceBundle;
   onSpendMegastructureResources: (delta: Partial<MegastructureResourceBundle>) => void;
@@ -120,7 +130,7 @@ export function OperationsHub(props: OperationsHubProps) {
           {tabs.map((item) => (
             <button
               key={item.id}
-              onClick={() => setTab(item.id)}
+              onClick={() => { setTab(item.id); props.onTabChange?.(item.id); }}
               style={{
                 flex: 1, position: 'relative',
                 background: tab === item.id ? 'rgba(68,136,170,0.14)' : 'transparent',
@@ -171,6 +181,8 @@ export function OperationsHub(props: OperationsHubProps) {
               trackingStartedAt={props.cometTrackingStartedAt}
               claiming={props.cometClaiming}
               onStartTracking={props.onStartCometTracking}
+              playerId={props.playerId}
+              onLiveEventClaimed={props.onLiveEventClaimed}
             />
           )}
           {tab === 'megastructure' && (

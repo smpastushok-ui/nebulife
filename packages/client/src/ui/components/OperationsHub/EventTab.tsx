@@ -1,16 +1,25 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   COMET_REWARD_QUARKS,
   COMET_REWARD_XP,
   COMET_REWARD_RESOURCES,
   COMET_TRACKING_DURATION_MS,
+  getAllLiveEventSchedules,
+  getCatalogEntry,
+  liveEventPhotoUrl,
+  LIVE_EVENT_ASSET_BASE,
   type CometSchedule,
+  type LiveEventDef,
+  type LiveEventSchedule,
 } from '@nebulife/core';
+import { claimLiveEventReward } from '../../../api/retention-api.js';
 
 // ---------------------------------------------------------------------------
-// EventTab — "Comet Herald" live event: countdown to the 24h window, the
-// tracking launch during the window, and the claimed state.
+// EventTab — live cosmic events. Top: the legendary "Comet Herald" (countdown
+// to the 24h window, tracking launch, claimed state). Below: the four
+// recurring live events (rogue-flyby, supernova-echo, interstellar-visitor,
+// aurora-storm) — deterministic 24h windows, free to observe, modest rewards.
 // ---------------------------------------------------------------------------
 
 interface EventTabProps {
@@ -19,6 +28,14 @@ interface EventTabProps {
   trackingStartedAt: number | null;
   claiming: boolean;
   onStartTracking: () => void;
+  /** Live events (self-contained section below the comet). */
+  playerId: string;
+  onLiveEventClaimed: (
+    eventId: string,
+    occurrenceDate: string,
+    quarksGranted: number,
+    newBalance: number,
+  ) => void;
 }
 
 const BORDER = '#334455';
@@ -72,7 +89,7 @@ function CometArt() {
   );
 }
 
-export function EventTab({ schedule, claimed, trackingStartedAt, claiming, onStartTracking }: EventTabProps) {
+export function EventTab({ schedule, claimed, trackingStartedAt, claiming, onStartTracking, playerId, onLiveEventClaimed }: EventTabProps) {
   const { t, i18n } = useTranslation();
   const [now, setNow] = useState(Date.now());
 
@@ -191,6 +208,259 @@ export function EventTab({ schedule, claimed, trackingStartedAt, claiming, onSta
           <RewardChip color="#9fd0c0" label={t('ops.comet_reward_resources', { n: COMET_REWARD_RESOURCES.minerals })} />
           <RewardChip color="#cc88ff" label={t('ops.comet_reward_archive')} />
         </div>
+      </div>
+
+      {/* Recurring live events */}
+      <LiveEventsSection playerId={playerId} now={now} onClaimed={onLiveEventClaimed} />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Live events section — four recurring, deterministic, free-to-observe
+// events. Claims are persisted locally (per occurrence); the server enforces
+// one quark grant per occurrence via its idempotency key regardless.
+// ---------------------------------------------------------------------------
+
+const LIVE_CLAIMS_LS_KEY = 'nebulife_live_event_claims';
+
+type LiveClaims = Record<string, string[]>;
+
+function loadLiveClaims(): LiveClaims {
+  try {
+    const raw = localStorage.getItem(LIVE_CLAIMS_LS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed as LiveClaims;
+    }
+  } catch { /* ignore */ }
+  return {};
+}
+
+function LiveEventsSection({ playerId, now, onClaimed }: {
+  playerId: string;
+  now: number;
+  onClaimed: EventTabProps['onLiveEventClaimed'];
+}) {
+  const { t } = useTranslation();
+  const [claims, setClaims] = useState<LiveClaims>(loadLiveClaims);
+  const [trackingStarts, setTrackingStarts] = useState<Record<string, number>>({});
+  const [claimingIds, setClaimingIds] = useState<Record<string, boolean>>({});
+  const [errorId, setErrorId] = useState<string | null>(null);
+  const timersRef = useRef<number[]>([]);
+
+  useEffect(() => () => { timersRef.current.forEach((id) => window.clearTimeout(id)); }, []);
+
+  useEffect(() => {
+    try { localStorage.setItem(LIVE_CLAIMS_LS_KEY, JSON.stringify(claims)); } catch { /* ignore */ }
+  }, [claims]);
+
+  const finishTracking = useCallback((def: LiveEventDef) => {
+    setClaimingIds((prev) => ({ ...prev, [def.id]: true }));
+    claimLiveEventReward(def.id)
+      .then((result) => {
+        setClaims((prev) => {
+          const dates = prev[def.id] ?? [];
+          return dates.includes(result.occurrenceDate)
+            ? prev
+            : { ...prev, [def.id]: [...dates, result.occurrenceDate] };
+        });
+        onClaimed(def.id, result.occurrenceDate, result.quarksGranted, result.newBalance);
+      })
+      .catch((err) => {
+        console.warn(`[live-event] ${def.id} claim failed:`, err);
+        setErrorId(def.id);
+        window.setTimeout(() => setErrorId((cur) => (cur === def.id ? null : cur)), 3500);
+      })
+      .finally(() => {
+        setClaimingIds((prev) => ({ ...prev, [def.id]: false }));
+        setTrackingStarts((prev) => {
+          const next = { ...prev };
+          delete next[def.id];
+          return next;
+        });
+      });
+  }, [onClaimed]);
+
+  const startTracking = useCallback((def: LiveEventDef) => {
+    if (trackingStarts[def.id] != null || claimingIds[def.id]) return;
+    setTrackingStarts((prev) => ({ ...prev, [def.id]: Date.now() }));
+    timersRef.current.push(window.setTimeout(() => finishTracking(def), def.trackingDurationMs));
+  }, [trackingStarts, claimingIds, finishTracking]);
+
+  const items = getAllLiveEventSchedules(playerId || 'local', now);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ color: '#aabbcc', fontSize: 11, letterSpacing: 2, marginTop: 4 }}>
+        {t('ops.live_title')}
+      </div>
+      <div style={{ color: '#667788', fontSize: 9.5, lineHeight: 1.5 }}>
+        {t('ops.live_explain')}
+      </div>
+      {items.map(({ def, schedule }) => (
+        <LiveEventCard
+          key={def.id}
+          def={def}
+          schedule={schedule}
+          now={now}
+          claimed={(claims[def.id] ?? []).includes(schedule.occurrenceDate)}
+          trackingStartedAt={trackingStarts[def.id] ?? null}
+          claiming={claimingIds[def.id] ?? false}
+          error={errorId === def.id}
+          onStartTracking={() => startTracking(def)}
+        />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Living preview for a live event card: the bundled 7s Seedance clip
+ * (muted, looped, autoplaying; WebM primary + MP4 fallback, matching the
+ * alpha-promo convention — see public/alpha-promo/README.md). The bundled
+ * WebP art doubles as the poster and remains the graceful fallback when the
+ * video fails to load or decode; if the still is missing too, the slot hides.
+ * The Cosmic Archive gallery entry keeps the static WebP — only this preview
+ * uses the video.
+ */
+function LiveEventMedia({ eventId }: { eventId: string }) {
+  const [mode, setMode] = useState<'video' | 'image' | 'hidden'>('video');
+  const posterUrl = liveEventPhotoUrl(eventId);
+  const mediaStyle: React.CSSProperties = {
+    width: 54, height: 82, objectFit: 'cover', borderRadius: 3,
+    border: `1px solid ${BORDER}`, flexShrink: 0, background: '#020510',
+  };
+
+  if (mode === 'hidden') return null;
+  if (mode === 'image') {
+    return <img src={posterUrl} alt="" onError={() => setMode('hidden')} style={mediaStyle} />;
+  }
+  return (
+    <video
+      muted
+      loop
+      autoPlay
+      playsInline
+      preload="metadata"
+      poster={posterUrl}
+      onError={() => setMode('image')}
+      style={mediaStyle}
+    >
+      <source src={`${LIVE_EVENT_ASSET_BASE}/${eventId}.webm`} type="video/webm" />
+      {/* Error on the LAST source = every candidate failed → static art. */}
+      <source
+        src={`${LIVE_EVENT_ASSET_BASE}/${eventId}.mp4`}
+        type="video/mp4"
+        onError={() => setMode('image')}
+      />
+    </video>
+  );
+}
+
+function LiveEventCard({ def, schedule, now, claimed, trackingStartedAt, claiming, error, onStartTracking }: {
+  def: LiveEventDef;
+  schedule: LiveEventSchedule;
+  now: number;
+  claimed: boolean;
+  trackingStartedAt: number | null;
+  claiming: boolean;
+  error: boolean;
+  onStartTracking: () => void;
+}) {
+  const { t, i18n } = useTranslation();
+
+  const cat = getCatalogEntry(def.id);
+  const lang = i18n.language;
+  const name = cat ? (lang === 'en' ? cat.nameEn : cat.nameUk) : def.id;
+  const desc = cat ? (lang === 'en' ? (cat.descriptionEn ?? cat.descriptionUk) : cat.descriptionUk) : '';
+
+  const active = schedule.active;
+  const tracking = trackingStartedAt != null && now - trackingStartedAt < def.trackingDurationMs;
+  const trackingPct = trackingStartedAt != null
+    ? Math.min(100, ((now - trackingStartedAt) / def.trackingDurationMs) * 100)
+    : 0;
+
+  const borderColor = claimed ? 'rgba(68,255,136,0.4)' : active ? ACCENT : BORDER;
+
+  return (
+    <div style={{
+      border: `1px solid ${borderColor}`, borderRadius: 4, overflow: 'hidden',
+      background: 'rgba(4,8,16,0.9)',
+      animation: active && !claimed ? 'opsSoftPulse 2.4s infinite' : undefined,
+    }}>
+      <div style={{ display: 'flex', gap: 10, padding: 10 }}>
+        <LiveEventMedia eventId={def.id} />
+
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div style={{ color: active ? ACCENT : '#aabbcc', fontSize: 11.5, letterSpacing: 1.2 }}>
+            {name}
+          </div>
+          <div style={{ color: '#cc88ff', fontSize: 8.5, letterSpacing: 1 }}>
+            {t('ops.live_rarity', { n: def.cycleDays })}
+          </div>
+          <div style={{ color: '#667788', fontSize: 9, lineHeight: 1.45, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+            {desc}
+          </div>
+          <div style={{ color: '#8899aa', fontSize: 9 }}>
+            {t('ops.live_reward', { q: def.rewardQuarks, rd: def.rewardResearchData, xp: def.rewardXp })}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ borderTop: `1px solid ${BORDER}`, padding: '8px 10px' }}>
+        {claimed ? (
+          <div style={{ color: '#44ff88', fontSize: 9.5, letterSpacing: 1, textAlign: 'center' }}>
+            {t('ops.live_claimed')}
+          </div>
+        ) : active ? (
+          tracking || claiming ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <div style={{ color: '#8899aa', fontSize: 9, textAlign: 'center' }}>
+                {claiming ? t('ops.comet_claiming') : t('ops.live_tracking')}
+              </div>
+              <div style={{ height: 6, border: `1px solid ${BORDER}`, borderRadius: 3, overflow: 'hidden', background: 'rgba(4,8,16,0.8)' }}>
+                <div style={{
+                  width: `${claiming ? 100 : trackingPct}%`, height: '100%',
+                  background: `linear-gradient(90deg, #4488aa, ${ACCENT})`,
+                  transition: 'width 0.9s linear',
+                }} />
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button
+                onClick={onStartTracking}
+                style={{
+                  flex: 1, padding: '8px 0', borderRadius: 3,
+                  border: `1px solid ${ACCENT}`,
+                  background: 'rgba(123,184,255,0.14)',
+                  color: ACCENT, fontFamily: 'monospace', fontSize: 10, letterSpacing: 1.2,
+                  cursor: 'pointer',
+                }}
+              >
+                {t('ops.live_start_tracking')}
+              </button>
+              <span style={{ color: ACCENT, fontSize: 10, letterSpacing: 1, whiteSpace: 'nowrap' }}>
+                {formatCountdown(schedule.windowEndMs - now)}
+              </span>
+            </div>
+          )
+        ) : (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ color: '#667788', fontSize: 9, letterSpacing: 0.8 }}>
+              {t('ops.live_next')}
+            </span>
+            <span style={{ color: '#8899aa', fontSize: 10.5, letterSpacing: 1 }}>
+              {formatCountdown(schedule.msUntilWindow)}
+            </span>
+          </div>
+        )}
+        {error && (
+          <div style={{ color: '#cc4444', fontSize: 9, marginTop: 5, textAlign: 'center' }}>
+            {t('ops.live_claim_failed')}
+          </div>
+        )}
       </div>
     </div>
   );

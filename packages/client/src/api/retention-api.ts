@@ -102,6 +102,29 @@ export async function claimCometReward(): Promise<CometClaimResult> {
   return res.json();
 }
 
+// ── Live cosmic events (rogue-flyby / supernova-echo / …) ──────────────────
+
+export interface LiveEventClaimResult {
+  claimed: boolean;
+  eventId: string;
+  occurrenceDate: string;
+  quarksGranted: number;
+  newBalance: number;
+}
+
+export async function claimLiveEventReward(eventId: string): Promise<LiveEventClaimResult> {
+  const res = await authFetch(`${API_BASE}/event/live-claim`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ eventId }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'unknown' }));
+    throw new Error(err.error ?? `live event claim failed: ${res.status}`);
+  }
+  return res.json();
+}
+
 // ── Observation seasons ("Сезони спостережень") ────────────────────────────
 
 export interface SeasonClaimResult {
