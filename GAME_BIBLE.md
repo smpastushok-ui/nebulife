@@ -395,6 +395,8 @@ Total day-1 artifacts: 3 (1 home free + 2 зі starter)  →
 
 **Без згадок AI у тексті для гравця**: у UI, i18n, попапах, описах преміум-функцій, маркетингу всередині гри **ніколи** не писати AI / ШІ / neural net / нейромережа / «згенеровано ШІ» тощо. Гравець живе у всесвіті гри: обсерваторії, біо-сканери, телескопічні канали, А.С.Т.Р.А., Космічний Архів. Технічні назви (Gemini, Kling, Tripo, API) — лише у внутрішній документації, коді та Game Bible для розробників, не в `locales/*.json`.
 
+**Голос А.С.Т.Р.А. (TTS)**: ElevenLabs voice ID `uIZsnBL0YK1S5j69bAih` ("Samantha — Emotional, Soft and Intimate"), модель `eleven_v3`, stability 0.5, емоційна подача через v3 audio tags у тексті (аналог кнопки Enhance). Використовується для озвучення онбординг-повідомлень А.С.Т.Р.А. (uk/en) — генерація через `scripts/onboarding-voice/generate.mjs`, файли в `packages/client/public/sfx/onboarding/`. Ключ `ELEVENLABS_API_KEY` — у `.env.local`.
+
 **Pitch**: An asteroid is heading for your planet. 1 day. Explore neighboring star systems, find a habitable world, launch a rescue ship for 10,000 passengers.
 
 **Настрій**: Науково-фантастичний, стриманий, атмосферний. Не яскрава аркада — а тихий космос з відчуттям масштабу та самотності. Кожна зірка, планета, супутник — фізично обґрунтовані.
