@@ -1,120 +1,192 @@
-import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { playLoop, playSfx, setLoopVolume, stopLoop } from '../../audio/SfxPlayer.js';
-import { getDeviceTier } from '../../utils/device-tier.js';
-import { createBotBrain, updateBot } from '../arena/ArenaAI.js';
-import type { ShipEntity } from '../arena/ArenaTypes.js';
+// ---------------------------------------------------------------------------
+// RaidEngine — unified PixiJS v8 Carrier Raid combat engine.
+//
+// NEXT_GEN_PLAN.md section A: replaces the old dual-engine setup (Three.js
+// RaidEngine + PixiRaidEngine fallback) with ONE 2D top-down engine. Ship
+// silhouettes are baked once from the existing GLB assets into rotation
+// sprite atlases (see ShipSpriteBaker.ts) so combat "looks like 3D, costs
+// like 2D": every ship is a single Sprite draw, not a lit 3D mesh.
+//
+// Gameplay/balance (HP, damage, wave timings, rewards) is unchanged from the
+// previous Pixi fallback — only rendering, feedback and device-adaptive
+// budgets are new.
+// ---------------------------------------------------------------------------
+
+import { Application, Assets, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import {
-  RAID_ACCELERATION,
   RAID_ACTIVE_ENEMIES_HIGH,
   RAID_ACTIVE_ENEMIES_MID,
   RAID_ALLY_DAMAGE,
   RAID_ALLY_HP,
   RAID_ALLY_SHIELD,
-  RAID_BARREL_ROLL_COOLDOWN,
-  RAID_BARREL_ROLL_DURATION,
-  RAID_DRAG,
   RAID_DRONE_HP,
-  RAID_ENEMY_SPAWN_INTERVAL_DESKTOP,
-  RAID_ENEMY_SPAWN_INTERVAL_MOBILE,
+  RAID_DYNRES_BAD_FRAMES_TO_DROP,
+  RAID_DYNRES_FRAME_MS_THRESHOLD,
+  RAID_DYNRES_SCALE,
+  RAID_DYNRES_STABLE_MS_TO_RESTORE,
   RAID_ENEMY_DAMAGE,
-  RAID_HEIGHT_HALF,
+  RAID_HITSTOP_KILL_MS,
+  RAID_HIT_FLASH_MS,
+  RAID_PARTICLE_BUDGET_HIGH,
+  RAID_PARTICLE_BUDGET_LOW,
+  RAID_PARTICLE_BUDGET_MID,
   RAID_PLAYER_HP,
   RAID_PLAYER_SHIELD,
   RAID_PROJECTILE_DAMAGE,
   RAID_PROJECTILE_LIFETIME,
-  RAID_PROJECTILE_POOL_HIGH,
-  RAID_PROJECTILE_POOL_MID,
   RAID_PROJECTILE_SPEED,
   RAID_REWARD_BASE_XP,
   RAID_REWARD_XP_PER_KILL,
   RAID_REWARD_XP_PER_MODULE,
-  RAID_SECTOR_HALF,
+  RAID_SCREEN_SHAKE_DECAY_PER_SEC,
+  RAID_SCREEN_SHAKE_HIT,
+  RAID_SCREEN_SHAKE_KILL,
+  RAID_SCREEN_SHAKE_MAX,
+  RAID_SCREEN_SHAKE_MODULE_DESTROYED,
   RAID_SHIELD_REGEN_DELAY,
   RAID_SHIELD_REGEN_RATE,
+  RAID_SHIP_BAKE_SIZE_HIGH,
+  RAID_SHIP_BAKE_SIZE_LOW,
+  RAID_SHIP_BAKE_SIZE_MID,
   RAID_SPEED,
   RAID_WAVES,
+  RAID_WAVE_CLEAR_SLOWMO_FACTOR,
+  RAID_WAVE_CLEAR_SLOWMO_MS,
   RAID_WINGMEN,
 } from './RaidConstants.js';
-import type { RaidCallbacks, RaidModule, RaidPhase, RaidProjectile, RaidResult, RaidShip, RaidSnapshot, RaidTeam } from './RaidTypes.js';
+import type { RaidCallbacks, RaidPhase, RaidResult, RaidSnapshot, RaidTeam } from './RaidTypes.js';
+import { getDeviceTier } from '../../utils/device-tier.js';
+import { playSfx } from '../../audio/SfxPlayer.js';
+import { bakeShipAtlas, type ShipAtlas } from './ShipSpriteBaker.js';
+import { RaidParticles } from './RaidParticles.js';
+import { RaidExplosions } from './RaidExplosions.js';
+
+type SectorAction = 'center' | 'missile' | 'warp' | 'dodge' | 'gravity';
 
 const BLUE_SHIP = '/arena_ships/blue_ship.glb';
 const RED_SHIP = '/arena_ships/red_ship.glb';
 const CARRIER_BOSS = '/raid/carrier_boss.glb';
 const ENEMY_SWARM_SHIP = '/raid/enemy_swarm_ship.glb';
-const RAID_BACKGROUND = '/raid/raid_background.png';
-const RAID_BACKGROUND_MOBILE = '/raid/raid_background_mobile.webp';
-const CARRIER_Y = 620;
-const CARRIER_BAY_Y = CARRIER_Y - 520;
-const PLAYER_START_Y = -520;
-const RAID_SHIP_MODEL_NOSE_OFFSET = Math.PI / 2;
-const ALLY_TINT = 0x5f9dff;
-const ENEMY_TINT = 0xff6644;
-const MISSILE_DAMAGE = 42;
-const MISSILE_SPEED = 720;
-const MISSILE_LIFETIME = 3.2;
-const RAID_ENEMY_ACCELERATION = 760;
-const RAID_ENEMY_MAX_SPEED = 520;
-const RAID_ENEMY_ATTACK_RANGE = 1700;
-const RAID_ENEMY_FIRE_CONE_DOT = 0.42;
-const CARRIER_COLLISION_HALF = new THREE.Vector3(1120, 360, 1800);
+const RAID_BACKGROUND_IMAGE = '/raid/raid_background_mobile.webp';
+const ALLY_TINT = 0x7bb8ff;
+const ENEMY_TINT = 0xcc4444;
+const DAMAGED_HP_PCT = 0.45;
+const WORLD_W = 2200;
+const WORLD_H = 1400;
 
-function disposeObject(root: THREE.Object3D): void {
-  root.traverse((obj) => {
-    const mesh = obj as THREE.Mesh;
-    if (mesh.geometry) mesh.geometry.dispose();
-    const material = mesh.material as THREE.Material | THREE.Material[] | undefined;
-    if (Array.isArray(material)) material.forEach(m => m.dispose());
-    else material?.dispose();
-  });
+interface EntityView {
+  /** Root node added to `world`; either wraps a baked Sprite or a procedural Graphics fallback. */
+  root: Container;
+  sprite: Sprite | null;
+  atlas: ShipAtlas | null;
+  angleIndex: number;
 }
 
-function clampLength(v: THREE.Vector3, max: number): void {
-  const lenSq = v.lengthSq();
-  if (lenSq > max * max) v.multiplyScalar(max / Math.sqrt(lenSq));
+interface RaidShipEntity {
+  id: number;
+  team: RaidTeam;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  hp: number;
+  maxHp: number;
+  shield: number;
+  maxShield: number;
+  radius: number;
+  fireCooldown: number;
+  shieldDelay: number;
+  alive: boolean;
+  view: EntityView;
+  facing: number; // radians, Pixi convention (0 = up, clockwise positive)
+  trailTimer: number;
+  aiOrbitDir?: number;
+  aiOrbitRadius?: number;
 }
 
-function normalizeModel(root: THREE.Object3D, targetSize: number, noseOffset = 0): THREE.Group {
-  const box = new THREE.Box3().setFromObject(root);
-  const size = new THREE.Vector3();
-  const center = new THREE.Vector3();
-  box.getSize(size);
-  box.getCenter(center);
-  const longest = Math.max(size.x, size.y, size.z);
-  const scale = longest > 0.001 ? targetSize / longest : 1;
-  root.scale.setScalar(scale);
-  root.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
-  if (noseOffset !== 0) {
-    const inner = new THREE.Group();
-    inner.rotation.y = noseOffset;
-    inner.add(root);
-    const wrapper = new THREE.Group();
-    wrapper.add(inner);
-    return wrapper;
+interface RaidModuleEntity {
+  id: string;
+  type: 'hangar_bay' | 'shield_emitter' | 'turret_cluster' | 'reactor_core';
+  x: number;
+  y: number;
+  hp: number;
+  maxHp: number;
+  radius: number;
+  alive: boolean;
+  fireCooldown: number;
+  view: Container;
+}
+
+interface RaidProjectileEntity {
+  active: boolean;
+  team: RaidTeam;
+  damage: number;
+  age: number;
+  lifetime: number;
+  radius: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  view: Sprite;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function normalize(x: number, y: number): { x: number; y: number } {
+  const len = Math.hypot(x, y);
+  return len > 0.0001 ? { x: x / len, y: y / len } : { x: 0, y: -1 };
+}
+
+function facingAngle(dx: number, dy: number): number {
+  return Math.atan2(dx, -dy);
+}
+
+function angleToFrameIndex(angle: number, frameCount: number): number {
+  const twoPi = Math.PI * 2;
+  const normalized = ((angle % twoPi) + twoPi) % twoPi;
+  return Math.round(normalized / twoPi * frameCount) % frameCount;
+}
+
+// ── Procedural fallback shapes (used when GLB bake fails/unavailable) ──────
+
+function drawProceduralShip(color: number, scale = 1): Container {
+  const root = new Container();
+  const g = new Graphics();
+  g.poly([0, -18 * scale, 12 * scale, 14 * scale, 0, 8 * scale, -12 * scale, 14 * scale]);
+  g.fill(color);
+  g.stroke({ color: 0xaabbcc, alpha: 0.45, width: 1 });
+  g.moveTo(-7 * scale, 11 * scale);
+  g.lineTo(7 * scale, 11 * scale);
+  g.stroke({ color: 0x7bb8ff, alpha: 0.55, width: 2 });
+  root.addChild(g);
+  return root;
+}
+
+function drawProceduralDrone(): Container {
+  const root = new Container();
+  const g = new Graphics();
+  g.poly([0, 14, 13, -10, 0, -4, -13, -10]);
+  g.fill(0xcc4444);
+  g.stroke({ color: 0xff8844, alpha: 0.55, width: 1 });
+  root.addChild(g);
+  return root;
+}
+
+function drawModule(type: RaidModuleEntity['type']): Container {
+  const root = new Container();
+  const color = type === 'reactor_core' ? 0xff8844 : type === 'shield_emitter' ? 0x4488aa : type === 'turret_cluster' ? 0xddaa44 : 0x667788;
+  const g = new Graphics();
+  if (type === 'reactor_core') {
+    g.circle(0, 0, 38).fill({ color, alpha: 0.78 }).stroke({ color: 0xffcc88, alpha: 0.7, width: 2 });
+    g.circle(0, 0, 16).stroke({ color: 0xffcc88, alpha: 0.6, width: 2 });
+  } else {
+    g.roundRect(-34, -18, 68, 36, 4).fill({ color, alpha: 0.72 }).stroke({ color: 0xaabbcc, alpha: 0.35, width: 1 });
   }
-  const wrapper = new THREE.Group();
-  wrapper.add(root);
-  return wrapper;
-}
-
-function tintShipMaterials(root: THREE.Object3D, tint: number): void {
-  const color = new THREE.Color(tint);
-  root.traverse((obj) => {
-    if (!(obj instanceof THREE.Mesh)) return;
-    const wasArray = Array.isArray(obj.material);
-    const materials: THREE.Material[] = wasArray ? obj.material : [obj.material];
-    const tinted = materials.map((material) => {
-      const clone = material.clone();
-      if ('color' in clone && clone.color instanceof THREE.Color) {
-        clone.color.lerp(color, 0.52);
-      }
-      if ('emissive' in clone && clone.emissive instanceof THREE.Color) {
-        clone.emissive.lerp(color, 0.18);
-      }
-      return clone;
-    });
-    obj.material = wasArray ? tinted : tinted[0];
-  });
+  root.addChild(g);
+  return root;
 }
 
 export class RaidEngine {
@@ -123,69 +195,58 @@ export class RaidEngine {
   private readonly shipId: string;
   private readonly customShipGlbUrl: string | null;
   private readonly tier = getDeviceTier();
-  private readonly isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-  private readonly maxProjectiles = this.isMobile
-    ? 92
-    : this.tier === 'high' || this.tier === 'ultra'
-      ? RAID_PROJECTILE_POOL_HIGH
-      : RAID_PROJECTILE_POOL_MID;
-  private readonly maxActiveEnemies = this.isMobile
-    ? (this.tier === 'high' || this.tier === 'ultra' ? 18 : 12)
-    : this.tier === 'high' || this.tier === 'ultra'
-      ? RAID_ACTIVE_ENEMIES_HIGH
-      : RAID_ACTIVE_ENEMIES_MID;
+  private readonly maxActiveEnemies = this.tier === 'high' ? RAID_ACTIVE_ENEMIES_HIGH : RAID_ACTIVE_ENEMIES_MID;
+  private readonly bakeFrameSize = this.tier === 'low' ? RAID_SHIP_BAKE_SIZE_LOW : this.tier === 'high' ? RAID_SHIP_BAKE_SIZE_HIGH : RAID_SHIP_BAKE_SIZE_MID;
+  private readonly particleBudget = this.tier === 'low' ? RAID_PARTICLE_BUDGET_LOW : this.tier === 'high' ? RAID_PARTICLE_BUDGET_HIGH : RAID_PARTICLE_BUDGET_MID;
+  private readonly baseResolution = Math.min(window.devicePixelRatio || 1, this.tier === 'low' ? 1 : 1.4);
 
-  private scene: THREE.Scene | null = null;
-  private camera: THREE.PerspectiveCamera | null = null;
-  private renderer: THREE.WebGLRenderer | null = null;
-  private backgroundTexture: THREE.Texture | null = null;
-  private clock = new THREE.Clock();
-  private raf = 0;
-  private destroyed = false;
-  private ended = false;
-  private startedAt = 0;
-  private phase: RaidPhase = 'approach';
+  private app: Application | null = null;
+  private world = new Container();
+  private hitFlash = new Graphics();
+  private background = new Graphics();
+  private backgroundImage: Sprite | null = null;
+  private starLayerNear = new Graphics();
+  private starLayerFar = new Graphics();
+  private starLayerNearOffset = 0;
+  private starLayerFarOffset = 0;
+  private carrier = new Container();
+  private particles: RaidParticles | null = null;
+  private explosions: RaidExplosions | null = null;
 
-  private player: RaidShip | null = null;
-  private wingmen: RaidShip[] = [];
-  private enemies: RaidShip[] = [];
-  private modules: RaidModule[] = [];
-  private projectiles: RaidProjectile[] = [];
-  private carrier: THREE.Object3D | null = null;
-  private allyTemplate: THREE.Object3D | null = null;
-  private enemyTemplate: THREE.Object3D | null = null;
-  private spawnBays: THREE.Vector3[] = [];
-  private queuedEnemies = 0;
-  private enemySpawnTimer = 0;
-  private mouseMoveX = 0;
-  private mouseMoveY = 0;
-  private pointerLocked = false;
-  private desktopLaserHeld = false;
-  private mouseTargetYaw = 0;
-  private mouseTargetPitch = 0;
-  private mouseTargetReady = false;
-  private aimDir = new THREE.Vector3(0, 0, -1);
-  private shipRoll = 0;
-  private barrelRollTimer = 0;
-  private barrelRollCooldown = 0;
-  private missileCooldown = 0;
-  private mobileMissileRepeat = 0;
+  private allyAtlas: ShipAtlas | null = null;
+  private enemyAtlas: ShipAtlas | null = null;
+  private playerAtlas: ShipAtlas | null = null; // custom Tripo ship, if selected
+
+  private player: RaidShipEntity | null = null;
+  private wingmen: RaidShipEntity[] = [];
+  private enemies: RaidShipEntity[] = [];
+  private modules: RaidModuleEntity[] = [];
+  private projectiles: RaidProjectileEntity[] = [];
+  private allyProjectileTexture: Texture | null = null;
+  private enemyProjectileTexture: Texture | null = null;
+
   private keys = new Set<string>();
-  private moveInput = new THREE.Vector3();
-  private aimInput = new THREE.Vector3(0, 0, -1);
+  private moveInput = { x: 0, y: 0 };
+  private aimInput = { x: 0, y: -1 };
+  private sectorAction: SectorAction = 'center';
+  private phase: RaidPhase = 'approach';
+  private startedAt = 0;
   private kills = 0;
   private modulesDestroyed = 0;
   private nextWaveIndex = 0;
-  private sectorAction: 'center' | 'missile' | 'warp' | 'dodge' | 'gravity' = 'center';
   private snapshotTimer = 0;
-  private readonly maxPitch = Math.PI / 2.2;
-  private readonly mouseSens = 0.0022;
-  private readonly turnFollow = 2.0;
-  private readonly maxYawRate = 1.75;
-  private readonly maxPitchRate = 1.05;
-  private readonly maxRoll = Math.PI / 4;
-  private readonly barrelRollDuration = RAID_BARREL_ROLL_DURATION;
-  private lastLaserSfxAt = 0;
+  private ended = false;
+
+  // ── Cheap premium feedback state (section A.4/A.5) ──
+  private shakeMagnitude = 0;
+  private hitStopMsRemaining = 0;
+  private hitFlashMsRemaining = 0;
+  private slowMoMsRemaining = 0;
+
+  // ── Dynamic resolution (section A.6) ──
+  private currentResolutionScale = 1;
+  private badFrameStreak = 0;
+  private stableGoodMs = 0;
 
   constructor(container: HTMLElement, callbacks: RaidCallbacks, shipId: string, customShipGlbUrl?: string | null) {
     this.container = container;
@@ -194,130 +255,93 @@ export class RaidEngine {
     this.customShipGlbUrl = customShipGlbUrl ?? null;
   }
 
-  private getAllyTint(): number {
-    return ALLY_TINT;
-  }
-
   async init(): Promise<void> {
     this.startedAt = performance.now();
-    this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.Fog(0x020510, 5200, 16800);
+    this.app = new Application();
+    await this.app.init({
+      background: 0x020510,
+      resizeTo: this.container,
+      antialias: this.tier !== 'low',
+      resolution: this.baseResolution,
+      autoDensity: true,
+    });
+    this.currentResolutionScale = 1;
+    this.container.appendChild(this.app.canvas);
+    this.app.stage.addChild(this.background, this.starLayerFar, this.starLayerNear, this.world, this.hitFlash);
+    this.createBackdrop();
 
-    this.camera = new THREE.PerspectiveCamera(68, this.container.clientWidth / Math.max(1, this.container.clientHeight), 1, 24000);
-    this.camera.position.set(0, 180, 820);
+    this.particles = new RaidParticles(this.app.renderer, this.particleBudget);
+    this.world.addChild(this.particles.container);
+    this.explosions = new RaidExplosions(this.world);
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: this.tier !== 'low', alpha: false, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.isMobile || this.tier === 'low' ? 1 : 1.4));
-    this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
-    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.setClearColor(0x020510, 1);
-    this.container.appendChild(this.renderer.domElement);
+    await Promise.all([
+      this.bakeAtlases(),
+      this.explosions.load(),
+      this.loadBackgroundImage(),
+    ]);
 
-    this.addLights();
-    this.addBackground();
-    this.addStarfield();
-    await this.createCarrier();
-    await this.preloadShipTemplates();
-    this.createProjectiles();
-    this.player = await this.createPlayerShip();
-    if (this.destroyed || !this.scene) {
-      disposeObject(this.player.mesh);
-      return;
-    }
-    this.scene.add(this.player.mesh);
+    this.createCarrier();
+    this.createPlayer();
     this.createWingmen();
-
-    if (this.destroyed || !this.scene) return;
-    window.addEventListener('resize', this.handleResize);
+    this.createProjectilePool();
     window.addEventListener('keydown', this.handleKeyDown);
     window.addEventListener('keyup', this.handleKeyUp);
-    window.addEventListener('mousemove', this.handleMouseMove);
-    document.addEventListener('pointerlockchange', this.handlePointerLockChange);
-    this.renderer.domElement.addEventListener('mousedown', this.handleMouseDown);
-    this.renderer.domElement.addEventListener('mouseup', this.handleMouseUp);
-    this.renderer.domElement.addEventListener('contextmenu', this.preventContextMenu);
-    playSfx('arena-start', 0.06);
-    playLoop('fly', 0.0);
-    this.clock.start();
-    this.loop();
+    window.addEventListener('resize', this.layout);
+    this.layout();
+    this.app.ticker.add(this.update);
   }
 
   destroy(): void {
-    this.destroyed = true;
-    cancelAnimationFrame(this.raf);
-    window.removeEventListener('resize', this.handleResize);
     window.removeEventListener('keydown', this.handleKeyDown);
     window.removeEventListener('keyup', this.handleKeyUp);
-    window.removeEventListener('mousemove', this.handleMouseMove);
-    document.removeEventListener('pointerlockchange', this.handlePointerLockChange);
-    if (this.renderer) {
-      this.renderer.domElement.removeEventListener('mousedown', this.handleMouseDown);
-      this.renderer.domElement.removeEventListener('mouseup', this.handleMouseUp);
-      this.renderer.domElement.removeEventListener('contextmenu', this.preventContextMenu);
+    window.removeEventListener('resize', this.layout);
+    // init() may not have finished (component unmounted mid-await, e.g. fast
+    // navigation away or an asset/WebGL failure) — guard every step so a
+    // partially-constructed Application can never throw during teardown.
+    this.app?.ticker?.remove(this.update);
+    this.particles?.destroy();
+    this.explosions?.destroy();
+    try {
+      this.app?.destroy(true);
+    } catch {
+      // best-effort — a half-initialized renderer can throw on teardown
     }
-    if (this.renderer) {
-      this.renderer.dispose();
-      this.renderer.domElement.remove();
-    }
-    this.backgroundTexture?.dispose();
-    stopLoop('fly');
-    if (this.scene) disposeObject(this.scene);
-    this.scene = null;
-    this.camera = null;
-    this.renderer = null;
+    this.app = null;
   }
 
   setMobileMove(x: number, y: number): void {
-    this.moveInput.set(x, 0, y);
+    this.moveInput = { x, y };
   }
 
   setMobileAim(x: number, y: number, firing: boolean): void {
-    this.aimInput.set(x, -y * 0.65, -1).normalize();
-    this.aimDir.copy(this.aimInput);
-    if (firing) this.firePlayerLaser();
+    this.aimInput = normalize(x, -Math.max(0.25, 1 - Math.abs(y) * 0.2));
+    if (firing) this.firePlayerBurst();
   }
 
-  setMobileSector(sector: 'center' | 'missile' | 'warp' | 'dodge' | 'gravity'): void {
+  setMobileSector(sector: SectorAction): void {
     this.sectorAction = sector;
-    if (sector === 'missile') this.fireMissile();
-    if (sector === 'warp') this.triggerDash();
-    if (sector === 'dodge') this.triggerBarrelRoll();
+    if (sector === 'missile') this.firePlayerBurst(true);
   }
 
   triggerDash(): void {
-    if (!this.player || !this.player.alive) return;
-    const forward = this.aimDir.clone().normalize();
-    if (forward.lengthSq() === 0) forward.set(0, 0, -1);
-    this.player.vel.addScaledVector(forward, 520);
+    if (!this.player?.alive) return;
+    this.player.vx += this.aimInput.x * 420;
+    this.player.vy += this.aimInput.y * 420;
     playSfx('arena-warp', 0.12);
   }
 
   fireMissile(): void {
-    if (this.missileCooldown > 0) return;
-    if (!this.player || !this.player.alive) return;
-    const target = this.findAimTarget(2600, 0.35);
-    const dir = target
-      ? target.pos.clone().addScaledVector(target.vel, 0.35).sub(this.player.pos).normalize()
-      : this.aimDir.clone().normalize();
-    this.fireProjectileDir('allied', this.player.pos, dir, MISSILE_DAMAGE, 'missile');
-    this.missileCooldown = 0.55;
-    playSfx('arena-missile', 0.15);
-  }
-
-  triggerBarrelRoll(): void {
-    if (this.barrelRollCooldown > 0) return;
-    this.barrelRollTimer = this.barrelRollDuration;
-    this.barrelRollCooldown = RAID_BARREL_ROLL_COOLDOWN;
-    playSfx('arena-warp', 0.08, 1.35);
+    this.firePlayerBurst(true);
   }
 
   getSnapshot(): RaidSnapshot {
-    const reactor = this.modules.find(m => m.type === 'reactor_core');
+    const reactor = this.modules.find((module) => module.type === 'reactor_core');
+    const wavesRemaining = this.nextWaveIndex < RAID_WAVES.length || this.enemies.some((enemy) => enemy.alive);
     const objective = this.phase === 'reactor'
       ? 'raid.objective_reactor'
-      : this.modules.some(m => m.type === 'shield_emitter' && m.alive)
-        ? 'raid.objective_shields'
-        : 'raid.objective_waves';
+      : wavesRemaining
+        ? 'raid.objective_waves'
+        : 'raid.objective_shields';
     return {
       phase: this.phase,
       elapsedSec: Math.floor((performance.now() - this.startedAt) / 1000),
@@ -325,8 +349,8 @@ export class RaidEngine {
       playerMaxHp: this.player?.maxHp ?? RAID_PLAYER_HP,
       playerShield: Math.max(0, Math.ceil(this.player?.shield ?? 0)),
       playerMaxShield: this.player?.maxShield ?? RAID_PLAYER_SHIELD,
-      alliedAlive: this.wingmen.filter(w => w.alive).length + (this.player?.alive ? 1 : 0),
-      enemiesActive: this.enemies.filter(e => e.alive).length,
+      alliedAlive: this.wingmen.filter((ship) => ship.alive).length + (this.player?.alive ? 1 : 0),
+      enemiesActive: this.enemies.filter((ship) => ship.alive).length,
       kills: this.kills,
       modulesDestroyed: this.modulesDestroyed,
       modulesTotal: this.modules.length,
@@ -336,711 +360,506 @@ export class RaidEngine {
     };
   }
 
-  private readonly handleResize = (): void => {
-    if (!this.camera || !this.renderer) return;
-    this.camera.aspect = this.container.clientWidth / Math.max(1, this.container.clientHeight);
-    this.camera.updateProjectionMatrix();
-    this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
-  };
+  // ── Input ──────────────────────────────────────────────────────────────
 
-  private readonly handleKeyDown = (e: KeyboardEvent): void => {
-    const key = this.controlKeyFromEvent(e);
+  private readonly handleKeyDown = (event: KeyboardEvent): void => {
+    const key = this.controlKeyFromEvent(event);
     this.keys.add(key);
     if (key === ' ' || key === 'shift') this.triggerDash();
-    if (key === 'tab') {
-      e.preventDefault();
-      this.triggerBarrelRoll();
-    }
   };
 
-  private readonly handleKeyUp = (e: KeyboardEvent): void => {
-    this.keys.delete(this.controlKeyFromEvent(e));
+  private readonly handleKeyUp = (event: KeyboardEvent): void => {
+    this.keys.delete(this.controlKeyFromEvent(event));
   };
 
-  private controlKeyFromEvent(e: KeyboardEvent): string {
-    switch (e.code) {
+  private controlKeyFromEvent(event: KeyboardEvent): string {
+    switch (event.code) {
       case 'KeyW': return 'w';
       case 'KeyA': return 'a';
       case 'KeyS': return 's';
       case 'KeyD': return 'd';
-      case 'KeyQ': return 'q';
-      case 'KeyE': return 'e';
-      default: return e.key.toLowerCase();
+      case 'KeyF': return 'f';
+      default: return event.key.toLowerCase();
     }
   }
 
-  private readonly handleMouseMove = (e: MouseEvent): void => {
-    if (!this.pointerLocked) return;
-    this.mouseMoveX += e.movementX || 0;
-    this.mouseMoveY += e.movementY || 0;
-  };
-
-  private readonly handlePointerLockChange = (): void => {
-    this.pointerLocked = document.pointerLockElement === this.renderer?.domElement;
-    if (!this.pointerLocked) this.desktopLaserHeld = false;
-  };
-
-  private readonly preventContextMenu = (e: MouseEvent): void => {
-    e.preventDefault();
-  };
-
-  private readonly handleMouseDown = (e: MouseEvent): void => {
-    if (this.isMobile) return;
-    e.preventDefault();
-    if (!this.pointerLocked) this.renderer?.domElement.requestPointerLock?.();
-    if (e.button === 0) this.desktopLaserHeld = true;
-    if (e.button === 2) this.fireMissile();
-  };
-
-  private readonly handleMouseUp = (e: MouseEvent): void => {
-    if (e.button === 0) this.desktopLaserHeld = false;
-  };
-
-  private addLights(): void {
-    if (!this.scene) return;
-    this.scene.add(new THREE.AmbientLight(0x667788, this.isMobile ? 1.55 : 1.3));
-    const key = new THREE.DirectionalLight(0xddeeff, 2.6);
-    key.position.set(900, 1400, 700);
-    this.scene.add(key);
-    if (!this.isMobile) {
-      const rim = new THREE.PointLight(0x4488aa, 6, 6000);
-      rim.position.set(-1100, 500, -1800);
-      this.scene.add(rim);
+  private readonly layout = (): void => {
+    if (!this.app) return;
+    const scale = Math.min(this.app.renderer.width / WORLD_W, this.app.renderer.height / WORLD_H);
+    this.world.scale.set(scale);
+    const cx = this.app.renderer.width / 2;
+    const cy = this.app.renderer.height / 2;
+    this.world.position.set(cx, cy);
+    if (this.backgroundImage) {
+      const w = this.app.renderer.width;
+      const h = this.app.renderer.height;
+      const cover = Math.max(w / this.backgroundImage.texture.width, h / this.backgroundImage.texture.height);
+      this.backgroundImage.scale.set(cover);
+      this.backgroundImage.position.set(cx, cy);
     }
-  }
+    this.hitFlash.clear();
+    this.hitFlash.rect(0, 0, this.app.renderer.width, this.app.renderer.height).fill({ color: 0xffffff, alpha: 1 });
+    this.hitFlash.alpha = 0;
+  };
 
-  private addBackground(): void {
-    if (!this.scene) return;
-    const loader = new THREE.TextureLoader();
-    this.backgroundTexture = loader.load(this.isMobile ? RAID_BACKGROUND_MOBILE : RAID_BACKGROUND, (texture) => {
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.mapping = THREE.EquirectangularReflectionMapping;
-      if (this.scene) this.scene.background = texture;
-    });
-  }
+  // ── Ship sprite baking (section A.1) ────────────────────────────────────
 
-  private addStarfield(): void {
-    if (!this.scene) return;
-    const count = this.isMobile ? 240 : this.tier === 'low' ? 420 : 820;
-    const positions = new Float32Array(count * 3);
-    for (let i = 0; i < count; i++) {
-      positions[i * 3] = (Math.random() - 0.5) * 26000;
-      positions[i * 3 + 1] = (Math.random() - 0.5) * 5200;
-      positions[i * 3 + 2] = (Math.random() - 0.5) * 26000;
-    }
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    const mat = new THREE.PointsMaterial({ color: 0x8899aa, size: 8, sizeAttenuation: true });
-    this.scene.add(new THREE.Points(geo, mat));
-  }
+  private async bakeAtlases(): Promise<void> {
+    const size = this.bakeFrameSize;
+    const bakes: Array<Promise<void>> = [];
 
-  private async createPlayerShip(): Promise<RaidShip> {
-    const mesh = await this.loadPlayerMesh();
-    mesh.position.set(0, PLAYER_START_Y, 2200);
-    mesh.scale.setScalar(1.2);
-    return {
-      id: 1,
-      team: 'allied',
-      name: 'PLAYER',
-      pos: mesh.position,
-      vel: new THREE.Vector3(),
-      hp: RAID_PLAYER_HP,
-      maxHp: RAID_PLAYER_HP,
-      shield: RAID_PLAYER_SHIELD,
-      maxShield: RAID_PLAYER_SHIELD,
-      radius: 28,
-      fireCooldown: 0,
-      shieldDelay: 0,
-      alive: true,
-      mesh,
-    };
-  }
-
-  private async loadPlayerMesh(): Promise<THREE.Object3D> {
-    const loader = new GLTFLoader();
-    const allyTint = this.getAllyTint();
-    try {
-      const root = (await loader.loadAsync(BLUE_SHIP)).scene;
-      const model = normalizeModel(root, 58, RAID_SHIP_MODEL_NOSE_OFFSET);
-      tintShipMaterials(model, allyTint);
-      model.traverse((obj) => { obj.frustumCulled = true; });
-      return model;
-    } catch { /* selected arena GLB may not be bundled yet */ }
-
-    try {
-      const root = (await loader.loadAsync(ENEMY_SWARM_SHIP)).scene;
-      const model = normalizeModel(root, 58, RAID_SHIP_MODEL_NOSE_OFFSET);
-      tintShipMaterials(model, allyTint);
-      model.traverse((obj) => { obj.frustumCulled = true; });
-      return model;
-    } catch {
-      return this.createProceduralShip(allyTint, 36);
-    }
-  }
-
-  private createProceduralShip(color: number, scale: number): THREE.Group {
-    const group = new THREE.Group();
-    const hull = new THREE.MeshStandardMaterial({ color, metalness: 0.55, roughness: 0.42 });
-    const dark = new THREE.MeshStandardMaterial({ color: 0x0a0f19, metalness: 0.65, roughness: 0.4 });
-    const glow = new THREE.MeshBasicMaterial({ color: 0x7bb8ff });
-    const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.42, 2.2), hull);
-    group.add(body);
-    const nose = new THREE.Mesh(new THREE.ConeGeometry(0.48, 1.1, 4), hull);
-    nose.rotation.x = Math.PI / 2;
-    nose.position.z = -1.48;
-    group.add(nose);
-    for (const side of [-1, 1]) {
-      const nacelle = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.36, 1.55), dark);
-      nacelle.position.set(side * 0.95, 0, 0.12);
-      group.add(nacelle);
-      const strut = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.14, 0.32), hull);
-      strut.position.set(side * 0.55, -0.03, -0.24);
-      group.add(strut);
-    }
-    const bridge = new THREE.Mesh(new THREE.SphereGeometry(0.24, 10, 6), glow);
-    bridge.scale.set(1.1, 0.38, 0.9);
-    bridge.position.set(0, 0.28, -0.52);
-    group.add(bridge);
-    group.scale.setScalar(scale);
-    return group;
-  }
-
-  private async preloadShipTemplates(): Promise<void> {
-    const loader = new GLTFLoader();
-    const allyTint = this.getAllyTint();
-    const prepare = (root: THREE.Object3D, size: number, tint: number) => {
-      const normalized = normalizeModel(root, size, RAID_SHIP_MODEL_NOSE_OFFSET);
-      tintShipMaterials(normalized, tint);
-      normalized.traverse((obj) => {
-        obj.frustumCulled = true;
+    bakes.push((async () => {
+      const atlas = await bakeShipAtlas({
+        glbUrl: BLUE_SHIP,
+        tint: ALLY_TINT,
+        tintStrength: 0.5,
+        frameSize: size,
+        cacheKey: `ally:${size}`,
+      }) ?? await bakeShipAtlas({
+        glbUrl: ENEMY_SWARM_SHIP,
+        tint: ALLY_TINT,
+        tintStrength: 0.5,
+        frameSize: size,
+        cacheKey: `ally-fallback:${size}`,
       });
-      return normalized;
-    };
+      this.allyAtlas = atlas;
+    })());
 
-    try {
-      this.allyTemplate = prepare((await loader.loadAsync(BLUE_SHIP)).scene, 58, allyTint);
-    } catch {
-      try {
-        this.allyTemplate = prepare((await loader.loadAsync(ENEMY_SWARM_SHIP)).scene, 58, allyTint);
-      } catch {
-        this.allyTemplate = null;
-      }
+    bakes.push((async () => {
+      const atlas = await bakeShipAtlas({
+        glbUrl: ENEMY_SWARM_SHIP,
+        tint: ENEMY_TINT,
+        tintStrength: 0.5,
+        frameSize: size,
+        cacheKey: `enemy:${size}`,
+      }) ?? await bakeShipAtlas({
+        glbUrl: RED_SHIP,
+        tint: ENEMY_TINT,
+        tintStrength: 0.5,
+        frameSize: size,
+        cacheKey: `enemy-fallback:${size}`,
+      });
+      this.enemyAtlas = atlas;
+    })());
+
+    if (this.shipId === 'custom' && this.customShipGlbUrl) {
+      bakes.push((async () => {
+        this.playerAtlas = await bakeShipAtlas({
+          glbUrl: this.customShipGlbUrl!,
+          tint: 0,
+          tintStrength: 0,
+          frameSize: size,
+          cacheKey: `custom:${this.customShipGlbUrl}:${size}`,
+        });
+      })());
+    } else if (this.shipId === 'red') {
+      bakes.push((async () => {
+        this.playerAtlas = await bakeShipAtlas({
+          glbUrl: RED_SHIP,
+          tint: 0xff8844,
+          tintStrength: 0.4,
+          frameSize: size,
+          cacheKey: `player-red:${size}`,
+        });
+      })());
     }
 
+    await Promise.all(bakes);
+  }
+
+  // ── World construction ──────────────────────────────────────────────────
+
+  /**
+   * One static pre-rendered nebula backdrop (`raid_background_mobile.webp`,
+   * ~19KB, art-authored) — a single full-screen Sprite, not stretched/panned
+   * per frame. Loaded in parallel with atlas baking; if it fails, the dark
+   * app clear color + procedural dot layers already cover the background.
+   */
+  private async loadBackgroundImage(): Promise<void> {
     try {
-      this.enemyTemplate = prepare((await loader.loadAsync(ENEMY_SWARM_SHIP)).scene, 58, ENEMY_TINT);
+      const texture = await Assets.load<Texture>(RAID_BACKGROUND_IMAGE);
+      if (!this.app) return;
+      const sprite = new Sprite(texture);
+      sprite.anchor.set(0.5);
+      this.backgroundImage = sprite;
+      this.app.stage.addChildAt(sprite, 0);
+      this.layout();
     } catch {
-      try {
-        this.enemyTemplate = prepare((await loader.loadAsync(RED_SHIP)).scene, 58, ENEMY_TINT);
-      } catch {
-        this.enemyTemplate = null;
-      }
+      // Fallback stays the flat clear color + procedural dots below.
     }
   }
 
-  private cloneShipTemplate(template: THREE.Object3D | null): THREE.Object3D | null {
-    if (!template) return null;
-    const clone = template.clone(true);
-    clone.traverse((obj) => {
-      if (obj instanceof THREE.Mesh) {
-        if (Array.isArray(obj.material)) obj.material = obj.material.map((mat) => mat.clone());
-        else obj.material = obj.material.clone();
-        obj.castShadow = false;
-        obj.receiveShadow = false;
-        obj.frustumCulled = true;
-      }
+  private createBackdrop(): void {
+    const w = Math.max(1, this.container.clientWidth);
+    const h = Math.max(1, this.container.clientHeight);
+    this.background.clear();
+    for (let i = 0; i < 90; i++) {
+      const x = ((i * 137) % 1000) / 1000 * w;
+      const y = ((i * 277) % 1000) / 1000 * h;
+      const a = 0.14 + ((i * 17) % 40) / 100;
+      this.background.circle(x, y, i % 7 === 0 ? 1.4 : 0.7).fill({ color: 0x66778a, alpha: a });
+    }
+    // Two star layers that drift slowly downward, confined entirely to this
+    // self-contained combat overlay (no CameraController involved — GAME_BIBLE's
+    // parallax prohibition is about conflicts with the shared pan/zoom camera).
+    // Geometry drawn once; per-frame we only shift .y and wrap, never redraw.
+    this.drawStarLayer(this.starLayerFar, w, h, 46, 0.9, 401);
+    this.drawStarLayer(this.starLayerNear, w, h, 26, 1.6, 733);
+  }
+
+  private drawStarLayer(layer: Graphics, w: number, h: number, count: number, dotScale: number, seedMul: number): void {
+    layer.clear();
+    const wrapH = h * 2;
+    for (let i = 0; i < count; i++) {
+      const x = ((i * seedMul) % 1000) / 1000 * w;
+      const y = ((i * seedMul * 1.7) % 1000) / 1000 * wrapH;
+      const a = 0.12 + ((i * 31) % 50) / 100;
+      layer.circle(x, y, dotScale).fill({ color: 0x88aacc, alpha: a });
+    }
+    layer.position.set(0, -h * 0.5);
+  }
+
+  private createCarrier(): void {
+    const size = this.bakeFrameSize;
+    const bakePromise = bakeShipAtlas({
+      glbUrl: CARRIER_BOSS,
+      tint: 0x334455,
+      tintStrength: 0.12,
+      frameSize: size,
+      cacheKey: `carrier:${size}`,
     });
-    return clone;
-  }
 
-  private cloneEnemyShip(): THREE.Object3D {
-    const clone = this.cloneShipTemplate(this.enemyTemplate);
-    if (clone) {
-      clone.scale.multiplyScalar(this.isMobile ? 0.82 : 1);
-      return clone;
+    const hull = new Graphics();
+    hull.poly([-360, -70, -230, -145, 260, -120, 390, 0, 260, 120, -230, 145, -360, 70]);
+    hull.fill({ color: 0x172334, alpha: 0.95 });
+    hull.stroke({ color: 0x446688, alpha: 0.65, width: 3 });
+    hull.moveTo(-260, 0).lineTo(280, 0).stroke({ color: 0x334455, alpha: 0.65, width: 2 });
+    this.carrier.addChild(hull);
+    this.carrier.position.set(0, -410);
+    this.world.addChild(this.carrier);
+
+    void bakePromise.then((atlas) => {
+      if (!atlas || !this.carrier) return;
+      const sprite = new Sprite(atlas.normal[0]);
+      sprite.anchor.set(0.5);
+      sprite.scale.set(11);
+      hull.visible = false;
+      this.carrier.addChildAt(sprite, 0);
+    });
+
+    const moduleData: Array<[RaidModuleEntity['id'], RaidModuleEntity['type'], number, number, number]> = [
+      ['bay-l', 'hangar_bay', -250, -55, 85],
+      ['bay-r', 'hangar_bay', -250, 55, 85],
+      ['shield-l', 'shield_emitter', -70, -95, 110],
+      ['shield-r', 'shield_emitter', -70, 95, 110],
+      ['turret-l', 'turret_cluster', 130, -88, 95],
+      ['turret-r', 'turret_cluster', 130, 88, 95],
+      ['reactor', 'reactor_core', 255, 0, 240],
+    ];
+    for (const [id, type, x, y, hp] of moduleData) {
+      const view = drawModule(type);
+      view.position.set(x, y - 410);
+      this.modules.push({ id, type, x, y: y - 410, hp, maxHp: hp, radius: type === 'reactor_core' ? 46 : 38, alive: true, fireCooldown: 1 + Math.abs(x) / 300, view });
+      this.world.addChild(view);
     }
-    return this.createDrone(0xaa5533);
   }
 
-  private createDrone(color = 0xaa5533): THREE.Group {
-    const group = new THREE.Group();
-    const mat = new THREE.MeshStandardMaterial({ color, metalness: 0.5, roughness: 0.5 });
-    const core = new THREE.Mesh(new THREE.OctahedronGeometry(18, 0), mat);
-    group.add(core);
-    const wingGeo = new THREE.BoxGeometry(42, 6, 14);
-    const left = new THREE.Mesh(wingGeo, mat);
-    left.position.x = -28;
-    const right = new THREE.Mesh(wingGeo, mat);
-    right.position.x = 28;
-    group.add(left, right);
-    return group;
+  private buildShipView(atlas: ShipAtlas | null, fallbackColor: number, fallbackScale: number, isDrone: boolean): EntityView {
+    const root = new Container();
+    if (atlas) {
+      const sprite = new Sprite(atlas.normal[0]);
+      sprite.anchor.set(0.5);
+      const desiredHeight = isDrone ? 34 : 40;
+      const spriteScale = desiredHeight / atlas.frameSize;
+      sprite.scale.set(spriteScale);
+      root.addChild(sprite);
+      return { root, sprite, atlas, angleIndex: 0 };
+    }
+    const fallback = isDrone ? drawProceduralDrone() : drawProceduralShip(fallbackColor, fallbackScale);
+    root.addChild(fallback);
+    return { root, sprite: null, atlas: null, angleIndex: 0 };
+  }
+
+  private createPlayer(): void {
+    const atlas = this.playerAtlas ?? this.allyAtlas;
+    const view = this.buildShipView(atlas, 0x7bb8ff, 1.1, false);
+    this.player = {
+      id: 1, team: 'allied', x: 0, y: 460, vx: 0, vy: 0,
+      hp: RAID_PLAYER_HP, maxHp: RAID_PLAYER_HP, shield: RAID_PLAYER_SHIELD, maxShield: RAID_PLAYER_SHIELD,
+      radius: 20, fireCooldown: 0, shieldDelay: 0, alive: true, view, facing: 0, trailTimer: 0,
+    };
+    this.world.addChild(view.root);
   }
 
   private createWingmen(): void {
-    if (!this.scene) return;
-    const allyTint = this.getAllyTint();
     for (let i = 0; i < RAID_WINGMEN; i++) {
-      const mesh = this.cloneShipTemplate(this.allyTemplate) ?? this.createProceduralShip(allyTint, 26);
-      mesh.position.set((i - 1.5) * 150, i % 2 === 0 ? 55 : -35, 1230 - Math.abs(i - 1.5) * 55);
-      this.scene.add(mesh);
-      this.wingmen.push({
-        id: 10 + i,
-        team: 'allied',
-        name: `WING-${i + 1}`,
-        pos: mesh.position,
-        vel: new THREE.Vector3(),
-        hp: RAID_ALLY_HP,
-        maxHp: RAID_ALLY_HP,
-        shield: RAID_ALLY_SHIELD,
-        maxShield: RAID_ALLY_SHIELD,
-        radius: 22,
-        fireCooldown: 0.2 + i * 0.1,
+      const view = this.buildShipView(this.allyAtlas, 0x7bb8ff, 0.82, false);
+      const ship: RaidShipEntity = {
+        id: 10 + i, team: 'allied', x: (i - 1.5) * 110, y: 540 + (i % 2) * 50, vx: 0, vy: 0,
+        hp: RAID_ALLY_HP, maxHp: RAID_ALLY_HP, shield: RAID_ALLY_SHIELD, maxShield: RAID_ALLY_SHIELD,
+        radius: 16, fireCooldown: i * 0.25, shieldDelay: 0, alive: true, view, facing: 0, trailTimer: Math.random(),
+      };
+      this.wingmen.push(ship);
+      this.world.addChild(view.root);
+    }
+  }
+
+  private createProjectilePool(): void {
+    this.allyProjectileTexture = this.buildProjectileTexture(0x7bb8ff);
+    this.enemyProjectileTexture = this.buildProjectileTexture(0xff8844);
+    const count = this.tier === 'low' ? 90 : 140;
+    for (let i = 0; i < count; i++) {
+      const view = new Sprite(this.allyProjectileTexture);
+      view.anchor.set(0.5);
+      view.visible = false;
+      this.projectiles.push({ active: false, team: 'allied', damage: RAID_PROJECTILE_DAMAGE, age: 0, lifetime: RAID_PROJECTILE_LIFETIME, radius: 5, x: 0, y: 0, vx: 0, vy: 0, view });
+      this.world.addChild(view);
+    }
+  }
+
+  /** Two shared bolt textures (allied/enemy) baked once — replaces the old per-shot Graphics.clear()+redraw. */
+  private buildProjectileTexture(color: number): Texture {
+    if (!this.app) return Texture.EMPTY;
+    const g = new Graphics();
+    g.circle(0, 0, 6).fill({ color, alpha: 0.25 });
+    g.circle(0, 0, 3.6).fill({ color, alpha: 0.9 });
+    g.circle(0, 0, 1.6).fill({ color: 0xffffff, alpha: 0.9 });
+    const texture = this.app.renderer.generateTexture({ target: g, resolution: 2 });
+    g.destroy();
+    return texture;
+  }
+
+  private spawnWave(count: number): void {
+    const active = this.enemies.filter((enemy) => enemy.alive).length;
+    const spawnCount = Math.max(0, Math.min(count, this.maxActiveEnemies - active));
+    for (let i = 0; i < spawnCount; i++) {
+      const side = i % 2 === 0 ? -1 : 1;
+      const view = this.buildShipView(this.enemyAtlas, 0xcc4444, 1, true);
+      const ship: RaidShipEntity = {
+        id: 1000 + this.enemies.length,
+        team: 'enemy',
+        x: side * (520 + (i % 4) * 60),
+        y: -190 - Math.floor(i / 2) * 70,
+        vx: -side * 60,
+        vy: 70,
+        hp: RAID_DRONE_HP,
+        maxHp: RAID_DRONE_HP,
+        shield: 0,
+        maxShield: 0,
+        radius: 17,
+        fireCooldown: 0.8 + (i % 5) * 0.18,
         shieldDelay: 0,
         alive: true,
-        mesh,
-      });
+        view,
+        facing: Math.PI,
+        trailTimer: Math.random(),
+        aiOrbitDir: i % 2 === 0 ? -1 : 1,
+        aiOrbitRadius: 150 + (i % 5) * 28,
+      };
+      this.enemies.push(ship);
+      this.world.addChild(view.root);
     }
   }
 
-  private async createCarrier(): Promise<void> {
-    if (!this.scene) return;
-    try {
-      const gltf = await new GLTFLoader().loadAsync(CARRIER_BOSS);
-      const root = normalizeModel(gltf.scene, 2600);
-      root.position.set(0, CARRIER_Y, 0);
-      root.traverse((obj) => {
-        obj.frustumCulled = true;
-      });
-      this.scene.add(root);
-      this.carrier = root;
-      this.createCarrierModules(root);
+  // ── Main loop ────────────────────────────────────────────────────────────
+
+  private readonly update = (): void => {
+    if (!this.app || this.ended) return;
+    const realDeltaMs = this.app.ticker.deltaMS;
+    this.updateDynamicResolution(realDeltaMs);
+
+    if (this.hitStopMsRemaining > 0) {
+      this.hitStopMsRemaining -= realDeltaMs;
+      this.updateFeedback(realDeltaMs);
+      this.updateViews();
       return;
-    } catch {
-      // Missing generated model is expected while developing; procedural
-      // carrier keeps the raid playable until the GLB is dropped into public.
     }
-    const carrier = new THREE.Group();
-    carrier.position.set(0, CARRIER_Y, 0);
-    const hull = new THREE.MeshStandardMaterial({ color: 0x1b2532, metalness: 0.7, roughness: 0.38 });
-    const dark = new THREE.MeshStandardMaterial({ color: 0x070b12, metalness: 0.55, roughness: 0.5 });
-    const glow = new THREE.MeshBasicMaterial({ color: 0x4488aa });
-    const main = new THREE.Mesh(new THREE.BoxGeometry(1600, 260, 2600), hull);
-    carrier.add(main);
-    const spine = new THREE.Mesh(new THREE.BoxGeometry(620, 360, 1900), dark);
-    spine.position.y = 180;
-    carrier.add(spine);
-    const nose = new THREE.Mesh(new THREE.ConeGeometry(480, 680, 4), hull);
-    nose.rotation.x = Math.PI / 2;
-    nose.position.z = -1640;
-    carrier.add(nose);
-    for (const side of [-1, 1]) {
-      const bay = new THREE.Mesh(new THREE.BoxGeometry(420, 180, 460), dark);
-      bay.position.set(side * 980, -120, -260);
-      carrier.add(bay);
-      this.modules.push(this.createModule(`hangar_${side}`, 'hangar_bay', 'Hangar Bay', 180, new THREE.Vector3(side * 980, CARRIER_Y - 120, -260), bay));
-      this.spawnBays.push(new THREE.Vector3(side * 980, CARRIER_BAY_Y, -260));
-      const shield = new THREE.Mesh(new THREE.SphereGeometry(150, 14, 8), glow);
-      shield.position.set(side * 560, 260, 420);
-      carrier.add(shield);
-      this.modules.push(this.createModule(`shield_${side}`, 'shield_emitter', 'Shield Emitter', 150, new THREE.Vector3(side * 560, CARRIER_Y + 260, 420), shield));
-      const turret = new THREE.Mesh(new THREE.CylinderGeometry(55, 75, 130, 10), hull);
-      turret.position.set(side * 460, 260, -780);
-      carrier.add(turret);
-      this.modules.push(this.createModule(`turret_${side}`, 'turret_cluster', 'Turret Cluster', 120, new THREE.Vector3(side * 460, CARRIER_Y + 260, -780), turret));
+
+    let dt = Math.min(0.05, realDeltaMs / 1000);
+    if (this.slowMoMsRemaining > 0) {
+      this.slowMoMsRemaining -= realDeltaMs;
+      dt *= RAID_WAVE_CLEAR_SLOWMO_FACTOR;
     }
-    const reactor = new THREE.Mesh(new THREE.SphereGeometry(230, 18, 10), glow);
-    reactor.position.set(0, 0, 980);
-    carrier.add(reactor);
-    this.modules.push(this.createModule('reactor', 'reactor_core', 'Reactor Core', 420, new THREE.Vector3(0, CARRIER_Y, 980), reactor));
-    this.scene.add(carrier);
-    this.carrier = carrier;
-  }
 
-  private createCarrierModules(root: THREE.Object3D): void {
-    const specs: Array<[string, RaidModule['type'], string, number, THREE.Vector3, number]> = [
-      ['hangar_-1', 'hangar_bay', 'Hangar Bay', 180, new THREE.Vector3(-980, CARRIER_BAY_Y, -280), 150],
-      ['hangar_1', 'hangar_bay', 'Hangar Bay', 180, new THREE.Vector3(980, CARRIER_BAY_Y, -280), 150],
-      ['shield_-1', 'shield_emitter', 'Shield Emitter', 150, new THREE.Vector3(-560, CARRIER_Y + 280, 420), 160],
-      ['shield_1', 'shield_emitter', 'Shield Emitter', 150, new THREE.Vector3(560, CARRIER_Y + 280, 420), 160],
-      ['turret_-1', 'turret_cluster', 'Turret Cluster', 120, new THREE.Vector3(-460, CARRIER_Y + 260, -780), 120],
-      ['turret_1', 'turret_cluster', 'Turret Cluster', 120, new THREE.Vector3(460, CARRIER_Y + 260, -780), 120],
-      ['reactor', 'reactor_core', 'Reactor Core', 420, new THREE.Vector3(0, CARRIER_Y, 980), 240],
-    ];
-    for (const [id, type, label, hp, pos, radius] of specs) {
-      this.modules.push({ id, type, label, hp, maxHp: hp, radius, pos, mesh: root, alive: true, fireCooldown: 1.5 });
-    }
-    this.spawnBays.push(new THREE.Vector3(-980, CARRIER_BAY_Y, -280), new THREE.Vector3(980, CARRIER_BAY_Y, -280));
-  }
-
-  private createModule(id: string, type: RaidModule['type'], label: string, hp: number, worldPos: THREE.Vector3, mesh: THREE.Object3D): RaidModule {
-    return { id, type, label, hp, maxHp: hp, radius: type === 'reactor_core' ? 240 : 130, pos: worldPos, mesh, alive: true, fireCooldown: 1.5 };
-  }
-
-  private checkPlayerCarrierCollision(): void {
-    if (!this.player?.alive || !this.carrier) return;
-    const local = this.player.pos.clone().sub(this.carrier.position);
-    const inside =
-      Math.abs(local.x) < CARRIER_COLLISION_HALF.x + this.player.radius &&
-      Math.abs(local.y) < CARRIER_COLLISION_HALF.y + this.player.radius &&
-      Math.abs(local.z) < CARRIER_COLLISION_HALF.z + this.player.radius;
-    if (!inside) return;
-    this.player.hp = 0;
-    this.player.shield = 0;
-    this.player.alive = false;
-    this.player.mesh.visible = false;
-    playSfx('arena-explosion', 0.24);
-    this.finish(false);
-  }
-
-  private createProjectiles(): void {
-    if (!this.scene) return;
-    const geo = new THREE.CylinderGeometry(2.5, 2.5, 34, 8);
-    geo.rotateX(Math.PI / 2);
-    for (let i = 0; i < this.maxProjectiles; i++) {
-      const mat = new THREE.MeshBasicMaterial({ color: 0x7bb8ff });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.visible = false;
-      this.scene.add(mesh);
-      this.projectiles.push({
-        active: false,
-        team: 'allied',
-        kind: 'laser',
-        damage: RAID_PROJECTILE_DAMAGE,
-        age: 0,
-        lifetime: RAID_PROJECTILE_LIFETIME,
-        radius: 8,
-        pos: mesh.position,
-        vel: new THREE.Vector3(),
-        mesh,
-      });
-    }
-  }
-
-  private loop = (): void => {
-    if (this.destroyed || !this.renderer || !this.scene || !this.camera) return;
-    const dt = Math.min(0.033, this.clock.getDelta());
-    this.update(dt);
-    this.renderer.render(this.scene, this.camera);
-    this.raf = requestAnimationFrame(this.loop);
-  };
-
-  private update(dt: number): void {
-    if (!this.player || this.ended) return;
     const elapsed = (performance.now() - this.startedAt) / 1000;
-    if (elapsed > 3 && this.phase === 'approach') this.phase = 'waves';
-    this.updateAim(dt);
+    while (this.nextWaveIndex < RAID_WAVES.length && elapsed >= RAID_WAVES[this.nextWaveIndex].at) {
+      this.spawnWave(RAID_WAVES[this.nextWaveIndex].count);
+      this.nextWaveIndex++;
+      if (this.phase === 'approach') this.phase = 'waves';
+    }
+
     this.updatePlayer(dt);
     this.updateWingmen(dt);
-    this.updateWaves(elapsed, dt);
     this.updateEnemies(dt);
     this.updateModules(dt);
     this.updateProjectiles(dt);
-    this.updateCamera(dt);
+    this.particles?.update(dt);
+    this.updateFeedback(realDeltaMs);
+    this.updateViews();
+
+    const shieldAlive = this.modules.some((module) => module.type === 'shield_emitter' && module.alive);
+    const reactor = this.modules.find((module) => module.type === 'reactor_core');
+    if (!shieldAlive && this.phase !== 'victory' && this.phase !== 'defeat') this.phase = 'reactor';
+    if (reactor && !reactor.alive) this.endRaid(true);
+    if (this.player && !this.player.alive) this.endRaid(false);
+
     this.snapshotTimer += dt;
-    if (this.snapshotTimer > 0.2) {
+    if (this.snapshotTimer >= 0.15) {
       this.snapshotTimer = 0;
       this.callbacks.onStatsUpdate?.(this.getSnapshot());
     }
-    if (!this.player.alive) this.finish(false);
-    const reactor = this.modules.find(m => m.type === 'reactor_core');
-    if (reactor && !reactor.alive) this.finish(true);
-  }
+  };
 
   private updatePlayer(dt: number): void {
-    if (!this.player || !this.player.alive) return;
-    this.missileCooldown = Math.max(0, this.missileCooldown - dt);
-    this.mobileMissileRepeat = Math.max(0, this.mobileMissileRepeat - dt);
-    if (this.barrelRollTimer > 0) this.barrelRollTimer -= dt;
-    if (this.barrelRollCooldown > 0) this.barrelRollCooldown -= dt;
-
-    const forward = this.aimDir.clone().normalize();
-    const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
-    if (right.lengthSq() < 0.01) right.set(1, 0, 0);
-    const dir = new THREE.Vector3();
-    if (this.isMobile) {
-      const thrust = -this.moveInput.z;
-      if (Math.abs(thrust) > 0.01) dir.addScaledVector(forward, thrust);
-      if (Math.abs(this.moveInput.x) > 0.01) dir.addScaledVector(right, this.moveInput.x * 0.65);
-    } else {
-      if (this.keys.has('w') || this.keys.has('arrowup')) dir.add(forward);
-      if (this.keys.has('s') || this.keys.has('arrowdown')) dir.addScaledVector(forward, -1);
-      if (this.keys.has('a') || this.keys.has('arrowleft')) dir.addScaledVector(right, -1);
-      if (this.keys.has('d') || this.keys.has('arrowright')) dir.addScaledVector(right, 1);
-    }
-    if (dir.lengthSq() > 1) {
-      dir.normalize();
-      dir.y *= 0.6;
-    }
-    // Forward/back/strafe follows the nose like ArenaEngine, giving raid the
-    // same dogfight feel instead of the old flat form-combat movement.
-    this.player.vel.addScaledVector(dir, RAID_ACCELERATION * dt);
-    clampLength(this.player.vel, RAID_SPEED);
-    this.player.pos.addScaledVector(this.player.vel, dt);
-    this.player.vel.multiplyScalar(Math.pow(RAID_DRAG, dt * 60));
-    this.clampToSector(this.player.pos);
+    const player = this.player;
+    if (!player?.alive) return;
+    const keyX = (this.keys.has('a') || this.keys.has('arrowleft') ? -1 : 0) + (this.keys.has('d') || this.keys.has('arrowright') ? 1 : 0);
+    const keyY = (this.keys.has('w') || this.keys.has('arrowup') ? -1 : 0) + (this.keys.has('s') || this.keys.has('arrowdown') ? 1 : 0);
+    const input = normalize(keyX + this.moveInput.x, keyY + this.moveInput.y);
+    player.vx += input.x * RAID_SPEED * 3.2 * dt;
+    player.vy += input.y * RAID_SPEED * 3.2 * dt;
+    player.vx *= 0.91;
+    player.vy *= 0.91;
+    player.x = clamp(player.x + player.vx * dt, -760, 760);
+    player.y = clamp(player.y + player.vy * dt, -120, 590);
+    player.facing = facingAngle(this.aimInput.x, this.aimInput.y);
+    this.emitTrail(player, dt);
     this.checkPlayerCarrierCollision();
-    this.updateShield(this.player, dt);
-    this.orientShipToDirection(this.player.mesh, this.aimDir, this.shipRoll + this.currentBarrelRoll());
-    const speedPct = Math.min(1, this.player.vel.length() / RAID_SPEED);
-    setLoopVolume('fly', 0.03 + speedPct * 0.11);
-    const mobileAutoLaser = this.isMobile && this.sectorAction === 'center' && this.findAimTarget(1500, 0.86);
-    if (this.desktopLaserHeld || mobileAutoLaser) {
-      this.player.fireCooldown -= dt;
-      if (this.player.fireCooldown <= 0) {
-        this.firePlayerLaser();
-        this.player.fireCooldown = 0.25;
-      }
-    }
-    if (this.sectorAction === 'missile' && this.mobileMissileRepeat <= 0) {
-      this.fireMissile();
-      this.mobileMissileRepeat = 1.8;
-    }
+    player.fireCooldown -= dt;
+    if (this.keys.has('f') || this.keys.has('enter')) this.firePlayerBurst();
+    this.regenShield(player, dt);
   }
 
-  private updateAim(dt: number): void {
-    if (!this.player) return;
-    const curPitch = Math.asin(Math.max(-1, Math.min(1, this.aimDir.y)));
-    const curYaw = Math.atan2(this.aimDir.x, -this.aimDir.z);
-    if (this.pointerLocked) {
-      if (!this.mouseTargetReady) {
-        this.mouseTargetYaw = curYaw;
-        this.mouseTargetPitch = curPitch;
-        this.mouseTargetReady = true;
-      }
-      this.mouseTargetYaw += this.mouseMoveX * this.mouseSens;
-      this.mouseTargetPitch -= this.mouseMoveY * this.mouseSens;
-      this.mouseTargetPitch = Math.max(-this.maxPitch, Math.min(this.maxPitch, this.mouseTargetPitch));
-      let yawDelta = this.mouseTargetYaw - curYaw;
-      while (yawDelta > Math.PI) yawDelta -= Math.PI * 2;
-      while (yawDelta < -Math.PI) yawDelta += Math.PI * 2;
-      const pitchDelta = this.mouseTargetPitch - curPitch;
-      const follow = Math.min(1, dt * this.turnFollow);
-      const yawStep = Math.max(-this.maxYawRate * dt, Math.min(this.maxYawRate * dt, yawDelta * follow));
-      const pitchStep = Math.max(-this.maxPitchRate * dt, Math.min(this.maxPitchRate * dt, pitchDelta * follow));
-      const newYaw = curYaw + yawStep;
-      const newPitch = curPitch + pitchStep;
-      const targetRoll = Math.max(-this.maxRoll, Math.min(this.maxRoll, -yawDelta * 1.25));
-      this.shipRoll += (targetRoll - this.shipRoll) * Math.min(1, dt * 2.2);
-      const cp = Math.cos(newPitch);
-      this.aimDir.set(Math.sin(newYaw) * cp, Math.sin(newPitch), -Math.cos(newYaw) * cp).normalize();
-      this.mouseMoveX = 0;
-      this.mouseMoveY = 0;
-    } else {
-      this.mouseTargetReady = false;
-      const keyboardYaw = (this.keys.has('e') ? 1 : 0) - (this.keys.has('q') ? 1 : 0);
-      if (keyboardYaw !== 0) {
-        const newYaw = curYaw + keyboardYaw * this.maxYawRate * dt;
-        const cp = Math.cos(curPitch);
-        this.aimDir.set(Math.sin(newYaw) * cp, Math.sin(curPitch), -Math.cos(newYaw) * cp).normalize();
-      }
-      this.shipRoll += (0 - this.shipRoll) * Math.min(1, dt * 3);
-    }
-    this.aimInput.copy(this.aimDir);
+  private checkPlayerCarrierCollision(): void {
+    const player = this.player;
+    if (!player?.alive) return;
+    const inside =
+      player.x > -390 - player.radius &&
+      player.x < 390 + player.radius &&
+      player.y > -555 - player.radius &&
+      player.y < -265 + player.radius;
+    if (!inside) return;
+    player.hp = 0;
+    player.shield = 0;
+    player.alive = false;
+    player.view.root.visible = false;
+    this.endRaid(false);
   }
 
   private updateWingmen(dt: number): void {
-    if (!this.player) return;
-    const forward = this.aimDir.clone().normalize();
-    const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
-    if (right.lengthSq() < 0.01) right.set(1, 0, 0);
-    const up = new THREE.Vector3().crossVectors(right, forward).normalize();
+    const targets = this.enemies.filter((enemy) => enemy.alive);
     for (let i = 0; i < this.wingmen.length; i++) {
-      const wing = this.wingmen[i];
-      if (!wing.alive) continue;
-      const time = performance.now() * 0.001;
-      const phase = i * 1.73;
-      const side = i % 2 === 0 ? -1 : 1;
-      const depth = [-420, -120, 260, 560][i] ?? -240;
-      const altitude = [-260, 230, -120, 320][i] ?? 0;
-      const desired = this.player.pos.clone()
-        .addScaledVector(forward, depth + Math.sin(time * 0.7 + phase) * 150)
-        .addScaledVector(right, side * (220 + i * 55) + Math.cos(time * 1.1 + phase) * 95)
-        .addScaledVector(up, altitude + Math.sin(time * 1.4 + phase) * 120);
-      wing.vel.addScaledVector(desired.sub(wing.pos), dt * 1.55);
-      clampLength(wing.vel, RAID_SPEED * 0.92);
-      wing.pos.addScaledVector(wing.vel, dt);
-      wing.vel.multiplyScalar(Math.pow(0.91, dt * 60));
-      this.updateShield(wing, dt);
-      const target = this.findNearestTarget(wing.pos, 1600);
+      const ship = this.wingmen[i];
+      if (!ship.alive) continue;
+      const anchorX = (i - 1.5) * 120 + (this.player?.x ?? 0) * 0.25;
+      const anchorY = 500 + (i % 2) * 55;
+      ship.vx += (anchorX - ship.x) * dt * 1.5;
+      ship.vy += (anchorY - ship.y) * dt * 1.5;
+      ship.vx *= 0.9;
+      ship.vy *= 0.9;
+      ship.x += ship.vx * dt;
+      ship.y += ship.vy * dt;
+      ship.fireCooldown -= dt;
+      const target = targets[i % Math.max(1, targets.length)] ?? this.modules.find((module) => module.alive && module.type !== 'reactor_core');
       if (target) {
-        this.orientShipToDirection(wing.mesh, target.pos.clone().sub(wing.pos).normalize(), Math.sin(time + phase) * 0.18);
-        wing.fireCooldown -= dt;
-        if (wing.fireCooldown <= 0) {
-          this.fireProjectile('allied', wing.pos, target.pos, RAID_ALLY_DAMAGE);
-          if (Math.random() < 0.35) playSfx('arena-laser', 0.035, 1.15);
-          wing.fireCooldown = 0.45 + i * 0.05;
-        }
-      } else {
-        this.orientShipToDirection(wing.mesh, forward, Math.sin(time + phase) * 0.12);
+        ship.facing = facingAngle(target.x - ship.x, target.y - ship.y);
       }
+      this.emitTrail(ship, dt);
+      if (target && ship.fireCooldown <= 0) {
+        this.fireProjectile(ship.x, ship.y - 12, target.x - ship.x, target.y - ship.y, 'allied', RAID_ALLY_DAMAGE);
+        ship.fireCooldown = 0.55 + i * 0.05;
+      }
+      this.regenShield(ship, dt);
     }
-  }
-
-  private updateWaves(elapsed: number, dt: number): void {
-    while (this.nextWaveIndex < RAID_WAVES.length && elapsed >= RAID_WAVES[this.nextWaveIndex].at) {
-      this.queuedEnemies += RAID_WAVES[this.nextWaveIndex].count;
-      this.nextWaveIndex++;
-    }
-    this.spawnQueuedEnemies(dt);
-    const shieldsDown = !this.modules.some(m => m.type === 'shield_emitter' && m.alive);
-    if (shieldsDown && this.phase === 'waves') this.phase = 'reactor';
-  }
-
-  private spawnQueuedEnemies(dt: number): void {
-    if (!this.scene) return;
-    this.enemySpawnTimer = Math.max(0, this.enemySpawnTimer - dt);
-    if (this.enemySpawnTimer > 0 || this.queuedEnemies <= 0) return;
-    const active = this.enemies.filter(e => e.alive).length;
-    const room = Math.max(0, this.maxActiveEnemies - active);
-    if (room <= 0) return;
-
-    const mesh = this.cloneEnemyShip();
-    const bay = this.spawnBays[this.enemies.length % Math.max(1, this.spawnBays.length)] ?? new THREE.Vector3(0, -260, -300);
-    mesh.position.copy(bay).add(new THREE.Vector3(
-      (Math.random() - 0.5) * 220,
-      -40 - Math.random() * 140,
-      (Math.random() - 0.5) * 220,
-    ));
-    const launchAngle = ((this.enemies.length * 2.399) + Math.random() * 0.65) % (Math.PI * 2);
-    const launchDir = new THREE.Vector3(
-      Math.cos(launchAngle),
-      -0.16 - Math.random() * 0.18,
-      Math.sin(launchAngle),
-    ).normalize();
-    this.orientShipToDirection(mesh, launchDir);
-    this.scene.add(mesh);
-    this.enemies.push({
-      id: 100 + this.enemies.length,
-      team: 'enemy',
-      name: 'DRONE',
-      pos: mesh.position,
-      vel: launchDir.multiplyScalar(180 + Math.random() * 130),
-      hp: RAID_DRONE_HP,
-      maxHp: RAID_DRONE_HP,
-      shield: 0,
-      maxShield: 0,
-      radius: 22,
-      fireCooldown: 0.8 + Math.random() * 1.1,
-      shieldDelay: 0,
-      alive: true,
-      mesh,
-      aiBrain: createBotBrain(this.isMobile ? 'medium' : 'hard'),
-      aiRoamY: mesh.position.y,
-      aiRoamYUntil: performance.now() + 1500 + Math.random() * 2500,
-      aiDashCooldown: 2 + Math.random() * 4,
-      aiDashTimer: 0,
-      aiLastAim: launchDir.clone(),
-    });
-    this.queuedEnemies--;
-    this.enemySpawnTimer = this.isMobile
-      ? RAID_ENEMY_SPAWN_INTERVAL_MOBILE
-      : RAID_ENEMY_SPAWN_INTERVAL_DESKTOP;
   }
 
   private updateEnemies(dt: number): void {
-    if (!this.player) return;
-    const allies = [this.player, ...this.wingmen].filter(s => s.alive);
-    const aiShips = this.buildRaidAiEntities(allies);
+    const player = this.player;
+    const allies = [player, ...this.wingmen].filter((ship): ship is RaidShipEntity => !!ship && ship.alive);
     for (const enemy of this.enemies) {
       if (!enemy.alive) continue;
-      const target = this.nearestShip(enemy.pos, allies);
+      const target = this.nearestShip(enemy, allies);
       if (!target) continue;
-
-      enemy.aiBrain ??= createBotBrain(this.isMobile ? 'medium' : 'hard');
-      enemy.aiDashCooldown = Math.max(0, (enemy.aiDashCooldown ?? 0) - dt);
-      enemy.aiDashTimer = Math.max(0, (enemy.aiDashTimer ?? 0) - dt);
-
-      const selfEntity = this.raidShipToArenaEntity(enemy);
-      const input = updateBot(enemy.aiBrain, selfEntity, aiShips.filter(s => s.id !== enemy.id), dt);
-      const brainTarget = enemy.aiBrain.targetId !== null
-        ? allies.find(ship => ship.id === enemy.aiBrain?.targetId)
-        : target;
-
-      const distFromCenter = Math.hypot(enemy.pos.x, enemy.pos.z);
-      let ax = input.moveDir.x;
-      let az = input.moveDir.z;
-      if (distFromCenter > RAID_SECTOR_HALF * 0.84) {
-        ax = -enemy.pos.x / Math.max(1, distFromCenter);
-        az = -enemy.pos.z / Math.max(1, distFromCenter);
-        enemy.aiBrain.state = 'patrol';
-        enemy.aiBrain.targetId = null;
-        enemy.aiBrain.decisionTimer = 0;
+      const dx = target.x - enemy.x;
+      const dy = target.y - enemy.y;
+      const dist = Math.max(1, Math.hypot(dx, dy));
+      const dir = { x: dx / dist, y: dy / dist };
+      const tangent = { x: -dir.y * (enemy.aiOrbitDir ?? 1), y: dir.x * (enemy.aiOrbitDir ?? 1) };
+      const orbitRadius = enemy.aiOrbitRadius ?? 190;
+      const radial = dist < orbitRadius * 0.75 ? -1 : dist > orbitRadius * 1.35 ? 1 : 0;
+      const separation = this.computeEnemySeparation(enemy, 95);
+      const dodgeWave = Math.sin(performance.now() * 0.003 + enemy.id) * 0.35;
+      const move = normalize(
+        tangent.x * 1.25 + dir.x * radial + separation.x * 1.6,
+        tangent.y * 1.25 + dir.y * radial + separation.y * 1.6 + dodgeWave,
+      );
+      enemy.vx += move.x * 310 * dt;
+      enemy.vy += move.y * 310 * dt;
+      enemy.vx *= 0.965;
+      enemy.vy *= 0.965;
+      const speed = Math.hypot(enemy.vx, enemy.vy);
+      if (speed > 240) {
+        enemy.vx = enemy.vx / speed * 240;
+        enemy.vy = enemy.vy / speed * 240;
       }
-
-      const now = performance.now();
-      if (now > (enemy.aiRoamYUntil ?? 0)) {
-        enemy.aiRoamY = (Math.random() * 2 - 1) * RAID_HEIGHT_HALF * 0.62;
-        enemy.aiRoamYUntil = now + 2600 + Math.random() * 4200;
-      }
-      const targetY = brainTarget?.alive
-        ? brainTarget.pos.y + Math.sin(now * 0.0012 + enemy.id) * 150
-        : enemy.aiRoamY ?? enemy.pos.y;
-      const ay = Math.abs(targetY - enemy.pos.y) > 28 ? Math.sign(targetY - enemy.pos.y) : 0;
-
-      enemy.vel.x += ax * RAID_ENEMY_ACCELERATION * dt;
-      enemy.vel.z += az * RAID_ENEMY_ACCELERATION * dt;
-      enemy.vel.y += ay * RAID_ENEMY_ACCELERATION * 0.46 * dt;
-
-      if (input.dash && (enemy.aiDashCooldown ?? 0) <= 0 && (enemy.aiDashTimer ?? 0) <= 0) {
-        enemy.aiDashTimer = 0.18;
-        enemy.aiDashCooldown = 5.5 + Math.random() * 3.5;
-      }
-      if ((enemy.aiDashTimer ?? 0) > 0) {
-        const dashDir = new THREE.Vector3(input.aimDir.x, 0, input.aimDir.z);
-        if (dashDir.lengthSq() < 0.001) dashDir.copy(enemy.vel);
-        dashDir.normalize();
-        enemy.vel.x = dashDir.x * RAID_ENEMY_MAX_SPEED * 1.75;
-        enemy.vel.z = dashDir.z * RAID_ENEMY_MAX_SPEED * 1.75;
-      }
-
-      const separation = this.computeEnemySeparation(enemy, 190);
-      enemy.vel.addScaledVector(separation, 260 * dt);
-      clampLength(enemy.vel, RAID_ENEMY_MAX_SPEED);
-      enemy.pos.addScaledVector(enemy.vel, dt);
-      enemy.vel.multiplyScalar(Math.pow(0.965, dt * 60));
-      this.clampToSector(enemy.pos);
-
-      const aimTarget = brainTarget ?? target;
-      const aimPoint = aimTarget.pos.clone().addScaledVector(aimTarget.vel, Math.min(0.42, enemy.pos.distanceTo(aimTarget.pos) / RAID_PROJECTILE_SPEED));
-      const aimDir = aimPoint.sub(enemy.pos).normalize();
-      enemy.aiLastAim?.lerp(aimDir, Math.min(1, dt * 5));
-      if (!enemy.aiLastAim) enemy.aiLastAim = aimDir.clone();
-      const visualDir = enemy.aiLastAim.lengthSq() > 0.001 ? enemy.aiLastAim : enemy.vel.clone().normalize();
-      this.orientShipToDirection(enemy.mesh, visualDir, Math.sin(now * 0.004 + enemy.id) * 0.22);
-
-      const dist = enemy.pos.distanceTo(aimTarget.pos);
-      const noseDot = visualDir.dot(aimDir);
+      enemy.x = clamp(enemy.x + enemy.vx * dt, -880, 880);
+      enemy.y = clamp(enemy.y + enemy.vy * dt, -520, 620);
+      enemy.facing = facingAngle(enemy.vx, enemy.vy) || enemy.facing;
+      this.emitTrail(enemy, dt);
       enemy.fireCooldown -= dt;
-      if (input.firing && enemy.fireCooldown <= 0 && dist < RAID_ENEMY_ATTACK_RANGE && noseDot > RAID_ENEMY_FIRE_CONE_DOT) {
-        const predicted = aimTarget.pos.clone().addScaledVector(aimTarget.vel, Math.min(0.45, dist / RAID_PROJECTILE_SPEED));
-        predicted.add(new THREE.Vector3(
-          (Math.random() - 0.5) * (this.isMobile ? 180 : 110),
-          (Math.random() - 0.5) * (this.isMobile ? 110 : 70),
-          (Math.random() - 0.5) * (this.isMobile ? 180 : 110),
-        ));
-        this.fireProjectile('enemy', enemy.pos, predicted, RAID_ENEMY_DAMAGE);
-        enemy.fireCooldown = (this.isMobile ? 0.82 : 0.58) + Math.random() * 0.38;
+      if (enemy.fireCooldown <= 0 && dist < 760) {
+        const lead = Math.min(0.36, dist / (RAID_PROJECTILE_SPEED * 0.55));
+        this.fireProjectile(
+          enemy.x,
+          enemy.y + 10,
+          target.x + target.vx * lead - enemy.x + (Math.random() - 0.5) * 70,
+          target.y + target.vy * lead - enemy.y + (Math.random() - 0.5) * 50,
+          'enemy',
+          RAID_ENEMY_DAMAGE,
+        );
+        enemy.fireCooldown = 0.72 + Math.random() * 0.45;
       }
     }
   }
 
+  private nearestShip(from: RaidShipEntity, ships: RaidShipEntity[]): RaidShipEntity | null {
+    let best: RaidShipEntity | null = null;
+    let bestD = Infinity;
+    for (const ship of ships) {
+      const d = (ship.x - from.x) ** 2 + (ship.y - from.y) ** 2;
+      if (d < bestD) {
+        bestD = d;
+        best = ship;
+      }
+    }
+    return best;
+  }
+
+  private computeEnemySeparation(self: RaidShipEntity, radius: number): { x: number; y: number } {
+    let x = 0;
+    let y = 0;
+    for (const other of this.enemies) {
+      if (other === self || !other.alive) continue;
+      const dx = self.x - other.x;
+      const dy = self.y - other.y;
+      const d = Math.hypot(dx, dy);
+      if (d < 0.01 || d > radius) continue;
+      const w = 1 - d / radius;
+      x += (dx / d) * w;
+      y += (dy / d) * w;
+    }
+    return { x, y };
+  }
+
   private updateModules(dt: number): void {
-    if (!this.player) return;
-    const targets = [this.player, ...this.wingmen].filter(s => s.alive);
+    const target = this.player?.alive ? this.player : this.wingmen.find((ship) => ship.alive);
+    if (!target) return;
     for (const module of this.modules) {
-      if (!module.alive || module.type !== 'turret_cluster') continue;
+      if (!module.alive || module.type === 'reactor_core') continue;
       module.fireCooldown -= dt;
-      const target = this.nearestShip(module.pos, targets);
-      if (target && module.fireCooldown <= 0) {
-        const dist = module.pos.distanceTo(target.pos);
-        const predicted = target.pos.clone().addScaledVector(target.vel, Math.min(0.35, dist / RAID_PROJECTILE_SPEED));
-        predicted.add(new THREE.Vector3(
-          (Math.random() - 0.5) * 180,
-          (Math.random() - 0.5) * 110,
-          (Math.random() - 0.5) * 180,
-        ));
-        this.fireProjectile('enemy', module.pos, predicted, 8);
-        module.fireCooldown = 1.65;
+      if (module.fireCooldown <= 0) {
+        this.fireProjectile(module.x, module.y + 15, target.x - module.x, target.y - module.y, 'enemy', RAID_ENEMY_DAMAGE + 2);
+        module.fireCooldown = module.type === 'turret_cluster' ? 0.85 : 1.7;
       }
     }
   }
@@ -1049,347 +868,259 @@ export class RaidEngine {
     for (const p of this.projectiles) {
       if (!p.active) continue;
       p.age += dt;
-      if (p.kind === 'missile' && p.team === 'allied') {
-        const target = this.findMissileTarget(p.pos);
-        if (target) {
-          const desired = target.pos.clone().addScaledVector(target.vel, 0.22).sub(p.pos).normalize();
-          p.vel.lerp(desired.multiplyScalar(MISSILE_SPEED), Math.min(1, dt * 2.6));
-        }
-      }
-      p.pos.addScaledVector(p.vel, dt);
-      if (p.age > p.lifetime) {
-        this.deactivateProjectile(p);
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      if (p.age > p.lifetime || Math.abs(p.x) > 1100 || Math.abs(p.y) > 800) {
+        this.releaseProjectile(p);
         continue;
       }
       if (p.team === 'allied') this.hitEnemyTargets(p);
       else this.hitAlliedTargets(p);
-      if (p.active) this.orientObjectToDirection(p.mesh, p.vel);
     }
   }
 
-  private firePlayerLaser(): void {
-    if (!this.player) return;
-    this.fireProjectileDir('allied', this.player.pos, this.aimDir, RAID_PROJECTILE_DAMAGE, 'laser');
-    const now = performance.now();
-    if (now - this.lastLaserSfxAt > 90) {
-      this.lastLaserSfxAt = now;
-      playSfx('arena-laser', 0.08);
-    }
-  }
-
-  private fireProjectile(team: RaidTeam, from: THREE.Vector3, to: THREE.Vector3, damage: number): void {
-    const p = this.projectiles.find(item => !item.active);
-    if (!p) return;
-    p.active = true;
-    p.team = team;
-    p.kind = 'laser';
-    p.damage = damage;
-    p.age = 0;
-    p.lifetime = RAID_PROJECTILE_LIFETIME;
-    p.radius = 8;
-    p.pos.copy(from);
-    const dir = to.clone().sub(from).normalize();
-    p.vel.copy(dir.multiplyScalar(RAID_PROJECTILE_SPEED));
-    const material = p.mesh.material as THREE.MeshBasicMaterial;
-    material.color.set(team === 'allied' ? 0x7bb8ff : 0xff8844);
-    p.mesh.scale.set(1, 1, 1);
-    p.mesh.visible = true;
-    this.orientObjectToDirection(p.mesh, dir);
-  }
-
-  private fireProjectileDir(
-    team: RaidTeam,
-    from: THREE.Vector3,
-    dirIn: THREE.Vector3,
-    damage: number,
-    kind: 'laser' | 'missile' = 'laser',
-  ): void {
-    const p = this.projectiles.find(item => !item.active);
-    if (!p) return;
-    const dir = dirIn.clone().normalize();
-    p.active = true;
-    p.team = team;
-    p.kind = kind;
-    p.damage = damage;
-    p.age = 0;
-    p.lifetime = kind === 'missile' ? MISSILE_LIFETIME : RAID_PROJECTILE_LIFETIME;
-    p.radius = kind === 'missile' ? 18 : 8;
-    p.pos.copy(from).addScaledVector(dir, this.player && team === 'allied' ? this.player.radius + 20 : 20);
-    p.vel.copy(dir.multiplyScalar(kind === 'missile' ? MISSILE_SPEED : RAID_PROJECTILE_SPEED));
-    const material = p.mesh.material as THREE.MeshBasicMaterial;
-    material.color.set(kind === 'missile' ? 0xffcc44 : team === 'allied' ? 0x7bb8ff : 0xff8844);
-    p.mesh.scale.set(kind === 'missile' ? 1.7 : 1, kind === 'missile' ? 1.7 : 1, kind === 'missile' ? 1.45 : 1);
-    p.mesh.visible = true;
-    this.orientObjectToDirection(p.mesh, dir);
-  }
-
-  private deactivateProjectile(p: RaidProjectile): void {
-    p.active = false;
-    p.mesh.visible = false;
-    p.mesh.scale.set(1, 1, 1);
-  }
-
-  private hitEnemyTargets(p: RaidProjectile): void {
+  private hitEnemyTargets(p: RaidProjectileEntity): void {
     for (const enemy of this.enemies) {
-      if (!enemy.alive) continue;
-      if (enemy.pos.distanceToSquared(p.pos) <= (enemy.radius + p.radius) ** 2) {
-        this.applyDamage(enemy, p.damage);
-        if (!enemy.alive) {
-          this.kills++;
-          this.callbacks.onKill?.({ kills: this.kills, source: 'player' });
-          playSfx('arena-explosion', 0.12);
-        } else if (p.kind === 'missile') {
-          playSfx('missile-hit', 0.16);
-        }
-        this.deactivateProjectile(p);
-        return;
-      }
+      if (!enemy.alive || Math.hypot(enemy.x - p.x, enemy.y - p.y) > enemy.radius + p.radius) continue;
+      this.damageShip(enemy, p.damage, 'player');
+      this.releaseProjectile(p);
+      return;
     }
+    const shieldsAlive = this.modules.some((module) => module.type === 'shield_emitter' && module.alive);
     for (const module of this.modules) {
       if (!module.alive) continue;
-      if (module.type === 'reactor_core' && this.modules.some(m => m.type === 'shield_emitter' && m.alive)) continue;
-      if (module.pos.distanceToSquared(p.pos) <= (module.radius + p.radius) ** 2) {
-        module.hp -= p.damage;
-        if (module.hp <= 0) {
-          module.alive = false;
-          if (module.mesh !== this.carrier) module.mesh.visible = false;
-          this.modulesDestroyed++;
-          playSfx('arena-explosion', 0.16);
-        } else if (p.kind === 'missile') {
-          playSfx('missile-hit', 0.16);
-        }
-        this.deactivateProjectile(p);
-        return;
+      if (module.type === 'reactor_core' && shieldsAlive) continue;
+      if (Math.hypot(module.x - p.x, module.y - p.y) > module.radius + p.radius) continue;
+      module.hp -= p.damage;
+      this.particles?.spawnSparks(p.x, p.y, this.tier === 'low' ? 3 : 5, 0xff8844, 160);
+      if (module.hp <= 0) {
+        module.alive = false;
+        module.view.alpha = 0.18;
+        this.modulesDestroyed++;
+        this.explosions?.play('large', module.x, module.y, 1.1);
+        this.particles?.spawnDebris(module.x, module.y, this.tier === 'low' ? 6 : 12, 0xffaa66);
+        this.addShake(RAID_SCREEN_SHAKE_MODULE_DESTROYED);
+        playSfx('arena-explosion', 0.18);
       }
+      this.releaseProjectile(p);
+      return;
     }
   }
 
-  private hitAlliedTargets(p: RaidProjectile): void {
-    const targets = [this.player, ...this.wingmen].filter((s): s is RaidShip => !!s && s.alive);
-    for (const ship of targets) {
-      if (ship.pos.distanceToSquared(p.pos) <= (ship.radius + p.radius) ** 2) {
-        this.applyDamage(ship, p.damage);
-        this.deactivateProjectile(p);
-        return;
-      }
+  private hitAlliedTargets(p: RaidProjectileEntity): void {
+    const allied = [this.player, ...this.wingmen].filter(Boolean) as RaidShipEntity[];
+    for (const ship of allied) {
+      if (!ship.alive || Math.hypot(ship.x - p.x, ship.y - p.y) > ship.radius + p.radius) continue;
+      this.damageShip(ship, p.damage, 'wingman');
+      this.releaseProjectile(p);
+      return;
     }
   }
 
-  private applyDamage(ship: RaidShip, amount: number): void {
-    ship.shieldDelay = RAID_SHIELD_REGEN_DELAY;
-    const shieldHit = Math.min(ship.shield, amount);
+  private damageShip(ship: RaidShipEntity, damage: number, source: 'player' | 'wingman'): void {
+    const shieldHit = Math.min(ship.shield, damage);
     ship.shield -= shieldHit;
-    ship.hp -= amount - shieldHit;
+    ship.hp -= damage - shieldHit;
+    ship.shieldDelay = RAID_SHIELD_REGEN_DELAY;
+    this.particles?.spawnSparks(ship.x, ship.y, this.tier === 'low' ? 2 : 4, shieldHit > 0 ? 0x7bb8ff : 0xffbb66, 150);
+    if (ship === this.player) {
+      this.triggerHitFlash();
+      this.addShake(RAID_SCREEN_SHAKE_HIT);
+    }
     if (ship.hp <= 0) {
       ship.alive = false;
-      ship.mesh.visible = false;
+      ship.view.root.visible = false;
+      this.explosions?.play(ship.team === 'enemy' ? 'small' : 'large', ship.x, ship.y, ship.team === 'enemy' ? 0.9 : 1.2);
+      this.particles?.spawnDebris(ship.x, ship.y, this.tier === 'low' ? 4 : 8, ship.team === 'enemy' ? 0xff8844 : 0x7bb8ff);
+      if (ship.team === 'enemy') {
+        this.kills++;
+        this.callbacks.onKill?.({ kills: this.kills, source });
+        this.addShake(RAID_SCREEN_SHAKE_KILL);
+        this.hitStopMsRemaining = RAID_HITSTOP_KILL_MS;
+        playSfx('arena-explosion', 0.12);
+        this.maybeTriggerWaveClearSlowMo();
+      }
     }
   }
 
-  private updateShield(ship: RaidShip, dt: number): void {
-    if (ship.maxShield <= 0 || !ship.alive) return;
-    ship.shieldDelay = Math.max(0, ship.shieldDelay - dt);
-    if (ship.shieldDelay === 0) ship.shield = Math.min(ship.maxShield, ship.shield + RAID_SHIELD_REGEN_RATE * dt);
+  private maybeTriggerWaveClearSlowMo(): void {
+    const stillAlive = this.enemies.some((enemy) => enemy.alive);
+    const morewavesQueued = this.nextWaveIndex < RAID_WAVES.length;
+    if (!stillAlive && (this.phase === 'waves' || morewavesQueued)) {
+      this.slowMoMsRemaining = RAID_WAVE_CLEAR_SLOWMO_MS;
+    }
   }
 
-  private findNearestTarget(from: THREE.Vector3, maxDist: number): { pos: THREE.Vector3 } | null {
-    let best: { pos: THREE.Vector3 } | null = null;
-    let bestD = maxDist * maxDist;
+  private regenShield(ship: RaidShipEntity, dt: number): void {
+    if (ship.shieldDelay > 0) {
+      ship.shieldDelay -= dt;
+      return;
+    }
+    ship.shield = Math.min(ship.maxShield, ship.shield + RAID_SHIELD_REGEN_RATE * dt);
+  }
+
+  private firePlayerBurst(heavy = false): void {
+    const player = this.player;
+    if (!player?.alive || player.fireCooldown > 0) return;
+    this.fireProjectile(player.x - 7, player.y - 18, this.aimInput.x - 0.04, this.aimInput.y, 'allied', heavy ? RAID_PROJECTILE_DAMAGE * 2.1 : RAID_PROJECTILE_DAMAGE);
+    this.fireProjectile(player.x + 7, player.y - 18, this.aimInput.x + 0.04, this.aimInput.y, 'allied', heavy ? RAID_PROJECTILE_DAMAGE * 2.1 : RAID_PROJECTILE_DAMAGE);
+    player.fireCooldown = heavy || this.sectorAction === 'missile' ? 0.38 : 0.18;
+    if (Math.random() < 0.5) playSfx('arena-laser', 0.05);
+  }
+
+  private fireProjectile(x: number, y: number, dx: number, dy: number, team: RaidTeam, damage: number): void {
+    const p = this.projectiles.find((projectile) => !projectile.active);
+    if (!p) return;
+    const dir = normalize(dx, dy);
+    p.active = true;
+    p.team = team;
+    p.damage = damage;
+    p.age = 0;
+    p.x = x;
+    p.y = y;
+    p.vx = dir.x * RAID_PROJECTILE_SPEED * 0.55;
+    p.vy = dir.y * RAID_PROJECTILE_SPEED * 0.55;
+    p.view.texture = team === 'allied' ? this.allyProjectileTexture! : this.enemyProjectileTexture!;
+    p.view.rotation = Math.atan2(dir.x, -dir.y);
+    p.view.visible = true;
+  }
+
+  private releaseProjectile(p: RaidProjectileEntity): void {
+    p.active = false;
+    p.view.visible = false;
+  }
+
+  private emitTrail(ship: RaidShipEntity, dt: number): void {
+    ship.trailTimer -= dt;
+    if (ship.trailTimer > 0) return;
+    const speed = Math.hypot(ship.vx, ship.vy);
+    if (speed < 40) {
+      ship.trailTimer = 0.12;
+      return;
+    }
+    ship.trailTimer = 0.045;
+    const back = normalize(-ship.vx, -ship.vy);
+    const tint = ship.team === 'enemy' ? 0xff8844 : 0x7bb8ff;
+    this.particles?.spawnTrail(ship.x + back.x * 12, ship.y + back.y * 12, tint, ship.radius / 20);
+  }
+
+  // ── Feedback: shake / hit-stop / flash / dynamic resolution ─────────────
+
+  private addShake(amount: number): void {
+    this.shakeMagnitude = Math.min(RAID_SCREEN_SHAKE_MAX, this.shakeMagnitude + amount);
+  }
+
+  private triggerHitFlash(): void {
+    this.hitFlashMsRemaining = RAID_HIT_FLASH_MS;
+  }
+
+  private updateFeedback(realDeltaMs: number): void {
+    if (this.shakeMagnitude > 0) {
+      this.shakeMagnitude = Math.max(0, this.shakeMagnitude - RAID_SCREEN_SHAKE_DECAY_PER_SEC * (realDeltaMs / 1000) * 4);
+    }
+    if (this.hitFlashMsRemaining > 0) {
+      this.hitFlashMsRemaining = Math.max(0, this.hitFlashMsRemaining - realDeltaMs);
+      this.hitFlash.alpha = (this.hitFlashMsRemaining / RAID_HIT_FLASH_MS) * 0.32;
+    } else {
+      this.hitFlash.alpha = 0;
+    }
+    // Star layers drift slowly downward within this self-contained scene only.
+    this.starLayerFarOffset = (this.starLayerFarOffset + realDeltaMs * 0.006) % 300;
+    this.starLayerNearOffset = (this.starLayerNearOffset + realDeltaMs * 0.014) % 300;
+    this.starLayerFar.position.y = -this.container.clientHeight * 0.5 + this.starLayerFarOffset;
+    this.starLayerNear.position.y = -this.container.clientHeight * 0.5 + this.starLayerNearOffset;
+  }
+
+  private updateDynamicResolution(realDeltaMs: number): void {
+    if (!this.app) return;
+    if (realDeltaMs > RAID_DYNRES_FRAME_MS_THRESHOLD) {
+      this.badFrameStreak++;
+      this.stableGoodMs = 0;
+      if (this.badFrameStreak >= RAID_DYNRES_BAD_FRAMES_TO_DROP && this.currentResolutionScale !== RAID_DYNRES_SCALE) {
+        this.currentResolutionScale = RAID_DYNRES_SCALE;
+        this.applyResolution();
+      }
+    } else {
+      this.badFrameStreak = 0;
+      if (this.currentResolutionScale !== 1) {
+        this.stableGoodMs += realDeltaMs;
+        if (this.stableGoodMs >= RAID_DYNRES_STABLE_MS_TO_RESTORE) {
+          this.currentResolutionScale = 1;
+          this.applyResolution();
+        }
+      }
+    }
+  }
+
+  private applyResolution(): void {
+    if (!this.app) return;
+    const target = this.baseResolution * this.currentResolutionScale;
+    this.app.renderer.resize(this.app.renderer.screen.width, this.app.renderer.screen.height, target);
+  }
+
+  // ── Rendering ────────────────────────────────────────────────────────────
+
+  private applyShipFrame(ship: RaidShipEntity): void {
+    const view = ship.view;
+    if (!view.sprite || !view.atlas) {
+      view.root.rotation = ship.facing;
+      return;
+    }
+    const damaged = ship.hp / ship.maxHp < DAMAGED_HP_PCT;
+    const frameIndex = angleToFrameIndex(ship.facing, view.atlas.normal.length);
+    if (frameIndex !== view.angleIndex || view.sprite.texture !== (damaged ? view.atlas.damaged[frameIndex] : view.atlas.normal[frameIndex])) {
+      view.sprite.texture = damaged ? view.atlas.damaged[frameIndex] : view.atlas.normal[frameIndex];
+      view.angleIndex = frameIndex;
+    }
+  }
+
+  private updateViews(): void {
+    if (this.player) {
+      this.player.view.root.position.set(this.player.x, this.player.y);
+      this.applyShipFrame(this.player);
+    }
+    for (const ship of this.wingmen) {
+      ship.view.root.position.set(ship.x, ship.y);
+      this.applyShipFrame(ship);
+    }
     for (const enemy of this.enemies) {
-      if (!enemy.alive) continue;
-      const d = enemy.pos.distanceToSquared(from);
-      if (d < bestD) { bestD = d; best = enemy; }
+      enemy.view.root.position.set(enemy.x, enemy.y);
+      this.applyShipFrame(enemy);
+    }
+    for (const p of this.projectiles) {
+      if (p.active) p.view.position.set(p.x, p.y);
     }
     for (const module of this.modules) {
       if (!module.alive) continue;
-      if (module.type === 'reactor_core' && this.modules.some(m => m.type === 'shield_emitter' && m.alive)) continue;
-      const d = module.pos.distanceToSquared(from);
-      if (d < bestD) { bestD = d; best = module; }
+      const pct = clamp(module.hp / module.maxHp, 0, 1);
+      module.view.scale.set(0.82 + pct * 0.18);
     }
-    return best;
-  }
 
-  private nearestShip(from: THREE.Vector3, ships: RaidShip[]): RaidShip | null {
-    let best: RaidShip | null = null;
-    let bestD = Infinity;
-    for (const ship of ships) {
-      const d = ship.pos.distanceToSquared(from);
-      if (d < bestD) { bestD = d; best = ship; }
+    // Screen shake — offset applied on top of the fit-to-screen layout each
+    // frame; layout() itself is only re-run on resize (static transform rule).
+    if (this.app) {
+      const mag = this.shakeMagnitude;
+      const shakeX = mag > 0.05 ? (Math.random() - 0.5) * mag : 0;
+      const shakeY = mag > 0.05 ? (Math.random() - 0.5) * mag : 0;
+      const cx = this.app.renderer.width / 2;
+      const cy = this.app.renderer.height / 2;
+      this.world.position.set(cx + shakeX, cy + shakeY);
     }
-    return best;
   }
 
-  private buildRaidAiEntities(allies: RaidShip[]): ShipEntity[] {
-    const entities: ShipEntity[] = [];
-    for (const ship of allies) {
-      if (!ship.alive) continue;
-      entities.push(this.raidShipToArenaEntity(ship));
-    }
-    for (const enemy of this.enemies) {
-      if (!enemy.alive) continue;
-      entities.push(this.raidShipToArenaEntity(enemy));
-    }
-    return entities;
-  }
-
-  private raidShipToArenaEntity(ship: RaidShip): ShipEntity {
-    return {
-      id: ship.id,
-      pos: { x: ship.pos.x, y: ship.pos.y, z: ship.pos.z },
-      vel: { x: ship.vel.x, y: ship.vel.y, z: ship.vel.z },
-      rotation: ship.mesh.rotation.y,
-      radius: ship.radius,
-      alive: ship.alive,
-      hp: ship.hp,
-      maxHp: ship.maxHp,
-      shield: ship.shield,
-      maxShield: ship.maxShield,
-      shieldRegenTimer: ship.shieldDelay,
-      isPlayer: ship.id === this.player?.id,
-      name: ship.name,
-      weaponSlots: [],
-      dashCooldown: ship.aiDashCooldown ?? 0,
-      isDashing: (ship.aiDashTimer ?? 0) > 0,
-      dashTimer: ship.aiDashTimer ?? 0,
-      modelGroup: null,
-      kills: 0,
-      deaths: 0,
-      damageDealt: 0,
-    };
-  }
-
-  private computeEnemySeparation(self: RaidShip, radius: number): THREE.Vector3 {
-    const out = new THREE.Vector3();
-    for (const other of this.enemies) {
-      if (other === self || !other.alive) continue;
-      const dx = self.pos.x - other.pos.x;
-      const dy = self.pos.y - other.pos.y;
-      const dz = self.pos.z - other.pos.z;
-      const dSq = dx * dx + dy * dy + dz * dz;
-      if (dSq < 0.01 || dSq > radius * radius) continue;
-      const d = Math.sqrt(dSq);
-      out.x += (dx / d) * (1 - d / radius);
-      out.y += (dy / d) * (1 - d / radius) * 0.45;
-      out.z += (dz / d) * (1 - d / radius);
-    }
-    return out;
-  }
-
-  private lookAt(obj: THREE.Object3D, target: THREE.Vector3): void {
-    this.orientObjectToDirection(obj, target.clone().sub(obj.position));
-  }
-
-  private orientObjectToDirection(obj: THREE.Object3D, dirIn: THREE.Vector3, roll = 0): void {
-    const dir = dirIn.clone();
-    if (dir.lengthSq() < 0.001) return;
-    dir.normalize();
-    obj.lookAt(obj.position.clone().add(dir));
-    if (Math.abs(roll) > 0.0001) obj.rotateZ(roll);
-  }
-
-  private orientShipToDirection(obj: THREE.Object3D, dirIn: THREE.Vector3, roll = 0): void {
-    const dir = dirIn.clone();
-    if (dir.lengthSq() < 0.001) return;
-    dir.normalize();
-    obj.lookAt(obj.position.clone().sub(dir));
-    if (Math.abs(roll) > 0.0001) obj.rotateOnAxis(new THREE.Vector3(0, 0, -1), roll);
-  }
-
-  private currentBarrelRoll(): number {
-    if (this.barrelRollTimer <= 0) return 0;
-    const progress = 1 - this.barrelRollTimer / this.barrelRollDuration;
-    return progress * Math.PI * 2;
-  }
-
-  private findAimTarget(maxDist: number, minDot: number): { pos: THREE.Vector3; vel: THREE.Vector3 } | null {
-    if (!this.player) return null;
-    let best: { pos: THREE.Vector3; vel: THREE.Vector3 } | null = null;
-    let bestScore = Infinity;
-    const check = (pos: THREE.Vector3, vel: THREE.Vector3, alive: boolean) => {
-      if (!alive || !this.player) return;
-      const to = pos.clone().sub(this.player.pos);
-      const dist = to.length();
-      if (dist < 1 || dist > maxDist) return;
-      const dir = to.multiplyScalar(1 / dist);
-      const dot = dir.dot(this.aimDir);
-      if (dot < minDot) return;
-      const score = dist * (1.08 - dot);
-      if (score < bestScore) {
-        bestScore = score;
-        best = { pos, vel };
-      }
-    };
-    for (const enemy of this.enemies) check(enemy.pos, enemy.vel, enemy.alive);
-    const shieldsUp = this.modules.some(m => m.type === 'shield_emitter' && m.alive);
-    for (const module of this.modules) {
-      if (module.type === 'reactor_core' && shieldsUp) continue;
-      check(module.pos, new THREE.Vector3(), module.alive);
-    }
-    return best;
-  }
-
-  private findMissileTarget(from: THREE.Vector3): { pos: THREE.Vector3; vel: THREE.Vector3 } | null {
-    let best: { pos: THREE.Vector3; vel: THREE.Vector3 } | null = null;
-    let bestD = 2200 * 2200;
-    for (const enemy of this.enemies) {
-      if (!enemy.alive) continue;
-      const d = enemy.pos.distanceToSquared(from);
-      if (d < bestD) {
-        bestD = d;
-        best = { pos: enemy.pos, vel: enemy.vel };
-      }
-    }
-    const shieldsUp = this.modules.some(m => m.type === 'shield_emitter' && m.alive);
-    for (const module of this.modules) {
-      if (!module.alive) continue;
-      if (module.type === 'reactor_core' && shieldsUp) continue;
-      const d = module.pos.distanceToSquared(from);
-      if (d < bestD) {
-        bestD = d;
-        best = { pos: module.pos, vel: new THREE.Vector3() };
-      }
-    }
-    return best;
-  }
-
-  private clampToSector(pos: THREE.Vector3): void {
-    const radius = RAID_SECTOR_HALF - 80;
-    const xz = Math.sqrt(pos.x * pos.x + pos.z * pos.z);
-    if (xz > radius) {
-      const s = radius / xz;
-      pos.x *= s;
-      pos.z *= s;
-    }
-    pos.y = Math.max(-RAID_HEIGHT_HALF, Math.min(RAID_HEIGHT_HALF, pos.y));
-  }
-
-  private updateCamera(dt: number): void {
-    if (!this.camera || !this.player) return;
-    const behind = this.aimDir.clone().multiplyScalar(-760);
-    behind.y += 170;
-    const desired = this.player.pos.clone().add(behind);
-    this.camera.position.lerp(desired, Math.min(1, dt * 5));
-    const lookAt = this.player.pos.clone().add(this.aimDir.clone().multiplyScalar(720)).add(new THREE.Vector3(0, 35, 0));
-    this.camera.lookAt(lookAt);
-  }
-
-  private finish(victory: boolean): void {
+  private endRaid(victory: boolean): void {
     if (this.ended) return;
     this.ended = true;
     this.phase = victory ? 'victory' : 'defeat';
-    const elapsedSec = Math.floor((performance.now() - this.startedAt) / 1000);
-    const xp = victory
-      ? RAID_REWARD_BASE_XP + this.kills * RAID_REWARD_XP_PER_KILL + this.modulesDestroyed * RAID_REWARD_XP_PER_MODULE
-      : Math.floor(this.kills * RAID_REWARD_XP_PER_KILL * 0.5);
     const result: RaidResult = {
       victory,
       kills: this.kills,
       modulesDestroyed: this.modulesDestroyed,
-      elapsedSec,
-      xp,
-      minerals: victory ? 160 + this.kills * 3 : Math.floor(this.kills * 2),
-      isotopes: victory ? 40 + this.modulesDestroyed * 8 : Math.floor(this.modulesDestroyed * 4),
-      techFragments: victory ? 2 : 0,
+      elapsedSec: Math.floor((performance.now() - this.startedAt) / 1000),
+      xp: victory ? RAID_REWARD_BASE_XP + this.kills * RAID_REWARD_XP_PER_KILL + this.modulesDestroyed * RAID_REWARD_XP_PER_MODULE : Math.floor(this.kills * RAID_REWARD_XP_PER_KILL * 0.5),
+      minerals: victory ? 240 + this.modulesDestroyed * 40 : Math.floor(this.kills * 3),
+      isotopes: victory ? 30 + this.modulesDestroyed * 5 : 0,
+      techFragments: victory ? 1 : 0,
     };
     this.callbacks.onStatsUpdate?.(this.getSnapshot());
     this.callbacks.onRaidEnd?.(result);

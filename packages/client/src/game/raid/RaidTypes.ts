@@ -1,9 +1,11 @@
-import type * as THREE from 'three';
-import type { BotBrain } from '../arena/ArenaAI.js';
-
 export type RaidPhase = 'approach' | 'waves' | 'reactor' | 'victory' | 'defeat';
 export type RaidTeam = 'allied' | 'enemy';
 export type RaidModuleType = 'hangar_bay' | 'shield_emitter' | 'turret_cluster' | 'reactor_core';
+
+export interface RaidKillFeedback {
+  kills: number;
+  source: 'player' | 'wingman';
+}
 
 export interface RaidCallbacks {
   onExit: () => void;
@@ -38,58 +40,4 @@ export interface RaidResult {
   minerals: number;
   isotopes: number;
   techFragments: number;
-}
-
-interface RaidKillFeedback {
-  kills: number;
-  source: 'player' | 'wingman';
-}
-
-export interface RaidShip {
-  id: number;
-  team: RaidTeam;
-  name: string;
-  pos: THREE.Vector3;
-  vel: THREE.Vector3;
-  hp: number;
-  maxHp: number;
-  shield: number;
-  maxShield: number;
-  radius: number;
-  fireCooldown: number;
-  shieldDelay: number;
-  alive: boolean;
-  mesh: THREE.Object3D;
-  aiBrain?: BotBrain;
-  aiRoamY?: number;
-  aiRoamYUntil?: number;
-  aiDashCooldown?: number;
-  aiDashTimer?: number;
-  aiLastAim?: THREE.Vector3;
-}
-
-export interface RaidModule {
-  id: string;
-  type: RaidModuleType;
-  label: string;
-  hp: number;
-  maxHp: number;
-  radius: number;
-  pos: THREE.Vector3;
-  mesh: THREE.Object3D;
-  alive: boolean;
-  fireCooldown: number;
-}
-
-export interface RaidProjectile {
-  active: boolean;
-  team: RaidTeam;
-  kind: 'laser' | 'missile';
-  damage: number;
-  age: number;
-  lifetime: number;
-  radius: number;
-  pos: THREE.Vector3;
-  vel: THREE.Vector3;
-  mesh: THREE.Mesh;
 }
