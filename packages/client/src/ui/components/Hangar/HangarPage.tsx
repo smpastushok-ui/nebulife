@@ -493,9 +493,28 @@ export const HangarPage: React.FC<HangarPageProps> = ({
                 <div style={S.modeCardDesc}>{t('hangar.mode_select.cosmic_desc' as Parameters<typeof t>[0])}</div>
                 <span style={{ ...S.modeCardAction, borderColor: '#ff8844', color: '#ff8844' }}>{t('hangar.mode_select.enter' as Parameters<typeof t>[0])}</span>
               </button>
+              <button
+                style={{
+                  ...S.modeCard,
+                  borderColor: raidAvailable ? '#336644' : '#223344',
+                  background: 'radial-gradient(circle at 50% 20%, rgba(68,255,136,0.14), transparent 44%), rgba(5,10,20,0.9)',
+                  opacity: mounted ? (raidAvailable ? 1 : 0.56) : 0,
+                  transform: mounted ? 'translateY(0)' : 'translateY(18px)',
+                }}
+                onClick={handleEnterRaid}
+              >
+                <div style={{ ...S.modeCardKicker, color: '#44ff88' }}>{t('hangar.mode_select.raid_kicker' as Parameters<typeof t>[0])}</div>
+                <div style={S.modeCardTitle}>{t('hangar.mode_select.raid_title' as Parameters<typeof t>[0])}</div>
+                <div style={S.modeCardDesc}>{t('hangar.mode_select.raid_desc' as Parameters<typeof t>[0])}</div>
+                <span style={{ ...S.modeCardAction, borderColor: '#44ff88', color: '#44ff88' }}>{t('hangar.mode_select.enter' as Parameters<typeof t>[0])}</span>
+              </button>
             </div>
           </div>
         </div>
+
+        {toast && (
+          <div style={S.toast}>{toast}</div>
+        )}
       </div>
     );
   }

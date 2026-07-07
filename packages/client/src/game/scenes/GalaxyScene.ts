@@ -1,4 +1,4 @@
-import { Container, Graphics, Text } from 'pixi.js';
+import { Container, Graphics, Text, type FederatedPointerEvent } from 'pixi.js';
 import type { GalaxyRing, StarSystem, ResearchState, SpectralClass } from '@nebulife/core';
 import { getResearchProgress, isSystemFullyResearched, SeededRNG, computeGroupPosition, generateLiteClusterSystems, hexColorToInt, type LiteSystem, delaunayEdges, generateGalaxyGroupCore, deriveGroupSeed, assignPlayerPosition } from '@nebulife/core';
 import type { TwinkleStarData } from '../rendering/GalaxyBackdrop.js';
@@ -97,6 +97,14 @@ const ANIM_SPEED = 5;
 /** Orbit expand: 450ms forward, 400ms reverse (faster for mobile responsiveness) */
 const EXPAND_DURATION = 450;
 const COLLAPSE_DURATION = 400;
+
+/** Tap-assist: screen-px radius around a tap in which the nearest star is
+ *  activated even when the star's own (small) hitArea was missed. Sized for
+ *  fingers (~7-9mm) — direct hits still take priority via node hitAreas. */
+const TAP_ASSIST_RADIUS_PX = 36;
+
+/** Double-tap window (ms) — must match the old per-node click counters */
+const DOUBLE_TAP_MS = 260;
 
 /* ── Interfaces ────────────────────────────────────────────────── */
 
@@ -278,6 +286,14 @@ export class GalaxyScene {
   private edgePulses: Array<{ ax: number; ay: number; bx: number; by: number; t: number; color: number }> = [];
   private pulseGfx: Graphics | null = null;
 
+  /** Shared single/double-tap tracker for star activation (direct + tap-assist) */
+  private tapTracker: { sysId: string; timer: ReturnType<typeof setTimeout> } | null = null;
+  /** Timestamp of the last pointerdown that landed directly on a star node.
+   *  Suppresses the container-level tap-assist for the same gesture (the
+   *  camera centering can move the star away from the finger before
+   *  pointerup, so the tap would otherwise re-resolve on empty space). */
+  private lastDirectStarHitAt = 0;
+
   constructor(
     rings: GalaxyRing[],
     galaxySeed: number,
@@ -361,6 +377,20 @@ export class GalaxyScene {
     this.nodesLayer = new Container();
     this.container.addChild(this.nodesLayer);
     this.container.addChild(this.researchGainLayer);
+
+    /* Tap-assist: taps that miss every star's small hitArea land on the
+       scene container itself — resolve them to the NEAREST star within a
+       finger-sized screen radius (see onEmptyTap). Star hitAreas stay in
+       world units, so at galaxy zoom-out they can shrink below finger size
+       on mobile; this container-level fallback keeps taps working. */
+    this.container.eventMode = 'static';
+    this.container.hitArea = { contains: () => true };
+    this.container.on('pointertap', (e: FederatedPointerEvent) => {
+      // Direct hits on stars / lite-orbs bubble up here with a child target —
+      // those are already handled by their own listeners.
+      if (e.target !== this.container) return;
+      this.onEmptyTap(e);
+    });
 
     /* Collect all systems with ring info */
     const all = rings.flatMap(r => r.starSystems.map(s => ({ system: s, ringIndex: r.ringIndex })));
@@ -1586,21 +1616,9 @@ export class GalaxyScene {
     dot.on('pointerover', () => { nl.visible = true; dot.scale.set(1.12); });
     dot.on('pointerout', () => { nl.visible = false; dot.scale.set(1.0); });
 
-    let cc = 0;
-    let ct: ReturnType<typeof setTimeout> | null = null;
     dot.on('pointerdown', () => {
-      if (this.cinematicMode) return;
-      cc++;
-      if (cc === 1) {
-        const starRate = 1.3 - Math.min(0.6, (sys.star.radiusSolar || 1) * 0.1);
-        playSfx('system-select', 0.2, starRate);
-        this.expandSystem(sys.id);
-        ct = setTimeout(() => { cc = 0; }, 260);
-      } else if (cc === 2) {
-        if (ct) clearTimeout(ct);
-        cc = 0;
-        this.onDoubleClick?.(sys);
-      }
+      this.lastDirectStarHitAt = Date.now();
+      this.registerStarTap(sys);
     });
 
     this.nodesLayer.addChild(dot);
@@ -1685,24 +1703,9 @@ export class GalaxyScene {
       this.onHoverSystem?.(null, 0);
     });
 
-    let cc = 0;
-    let ct: ReturnType<typeof setTimeout> | null = null;
     dot.on('pointerdown', () => {
-      if (this.cinematicMode) return;
-      if (this.clickGuard?.()) return;
-      cc++;
-      if (cc === 1) {
-        if (!this.clickGuard?.()) {
-          const starRate = 1.3 - Math.min(0.6, (sys.star.radiusSolar || 1) * 0.1);
-          playSfx('system-select', 0.2, starRate);
-          this.expandSystem(sys.id);
-        }
-        ct = setTimeout(() => { cc = 0; }, 260);
-      } else if (cc === 2) {
-        if (ct) clearTimeout(ct);
-        cc = 0;
-        if (!this.clickGuard?.()) this.onDoubleClick?.(sys);
-      }
+      this.lastDirectStarHitAt = Date.now();
+      this.registerStarTap(sys);
     });
 
     this.nodesLayer.addChild(dot);
@@ -1749,6 +1752,70 @@ export class GalaxyScene {
   selectSystem(systemId: string | null) {
     this.selectedSystemId = systemId;
     this.beamAlpha = 0;
+  }
+
+  /**
+   * Shared star tap entry point — used by direct hitArea hits AND the
+   * container-level tap-assist. Implements the single/double-tap logic that
+   * previously lived in per-node closures: first tap expands the system
+   * (centres camera + opens radial menu), second tap within the window
+   * triggers the double-click action.
+   */
+  private registerStarTap(sys: StarSystem) {
+    if (this.cinematicMode || this.transitionActive) return;
+    if (this.clickGuard?.()) return;
+
+    if (this.tapTracker && this.tapTracker.sysId === sys.id) {
+      // Double tap on the same star
+      clearTimeout(this.tapTracker.timer);
+      this.tapTracker = null;
+      this.onDoubleClick?.(sys);
+      return;
+    }
+
+    if (this.tapTracker) clearTimeout(this.tapTracker.timer);
+    this.tapTracker = {
+      sysId: sys.id,
+      timer: setTimeout(() => { this.tapTracker = null; }, DOUBLE_TAP_MS),
+    };
+
+    const starRate = 1.3 - Math.min(0.6, (sys.star.radiusSolar || 1) * 0.1);
+    playSfx('system-select', 0.2, starRate);
+    this.expandSystem(sys.id);
+  }
+
+  /**
+   * Tap-assist: a tap that hit no star resolves to the nearest interactive
+   * star node within TAP_ASSIST_RADIUS_PX *screen* pixels (converted to world
+   * units via the current camera scale). Fires the exact same activation path
+   * as a direct hit. Pan/pinch gestures are rejected via clickGuard, and taps
+   * that started on a star (but "escaped" it due to camera centering between
+   * pointerdown and pointerup) are suppressed via lastDirectStarHitAt.
+   */
+  private onEmptyTap(e: FederatedPointerEvent) {
+    if (this.cinematicMode || this.transitionActive) return;
+    if (this.clickGuard?.()) return;
+    if (Date.now() - this.lastDirectStarHitAt < 500) return;
+
+    const local = e.getLocalPosition(this.container);
+    const scale = this.container.scale.x || 1;
+    const radiusWorld = TAP_ASSIST_RADIUS_PX / scale;
+
+    let best: SystemNode | null = null;
+    let bestD2 = radiusWorld * radiusWorld;
+    const consider = (node: SystemNode) => {
+      // Mirror direct-hit eligibility exactly: only nodes Pixi would let
+      // the player tap (tier/lock state toggles eventMode).
+      if (node.container.eventMode !== 'static' || !node.container.visible) return;
+      const dx = node.container.x - local.x;
+      const dy = node.container.y - local.y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < bestD2) { bestD2 = d2; best = node; }
+    };
+    if (this.homeNode) consider(this.homeNode);
+    for (const [, node] of this.systemNodes) consider(node);
+
+    if (best) this.registerStarTap((best as SystemNode).system);
   }
 
   /** Get current screen position of a system (for React overlays like RadialMenu) */
@@ -1822,8 +1889,20 @@ export class GalaxyScene {
    * Collapses any previously expanded system first.
    */
   expandSystem(systemId: string) {
-    // Already expanded → no-op
-    if (this.expandedSystemId === systemId) return;
+    // Already expanded → re-fire the radial open instead of a silent no-op.
+    // The React layer can close the menu without unfocusing the scene (e.g.
+    // research panel flow), which used to leave the star in a state where
+    // tapping it centred the camera but never re-opened the menu.
+    if (this.expandedSystemId === systemId) {
+      const node = systemId === this.homeNode?.system.id
+        ? this.homeNode
+        : this.systemNodes.get(systemId);
+      if (node) {
+        node.radialOpenFired = true;
+        this.onRadialOpen?.(node.system, () => this.getSystemScreenPosition(systemId));
+      }
+      return;
+    }
 
     const prevId = this.expandedSystemId;
 
@@ -1921,6 +2000,10 @@ export class GalaxyScene {
   /** Unfocus: restore all alphas and collapse expanded system */
   unfocusSystem() {
     if (!this.focusedSystemId) return;
+
+    // Drop any queued expansion — unfocus must not resurrect a menu later
+    this.pendingExpandId = null;
+    this.pendingExpandDelay = 0;
 
     // Close radial menu
     this.onRadialClose?.();
@@ -3160,6 +3243,10 @@ export class GalaxyScene {
   /* ── Cleanup ───────────────────────────────────────────────── */
 
   destroy() {
+    if (this.tapTracker) {
+      clearTimeout(this.tapTracker.timer);
+      this.tapTracker = null;
+    }
     this.removeFakePlayerMarkers();
     this.container.destroy({ children: true });
     this.systemNodes.clear();

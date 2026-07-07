@@ -1,11 +1,13 @@
 // ----------------------------------------------------------------------------
 // Short Cyrillic number formatting for the top resource HUD.
-//   0-999        → exact integer      ("70", "999")
-//   1000-999999  → к (thousands)      ("1к" through "999к", always integer —
-//                                      1000 → "1к", 1999 → "1к", 2000 → "2к")
-//   1000000+     → кк (millions)      ("1кк", "250кк" …)
-// No decimals — floor to integer within the scaled unit. Keeps the HUD
-// glyph width predictable so the value never overflows the pill.
+//   0-9999          → exact integer   ("70", "999", "1462", "9999")
+//   10000-999999    → к (thousands)   ("10к" through "999к", always integer)
+//   1000000+        → кк (millions)   ("1кк", "250кк" …)
+// No decimals — floor to integer within the scaled unit, so the display never
+// suggests more than the player actually has. Values below 10,000 stay exact
+// because gameplay costs (research 2^n, hex unlocks) live in that range and
+// a lossy "1к" (= anything 1000–1999) misled players into thinking an action
+// they could not afford should succeed.
 // ----------------------------------------------------------------------------
 
 export function formatShort(n: number): string {
@@ -13,7 +15,7 @@ export function formatShort(n: number): string {
   const abs = Math.abs(n);
   const sign = n < 0 ? '-' : '';
 
-  if (abs < 1000) {
+  if (abs < 10_000) {
     return sign + Math.floor(abs).toString();
   }
   if (abs < 1_000_000) {
