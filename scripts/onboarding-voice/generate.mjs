@@ -8,7 +8,7 @@
 // and .webm (Opus, Android) into packages/client/public/sfx/onboarding —
 // the exact names AstraOnboardingModal expects: <key>_<uk|en>.(mp3|webm).
 //
-// Voice:  yO86QNm59QORvr5C6rDt (A.S.T.R.A.)
+// Voice:  uIZsnBL0YK1S5j69bAih (Samantha — Emotional, Soft and Intimate)
 // Model:  eleven_v3 (supports inline audio tags like [warm] / [excited])
 // Output: mono, modest bitrate (mp3 64k / opus 48k) to keep assets small.
 //
@@ -32,10 +32,9 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, '..', '..');
 const OUT_DIR = path.join(REPO, 'packages/client/public/sfx/onboarding');
 
-// A.S.T.R.A. voice. NOTE (2026-07): this voice id is not present in the
-// current ELEVENLABS_API_KEY workspace (API returns voice_not_found) — add it
-// to "My Voices" in that account or override via --voice / ELEVENLABS_VOICE_ASTRA.
-const DEFAULT_VOICE_ID = 'yO86QNm59QORvr5C6rDt';
+// A.S.T.R.A. voice — Samantha (Emotional, Soft and Intimate). Confirmed
+// present in the ELEVENLABS_API_KEY workspace via GET /v1/voices (2026-07).
+const DEFAULT_VOICE_ID = 'uIZsnBL0YK1S5j69bAih';
 const MODEL_ID = 'eleven_v3';
 const STABILITY = 0.5;
 
