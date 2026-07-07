@@ -32,6 +32,7 @@
 | Discoveries | Roll рідкості, галерея, pixel reveal, наукові звіти | реалізовано | `packages/core/src/game/discovery.ts`, `PixelReveal.tsx`, `ScientificReport.tsx` |
 | Share discoveries | Публічні посилання на відкриття, OG-картки | реалізовано | `api/share/*`, `api/discoveries/index.ts` |
 | Comet Herald | Циклічна жива подія з tracking і нагородами | реалізовано | `packages/core/src/game/comet-event.ts`, `api/event/comet-claim.ts` |
+| Live Events | 4 циклічні живі події (rogue-flyby, supernova-echo, interstellar-visitor, aurora-storm): детерміновані 24h вікна, безкоштовний bundled арт, скромні нагороди (кварки+RD+XP) | реалізовано | `packages/core/src/game/live-events.ts`, `api/event/live-claim.ts`, `OperationsHub/EventTab.tsx`, `public/cosmic-events/live/` |
 | Warp / навігація | Переходи між системами, warp overlay, breadcrumbs | реалізовано | `WarpOverlay.tsx`, `GalaxyWarpOverlay.tsx`, `CommandBar/` |
 | Home Planet | Стартова сцена, катастрофа, doomsday countdown | реалізовано | `packages/client/src/game/rendering/HomePlanetRenderer.ts`, `CinematicIntro.tsx` |
 | Корабель порятунку | Запуск doomsday ship, 1% c, 10 000 пасажирів, ETA | реалізовано | `packages/core/src/game/doomsday-ship.ts`, `EvacuationPrompt.tsx` |
@@ -142,7 +143,7 @@
 | Tripo 3D ships | Kling concept → Tripo GLB, face_limit, Hangar | реалізовано | `api/tripo/*`, `api/ship/*`, `tripo-client.ts` |
 | Gemini content | Lessons, quizzes, digest, ASTRA, moderation, reports | реалізовано | `gemini-client.ts`, `education-generator.ts` |
 | Weekly Digest (AI) | Cron Gemini news + bilingual images | реалізовано | `api/cron/weekly-digest.ts`, `DigestModal.tsx`, `EntryDigestPopup.tsx` |
-| Biosphere creatures (3D) | Image → Tripo GLB → Babylon scene, до 3 істот/планету | в розробці | `Biosphere/BiosphereView.tsx`, `api/creatures/*`, `040-creature-models.sql` |
+| Biosphere creatures (3D) | Дослід з елементами (2–4 з 10, порядок = будова/покрив/акценти, опційно біом планети) → серверний детермінований prompt → Image → Tripo GLB → Babylon scene, до 3 істот/планету; без вільного тексту та модерації, рецепт зберігається в `traits` | в розробці | `Biosphere/BiosphereView.tsx`, `Biosphere/CreatureGenerationPanel.tsx`, `packages/core/src/game/creature-experiment.ts`, `api/creatures/*`, `040-creature-models.sql` |
 | Еволюція біосфери | Щоденний догляд, ростові стадії, покоління та мутації істот; схрещування двох істот у гібрида (фото 15⚛ / з 3D 60⚛ / апгрейд 50⚛) | в розробці | `packages/core/src/game/creature-evolution.ts`, `api/creatures/care.ts`, `api/creatures/evolve.ts`, `api/creatures/hybridize.ts`, `api/creatures/hybrid-upgrade.ts`, `041-creature-evolution.sql`, `042-creature-hybrids.sql` |
 | Scientific reports | AI-звіти після discoveries | реалізовано | `packages/core/src/game/scientific-report.ts`, `ScientificReport.tsx` |
 | Planet skin AI | Kling skin для planet view | реалізовано | `api/planet-skin/*` |

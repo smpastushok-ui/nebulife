@@ -156,3 +156,79 @@ Vertical 9:16 2K cinematic astrophotography of an L-type brown dwarf, dark reddi
 ```text
 Vertical 9:16 2K cinematic astrophotography of a T-type brown dwarf, cool methane-rich atmosphere, Jupiter-like but self-luminous, alternating bright and dark atmospheric bands, subtle bluish-gray and deep violet thermal glow, faint infrared aura, isolated in dark interstellar space with distant stars, scientifically plausible, NASA realism, calm mysterious mobile composition, no text, no UI, no watermark, no logos, no people, no spacecraft, no cartoon style
 ```
+
+## Live Event Prompt Pack
+
+Reward art for the four recurring live events (`packages/core/src/game/live-events.ts`).
+Same generation settings as above (Nano Banana 2, 2K, 9:16 vertical, same negative
+constraints). Bundled at `packages/client/public/cosmic-events/live/<id>.webp` —
+free for players, never AI-generated in-game.
+
+| ID | UA | EN | Category | Gallery |
+|---|---|---|---|---|
+| `rogue-flyby` | Проліт планети-блукача | Rogue Planet Flyby | rogues | cosmos |
+| `supernova-echo` | Світлова луна наднової | Supernova Light Echo | phenomena | anomalies |
+| `interstellar-visitor` | Міжзоряний гість | Interstellar Visitor | small-bodies | cosmos |
+| `aurora-storm` | Авроральний шторм | Aurora Storm | phenomena | anomalies |
+
+### L1. `rogue-flyby` - Rogue Planet Flyby
+
+```text
+Vertical 9:16 2K cinematic astrophotography of a dark rogue planet drifting through the outer edge of a star system, starless frozen world with a nitrogen-ice surface faintly lit by a distant sun, thin collapsed atmosphere as a pale haze on the limb, subtle cracked glacier textures, deep interstellar darkness and a dense starfield behind it, sense of silent immense motion, scientifically plausible, NASA/JWST inspired realism, dramatic mobile poster composition, no text, no UI, no watermark, no logos, no people, no spacecraft, no cartoon style
+```
+
+### L2. `supernova-echo` - Supernova Light Echo
+
+```text
+Vertical 9:16 2K cinematic astrophotography of a supernova light echo, expanding ring of ghostly pale-blue and amber light sweeping across dark interstellar dust sheets, illuminated dust filaments glowing in concentric arcs, the faint dead stellar remnant at the center, layered depth of dust curtains catching the moving light front, deep black space around, scientifically plausible, NASA/Hubble light-echo imagery inspired realism, ethereal vertical composition, no text, no UI, no watermark, no logos, no people, no spacecraft, no cartoon style
+```
+
+### L3. `interstellar-visitor` - Interstellar Visitor
+
+```text
+Vertical 9:16 2K cinematic astrophotography of a dark elongated interstellar object tumbling through the inner star system on a hyperbolic trajectory, cigar-shaped body with a reddish organic-rich crust catching harsh sunlight on one side, faint jets of outgassing vapor, motion implied by orientation against a dense starfield, the bright star far below the frame, scientifically plausible 'Oumuamua-like visitor, NASA concept realism, mysterious vertical composition, no text, no UI, no watermark, no logos, no people, no spacecraft, no cartoon style
+```
+
+### L4. `aurora-storm` - Aurora Storm
+
+```text
+Vertical 9:16 2K cinematic orbital astrophotography of a planet-wide aurora storm seen from high orbit, vast curtains of emerald green and violet light wrapping the planet's polar region and spilling toward the equator, night-side hemisphere glowing under the shimmering ovals, the flaring parent star as a small intense point in the distance, faint streams of charged particles implied, scientifically plausible space weather, NASA realism, breathtaking vertical composition, no text, no UI, no watermark, no logos, no people, no spacecraft, no cartoon style
+```
+
+## Live Event Video Prompt Pack (image-to-video)
+
+Motion clips for the four live events, generated from the bundled WebP stills above.
+
+Generation settings:
+- Model: Seedance 2.0 (`seedance_2_0`), `mode: fast`, `resolution: 720p`
+- Duration: 7 s, aspect ratio 9:16, input: the bundled WebP as `start_frame`
+- Post: ffmpeg → `<id>.webm` (VP9, muted, 720x1280, CRF 32 / cap 1.2 Mbps) +
+  `<id>.mp4` (H.264, muted, CRF 24, faststart) — same dual-format convention as
+  `public/alpha-promo/` (see its README.md); bake script:
+  `scripts/bake-live-event-videos.sh`
+- Bundled at `packages/client/public/cosmic-events/live/<id>.webm|.mp4`; the
+  WebP remains the poster + fallback and the Archive gallery entry.
+
+### V1. `rogue-flyby` (video)
+
+```text
+Bring this deep-space astrophotography still to life with subtle cinematic motion: the dark rogue planet drifts very slowly across the frame in a gentle transit, faint parallax drift of the background starfield, stars twinkling softly, the thin atmospheric haze on the planet's limb shimmering slightly, slow calm silent motion, NASA/JWST realism, seamless loop-friendly movement, no camera shake, no text, no watermark, no UI, no people, no spacecraft
+```
+
+### V2. `supernova-echo` (video)
+
+```text
+Animate this deep-space astrophotography still with subtle cinematic motion: the ghostly ring of the supernova light echo ripples slowly outward across the dark dust sheets, illuminated dust filaments shimmering gently as the light front sweeps over them, faint glow pulsing at the dead remnant in the center, very slow ethereal motion, NASA/Hubble realism, seamless loop-friendly movement, no camera shake, no text, no watermark, no UI, no people, no spacecraft
+```
+
+### V3. `interstellar-visitor` (video)
+
+```text
+Animate this deep-space astrophotography still with subtle cinematic motion: the dark elongated interstellar object tumbles very slowly end over end, harsh sunlight sliding across its reddish crusted surface, faint outgassing vapor shimmering and drifting away, background starfield drifting with gentle parallax, slow silent motion, NASA realism, seamless loop-friendly movement, no camera shake, no text, no watermark, no UI, no people, no spacecraft
+```
+
+### V4. `aurora-storm` (video)
+
+```text
+Animate this orbital astrophotography still with subtle cinematic motion: the vast green and violet aurora curtains flow and undulate slowly around the planet's pole, light rippling along the auroral ovals, city-free night side glowing softly, the distant flaring star twinkling gently, slow majestic motion, NASA realism, seamless loop-friendly movement, no camera shake, no text, no watermark, no UI, no people, no spacecraft
+```
