@@ -500,61 +500,10 @@ Respond ONLY as JSON:
   };
 }
 
-// ---------------------------------------------------------------------------
-// Biosphere Creature Prompt Moderation
-// ---------------------------------------------------------------------------
-
-export type CreaturePromptVerdict = 'approved' | 'needs_revision' | 'blocked';
-
-export interface CreaturePromptModerationResult {
-  verdict: CreaturePromptVerdict;
-  reason: string;
-  cleanedPrompt: string;
-}
-
-export async function moderateCreaturePrompt(description: string): Promise<CreaturePromptModerationResult> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error('GEMINI_API_KEY must be set');
-
-  const prompt = `You moderate player descriptions for a biosphere creature they want to settle on their own planet in Nebulife.
-
-Player description:
-"${description}"
-
-Rules:
-- Approve only alien creature / fauna / flora design descriptions (appearance, anatomy, colors, behavior).
-- Ask for revision if it is too vague, too short, includes personal data, or is not clearly a creature.
-- Block sexual content, hateful content, extremist/political propaganda, real brands/IP, public figures, gore, graphic violence, harassment, or requests to copy a copyrighted character/creature.
-- Remove unsafe/irrelevant words in cleanedPrompt, but keep the player's intended creature shape, traits, colors and mood.
-- cleanedPrompt must be English, concise, image-generation ready, max 700 characters.
-
-Respond ONLY as JSON:
-{"verdict":"approved","reason":"...","cleanedPrompt":"..."}`;
-
-  const ai = new GoogleGenAI({ apiKey });
-  const response = await ai.models.generateContent({
-    model: MODERATION_MODEL,
-    contents: prompt,
-    config: { thinkingConfig: { thinkingBudget: 0 } },
-  });
-
-  const text = response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-  const cleaned = text.replace(/```json?\n?/gi, '').replace(/```/g, '').trim();
-  const parsed = JSON.parse(cleaned) as CreaturePromptModerationResult;
-  const verdicts: CreaturePromptVerdict[] = ['approved', 'needs_revision', 'blocked'];
-  if (!verdicts.includes(parsed.verdict)) {
-    return {
-      verdict: 'needs_revision',
-      reason: 'Опис потрібно уточнити.',
-      cleanedPrompt: '',
-    };
-  }
-  return {
-    verdict: parsed.verdict,
-    reason: String(parsed.reason || ''),
-    cleanedPrompt: String(parsed.cleanedPrompt || '').slice(0, 700),
-  };
-}
+// NOTE: biosphere creature prompt moderation was removed — creatures are now
+// synthesized from whitelisted element experiments (see creature-prompt.ts +
+// @nebulife/core creature-experiment.ts), so there is no player free text
+// left to moderate on that flow.
 
 // ---------------------------------------------------------------------------
 // Daily Quiz & Fun Fact Generation

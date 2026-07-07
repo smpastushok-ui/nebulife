@@ -8,15 +8,20 @@ import {
   listCreaturesByPlanet,
   updateCreatureModel,
   generateImageWithGemini,
-  moderateCreaturePrompt,
   createCreatureModelTask,
   CREATURE_GENERATION_COST_QUARKS,
   MAX_CREATURES_PER_PLANET,
-  normalizeCreatureDescription,
-  validateCreatureDescription,
   buildCreatureImagePrompt,
   RATE_LIMITS,
 } from '@nebulife/server';
+import {
+  buildExperimentCreatureDescription,
+  buildExperimentTraits,
+  isCreatureBiome,
+  seedFromString,
+  validateCreatureElementCombo,
+  type CreatureBiome,
+} from '@nebulife/core';
 
 export const config = {
   maxDuration: 60,
@@ -26,9 +31,15 @@ export const config = {
  * POST /api/creatures/generate
  *
  * Auth: Bearer token (Firebase)
- * Body: { planetId: string, description: string }
+ * Body: { planetId: string, elements: string[], biome?: string | null }
  *
- * Pipeline: moderate brief -> quark gate (first creature per account free,
+ * Element-experiment synthesis: the player never submits free text. The
+ * design brief is built deterministically server-side from the whitelisted
+ * element combination (order matters — slot 1 body plan, slot 2 surface,
+ * slots 3-4 accents), the optional planet biome and a per-creature seed
+ * (see @nebulife/core creature-experiment.ts). No moderation step.
+ *
+ * Pipeline: validate combo -> quark gate (first creature per account free,
  * then CREATURE_GENERATION_COST_QUARKS) -> Gemini reference portrait ->
  * Tripo image_to_model task. Client polls /api/creatures/status for the
  * Tripo -> GLB -> Vercel Blob completion.
@@ -57,10 +68,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Missing required field: planetId' });
     }
 
-    const description = normalizeCreatureDescription(req.body?.description);
-    const validation = validateCreatureDescription(description);
-    if (validation.ok === false) {
-      return res.status(400).json({ error: validation.error });
+    const combo = validateCreatureElementCombo(req.body?.elements);
+    if (combo.ok === false) {
+      return res.status(400).json({ error: combo.error });
+    }
+
+    const rawBiome = req.body?.biome;
+    let biome: CreatureBiome | null = null;
+    if (rawBiome !== undefined && rawBiome !== null) {
+      if (!isCreatureBiome(rawBiome)) {
+        return res.status(400).json({ error: `Unknown biome: ${String(rawBiome)}` });
+      }
+      biome = rawBiome;
     }
 
     const existingOnPlanet = await listCreaturesByPlanet(planetId, auth.playerId);
@@ -74,15 +93,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     );
     if (activeOnPlanet.length >= MAX_CREATURES_PER_PLANET) {
       return res.status(400).json({ error: `Planet already has the maximum of ${MAX_CREATURES_PER_PLANET} creatures` });
-    }
-
-    const moderation = await moderateCreaturePrompt(description);
-    if (moderation.verdict !== 'approved') {
-      return res.status(200).json({
-        status: moderation.verdict,
-        reason: moderation.reason,
-        cleanedPrompt: moderation.cleanedPrompt,
-      });
     }
 
     const priorCreatures = await countPlayerCreatures(auth.playerId);
@@ -100,18 +110,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const creatureId = `creature_${auth.playerId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    // The creature id embeds timestamp + entropy, so seeding from it gives
+    // each experiment a fresh (but reproducible from the stored row) result.
+    const description = buildExperimentCreatureDescription(
+      combo.symbols,
+      biome,
+      seedFromString(creatureId),
+    );
     const creature = await createCreatureModel({
       id: creatureId,
       playerId: auth.playerId,
       planetId,
       description,
-      promptUsed: moderation.cleanedPrompt,
+      promptUsed: description,
       status: 'generating',
       quarksPaid: cost,
+      traits: buildExperimentTraits(combo.symbols),
     });
     createdCreatureId = creature.id;
 
-    const imagePrompt = buildCreatureImagePrompt(moderation.cleanedPrompt);
+    const imagePrompt = buildCreatureImagePrompt(description);
     const image = await generateImageWithGemini({
       prompt: imagePrompt,
       aspectRatio: '1:1',

@@ -183,11 +183,16 @@ const HYBRID_MAX_INHERITED_TRAITS = 3;
  *   guaranteed when neither parent has any traits, e.g. two gen-1 originals,
  *   so every hybrid expresses at least one visible trait).
  */
+/** Stored creature_models.traits rows may also carry experiment recipe
+ *  entries (category 'element', see creature-experiment.ts) — accepted here
+ *  and filtered out, since only mutation categories participate in the mix. */
+export type StoredCreatureTrait = { category: string; trait: string };
+
 export function pickHybridTraits(
   parentAId: string,
   parentBId: string,
-  parentATraits: TraitMutation[] | null | undefined,
-  parentBTraits: TraitMutation[] | null | undefined,
+  parentATraits: readonly StoredCreatureTrait[] | null | undefined,
+  parentBTraits: readonly StoredCreatureTrait[] | null | undefined,
 ): TraitMutation[] {
   const sortedIds = [parentAId, parentBId].sort();
   const rng = new SeededRNG(seedFromString(`${sortedIds[0]}+${sortedIds[1]}:hybrid`));
@@ -200,10 +205,11 @@ export function pickHybridTraits(
 
   const byCategory = new Map<TraitCategory, string[]>();
   for (const t of [...(firstTraits ?? []), ...(secondTraits ?? [])]) {
-    if (!TRAIT_CATEGORIES.includes(t.category)) continue;
-    const options = byCategory.get(t.category) ?? [];
+    if (!(TRAIT_CATEGORIES as readonly string[]).includes(t.category)) continue;
+    const category = t.category as TraitCategory;
+    const options = byCategory.get(category) ?? [];
     if (!options.includes(t.trait)) options.push(t.trait);
-    byCategory.set(t.category, options);
+    byCategory.set(category, options);
   }
 
   let traits: TraitMutation[] = [];

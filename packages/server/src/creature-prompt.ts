@@ -1,50 +1,34 @@
 // ---------------------------------------------------------------------------
 // Biosphere creature prompt helpers (NEXT_GEN_PLAN Section C, phases 1-2)
 // ---------------------------------------------------------------------------
-// Mirrors ship-prompt.ts: a player-authored text brief is validated, then
-// moderated (Gemini) into a cleaned prompt used first for the reference
-// portrait image (Gemini/Nano Banana image pipeline) and then for the Tripo
-// image-to-model task. Kept separate from the existing rarity-driven
+// Creatures are synthesized from element experiments: the design brief is
+// built deterministically server-side (buildExperimentCreatureDescription in
+// @nebulife/core) from the chosen element combination + planet biome + seed
+// — no player free text, so no moderation step. The brief feeds first the
+// reference portrait image (Gemini/Nano Banana image pipeline) and then the
+// Tripo image-to-model task. Kept separate from the existing rarity-driven
 // lifeform-prompt-builder.ts (Genesis module discoveries) since biosphere
 // creatures are a player-directed, always-visible-macro-creature flow.
 // ---------------------------------------------------------------------------
 
 import type { TraitMutation } from '@nebulife/core';
 
-export const CREATURE_PROMPT_MIN_LENGTH = 20;
-export const CREATURE_PROMPT_MAX_LENGTH = 400;
 export const CREATURE_GENERATION_COST_QUARKS = 60;
 export const MAX_CREATURES_PER_PLANET = 3;
-
-export function normalizeCreatureDescription(input: unknown): string {
-  return String(input ?? '')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, CREATURE_PROMPT_MAX_LENGTH + 1);
-}
-
-export function validateCreatureDescription(description: string): { ok: true } | { ok: false; error: string } {
-  if (description.length < CREATURE_PROMPT_MIN_LENGTH) {
-    return { ok: false, error: 'Description is too short' };
-  }
-  if (description.length > CREATURE_PROMPT_MAX_LENGTH) {
-    return { ok: false, error: 'Description is too long' };
-  }
-  return { ok: true };
-}
 
 /**
  * Reference portrait prompt for the image-generation step. Full-body,
  * centered, plain neutral background — optimized for the Tripo image-to-model
- * step that follows, not for a "scene" photo.
+ * step that follows, not for a "scene" photo. `designBrief` is always
+ * server-built (element experiment description, offspring or hybrid text).
  */
-export function buildCreatureImagePrompt(cleanedPrompt: string): string {
+export function buildCreatureImagePrompt(designBrief: string): string {
   return [
     'A single original alien creature for a cozy space-exploration game, full body visible, centered, standing in a naturalistic idle pose.',
     'Plain simple neutral studio background (soft gradient, no scenery, no horizon, no props), even soft lighting, no harsh shadows.',
     'Photorealistic or painterly biological texture, believable anatomy, muted deep-space-adjacent color palette with one or two accent colors.',
     'Single complete organism only, no humans, no text, no logo, no watermark, no UI, no multiple creatures, no cropping.',
-    `Player design brief: ${cleanedPrompt}`,
+    `Design brief: ${designBrief}`,
   ].join(' ');
 }
 

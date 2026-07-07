@@ -19,7 +19,7 @@ import {
 } from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
 import type { Planet, Star } from '@nebulife/core';
-import { getBiospherePalette } from '../../../game/rendering/BiosphereBiome.js';
+import { getBiosphereBiome, getBiospherePalette } from '../../../game/rendering/BiosphereBiome.js';
 import {
   listPlanetCreatures,
   checkCreatureStatus,
@@ -117,6 +117,10 @@ export function BiosphereView({
   const startTimeRef = useRef(0);
 
   const [sceneMounted, setSceneMounted] = useState(false);
+  // Fatal only: WebGL/Babylon engine could not start (old mobile WebViews).
+  // Creature-list fetch failures are NOT fatal — the terrain still renders
+  // and a retry banner is shown instead (see loadError below).
+  const [fatalSceneError, setFatalSceneError] = useState(false);
   const [creatures, setCreatures] = useState<BiosphereCreature[]>([]);
   const [loadingCreatures, setLoadingCreatures] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -127,6 +131,11 @@ export function BiosphereView({
   const [nowMs, setNowMs] = useState(() => Date.now());
 
   const palette = useMemo(() => getBiospherePalette(planet), [planet]);
+  // NaN-safe terrain seed shared by the ground mesh and creature placement.
+  const terrainSeed = useMemo(
+    () => (Number.isFinite(planet.seed) ? planet.seed : hashString(planet.id)),
+    [planet.seed, planet.id],
+  );
   // Legacy-stage creatures (elders that spawned an offspring) are archived to
   // the lineage panel, and photo-tier hybrids ('photo_ready', migration 042)
   // are portraits only: neither is rendered in the 3D scene nor counted
@@ -203,7 +212,16 @@ export function BiosphereView({
     if (!canvas) return;
     let cancelled = false;
 
-    const engine = new Engine(canvas, true, { antialias: true, preserveDrawingBuffer: false });
+    // Engine creation throws on WebViews without a usable WebGL context —
+    // that is the only truly fatal case for this screen.
+    let engine: Engine;
+    try {
+      engine = new Engine(canvas, true, { antialias: true, preserveDrawingBuffer: false });
+    } catch (err) {
+      console.error('[BiosphereView] Babylon engine init failed:', err);
+      setFatalSceneError(true);
+      return;
+    }
     engineRef.current = engine;
 
     const scene = new Scene(engine);
@@ -237,6 +255,10 @@ export function BiosphereView({
     ambient.groundColor = numToColor3(palette.base);
 
     // ── Terrain patch (<=8k triangles, flat-shaded low-poly) ──────────────
+    // terrainSeed is NaN-guarded (see the memo above): a non-finite seed
+    // would turn every height into NaN, corrupting the vertex buffer so the
+    // mesh never draws and the screen degrades to a flat clear-color plane.
+    const heightScale = 0.9;
     const subdivisions = 40; // 40*40*2 = 3200 triangles
     const ground = MeshBuilder.CreateGround('bioTerrain', { width: PATCH_SIZE, height: PATCH_SIZE, subdivisions }, scene);
     const positions = ground.getVerticesData(VertexBuffer.PositionKind);
@@ -244,7 +266,7 @@ export function BiosphereView({
       for (let i = 0; i < positions.length; i += 3) {
         const x = positions[i];
         const z = positions[i + 2];
-        positions[i + 1] = terrainHeight(x, z, planet.seed) * 0.9;
+        positions[i + 1] = terrainHeight(x, z, terrainSeed) * heightScale;
       }
       ground.updateVerticesData(VertexBuffer.PositionKind, positions);
       ground.createNormals(false);
@@ -252,8 +274,27 @@ export function BiosphereView({
     ground.convertToFlatShadedMesh();
     ground.isPickable = false;
 
+    // Elevation tint: lerp base -> highlight per vertex (the BiomePalette
+    // contract) so the patch reads as terrain instead of a flat single-color
+    // plane. Applied after convertToFlatShadedMesh so each facet keeps a
+    // uniform low-poly color.
+    const shadedPositions = ground.getVerticesData(VertexBuffer.PositionKind);
+    if (shadedPositions) {
+      const baseC = numToColor3(palette.base);
+      const highC = numToColor3(palette.highlight);
+      const colors = new Float32Array((shadedPositions.length / 3) * 4);
+      for (let i = 0, v = 0; i < shadedPositions.length; i += 3, v += 4) {
+        const h = Math.min(1, Math.max(0, shadedPositions[i + 1] / heightScale));
+        colors[v] = baseC.r + (highC.r - baseC.r) * h;
+        colors[v + 1] = baseC.g + (highC.g - baseC.g) * h;
+        colors[v + 2] = baseC.b + (highC.b - baseC.b) * h;
+        colors[v + 3] = 1;
+      }
+      ground.setVerticesData(VertexBuffer.ColorKind, colors);
+    }
+
     const groundMat = new StandardMaterial('bioTerrainMat', scene);
-    groundMat.diffuseColor = numToColor3(palette.base);
+    groundMat.diffuseColor = new Color3(1, 1, 1); // tint comes from vertex colors
     groundMat.specularColor = new Color3(0.05, 0.05, 0.05);
     groundMat.emissiveColor = numToColor3(palette.highlight).scale(0.05);
     ground.material = groundMat;
@@ -343,7 +384,7 @@ export function BiosphereView({
       const radius = PATCH_SIZE * 0.22;
       const baseX = Math.cos(angle) * radius;
       const baseZ = Math.sin(angle) * radius;
-      const baseY = terrainHeight(baseX, baseZ, planet.seed) * 0.9;
+      const baseY = terrainHeight(baseX, baseZ, terrainSeed) * 0.9;
 
       SceneLoader.ImportMeshAsync('', '', creature.glb_url, scene)
         .then((result) => {
@@ -395,7 +436,7 @@ export function BiosphereView({
           console.error(`[BiosphereView] Failed to load creature GLB ${creature.id}:`, err);
         });
     });
-  }, [readyCreatures, sceneMounted, planet.seed]);
+  }, [readyCreatures, sceneMounted, terrainSeed]);
 
   // ── Keyboard: Escape closes ──────────────────────────────────────────────
 
@@ -410,18 +451,22 @@ export function BiosphereView({
   return (
     <div style={{
       position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      background: '#020510', zIndex: 9000, fontFamily: 'monospace',
+      // 12000 = same layer as the DNA-constructor minigame: must cover the
+      // Colony Center (9700) / BuildingDetailPanel (9900) it is opened from.
+      background: '#020510', zIndex: 12000, fontFamily: 'monospace',
     }}>
       <canvas
         ref={canvasRef}
         style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', touchAction: 'none', outline: 'none' }}
       />
 
-      {/* Header bar */}
+      {/* Header bar — safe-area padding keeps the controls below the OS
+          status bar / notch (same pattern as HangarPage). */}
       <div style={{
-        position: 'absolute', top: 0, left: 0, right: 0, height: 48,
+        position: 'absolute', top: 0, left: 0, right: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 16px', background: 'rgba(5,10,20,0.85)', backdropFilter: 'blur(12px)',
+        padding: 'calc(env(safe-area-inset-top, 0px) + 9px) 16px 9px',
+        background: 'rgba(5,10,20,0.85)', backdropFilter: 'blur(12px)',
         borderBottom: '1px solid rgba(60,100,160,0.15)', zIndex: 2,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -480,14 +525,38 @@ export function BiosphereView({
       </div>
 
       {/* Loading / error states */}
-      {loadingCreatures && (
+      {fatalSceneError && (
+        <div style={centerOverlayStyle}>
+          <span style={{ color: '#cc4444', fontSize: 12 }}>{t('biosphere.error_load')}</span>
+        </div>
+      )}
+      {loadingCreatures && !fatalSceneError && (
         <div style={centerOverlayStyle}>
           <span style={{ color: '#8899aa', fontSize: 12 }}>{t('biosphere.loading')}</span>
         </div>
       )}
+      {/* Creature-list fetch failure is non-fatal: the terrain keeps
+          rendering, only a compact retry banner appears. */}
       {!loadingCreatures && loadError && (
-        <div style={centerOverlayStyle}>
-          <span style={{ color: '#cc4444', fontSize: 12 }}>{t('biosphere.error_load')}</span>
+        <div style={{
+          position: 'absolute', left: '50%', transform: 'translateX(-50%)',
+          top: 'calc(env(safe-area-inset-top, 0px) + 60px)', zIndex: 3,
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '8px 12px', background: 'rgba(10,15,25,0.92)',
+          border: '1px solid rgba(204,68,68,0.5)', borderRadius: 4,
+          maxWidth: 'min(420px, calc(100vw - 32px))',
+        }}>
+          <span style={{ color: '#cc4444', fontSize: 11 }}>{t('biosphere.error_creatures')}</span>
+          <button
+            onClick={reloadCreatures}
+            style={{
+              padding: '5px 10px', background: 'rgba(30,60,80,0.6)', flexShrink: 0,
+              border: '1px solid #446688', color: '#aaccee', fontFamily: 'monospace',
+              fontSize: 10, borderRadius: 3, cursor: 'pointer',
+            }}
+          >
+            {t('biosphere.retry')}
+          </button>
         </div>
       )}
       {!loadingCreatures && !loadError && creatures.length === 0 && !showGeneratePanel && (
@@ -502,6 +571,7 @@ export function BiosphereView({
       {showGeneratePanel && (
         <CreatureGenerationPanel
           planetId={planet.id}
+          biome={getBiosphereBiome(planet)}
           onClose={() => setShowGeneratePanel(false)}
           onGenerationStarted={(creatureId) => {
             setPendingCreatureId(creatureId);

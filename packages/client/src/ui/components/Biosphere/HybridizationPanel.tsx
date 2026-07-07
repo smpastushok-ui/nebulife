@@ -11,11 +11,11 @@ import {
   pickHybridTraits,
   HYBRID_PHOTO_COST_QUARKS,
   HYBRID_FULL_COST_QUARKS,
-  type TraitMutation,
 } from '@nebulife/core';
 import {
   hybridizeCreatures,
   type BiosphereCreature,
+  type CreatureTraitMutation,
   type HybridTier,
 } from '../../../api/creature-api.js';
 
@@ -42,14 +42,14 @@ export function HybridizationPanel({
   const [phase, setPhase] = useState<PanelPhase>('select');
   const [message, setMessage] = useState<string | null>(null);
   const [resultPhotoUrl, setResultPhotoUrl] = useState<string | null>(null);
-  const [resultTraits, setResultTraits] = useState<TraitMutation[]>([]);
+  const [resultTraits, setResultTraits] = useState<CreatureTraitMutation[]>([]);
 
   const parentA = eligibleCreatures.find((c) => c.id === selectedIds[0]) ?? null;
   const parentB = eligibleCreatures.find((c) => c.id === selectedIds[1]) ?? null;
   const pairSelected = Boolean(parentA && parentB);
   const planetFull = activeCreatureCount >= maxCreatures;
 
-  const traitPreview = useMemo<TraitMutation[]>(() => {
+  const traitPreview = useMemo<CreatureTraitMutation[]>(() => {
     if (!parentA || !parentB) return [];
     return pickHybridTraits(parentA.id, parentB.id, parentA.traits, parentB.traits);
   }, [parentA, parentB]);
@@ -95,7 +95,8 @@ export function HybridizationPanel({
 
   return (
     <div style={{
-      position: 'absolute', top: 60, right: 16, width: 320, maxHeight: 'calc(100% - 90px)',
+      position: 'absolute', top: 'calc(env(safe-area-inset-top, 0px) + 60px)', right: 16, width: 320,
+      maxHeight: 'calc(100% - 90px - env(safe-area-inset-top, 0px))',
       background: 'rgba(10,15,25,0.94)', border: '1px solid #334455', borderRadius: 4,
       padding: 16, zIndex: 5, fontFamily: 'monospace', overflowY: 'auto',
       boxShadow: '0 4px 20px rgba(0,0,0,0.6)',

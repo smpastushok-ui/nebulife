@@ -1,10 +1,9 @@
+import type { CreatureBiome } from '@nebulife/core';
 import { authFetch } from '../auth/api-client.js';
 
 const API_BASE = '/api';
 
 export type CreatureGenerationStatus =
-  | 'needs_revision'
-  | 'blocked'
   | 'queued'
   | 'generating'
   | 'ready'
@@ -15,7 +14,9 @@ export type CreatureGenerationStatus =
 export type CreatureStage = 'juvenile' | 'adult' | 'elder' | 'legacy';
 
 export interface CreatureTraitMutation {
-  category: 'size' | 'coloring' | 'appendages' | 'bioluminescence' | 'texture';
+  // 'element' — experiment recipe entries (element symbols, migration 041
+  // traits JSONB); the rest are offspring/hybrid mutation categories.
+  category: 'size' | 'coloring' | 'appendages' | 'bioluminescence' | 'texture' | 'element';
   trait: string;
 }
 
@@ -67,8 +68,6 @@ export interface EvolveResponse {
 export interface CreatureGenerateResponse {
   creatureId?: string;
   status: CreatureGenerationStatus;
-  reason?: string;
-  cleanedPrompt?: string;
   imageUrl?: string;
   quarksPaid?: number;
   newBalance?: number;
@@ -82,11 +81,18 @@ export interface CreatureStatusResponse {
   glbUrl?: string | null;
 }
 
-export async function requestCreatureGeneration(planetId: string, description: string): Promise<CreatureGenerateResponse> {
+/** Element-experiment synthesis: order of `elements` matters (slot 1 body
+ *  plan, slot 2 surface, slots 3-4 accents). `biome` null skips the habitat
+ *  clause — the "environment factor" toggle in the experiment UI. */
+export async function requestCreatureGeneration(
+  planetId: string,
+  elements: string[],
+  biome: CreatureBiome | null,
+): Promise<CreatureGenerateResponse> {
   const res = await authFetch(`${API_BASE}/creatures/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ planetId, description }),
+    body: JSON.stringify({ planetId, elements, biome }),
   });
 
   const data = await res.json().catch(() => ({ error: 'Unknown error' }));

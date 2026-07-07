@@ -3,7 +3,7 @@
 // terrain patch in BiosphereView. No textures — flat-shaded low-poly ground,
 // tinted by biome only.
 
-import type { Planet } from '@nebulife/core';
+import type { CreatureBiome, Planet } from '@nebulife/core';
 
 export interface BiomePalette {
   /** Base ground color (low points / valleys). */
@@ -24,25 +24,31 @@ const PALETTES = {
   vegetation: { base: 0x2a4a2a, highlight: 0x4a7a44, ambient: 0x081408, lightTint: 0xccffdd },
   gasGiant: { base: 0x2a2440, highlight: 0x6655aa, ambient: 0x0a0818, lightTint: 0xbbaaff },
   rocky: { base: 0x443a33, highlight: 0x776655, ambient: 0x100d0a, lightTint: 0xddccbb },
-} as const satisfies Record<string, BiomePalette>;
+} as const satisfies Record<CreatureBiome, BiomePalette>;
 
 /**
  * Deterministic biome selection: planet type + water coverage + surface temp.
  * Mirrors the "planet type -> biome" mapping called out in NEXT_GEN_PLAN.md
  * Section C (e.g. ocean world -> deep blues, desert -> muted oranges).
+ * The returned id doubles as the "environment factor" sent to
+ * /api/creatures/generate (validated server-side against CREATURE_BIOMES).
  */
-export function getBiospherePalette(planet: Planet): BiomePalette {
+export function getBiosphereBiome(planet: Planet): CreatureBiome {
   if (planet.type === 'gas-giant' || planet.type === 'ice-giant') {
-    return PALETTES.gasGiant;
+    return 'gasGiant';
   }
 
   const waterCoverage = planet.hydrosphere?.waterCoverageFraction ?? 0;
   const tempK = planet.surfaceTempK;
 
-  if (tempK >= 500) return PALETTES.lava;
-  if (tempK <= 240) return PALETTES.ice;
-  if (waterCoverage >= 0.55) return PALETTES.ocean;
-  if (planet.hasLife && waterCoverage >= 0.15) return PALETTES.vegetation;
-  if (waterCoverage < 0.15) return PALETTES.desert;
-  return PALETTES.rocky;
+  if (tempK >= 500) return 'lava';
+  if (tempK <= 240) return 'ice';
+  if (waterCoverage >= 0.55) return 'ocean';
+  if (planet.hasLife && waterCoverage >= 0.15) return 'vegetation';
+  if (waterCoverage < 0.15) return 'desert';
+  return 'rocky';
+}
+
+export function getBiospherePalette(planet: Planet): BiomePalette {
+  return PALETTES[getBiosphereBiome(planet)];
 }

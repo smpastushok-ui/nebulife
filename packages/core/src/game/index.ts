@@ -145,6 +145,19 @@ export {
 } from './comet-event.js';
 export type { CometSchedule } from './comet-event.js';
 
+// Live cosmic events — recurring, time-limited observation windows
+export {
+  LIVE_EVENTS,
+  LIVE_EVENT_ASSET_BASE,
+  LIVE_EVENT_TRACKING_DURATION_MS,
+  liveEventPhotoUrl,
+  getLiveEventDef,
+  getLiveEventSchedule,
+  getAllLiveEventSchedules,
+  liveEventClaimKey,
+} from './live-events.js';
+export type { LiveEventDef, LiveEventSchedule } from './live-events.js';
+
 // Daily directives
 export {
   DIRECTIVE_POOL,
@@ -386,6 +399,20 @@ export type {
   TraitCategory,
   TraitMutation,
 } from './creature-evolution.js';
+
+// Biosphere creature experiments — element-driven synthesis
+export {
+  CREATURE_EXPERIMENT_MIN_ELEMENTS,
+  CREATURE_EXPERIMENT_MAX_ELEMENTS,
+  CREATURE_BIOMES,
+  isCreatureBiome,
+  CREATURE_ELEMENTS,
+  CREATURE_ELEMENT_SYMBOLS,
+  validateCreatureElementCombo,
+  buildExperimentCreatureDescription,
+  buildExperimentTraits,
+} from './creature-experiment.js';
+export type { CreatureBiome, CreatureElementDef } from './creature-experiment.js';
 
 // Megastructures — "Мегаструктури кластера" collective cluster construction
 export {

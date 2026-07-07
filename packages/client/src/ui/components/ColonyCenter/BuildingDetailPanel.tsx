@@ -19,6 +19,7 @@ import {
   type RateRow,
 } from './building-detail-model.js';
 import { type ElementResult, resultAccent } from './ElementResultCard.js';
+import { useBiosphereCareAvailable } from '../../../hooks/useBiosphereCareAvailable.js';
 
 type ColonyResources = Record<ColonyResourceKey, number>;
 
@@ -54,6 +55,9 @@ export interface BuildingDetailPanelProps {
   onStartExtraction?: (buildingId: string, planetId: string) => boolean | void;
   /** Open the DNA-constructor spark minigame (fired from the lab section). */
   onOpenDnaLab?: () => void;
+  /** Open the Biosphere scene (3D settled creatures) for this planet —
+   *  the lab is the only entry point (not the CommandBar). */
+  onOpenBiosphere?: () => void;
   /** True once all 4 spark types have been synthesized today (00:00 UTC
    *  reset — see GAME_DESIGN.md). Drives the lab button label so it doesn't
    *  look broken/unresponsive once today's plays are exhausted. */
@@ -1380,6 +1384,7 @@ export function BuildingDetailPanel({
   extractionJobs,
   onStartExtraction,
   onOpenDnaLab,
+  onOpenBiosphere,
   dnaLabCompleted = false,
   upcomingEvents,
   onOpenSignals,
@@ -1405,6 +1410,11 @@ export function BuildingDetailPanel({
   }, []);
   const type = building?.type ?? buildingType;
   const def = type ? BUILDING_DEFS[type] : null;
+  // "Care available" glow for the lab's Biosphere entry — polls only while a
+  // research lab detail with a Biosphere entry point is open.
+  const biosphereCareAvailable = useBiosphereCareAvailable(
+    type === 'research_lab' && building && onOpenBiosphere ? planet.id : null,
+  );
   const hasOrbitalTelescope = useMemo(
     () => buildings.some((b) => b.type === 'orbital_telescope' && !b.shutdown),
     [buildings],
@@ -2026,6 +2036,40 @@ export function BuildingDetailPanel({
                   {stats.isShutdown ? t('separation.no_power') : dnaLabCompleted ? t('lab.spark_done') : t('lab.spark_start')}
                 </button>
               </div>
+
+              {/* Biosphere — settled 3D creatures for this planet. The lab is
+                  the only entry point (moved out of the CommandBar). */}
+              {onOpenBiosphere && (
+                <div style={{ display: 'grid', gap: 8, padding: 11, borderRadius: 7, background: 'rgba(5,10,20,0.45)', border: '1px solid rgba(68,255,136,0.28)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <div style={{ fontSize: 11, color: '#bdffd6', letterSpacing: 0.5 }}>{t('biosphere.lab_entry_title')}</div>
+                    {biosphereCareAvailable && (
+                      <span style={{
+                        fontSize: 8.5, color: '#44ff88', border: '1px solid rgba(68,255,136,0.45)',
+                        borderRadius: 999, padding: '2px 7px', letterSpacing: 1, textTransform: 'uppercase',
+                      }}>
+                        {t('biosphere.lab_entry_care')}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 9.5, color: '#7faf93', lineHeight: 1.5 }}>{t('biosphere.lab_entry_desc')}</div>
+                  <button
+                    type="button"
+                    disabled={stats.isShutdown}
+                    onClick={() => onOpenBiosphere()}
+                    style={{
+                      background: stats.isShutdown ? 'rgba(20,30,45,0.45)' : 'linear-gradient(180deg, rgba(68,255,136,0.26), rgba(68,255,136,0.12))',
+                      border: `1px solid ${stats.isShutdown ? BORDER : '#44ff88'}`, borderRadius: 6,
+                      color: stats.isShutdown ? '#556677' : '#eafff2', fontFamily: 'monospace', fontSize: 11.5,
+                      letterSpacing: 1.5, textTransform: 'uppercase', padding: '11px 12px',
+                      cursor: stats.isShutdown ? 'not-allowed' : 'pointer',
+                      boxShadow: stats.isShutdown ? 'none' : '0 0 18px rgba(68,255,136,0.28)',
+                    }}
+                  >
+                    {stats.isShutdown ? t('separation.no_power') : t('biosphere.lab_entry_open')}
+                  </button>
+                </div>
+              )}
             </div>
           );
         })()}
@@ -2480,7 +2524,9 @@ export function BuildingDetailPanel({
                         // (AdMob = native shells). On web showRewardedAd
                         // instantly returns rewarded:false, which silently
                         // blocked the search for every non-premium player.
-                        const adsGated = !isPremium && isNativePlatform();
+                        // The 24h "Unique Signature" scan is exempt: it is the
+                        // long-commitment premium search and must start freely.
+                        const adsGated = !isPremium && isNativePlatform() && duration !== '24h';
                         if (adsGated) {
                           setObservatoryAdsRunning(true);
                           const result = await watchAdsWithProgress('research_data', 3, () => {});

@@ -36,7 +36,7 @@ export function LineagePanel({ creatures, onClose }: LineagePanelProps) {
 
   return (
     <div style={{
-      position: 'absolute', top: 60, left: 16, right: 16, bottom: 16,
+      position: 'absolute', top: 'calc(env(safe-area-inset-top, 0px) + 60px)', left: 16, right: 16, bottom: 16,
       background: 'rgba(10,15,25,0.94)', border: '1px solid #334455', borderRadius: 4,
       padding: 16, zIndex: 5, fontFamily: 'monospace', boxShadow: '0 4px 20px rgba(0,0,0,0.6)',
       overflowY: 'auto', maxWidth: 420, margin: '0 auto',
