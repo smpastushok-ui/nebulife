@@ -201,7 +201,18 @@ function RootRouter() {
   gtag('config', GA_ID, { anonymize_ip: true });
 })();
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+// Reuse a single React root across module re-evaluations. A Vite HMR
+// invalidation chain that reaches this entry re-executes the whole module in
+// the SAME document; calling createRoot(#root) a second time spawns a second
+// React root that fights the first over the container (observed as a
+// "createRoot() on a container that has already been passed to createRoot()"
+// warning followed by a NotFoundError removeChild crash storm → broken page
+// until manual reload). Production always evaluates once, so this is a no-op.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const w = window as any;
+const reactRoot: ReactDOM.Root = w.__nebulifeReactRoot
+  ?? (w.__nebulifeReactRoot = ReactDOM.createRoot(document.getElementById('root')!));
+reactRoot.render(
   <ErrorBoundary>
     <RootRouter />
   </ErrorBoundary>,

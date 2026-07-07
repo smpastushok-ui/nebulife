@@ -401,12 +401,14 @@ export function StarBirthIntro({ onComplete, minDurationMs = 9500 }: Props) {
     let frames = 0;
     let cinemaStart = 0;
     let handedOff = false;
+    let lastFrameAt = start;
     const MIN_LOADER_MS = 1300;  // hold the orbit loader a touch longer so WebGL
                                  // fully warms up (smoother hand-off) and the FPS
                                  // benchmark gets more steady-state frames
     const WARMUP_FRAMES = 8;     // proof the rAF loop is actually running
 
-    const frame = (now: number) => {
+    const renderFrame = (now: number) => {
+      lastFrameAt = now;
       const dt = now - last;
       last = now;
       const sinceMount = now - start;
@@ -463,6 +465,19 @@ export function StarBirthIntro({ onComplete, minDurationMs = 9500 }: Props) {
       raf = requestAnimationFrame(frame);
     };
 
+    // An exception inside the rAF loop (driver/shader failure, context loss
+    // mid-render, three.js internals) is NOT caught by the parent React error
+    // boundary — previously the loop just died and the player was trapped on
+    // the "establishing orbit" loader forever. Fail forward into the game.
+    const frame = (now: number) => {
+      try {
+        renderFrame(now);
+      } catch (err) {
+        console.error('[StarBirthIntro] frame loop crashed; completing boot:', err);
+        finishRef.current(false);
+      }
+    };
+
     const disposeAll = () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', sizeTo);
@@ -487,9 +502,24 @@ export function StarBirthIntro({ onComplete, minDurationMs = 9500 }: Props) {
         tier = resolveTier(heuristic, fps);
         setBenchmarkTier(tier);
       }
-      disposeAll();
+      // Cleanup failures (e.g. dispose on a lost GL context) must never block
+      // onComplete — that would strand the player on the boot screen.
+      try { disposeAll(); } catch (err) { console.warn('[StarBirthIntro] dispose failed:', err); }
       onComplete({ fps, tier, skipped, durationMs: performance.now() - start });
     };
+
+    // Watchdog: if the rAF loop stops flowing while the page is visible
+    // (e.g. requestAnimationFrame starved/killed by the WebView, or a crash
+    // path we didn't foresee), force-complete instead of hanging the boot.
+    // A hidden page legitimately pauses rAF, so it never counts as a stall.
+    const watchdog = window.setInterval(() => {
+      if (doneRef.current) return;
+      if (document.visibilityState !== 'visible') { lastFrameAt = performance.now(); return; }
+      if (performance.now() - lastFrameAt > 6000) {
+        console.warn('[StarBirthIntro] frame loop stalled; completing boot.');
+        finishRef.current(false);
+      }
+    }, 2000);
 
     // Pre-compile all shader programs + upload geometry now, while the screen
     // is still the static backdrop. Without this, the first animated frame
@@ -503,7 +533,10 @@ export function StarBirthIntro({ onComplete, minDurationMs = 9500 }: Props) {
 
     return () => {
       window.clearTimeout(skipTimer);
-      if (!doneRef.current) disposeAll();
+      window.clearInterval(watchdog);
+      if (!doneRef.current) {
+        try { disposeAll(); } catch { /* context already gone */ }
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

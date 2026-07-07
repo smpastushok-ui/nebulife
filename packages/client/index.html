@@ -90,10 +90,54 @@
       background: transparent;
     }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    /* ── Static boot splash ─────────────────────────────────────────────
+       Painted by the browser straight from HTML, BEFORE the JS bundle is
+       parsed (the bundle is ~10 MB — on mid Android WebViews that used to
+       mean 1–5+ seconds of pure black screen between the native splash
+       and React's first render, which testers reported as a first-load
+       "bug"/hang). React's createRoot().render() clears #root children on
+       mount, so this splash disappears automatically the moment the app
+       takes over. transform/opacity animations only (compositor-thread),
+       palette + monospace per Game Bible. No sentence text → no i18n. */
+    #boot-splash {
+      position: fixed; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 22px; background: #020510; font-family: monospace;
+      pointer-events: none;
+    }
+    #boot-splash .bs-orbit { position: relative; width: 96px; height: 96px; }
+    #boot-splash .bs-ring, #boot-splash .bs-ring2 {
+      position: absolute; border-radius: 50%; box-sizing: border-box;
+      border: 1.5px solid rgba(123,184,255,0.18);
+      will-change: transform;
+    }
+    #boot-splash .bs-ring {
+      inset: 0;
+      border-top-color: rgba(123,184,255,0.9);
+      border-right-color: rgba(123,184,255,0.45);
+      animation: bsSpin 2.4s linear infinite;
+    }
+    #boot-splash .bs-ring2 {
+      inset: 17px;
+      border-color: rgba(123,184,255,0.12);
+      border-bottom-color: rgba(170,210,255,0.8);
+      animation: bsSpinRev 1.7s linear infinite;
+    }
+    #boot-splash .bs-core {
+      position: absolute; top: 50%; left: 50%; width: 12px; height: 12px;
+      margin: -6px 0 0 -6px; border-radius: 50%;
+      background: radial-gradient(circle, #eaf2fb 0%, #7bb8ff 55%, rgba(123,184,255,0) 100%);
+      animation: bsPulse 1.8s ease-in-out infinite;
+      will-change: transform, opacity;
+    }
+    #boot-splash .bs-title { color: #8aa0b4; font-size: 12px; letter-spacing: 6px; }
+    @keyframes bsSpin { to { transform: rotate(360deg); } }
+    @keyframes bsSpinRev { to { transform: rotate(-360deg); } }
+    @keyframes bsPulse { 0%,100% { transform: scale(1); opacity: 0.85; } 50% { transform: scale(1.5); opacity: 1; } }
   </style>
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root"><div id="boot-splash"><div class="bs-orbit"><div class="bs-ring"></div><div class="bs-ring2"></div><div class="bs-core"></div></div><div class="bs-title">NEBULIFE</div></div></div>
   <script type="module" src="/src/main.tsx"></script>
   <script>
     // Register service worker for PWA (web only).
