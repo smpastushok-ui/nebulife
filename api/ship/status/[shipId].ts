@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { authenticate } from '../../../packages/server/src/auth-middleware.js';
 import { getShipModel, updateShipModel } from '../../../packages/server/src/db.js';
 import { checkTaskStatus as checkKlingStatus } from '../../../packages/server/src/kling-client.js';
-import { checkModelTask, createShipModelTask, createShipTextModelTask } from '../../../packages/server/src/tripo-client.js';
+import { checkModelTask, createShipModelTask, createShipTextModelTask, isFinalTripoFailure } from '../../../packages/server/src/tripo-client.js';
 import { buildShipModelNegativePrompt, buildShipModelPrompt } from '../../../packages/server/src/ship-prompt.js';
 import { enqueueShipModelReadyPush } from '../../../packages/server/src/push-events.js';
 import { tryStoreGlbFromUrl } from '../../../packages/server/src/glb-storage.js';
@@ -81,7 +81,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       }
 
-      if (result.status === 'failed' || result.status === 'cancelled') {
+      if (isFinalTripoFailure(result.status)) {
         await updateShipModel(shipId, { status: 'failed' });
         return res.status(200).json({ status: 'failed' });
       }

@@ -4,6 +4,7 @@ import {
   checkModelTask,
   creditQuarks,
   getCreatureModel,
+  isFinalTripoFailure,
   tryStoreGlbFromUrl,
   updateCreatureModel,
 } from '@nebulife/server';
@@ -89,7 +90,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       }
 
-      if (result.status === 'failed' || result.status === 'cancelled') {
+      if (isFinalTripoFailure(result.status)) {
         // Photo-tier creatures (hybrid or plain experiment) being UPGRADED to
         // 3D revert to 'photo_ready' instead of 'failed' — the purchased
         // photo is kept, only the upgrade attempt's quarks (quarks_paid was

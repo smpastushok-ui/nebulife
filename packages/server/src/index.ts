@@ -305,6 +305,7 @@ export {
   createShipModelTask,
   createShipTextModelTask,
   createCreatureModelTask,
+  isFinalTripoFailure,
 } from './tripo-client.js';
 
 export type {

@@ -7,7 +7,7 @@ import { getPlanetModel, updatePlanetModel } from '../../../packages/server/src/
 // forward but still resolves any pre-existing tasks.
 import { checkTaskStatus as checkKlingStatus } from '../../../packages/server/src/kling-client.js';
 import { generateImageWithGemini } from '../../../packages/server/src/gemini-client.js';
-import { checkModelTask, createModelTask } from '../../../packages/server/src/tripo-client.js';
+import { checkModelTask, createModelTask, isFinalTripoFailure } from '../../../packages/server/src/tripo-client.js';
 import { buildPlanetModelPrompt } from '../../../packages/server/src/planet-model-prompt-builder.js';
 
 /**
@@ -78,7 +78,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       }
 
-      if (result.status === 'failed' || result.status === 'cancelled') {
+      if (isFinalTripoFailure(result.status)) {
         await updatePlanetModel(modelId, { status: 'failed' });
         return res.status(200).json({ status: 'failed' });
       }
