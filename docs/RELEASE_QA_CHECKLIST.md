@@ -22,7 +22,6 @@ Verify these are included in the production archive:
 - `packages/client/public/arena_ships/red_ship.glb`
 - `packages/client/public/arena/arena-backdrop.jpg`
 - `packages/client/public/sw.js`
-- raid background and carrier assets used by `CarrierRaid`
 
 ## Neon Migrations
 

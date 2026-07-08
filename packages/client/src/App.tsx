@@ -269,7 +269,7 @@ function markLifeformFind(): void {
 }
 /** Dynamic, per-target one-time flags (player/planet-scoped). */
 const SYNCED_UI_FLAG_PREFIXES = [
-  'nebulife_unlock_popup_',        // buildings/arena/raid/terraform unlock popups
+  'nebulife_unlock_popup_',        // buildings/arena/terraform unlock popups
   'nebulife_home_resource_floor_', // home-planet resource hint
   'nebulife_building_seen_at',     // per-building result beacons / surface lesson state
   'nebulife_alpha_promo_seen_',    // Alpha-promo videos already shown to this player (no-repeat)
@@ -341,7 +341,6 @@ import { EncyclopediaScreen } from './ui/components/Encyclopedia/EncyclopediaScr
 import { SpaceArena } from './ui/components/SpaceArena/SpaceArena.js';
 import { HangarPage } from './ui/components/Hangar/HangarPage.js';
 import { BiosphereView } from './ui/components/Biosphere/BiosphereView.js';
-import { CarrierRaid } from './ui/components/Raid/CarrierRaid.js';
 import { CosmicBattlePage } from './ui/components/CosmicBattle/CosmicBattlePage.js';
 import type { CosmicBattleRewardBundle } from './ui/components/CosmicBattle/cosmic-battle-engine.js';
 import { ColonyCenterPage, RESOURCE_BOOST_PRICES, TIME_BOOST_PRICES, BOOST_DURATION_MS } from './ui/components/ColonyCenter/ColonyCenterPage.js';
@@ -509,13 +508,6 @@ function MissionPhotoReceiveOverlay({ imageDataUrl, planetName, startedAt }: { i
       </div>
     </div>
   );
-}
-
-function localDateKey(date = new Date()): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
 }
 
 function computeResourceStorageCapacity(buildings: PlacedBuilding[]): number {
@@ -1437,13 +1429,6 @@ function clearAccountScopedLocalStorage(nextUid?: string): void {
 
 function getUnlockPopupStorageKey(playerId: string, id: UnlockPopupKind): string {
   return `nebulife_unlock_popup_${playerId || 'guest'}_${id}`;
-}
-
-function canRunCarrierRaidOnDevice(): boolean {
-  // The raid runs on a single PixiJS v8 engine with tier-scaled sprite/particle
-  // budgets (see RaidEngine.ts) — no more desktop-only Three.js path, so every
-  // device tier (including mobile) is supported.
-  return true;
 }
 
 function isPlanetTextureMapUrl(url: string | null | undefined): url is string {
@@ -3972,15 +3957,7 @@ function AppInner() {
     if (val) localStorage.setItem('nebulife_arena_active', '1');
     else localStorage.removeItem('nebulife_arena_active');
   }, []);
-  const [showRaid, setShowRaidRaw] = useState(false);
   const [showCosmicBattle, setShowCosmicBattleRaw] = useState(false);
-  const [lastRaidQuestDate, setLastRaidQuestDate] = useState<string>(() => {
-    try { return localStorage.getItem('nebulife_daily_raid_date') ?? ''; } catch { return ''; }
-  });
-  const setShowRaid = useCallback((val: boolean) => {
-    setShowRaidRaw(val);
-    setArenaPopupGate(val);
-  }, []);
   const setShowCosmicBattle = useCallback((val: boolean) => {
     setShowCosmicBattleRaw(val);
     setArenaPopupGate(val);
@@ -4025,14 +4002,14 @@ function AppInner() {
 
   // Ref to showArena that stays current inside callbacks without re-creating them.
   const showArenaRef = useRef(false);
-  useEffect(() => { showArenaRef.current = showArena || showRaid || showCosmicBattle; }, [showArena, showRaid, showCosmicBattle]);
+  useEffect(() => { showArenaRef.current = showArena || showCosmicBattle; }, [showArena, showCosmicBattle]);
 
   useEffect(() => {
     if (!showCosmicArchive) return;
-    if (showArena || showRaid || showCosmicBattle || showHangar || showAcademy || showEncyclopedia || showPlayerPage || showColonyCenter || showTerraformPlanet) {
+    if (showArena || showCosmicBattle || showHangar || showAcademy || showEncyclopedia || showPlayerPage || showColonyCenter || showTerraformPlanet) {
       setShowCosmicArchive(false);
     }
-  }, [showArena, showRaid, showCosmicBattle, showHangar, showAcademy, showEncyclopedia, showPlayerPage, showColonyCenter, showTerraformPlanet, showCosmicArchive]);
+  }, [showArena, showCosmicBattle, showHangar, showAcademy, showEncyclopedia, showPlayerPage, showColonyCenter, showTerraformPlanet, showCosmicArchive]);
 
   // Pause SpaceAmbient when player is on planet surface or inside the
   // Terminal (Cosmic Archive) overlay - those scenes will get their own
@@ -4057,13 +4034,13 @@ function AppInner() {
   // hangar or arena is open — even if the player left surfaceTarget set,
   // the surface scene itself unmounts so audio must stop too.
   useEffect(() => {
-    if (surfaceTarget && !showHangar && !showArena && !showRaid && !showCosmicBattle) {
+    if (surfaceTarget && !showHangar && !showArena && !showCosmicBattle) {
       playLoop('planet-loop', 0.1);
     } else {
       stopLoop('planet-loop');
     }
     return () => stopLoop('planet-loop');
-  }, [surfaceTarget, showHangar, showArena, showRaid, showCosmicBattle]);
+  }, [surfaceTarget, showHangar, showArena, showCosmicBattle]);
 
   // Terminal ambient loop — new user-supplied track (terminal-loop.mp3),
   // loops at 40% volume while the Cosmic Archive is open. Initial volume
@@ -4080,7 +4057,7 @@ function AppInner() {
       try { if (localStorage.getItem('nebulife_terminal_muted') === '1') vol = 0; } catch { /* ignore */ }
       playLoop('terminal-loop.mp3', vol);
       // Duck the surface planet-loop if it is currently running
-      if (surfaceTarget && !showHangar && !showArena && !showRaid && !showCosmicBattle) {
+      if (surfaceTarget && !showHangar && !showArena && !showCosmicBattle) {
         const FADE_STEPS = 14;
         const FADE_INTERVAL = 50; // ms → total ~700 ms
         const targetVol = 0;
@@ -4096,7 +4073,7 @@ function AppInner() {
     } else {
       stopLoop('terminal-loop.mp3');
       // Restore surface music volume if surface is still active
-      if (surfaceTarget && !showHangar && !showArena && !showRaid && !showCosmicBattle) {
+      if (surfaceTarget && !showHangar && !showArena && !showCosmicBattle) {
         const FADE_STEPS = 14;
         const FADE_INTERVAL = 50; // ms → total ~700 ms
         const targetVol = 0.1;
@@ -6243,7 +6220,7 @@ function AppInner() {
     // SHOULD play from the cinematic intro onward — only the old intro melody
     // was removed, not this cosmos bed.
     const preGame = !bootLoaderDone || (isFirebaseConfigured && !firebaseUser && !isGuest);
-    const shouldPause = preGame || !ambientEnabled || !!surfaceTarget || showCosmicArchive || cinematicVideoPlaying || showHangar || showRaid || showCosmicBattle || isTutorialInteractiveActive;
+    const shouldPause = preGame || !ambientEnabled || !!surfaceTarget || showCosmicArchive || cinematicVideoPlaying || showHangar || showCosmicBattle || isTutorialInteractiveActive;
     const wasPaused = prevAmbientPausedRef.current;
     if (shouldPause) {
       if (!wasPaused) ambient.pause();
@@ -6255,7 +6232,7 @@ function AppInner() {
       ambient.resume();
     }
     prevAmbientPausedRef.current = shouldPause;
-  }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying, showHangar, showRaid, showCosmicBattle, activeTutorialStep, tutorialMinimized, bootLoaderDone, firebaseUser, isGuest]);
+  }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying, showHangar, showCosmicBattle, activeTutorialStep, tutorialMinimized, bootLoaderDone, firebaseUser, isGuest]);
 
   // Onboarding Ambient Loop
   useEffect(() => {
@@ -6291,7 +6268,7 @@ function AppInner() {
     // Do not unlock/resume audio on the very first taps during the intro or
     // auth screen — those interactions must stay silent (see Normal Ambient Loop).
     const preGame = !bootLoaderDone || (isFirebaseConfigured && !firebaseUser && !isGuest);
-    const shouldPause = preGame || !ambientEnabled || !!surfaceTarget || showCosmicArchive || cinematicVideoPlaying || showHangar || showRaid || showCosmicBattle || isTutorialInteractiveActive;
+    const shouldPause = preGame || !ambientEnabled || !!surfaceTarget || showCosmicArchive || cinematicVideoPlaying || showHangar || showCosmicBattle || isTutorialInteractiveActive;
     if (shouldPause) return;
     const unlockSpaceAudio = () => {
       ambientRef.current?.resume(800);
@@ -6304,7 +6281,7 @@ function AppInner() {
       document.removeEventListener('keydown', unlockSpaceAudio, true);
       document.removeEventListener('touchstart', unlockSpaceAudio, true);
     };
-  }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying, showHangar, showRaid, showCosmicBattle, activeTutorialStep, tutorialMinimized, bootLoaderDone, firebaseUser, isGuest]);
+  }, [ambientEnabled, surfaceTarget, showCosmicArchive, cinematicVideoPlaying, showHangar, showCosmicBattle, activeTutorialStep, tutorialMinimized, bootLoaderDone, firebaseUser, isGuest]);
 
   useEffect(() => {
     if (!surfaceTarget || needsOnboarding || isTutorialActive || showAcademy || showCosmicArchive) return;
@@ -6552,7 +6529,6 @@ function AppInner() {
   useEffect(() => {
     if (!isTutorialActive) return;
     setShowArena(false);
-    setShowRaid(false);
     setShowCosmicBattle(false);
     setShowHangar(false);
     setShowCosmicArchive(false);
@@ -9023,7 +8999,7 @@ function AppInner() {
   const pendingPopupsRef = useRef<Array<() => void>>([]);
   useEffect(() => { pendingPopupsRef.current = pendingPostArenaPopups; }, [pendingPostArenaPopups]);
   useEffect(() => {
-    if (showArena || showRaid || showCosmicBattle) return; // still in arena/raid-style overlay
+    if (showArena || showCosmicBattle) return; // still in arena-style overlay
     if (pendingPostArenaPopups.length === 0) return;
     // Fire each deferred popup with a 1.5 s gap between them.
     const queue = [...pendingPostArenaPopups];
@@ -9037,7 +9013,7 @@ function AppInner() {
       void t;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showArena, showRaid, showCosmicBattle]);
+  }, [showArena, showCosmicBattle]);
 
   // Ring-unlock growth is map-native: the camera frames the galaxy map while
   // GalaxyScene grows real parent→system threads to newly available stars.
@@ -9089,8 +9065,7 @@ function AppInner() {
   useEffect(() => {
     if (!evacuationTarget || evacuationPhase !== 'idle' || evacuationPromptDismissed) return;
     setShowArena(false);
-      setShowRaid(false);
-      setShowCosmicBattle(false);
+    setShowCosmicBattle(false);
     setShowHangar(false);
     setShowCosmicArchive(false);
     setShowAcademy(false);
@@ -9394,7 +9369,6 @@ function AppInner() {
     setDarkLevelTransition({ visible: false, opacity: 0 });
     setWarpActive(false);
     setShowArena(false);
-    setShowRaid(false);
     setShowCosmicBattle(false);
     setShowHangar(false);
     setShowCosmicArchive(false);
@@ -13929,12 +13903,11 @@ function AppInner() {
   // floating in the corner during the planet-approach phase, breaking the
   // cinematic. Stage 1 (system flight) intentionally hides it too so both
   // ship-flight stages have the same chrome-free background.
-  const hideLeftPanel = !!(showArena || showRaid || showCosmicBattle || showHangar || cinematicActive || needsOnboarding || evacuationPhase !== 'idle');
+  const hideLeftPanel = !!(showArena || showCosmicBattle || showHangar || cinematicActive || needsOnboarding || evacuationPhase !== 'idle');
 
   const toolGroups: ToolGroup[] = [];
   const ARENA_MIN_LEVEL = 10;
   const arenaUnlocked = playerLevel >= ARENA_MIN_LEVEL;
-  const raidAvailable = arenaUnlocked && canRunCarrierRaidOnDevice();
 
   switch (effectiveScene) {
     case 'universe':
@@ -14180,7 +14153,7 @@ function AppInner() {
   useEffect(() => {
     if (topBarMode !== 'stats' || statsShownRef.current) return;
     const canShow =
-      !shouldShowWebAccessGate && !showArena && !showRaid && !showCosmicBattle &&
+      !shouldShowWebAccessGate && !showArena && !showCosmicBattle &&
       !showHangar && !cinematicActive && !needsOnboarding;
     if (!canShow) return;
     statsShownRef.current = true;
@@ -14189,7 +14162,7 @@ function AppInner() {
       try { localStorage.setItem('nebulife_galaxy_stats_date', new Date().toISOString().slice(0, 10)); } catch { /* ignore */ }
     }, 5000);
     return () => clearTimeout(swap);
-  }, [topBarMode, shouldShowWebAccessGate, showArena, showRaid, showCosmicBattle, showHangar, cinematicActive, needsOnboarding]);
+  }, [topBarMode, shouldShowWebAccessGate, showArena, showCosmicBattle, showHangar, cinematicActive, needsOnboarding]);
 
   const handleCosmicBattleReward = useCallback((bundle: CosmicBattleRewardBundle) => {
     const now = Date.now();
@@ -14286,7 +14259,7 @@ function AppInner() {
       />
 
       {/* Resource HUD — top center (hidden in arena, hangar, and during intro) */}
-      {!shouldShowWebAccessGate && !showArena && !showRaid && !showCosmicBattle && !showHangar && !cinematicActive && !needsOnboarding && (<ResourceDisplay
+      {!shouldShowWebAccessGate && !showArena && !showCosmicBattle && !showHangar && !cinematicActive && !needsOnboarding && (<ResourceDisplay
         researchData={Math.floor(researchData)}
         quarks={quarks}
         isExodusPhase={isExodusPhase}
@@ -14321,7 +14294,7 @@ function AppInner() {
 
       {/* Galaxy stats bar — top center, swaps with the resources panel above.
           Same visibility gating as ResourceDisplay; shown while topBarMode==='stats'. */}
-      {!shouldShowWebAccessGate && !showArena && !showRaid && !showCosmicBattle && !showHangar && !cinematicActive && !needsOnboarding && topBarMode === 'stats' && (
+      {!shouldShowWebAccessGate && !showArena && !showCosmicBattle && !showHangar && !cinematicActive && !needsOnboarding && topBarMode === 'stats' && (
         <GalaxyStatsBar stats={galaxyStats} />
       )}
 
@@ -14577,7 +14550,7 @@ function AppInner() {
       />
 
       {/* CommandBar — visible at bottom (hidden during cinematic intro) */}
-      {!cinematicActive && !showArena && !showRaid && !showCosmicBattle && !showHangar && (
+      {!cinematicActive && !showArena && !showCosmicBattle && !showHangar && (
         <CommandBar
           scene={effectiveScene}
           navigationItems={navigationItems}
@@ -15591,7 +15564,7 @@ function AppInner() {
           So: only render when NO full-screen overlay is active. */}
       {(state.scene === 'home-intro' || state.scene === 'planet-view') && homeInfo
         && !needsOnboarding
-        && !showArena && !showRaid && !showCosmicBattle && !showHangar && !surfaceTarget
+        && !showArena && !showCosmicBattle && !showHangar && !surfaceTarget
         && !showPlayerPage && !showCosmicArchive && !showAcademy
         && !showChaosModal && !showTopUpModal
         && evacuationPhase !== 'stage4-orbit' && (
@@ -15652,7 +15625,7 @@ function AppInner() {
       )}
 
       {state.scene === 'planet-view' && state.selectedPlanet && state.selectedSystem
-        && !showArena && !showRaid && !showCosmicBattle && !showHangar && !surfaceTarget
+        && !showArena && !showCosmicBattle && !showHangar && !surfaceTarget
         && !showPlayerPage && !showCosmicArchive && !showAcademy
         && !showChaosModal && !showTopUpModal
         && evacuationPhase !== 'stage4-orbit' && (
@@ -15684,7 +15657,7 @@ function AppInner() {
       {/* Surface View (biosphere level) — unmount whenever hangar or arena is
           up so the surface's audio loop + render pipeline fully release.
           Without this the planet-loop plays over the hangar/arena ambience. */}
-      {surfaceTarget && !showHangar && !showArena && !showRaid && !showCosmicBattle && (
+      {surfaceTarget && !showHangar && !showArena && !showCosmicBattle && (
         <SurfaceShaderView
           ref={surfaceViewRef}
           planet={surfaceTarget.planet}
@@ -16605,12 +16578,11 @@ function AppInner() {
       )}
 
       {/* Hangar — intermediate page between main game and Space Arena */}
-      {showHangar && !showArena && !showRaid && !showCosmicBattle && (
+      {showHangar && !showArena && !showCosmicBattle && (
         <HangarPage
           playerLevel={playerLevel}
           currentQuarks={quarks}
           arenaStats={arenaStats}
-          raidAvailable={raidAvailable}
           onQuarksChanged={(newBalance) => {
             setQuarks(newBalance);
             scheduleSyncToServer();
@@ -16630,28 +16602,6 @@ function AppInner() {
             setArenaTeamMode(true);
             setShowHangar(false);
             setShowArena(true);
-          }}
-          onEnterRaid={() => {
-            if (!raidAvailable) {
-              setToastMessage(t('hangar.event.raid_stub_toast' as Parameters<typeof t>[0]));
-              window.setTimeout(() => setToastMessage(null), 2800);
-              return;
-            }
-            const today = localDateKey();
-            const raidDateKey = `nebulife_daily_raid_date_${playerId.current || 'guest'}`;
-            let savedRaidDate = lastRaidQuestDate;
-            try { savedRaidDate = localStorage.getItem(raidDateKey) ?? savedRaidDate; } catch { /* ignore */ }
-            if (savedRaidDate === today) {
-              setToastMessage(t('hangar.event.raid_daily_done'));
-              window.setTimeout(() => setToastMessage(null), 2800);
-              return;
-            }
-            try { localStorage.setItem(raidDateKey, today); } catch { /* ignore */ }
-            setLastRaidQuestDate(today);
-            syncGameStateRef.current(); // push latest state to server before raid
-            setArenaTeamMode(false);
-            setShowHangar(false);
-            setShowRaid(true);
           }}
           onEnterCosmicBattle={() => {
             syncGameStateRef.current();
@@ -16701,18 +16651,6 @@ function AppInner() {
             setShowArena(false);
             setArenaTeamMode(false);
             // Return to Hangar after arena exit
-            setShowHangar(true);
-            restoreStarGroupView();
-          }}
-        />
-      )}
-
-      {/* Carrier Raid */}
-      {showRaid && (
-        <CarrierRaid
-          onAwardXP={awardXP}
-          onExit={() => {
-            setShowRaid(false);
             setShowHangar(true);
             restoreStarGroupView();
           }}
@@ -17006,7 +16944,7 @@ function AppInner() {
       )}
 
       {/* Chat widget (visible when authenticated, not in onboarding/arena/hangar) */}
-      {!authLoading && !needsOnboarding && !needsCallsign && !showArena && !showRaid && !showHangar && playerId.current && (
+      {!authLoading && !needsOnboarding && !needsCallsign && !showArena && !showHangar && playerId.current && (
         <ChatWidget
           playerId={playerId.current}
           playerName={state.playerName}
@@ -17102,7 +17040,7 @@ function AppInner() {
       )}
 
       {/* Mission panel — opened from the CommandBar mission button */}
-      {!authLoading && !needsOnboarding && !needsCallsign && !showArena && !showRaid && !showHangar && (
+      {!authLoading && !needsOnboarding && !needsCallsign && !showArena && !showHangar && (
         <MissionTracker
           missions={fleet.filter((m) => m.phase !== 'idle')}
           cargoShipments={shipFleet.cargoShipments ?? []}

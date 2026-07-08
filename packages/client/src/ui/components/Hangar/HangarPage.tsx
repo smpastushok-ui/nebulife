@@ -10,7 +10,6 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { useT } from '../../../i18n/index.js';
 import { playLoop, stopLoop, playSfx } from '../../../audio/SfxPlayer.js';
-import { getDeviceTier } from '../../../utils/device-tier.js';
 import {
   checkShipStatus,
   getPlayerShips,
@@ -38,13 +37,9 @@ interface HangarPageProps {
   onBack: () => void;
   onEnterArena: () => void;
   onEnterTeamBattle?: () => void;
-  onEnterRaid?: () => void;
   onEnterCosmicBattle?: () => void;
-  raidAvailable?: boolean;
   onQuarksChanged?: (newBalance: number) => void;
 }
-
-const CARRIER_RAID_ENABLED = true;
 
 // ── Ship slots ───────────────────────────────────────────────────────────────
 
@@ -153,9 +148,7 @@ export const HangarPage: React.FC<HangarPageProps> = ({
   onBack,
   onEnterArena,
   onEnterTeamBattle,
-  onEnterRaid,
   onEnterCosmicBattle,
-  raidAvailable: raidAvailableOverride,
   onQuarksChanged,
 }) => {
   const { t } = useT();
@@ -164,7 +157,6 @@ export const HangarPage: React.FC<HangarPageProps> = ({
   const [toast, setToast] = useState<string | null>(null);
   const [controlsOpen, setControlsOpen] = useState(false);
   const [isMobile] = useState(() => typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0));
-  const [deviceTier] = useState(() => getDeviceTier());
   const [customShips, setCustomShips] = useState<CustomShip[]>([]);
   const [shipDesignOpen, setShipDesignOpen] = useState(false);
   const [shipDesignPrompt, setShipDesignPrompt] = useState('');
@@ -270,10 +262,6 @@ export const HangarPage: React.FC<HangarPageProps> = ({
 
   // Team battle level gate
   const teamBattleUnlocked = playerLevel >= 50;
-  const raidAvailable = raidAvailableOverride ?? (CARRIER_RAID_ENABLED
-    && Boolean(onEnterRaid)
-    && playerLevel >= 10
-    && (!isMobile || deviceTier === 'ultra'));
 
   // Training entry (free)
   const handleEnterTraining = useCallback(() => {
@@ -306,19 +294,6 @@ export const HangarPage: React.FC<HangarPageProps> = ({
       setTimeout(() => setToast(null), 2500);
     }
   }, [onEnterTeamBattle, t, teamBattleUnlocked]);
-
-  const handleEnterRaid = useCallback(() => {
-    playSfx('ui-click', 0.07);
-    if (!raidAvailable) {
-      setToast(t('hangar.event.raid_stub_toast' as Parameters<typeof t>[0]));
-      setTimeout(() => setToast(null), 2500);
-    } else if (onEnterRaid) {
-      onEnterRaid();
-    } else {
-      setToast(t('hangar.event.coming_soon'));
-      setTimeout(() => setToast(null), 2500);
-    }
-  }, [onEnterRaid, raidAvailable, t]);
 
   const handleToggleControls = useCallback(() => {
     playSfx('ui-click', 0.07);
@@ -493,21 +468,6 @@ export const HangarPage: React.FC<HangarPageProps> = ({
                 <div style={S.modeCardDesc}>{t('hangar.mode_select.cosmic_desc' as Parameters<typeof t>[0])}</div>
                 <span style={{ ...S.modeCardAction, borderColor: '#ff8844', color: '#ff8844' }}>{t('hangar.mode_select.enter' as Parameters<typeof t>[0])}</span>
               </button>
-              <button
-                style={{
-                  ...S.modeCard,
-                  borderColor: raidAvailable ? '#336644' : '#223344',
-                  background: 'radial-gradient(circle at 50% 20%, rgba(68,255,136,0.14), transparent 44%), rgba(5,10,20,0.9)',
-                  opacity: mounted ? (raidAvailable ? 1 : 0.56) : 0,
-                  transform: mounted ? 'translateY(0)' : 'translateY(18px)',
-                }}
-                onClick={handleEnterRaid}
-              >
-                <div style={{ ...S.modeCardKicker, color: '#44ff88' }}>{t('hangar.mode_select.raid_kicker' as Parameters<typeof t>[0])}</div>
-                <div style={S.modeCardTitle}>{t('hangar.mode_select.raid_title' as Parameters<typeof t>[0])}</div>
-                <div style={S.modeCardDesc}>{t('hangar.mode_select.raid_desc' as Parameters<typeof t>[0])}</div>
-                <span style={{ ...S.modeCardAction, borderColor: '#44ff88', color: '#44ff88' }}>{t('hangar.mode_select.enter' as Parameters<typeof t>[0])}</span>
-              </button>
             </div>
           </div>
         </div>
@@ -659,34 +619,6 @@ export const HangarPage: React.FC<HangarPageProps> = ({
                 >
                   {t('hangar.event.training_enter')}
                 </button>
-              </div>
-
-              <div style={{
-                ...S.entrySection,
-                ...S.desktopFlushBlock,
-                borderColor: raidAvailable ? '#445566' : '#223344',
-                opacity: mounted ? 1 : 0,
-                transition: 'opacity 0.5s ease 0.95s',
-              }}>
-                <div style={{ ...S.entryTitle, color: raidAvailable ? '#7bb8ff' : '#667788' }}>
-                  {t('hangar.event.raid')}
-                </div>
-                <div style={S.entryDesc}>
-                  {raidAvailable ? t('hangar.event.raid_desc') : t('hangar.event.raid_stub_desc' as Parameters<typeof t>[0])}
-                </div>
-                <div style={S.entryButtons}>
-                  <button
-                    style={{
-                      ...S.entryRaid,
-                      borderColor: raidAvailable ? '#7bb8ff' : '#334455',
-                      color: raidAvailable ? '#7bb8ff' : '#667788',
-                      cursor: 'pointer',
-                    }}
-                    onClick={handleEnterRaid}
-                  >
-                    {raidAvailable ? t('hangar.event.raid_enter') : t('hangar.event.raid_stub_btn' as Parameters<typeof t>[0])}
-                  </button>
-                </div>
               </div>
 
               <div style={{
@@ -1646,16 +1578,6 @@ const S: Record<string, React.CSSProperties> = {
     letterSpacing: 2, cursor: 'pointer', textTransform: 'uppercase',
     animation: 'hangarPulse 2s ease-in-out infinite',
   },
-  entryRaid: {
-    display: 'flex', alignItems: 'center', gap: 6,
-    padding: '10px 28px',
-    background: 'linear-gradient(135deg, rgba(68,136,170,0.18), rgba(12,22,36,0.86))',
-    border: '1px solid #446688', borderRadius: 4,
-    color: '#7bb8ff', fontFamily: 'monospace', fontSize: 11,
-    letterSpacing: 2, cursor: 'pointer', textTransform: 'uppercase',
-    animation: 'hangarPulse 2.4s ease-in-out infinite',
-  },
-
   // Tournament
   tournamentCard: {
     margin: '10px 16px 0', padding: 12,

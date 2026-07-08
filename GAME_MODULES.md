@@ -84,10 +84,7 @@
 |---|---|---|---|
 | Hangar | Управління кораблями, вибір режимів бою, Tripo preview | реалізовано | `Hangar/HangarPage.tsx`, `api/ship/*` |
 | Space Arena | PvP-duel L50+, Three.js фізика, warp, power-ups | реалізовано | `SpaceArena/SpaceArena.tsx`, `game/arena/ArenaEngine.ts` |
-| Carrier Raid | PvE: гравець + 4 AI wingmen vs carrier і хвилі дронів | реалізовано | `Raid/CarrierRaid.tsx`, `game/raid/RaidEngine.ts` |
 | Cosmic Battle | Тактична grid-битва Battleship vs AI, resource drops | реалізовано | `CosmicBattle/CosmicBattlePage.tsx`, `cosmic-battle-engine.ts` |
-| Unified Raid Engine | Єдиний Pixi v8 рушій: sprite-baking, particles, explosions | в розробці | `RaidEngine.ts`, `ShipSpriteBaker.ts`, `RaidParticles.ts`, `RaidExplosions.ts` |
-| Arena на shared engine | Консолідація Arena + Raid на один Pixi-рушій | заплановано | `NEXT_GEN_PLAN.md` §A |
 | Territorial PvP / defense | Кланова оборона core zone, expand з арени | заплановано | `GAME_BIBLE.md` §0.4-E |
 | Combat sim stability | Уніфікація flight profile між warp/power-ups/mobile | заплановано | `TODO.md` |
 

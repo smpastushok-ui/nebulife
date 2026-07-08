@@ -88,13 +88,6 @@
 
 > Source: `packages/core/src/constants/balance.ts`, `packages/client/src/App.tsx`
 
-### Hangar PvE: Carrier Raid
-- Окремий режим поруч з існуючою Space Arena, не замінює арену.
-- Склад: 1 корабель гравця з Hangar + 4 процедурні AI wingmen.
-- Ціль: великий carrier з модулями (`hangar_bay`, `shield_emitter`, `turret_cluster`, `reactor_core`).
-- Бій: хвилі малих процедурних дронів, знищення щитів відкриває reactor phase.
-- Mobile budget: Tripo/GLB тільки для корабля гравця; масові союзники/вороги та carrier — процедурні low-poly meshes.
-
 ### Hangar PvE: Cosmic Battle
 - Тактичний режим поруч з Arena: Battleship-подібна grid-битва проти AI середньої складності.
 - Гравець і AI отримують auto-placed fleet, постріли відкривають клітини, попадання запускають missile/impact анімації.
