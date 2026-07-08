@@ -1769,7 +1769,17 @@ export class GalaxyScene {
       // Double tap on the same star
       clearTimeout(this.tapTracker.timer);
       this.tapTracker = null;
-      this.onDoubleClick?.(sys);
+      const canEnter = sys.ownerPlayerId !== null
+        || isSystemFullyResearched(this.researchState, sys.id);
+      if (canEnter) {
+        this.onDoubleClick?.(sys);
+      } else {
+        // Unresearched star: the double-click path unfocuses and closes every
+        // menu without opening anything (research lives in the radial menu).
+        // Keep/reopen the radial menu instead so impatient double-taps on
+        // mobile still end with a visible menu.
+        this.expandSystem(sys.id);
+      }
       return;
     }
 
@@ -1898,6 +1908,10 @@ export class GalaxyScene {
         ? this.homeNode
         : this.systemNodes.get(systemId);
       if (node) {
+        // Re-assert the expanded state too — if the node somehow collapsed
+        // while expandedSystemId stayed set, an open without expandTarget=1
+        // would be closed again by the collapse backstop in animateExpand.
+        node.expandTarget = 1;
         node.radialOpenFired = true;
         this.onRadialOpen?.(node.system, () => this.getSystemScreenPosition(systemId));
       }
@@ -2334,8 +2348,14 @@ export class GalaxyScene {
         this.onRadialOpen?.(node.system, () => this.getSystemScreenPosition(sysId));
       }
 
-      // Fire radial close when collapsing below threshold
-      if (ep <= 0.5 && node.radialOpenFired) {
+      // Fire radial close when COLLAPSING below threshold. The expandTarget
+      // check is critical: _doExpand opens the radial while expandProgress is
+      // still 0 (expanding upward). Without the check this backstop closed the
+      // just-opened menu one frame after every tap and it only reappeared at
+      // the 82% threshold ~390ms later — an invisible window in which mobile
+      // users tapped again, triggering the double-tap path (which for
+      // unresearched stars closes everything → "sound but no menu").
+      if (ep <= 0.5 && node.expandTarget === 0 && node.radialOpenFired) {
         node.radialOpenFired = false;
         this.onRadialClose?.();
       }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { formatShort } from '../../utils/formatNumber.js';
+import { formatHudShort } from '../../utils/formatNumber.js';
 import { LiveCountdown } from './LiveCountdown.js';
 import { ResourceIcon, RESOURCE_COLORS } from './ResourceIcon.js';
 
@@ -327,7 +327,7 @@ export function ResourceDisplay({
           onMouseLeave={() => setHoveredItem(null)}
         >
           <ResearchDataIcon size={iconSize} />
-          <span style={{ ...numStyle, color: researchData > 0 ? '#4488aa' : '#cc4444' }}>{formatShort(researchData)}</span>
+          <span style={{ ...numStyle, color: researchData > 0 ? '#4488aa' : '#cc4444' }}>{formatHudShort(researchData)}</span>
         </div>
         <div style={dividerStyle} />
 
@@ -342,7 +342,7 @@ export function ResourceDisplay({
               onMouseLeave={() => setHoveredItem(null)}
             >
               <ResourceIcon type="minerals" size={iconSize} />
-              <span style={{ ...numStyle, color: RESOURCE_COLORS.minerals }}>{formatShort(displayMinerals)}</span>
+              <span style={{ ...numStyle, color: RESOURCE_COLORS.minerals }}>{formatHudShort(displayMinerals)}</span>
             </div>
             <div style={dividerStyle} />
             <div
@@ -353,7 +353,7 @@ export function ResourceDisplay({
               onMouseLeave={() => setHoveredItem(null)}
             >
               <ResourceIcon type="volatiles" size={iconSize} />
-              <span style={{ ...numStyle, color: RESOURCE_COLORS.volatiles }}>{formatShort(displayVolatiles)}</span>
+              <span style={{ ...numStyle, color: RESOURCE_COLORS.volatiles }}>{formatHudShort(displayVolatiles)}</span>
             </div>
             <div style={dividerStyle} />
             <div
@@ -364,7 +364,7 @@ export function ResourceDisplay({
               onMouseLeave={() => setHoveredItem(null)}
             >
               <ResourceIcon type="isotopes" size={iconSize} />
-              <span style={{ ...numStyle, color: RESOURCE_COLORS.isotopes }}>{formatShort(displayIsotopes)}</span>
+              <span style={{ ...numStyle, color: RESOURCE_COLORS.isotopes }}>{formatHudShort(displayIsotopes)}</span>
             </div>
             <div style={dividerStyle} />
             <div
@@ -375,7 +375,7 @@ export function ResourceDisplay({
               onMouseLeave={() => setHoveredItem(null)}
             >
               <ResourceIcon type="water" size={iconSize} />
-              <span style={{ ...numStyle, color: RESOURCE_COLORS.water }}>{formatShort(displayWater)}</span>
+              <span style={{ ...numStyle, color: RESOURCE_COLORS.water }}>{formatHudShort(displayWater)}</span>
             </div>
             <div style={dividerStyle} />
           </>
@@ -389,7 +389,7 @@ export function ResourceDisplay({
           onMouseLeave={() => setHoveredItem(null)}
         >
           <QuarksIcon size={iconSize} />
-          <span style={numStyle}>{formatShort(quarks)}</span>
+          <span style={numStyle}>{formatHudShort(quarks)}</span>
         </div>
       </div>
       )}

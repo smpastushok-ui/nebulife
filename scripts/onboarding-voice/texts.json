@@ -18,8 +18,8 @@
     },
     {
       "key": "arena",
-      "en": "[excited] Level ten unlocks the Arena, the daily carrier raid, and the cluster chat. [warm] Assemble a fleet in the Hangar, then test it: victories bring rating, resources, and respect from forty-nine fellow explorers. [warm] Combat is optional — but a strong fleet also protects everything your colonies have built.",
-      "uk": "[excited] Десятий рівень відкриває Арену, щоденний рейд на носій і чат кластера. [warm] Збери флот в Ангарі та випробуй його: перемоги приносять рейтинг, ресурси й повагу сорока дев'яти колег-дослідників. [warm] Бій — за бажанням, але сильний флот також захищає все, що збудували твої колонії."
+      "en": "[excited] Level ten unlocks the Arena and the cluster chat. [warm] Assemble a fleet in the Hangar, then test it: victories bring rating, resources, and respect from forty-nine fellow explorers. [warm] Combat is optional — but a strong fleet also protects everything your colonies have built.",
+      "uk": "[excited] Десятий рівень відкриває Арену і чат кластера. [warm] Збери флот в Ангарі та випробуй його: перемоги приносять рейтинг, ресурси й повагу сорока дев'яти колег-дослідників. [warm] Бій — за бажанням, але сильний флот також захищає все, що збудували твої колонії."
     },
     {
       "key": "observatories",
@@ -38,8 +38,8 @@
     },
     {
       "key": "carriers",
-      "en": "[warm] This mission needs a carrier — a transport ship that delivers your probe to the target planet. [encouraging] Build one in the colony production queue; fabrication takes real time, so start it early. [warm] Once the mission launches, the carrier flies out, deploys the payload, and returns home automatically when the mission ends. [playful] One carrier, many missions — it is an investment, not a consumable.",
-      "uk": "[warm] Для цієї місії потрібен носій — транспортний корабель, який доставляє зонд до цільової планети. [encouraging] Збудуй його в черзі виробництва колонії; виготовлення триває реальний час, тож запускай заздалегідь. [warm] Коли місія стартує, носій вилітає, розгортає корисне навантаження і після завершення місії автоматично повертається додому. [playful] Один носій — багато місій: це інвестиція, а не витратний матеріал."
+      "en": "[warm] This mission needs a carrier — a transport ship that delivers your probe to the target planet. [encouraging] Build one at the colony's Landing Pad; fabrication takes real time, so start it early. [warm] Once the mission launches, the carrier flies out, deploys the payload, and returns home automatically when the mission ends. [playful] One carrier, many missions — it is an investment, not a consumable.",
+      "uk": "[warm] Для цієї місії потрібен носій — транспортний корабель, який доставляє зонд до цільової планети. [encouraging] Збудуй його на Посадковому майданчику колонії; виготовлення триває реальний час, тож запускай заздалегідь. [warm] Коли місія стартує, носій вилітає, розгортає корисне навантаження і після завершення місії автоматично повертається додому. [playful] Один носій — багато місій: це інвестиція, а не витратний матеріал."
     },
     {
       "key": "directives",
@@ -83,8 +83,8 @@
     },
     {
       "key": "hangar",
-      "en": "[warm] This is your shipyard. Here you build research carriers for planetary missions, cargo ships for supply lines, and, from level ten, combat vessels for the Arena and raids. [encouraging] Early on, transports matter most — [playful] a mission without a carrier is a mission that never launches.",
-      "uk": "[warm] Це твоя верф. Тут будуються дослідницькі носії для планетарних місій, вантажні кораблі для ліній постачання, а з десятого рівня — бойові кораблі для Арени та рейдів. [encouraging] Спочатку найважливіші транспорти: [playful] місія без носія — це місія, яка ніколи не стартує."
+      "en": "[warm] This is not a shipyard — no ships are built here. [encouraging] The Hangar is a launch platform where you pick a combat ship, check your pilot stats, and fly into the Arena for training duels or into a Cosmic Battle against another commander. [warm] Research carriers are built at the Landing Pad and heavy cargo ships at the Spaceport — [playful] the Hangar only decides the outcome of battle.",
+      "uk": "[warm] Це не верф: кораблі тут не будуються. [encouraging] Ангар — стартовий майданчик, де ти обираєш бойовий корабель, перевіряєш статистику пілота і вилітаєш в Арену на тренувальні дуелі або в Космічний бій проти іншого командира. [warm] Дослідницькі носії будуються на Посадковому майданчику, а важкі вантажні кораблі — в Космопорті: [playful] тут вирішується лише доля бою."
     }
   ]
 }

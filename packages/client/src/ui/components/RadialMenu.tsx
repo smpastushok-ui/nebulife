@@ -299,6 +299,13 @@ export function RadialMenu({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  // Backdrop arming — see the backdrop element below for why this is delayed.
+  const [backdropArmed, setBackdropArmed] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setBackdropArmed(true), 350);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Planet count label
   const planetsCount = system.planets.length;
   const planetWord = planetsCount === 1 ? t('radial.planet_one') : planetsCount < 5 ? t('radial.planet_few') : t('radial.planet_many');
@@ -337,11 +344,15 @@ export function RadialMenu({
 
   return (
     <>
-      {/* Invisible backdrop to catch clicks outside */}
+      {/* Invisible backdrop to catch clicks outside. Armed with a short delay:
+          the menu opens on the FIRST tap of a potential double-tap, and an
+          instantly-active backdrop would swallow the second tap (breaking
+          double-tap-to-enter on the star and instantly closing the menu on
+          mobile). While unarmed, taps pass through to the PixiJS canvas. */}
       <div
         style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          zIndex: 24, pointerEvents: 'auto',
+          zIndex: 24, pointerEvents: backdropArmed ? 'auto' : 'none',
         }}
         onClick={onClose}
       />

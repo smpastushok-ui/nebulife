@@ -194,9 +194,9 @@
   "unlock": {
     "combat": {
       "kicker": "Combat Protocol",
-      "title": "Arena and Raid Unlocked",
-      "body": "From level 10 you can enter Arena training and the daily carrier raid.",
-      "body_limited": "From level 10 you can enter Arena training and the daily carrier raid."
+      "title": "Arena Unlocked",
+      "body": "From level 10 you can enter Arena training.",
+      "body_limited": "From level 10 you can enter Arena training."
     },
     "terraform": {
       "kicker": "Terraforming Stage",
@@ -220,7 +220,7 @@
     "quarks": {
       "kicker": "Explorer Economy",
       "title": "Quarks — the Researcher's Currency",
-      "body": "Quarks pay for what no telescope can give you for free: AI photographs of your rarest discoveries, unique creatures and 3D models. You earn them every day — daily directives, Academy quizzes, login bonuses, seasonal rewards and the Precursor collection. Small steady habits become big expeditions. Check the Operations Center daily and your balance will never run dry."
+      "body": "Quarks pay for what no telescope can give you for free: high-resolution photographs of your rarest discoveries, unique creatures and 3D models. You earn them every day — daily directives, Academy quizzes, login bonuses, seasonal rewards and the Precursor collection. Small steady habits become big expeditions. Check the Operations Center daily and your balance will never run dry."
     },
     "tech_tree": {
       "kicker": "Research Terminal",
@@ -230,7 +230,7 @@
     "arena": {
       "kicker": "Combat Protocol",
       "title": "Combat and Comms Online",
-      "body": "Level 10 unlocks the Arena, the daily carrier raid and the cluster chat. Assemble a fleet in the Hangar, then test it: victories bring rating, resources and respect from 49 fellow explorers. Combat is optional — but a strong fleet also protects everything your colonies have built."
+      "body": "Level 10 unlocks the Arena and the cluster chat. Assemble a fleet in the Hangar, then test it: victories bring rating, resources and respect from 49 fellow explorers. Combat is optional — but a strong fleet also protects everything your colonies have built."
     },
     "observatories": {
       "kicker": "Observatory Network",
@@ -250,7 +250,7 @@
     "carriers": {
       "kicker": "Fleet Logistics",
       "title": "Research Carriers",
-      "body": "This mission needs a carrier — a transport ship that delivers your probe to the target planet. Build one in the colony production queue; fabrication takes real time, so start it early. Once the mission launches, the carrier flies out, deploys the payload and returns home automatically when the mission ends. One carrier, many missions — it is an investment, not a consumable."
+      "body": "This mission needs a carrier — a transport ship that delivers your probe to the target planet. Build one at the colony's Landing Pad; fabrication takes real time, so start it early. Once the mission launches, the carrier flies out, deploys the payload and returns home automatically when the mission ends. One carrier, many missions — it is an investment, not a consumable."
     },
     "directives": {
       "kicker": "Operations Center",
@@ -290,12 +290,12 @@
     "biosphere": {
       "kicker": "Evolution Chamber",
       "title": "Biosphere Experiments",
-      "body": "The Biosphere is your natural selection engine. Pick two to four elements — the order defines the creature's build, cover and accents — and let the planet's biome shape the result. Up to three creatures per planet. Care for them daily, evolve them through generations, and hybridize the best pairs: top specimens earn a unique AI portrait and a real 3D model."
+      "body": "The Biosphere is your natural selection engine. Pick two to four elements — the order defines the creature's build, cover and accents — and let the planet's biome shape the result. Up to three creatures per planet. Care for them daily, evolve them through generations, and hybridize the best pairs: top specimens earn a unique portrait and a real 3D model."
     },
     "hangar": {
-      "kicker": "Shipyard",
+      "kicker": "Combat Perimeter",
       "title": "The Hangar",
-      "body": "This is your shipyard. Here you build research carriers for planetary missions, cargo ships for supply lines and, from level 10, combat vessels for the Arena and raids. Early on, transports matter most — a mission without a carrier is a mission that never launches."
+      "body": "This is not a shipyard — no ships are built here. The Hangar is a launch platform where you pick a combat ship, check your pilot stats, and fly into the Arena for training duels or into a Cosmic Battle against another commander. Research carriers are built at the Landing Pad and heavy cargo ships at the Spaceport — the Hangar only decides the outcome of battle."
     }
   },
   "biosphere": {
@@ -323,6 +323,7 @@
       "cost_paid": "Charged {{cost}}⚛",
       "no_quarks": "Not enough quarks to craft this creature.",
       "status_model": "Crafting the 3D organism...",
+      "status_photo_only": "Portrait ready. The 3D model is temporarily unavailable — you can retry it later from the creature's card.",
       "status_failed": "Could not craft the creature. Try again.",
       "working": "PROCESSING..."
     },
@@ -399,9 +400,11 @@
       "tier_photo": "HYBRID PHOTO — {{cost}}⚛",
       "tier_full": "HYBRID WITH 3D — {{cost}}⚛",
       "upgrade_button": "CREATE 3D MODEL — {{cost}}⚛",
+      "upgrade_button_free": "RETRY 3D MODEL — FREE",
       "result_ready": "Hybrid created. The portrait is stored in the lineage.",
       "badge": "hybrid",
       "photo_badge": "hybrid photo",
+      "photo_badge_plain": "portrait only",
       "parents_label": "Parents: {{parentA}} + {{parentB}}",
       "error_generic": "The experiment failed. Quarks were refunded.",
       "error_planet_full": "The planet already has the maximum of active creatures."
@@ -541,36 +544,6 @@
       "neural_spore": "Neural spore",
       "stellar_enzyme": "Stellar enzyme"
     }
-  },
-  "raid": {
-    "loading": "Preparing raid...",
-    "kicker": "Fleet operation",
-    "title": "Carrier Raid",
-    "objective": "Objective",
-    "objective_waves": "Destroy incoming drone waves",
-    "objective_shields": "Disable carrier shield emitters",
-    "objective_reactor": "Strike the carrier reactor",
-    "kill": "KILL",
-    "combo": "Combo x{{count}}",
-    "keep_chain": "Keep the chain",
-    "hull": "Hull",
-    "shield": "Shield",
-    "kills": "Kills",
-    "allies": "Allies",
-    "enemies": "Enemies",
-    "modules": "Modules",
-    "reactor": "Reactor",
-    "controls": "WASD to fly, mouse turns nose, LMB laser, RMB missile, Space warp",
-    "fullscreen": "Fullscreen",
-    "exit_title": "Leave raid?",
-    "exit_body": "Progress in this combat operation will be lost.",
-    "exit_confirm": "Exit",
-    "victory": "Carrier destroyed",
-    "defeat": "Raid failed",
-    "reward_minerals": "Minerals",
-    "reward_isotopes": "Isotopes",
-    "reward_fragments": "Fragments",
-    "return_hangar": "Return to Hangar"
   },
   "rarity": {
     "common": "Standard Event",

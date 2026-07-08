@@ -323,38 +323,50 @@ function LiveEventsSection({ playerId, now, onClaimed }: {
  * video fails to load or decode; if the still is missing too, the slot hides.
  * The Cosmic Archive gallery entry keeps the static WebP — only this preview
  * uses the video.
+ *
+ * The preview is intentionally blurred: this is only a teaser silhouette in
+ * the list, not the full reveal. The clip/poster is scaled up slightly and
+ * clipped by the container's overflow so the blur has no sharp edge to leak
+ * through. Nothing else in the card is affected — only this media layer.
  */
 function LiveEventMedia({ eventId }: { eventId: string }) {
   const [mode, setMode] = useState<'video' | 'image' | 'hidden'>('video');
   const posterUrl = liveEventPhotoUrl(eventId);
-  const mediaStyle: React.CSSProperties = {
-    width: 54, height: 82, objectFit: 'cover', borderRadius: 3,
+  const frameStyle: React.CSSProperties = {
+    width: 54, height: 82, borderRadius: 3, overflow: 'hidden',
     border: `1px solid ${BORDER}`, flexShrink: 0, background: '#020510',
+  };
+  const blurredMediaStyle: React.CSSProperties = {
+    width: '100%', height: '100%', objectFit: 'cover',
+    filter: 'blur(10px)', transform: 'scale(1.25)',
   };
 
   if (mode === 'hidden') return null;
-  if (mode === 'image') {
-    return <img src={posterUrl} alt="" onError={() => setMode('hidden')} style={mediaStyle} />;
-  }
   return (
-    <video
-      muted
-      loop
-      autoPlay
-      playsInline
-      preload="metadata"
-      poster={posterUrl}
-      onError={() => setMode('image')}
-      style={mediaStyle}
-    >
-      <source src={`${LIVE_EVENT_ASSET_BASE}/${eventId}.webm`} type="video/webm" />
-      {/* Error on the LAST source = every candidate failed → static art. */}
-      <source
-        src={`${LIVE_EVENT_ASSET_BASE}/${eventId}.mp4`}
-        type="video/mp4"
-        onError={() => setMode('image')}
-      />
-    </video>
+    <div style={frameStyle}>
+      {mode === 'image' ? (
+        <img src={posterUrl} alt="" onError={() => setMode('hidden')} style={blurredMediaStyle} />
+      ) : (
+        <video
+          muted
+          loop
+          autoPlay
+          playsInline
+          preload="metadata"
+          poster={posterUrl}
+          onError={() => setMode('image')}
+          style={blurredMediaStyle}
+        >
+          <source src={`${LIVE_EVENT_ASSET_BASE}/${eventId}.webm`} type="video/webm" />
+          {/* Error on the LAST source = every candidate failed → static art. */}
+          <source
+            src={`${LIVE_EVENT_ASSET_BASE}/${eventId}.mp4`}
+            type="video/mp4"
+            onError={() => setMode('image')}
+          />
+        </video>
+      )}
+    </div>
   );
 }
 

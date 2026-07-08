@@ -35,7 +35,6 @@ import {
   HEX_RESOURCE_TO_COLONY,
 } from './hex-utils.js';
 import { getPlanetSize } from '@nebulife/core';
-import { parseCompactNumber } from '../../../utils/formatNumber.js';
 
 // ---------------------------------------------------------------------------
 // Module-level player data cache — avoids repeated network calls on re-mount
@@ -556,8 +555,8 @@ function canAffordCost(
   chemInv?: Record<string, number>,
   elementCosts?: Record<string, number>,
 ): boolean {
-  const amount = (value: unknown): number => {
-    return parseCompactNumber(value) ?? 0;
+  const amount = (value: number): number => {
+    return Number.isFinite(value) ? value : 0;
   };
 
   if (amount(resources.minerals) < (cost.minerals ?? 0)) return false;

@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------------
-// Short Cyrillic number formatting for the top resource HUD.
+// Short Cyrillic number formatting for general compact display.
 //   0-9999          → exact integer   ("70", "999", "1462", "9999")
 //   10000-999999    → к (thousands)   ("10к" through "999к", always integer)
 //   1000000+        → кк (millions)   ("1кк", "250кк" …)
@@ -16,6 +16,22 @@ export function formatShort(n: number): string {
   const sign = n < 0 ? '-' : '';
 
   if (abs < 10_000) {
+    return sign + Math.floor(abs).toString();
+  }
+  if (abs < 1_000_000) {
+    return sign + Math.floor(abs / 1000).toString() + 'к';
+  }
+  return sign + Math.floor(abs / 1_000_000).toString() + 'кк';
+}
+
+// Top resource HUD formatter. The HUD is space-constrained on small phones, so
+// it compacts earlier than other contexts while titles/popups keep exact values.
+export function formatHudShort(n: number): string {
+  if (!Number.isFinite(n) || n < 0) return '0';
+  const abs = Math.abs(n);
+  const sign = n < 0 ? '-' : '';
+
+  if (abs < 1000) {
     return sign + Math.floor(abs).toString();
   }
   if (abs < 1_000_000) {
