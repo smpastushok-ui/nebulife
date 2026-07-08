@@ -42,7 +42,11 @@ export const config = {
  * Pipeline: validate combo -> quark gate (first creature per account free,
  * then CREATURE_GENERATION_COST_QUARKS) -> Gemini reference portrait ->
  * Tripo image_to_model task. Client polls /api/creatures/status for the
- * Tripo -> GLB -> Vercel Blob completion.
+ * Tripo -> GLB -> Vercel Blob completion. If the Tripo step itself fails
+ * (no credit, outage, bad key) the creature is NOT discarded/refunded — it
+ * lands on status 'photo_ready' (2D portrait only, no planet slot), same
+ * fallback tier hybridize.ts's 'photo' option produces, upgradeable later
+ * via /api/creatures/hybrid-upgrade.
  *
  * Returns: { creatureId, status, imageUrl?, quarksPaid?, newBalance? }
  */
@@ -138,19 +142,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
     await updateCreatureModel(creature.id, { image_url: image.imageUrl });
 
-    const tripo = await createCreatureModelTask(image.imageUrl);
-    await updateCreatureModel(creature.id, { tripo_task_id: tripo.taskId });
-
+    // The portrait is the valuable, already-paid-for deliverable. If Tripo is
+    // unavailable (no credit, outage, invalid key) don't discard it: land the
+    // creature on 'photo_ready' instead of failing the whole experiment, the
+    // same fallback tier /api/creatures/hybridize already uses for its
+    // 'photo' pricing option. The player keeps their creature (2D portrait,
+    // no planet slot used) and can retry the 3D upgrade later via
+    // /api/creatures/hybrid-upgrade once Tripo is available again.
     chargedPlayerId = null;
     chargedAmount = 0;
-
-    return res.status(200).json({
-      creatureId: creature.id,
-      status: 'generating',
-      imageUrl: image.imageUrl,
-      quarksPaid: cost,
-      newBalance,
-    });
+    try {
+      const tripo = await createCreatureModelTask(image.imageUrl);
+      await updateCreatureModel(creature.id, { tripo_task_id: tripo.taskId });
+      return res.status(200).json({
+        creatureId: creature.id,
+        status: 'generating',
+        imageUrl: image.imageUrl,
+        quarksPaid: cost,
+        newBalance,
+      });
+    } catch (tripoErr) {
+      console.error('[creatures/generate] Tripo task creation failed, falling back to photo_ready:', tripoErr);
+      await updateCreatureModel(creature.id, { status: 'photo_ready', completed_at: new Date().toISOString() });
+      return res.status(200).json({
+        creatureId: creature.id,
+        status: 'photo_ready',
+        imageUrl: image.imageUrl,
+        quarksPaid: cost,
+        newBalance,
+      });
+    }
   } catch (err) {
     console.error('[creatures/generate] Error:', err);
     if (createdCreatureId) {

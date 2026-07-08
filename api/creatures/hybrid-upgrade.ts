@@ -24,9 +24,9 @@ function isMissingCreatureModelsTable(err: unknown): boolean {
 }
 
 const REASON_MESSAGES: Record<string, string> = {
-  not_found: 'Hybrid not found',
+  not_found: 'Creature not found',
   forbidden: 'Forbidden',
-  not_photo_hybrid: 'Only a photo-tier hybrid can be upgraded to 3D',
+  not_photo_hybrid: 'Only a photo-tier creature can be upgraded to 3D',
   planet_full: `Planet already has the maximum of ${MAX_CREATURES_PER_PLANET} creatures`,
 };
 
@@ -34,16 +34,28 @@ const REASON_MESSAGES: Record<string, string> = {
  * POST /api/creatures/hybrid-upgrade
  *
  * Auth: Bearer token (Firebase)
- * Body: { creatureId: string } — a photo-tier hybrid (status 'photo_ready')
+ * Body: { creatureId: string } — any photo-tier creature (status
+ * 'photo_ready'): a hybridize.ts 'photo' result, OR a plain element
+ * experiment (generate.ts) that fell back to photo_ready because Tripo
+ * failed at creation time. Both store the portrait differently
+ * (hybrid_photo_url vs plain image_url), so the source URL picks whichever
+ * is set.
  *
- * Upgrades an already-purchased hybrid photo to a full 3D biosphere creature
- * for HYBRID_UPGRADE_COST_QUARKS: reuses the existing Tripo image-to-model
- * pipeline from the stored hybrid photo; the client then polls
- * /api/creatures/status like any other generation. On Tripo failure the
- * status endpoint reverts the row to 'photo_ready' and refunds the upgrade
- * (the photo itself is never lost).
+ * Upgrades an already-purchased photo to a full 3D biosphere creature.
+ * Cost depends on how the photo was obtained:
+ * - Hybridize 'photo' tier (is_hybrid): the player deliberately bought the
+ *   cheaper photo-only option (HYBRID_PHOTO_COST_QUARKS), so completing it
+ *   to 3D costs the full HYBRID_UPGRADE_COST_QUARKS on top.
+ * - Plain generate.ts experiment that fell back to photo_ready because Tripo
+ *   itself failed at creation time (!is_hybrid): the player already paid the
+ *   FULL creature price expecting a 3D model, so the retry is free — Tripo
+ *   being unavailable is not the player's fault.
+ * Reuses the existing Tripo image-to-model pipeline from the stored photo;
+ * the client then polls /api/creatures/status like any other generation. On
+ * Tripo failure the status endpoint reverts the row to 'photo_ready' and
+ * refunds the upgrade (the photo itself is never lost).
  *
- * Returns: { creatureId, status: 'generating', quarksPaid, newBalance }
+ * Returns: { creatureId, status: 'generating', quarksPaid, newBalance? }
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -69,7 +81,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const hybrid = await getCreatureModel(creatureId);
     if (!hybrid) return res.status(404).json({ error: REASON_MESSAGES.not_found, reason: 'not_found' });
     if (hybrid.player_id !== auth.playerId) return res.status(403).json({ error: REASON_MESSAGES.forbidden, reason: 'forbidden' });
-    if (!hybrid.is_hybrid || hybrid.status !== 'photo_ready' || !hybrid.hybrid_photo_url) {
+    // Non-hybrid experiment creatures that fell back to photo_ready store
+    // their portrait in image_url (hybrid_photo_url is only set by
+    // hybridize.ts's fusion flow).
+    const photoUrl = hybrid.hybrid_photo_url ?? hybrid.image_url;
+    if (hybrid.status !== 'photo_ready' || !photoUrl) {
       return res.status(400).json({ error: REASON_MESSAGES.not_photo_hybrid, reason: 'not_photo_hybrid' });
     }
 
@@ -83,22 +99,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: REASON_MESSAGES.planet_full, reason: 'planet_full' });
     }
 
-    const paid = await deductQuarks(auth.playerId, HYBRID_UPGRADE_COST_QUARKS);
-    if (!paid) {
-      return res.status(402).json({ error: 'Insufficient quarks', required: HYBRID_UPGRADE_COST_QUARKS });
+    // A Tripo-outage fallback (plain experiment, never a deliberate photo
+    // purchase) retries for free — the player already paid full price once.
+    const cost = hybrid.is_hybrid ? HYBRID_UPGRADE_COST_QUARKS : 0;
+
+    let newBalance: number | undefined;
+    if (cost > 0) {
+      const paid = await deductQuarks(auth.playerId, cost);
+      if (!paid) {
+        return res.status(402).json({ error: 'Insufficient quarks', required: cost });
+      }
+      chargedPlayerId = auth.playerId;
+      chargedAmount = cost;
+      newBalance = paid.quarks;
     }
-    chargedPlayerId = auth.playerId;
-    chargedAmount = HYBRID_UPGRADE_COST_QUARKS;
 
     // Create the Tripo task first — if it throws, the row is untouched
-    // (still 'photo_ready') and the catch block refunds the charge.
-    const tripo = await createCreatureModelTask(hybrid.hybrid_photo_url);
+    // (still 'photo_ready') and the catch block refunds any charge.
+    const tripo = await createCreatureModelTask(photoUrl);
     await updateCreatureModel(hybrid.id, {
       status: 'generating',
       tripo_task_id: tripo.taskId,
       // Refund bookkeeping: quarks_paid now holds the refundable amount for
       // the in-flight Tripo attempt (see /api/creatures/status failure path).
-      quarks_paid: HYBRID_UPGRADE_COST_QUARKS,
+      quarks_paid: cost,
     });
 
     chargedPlayerId = null;
@@ -107,8 +131,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({
       creatureId: hybrid.id,
       status: 'generating',
-      quarksPaid: HYBRID_UPGRADE_COST_QUARKS,
-      newBalance: paid.quarks,
+      quarksPaid: cost,
+      newBalance,
     });
   } catch (err) {
     console.error('[creatures/hybrid-upgrade] Error:', err);

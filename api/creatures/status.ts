@@ -90,13 +90,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       if (result.status === 'failed' || result.status === 'cancelled') {
-        // Photo-tier hybrids being UPGRADED to 3D revert to 'photo_ready'
-        // instead of 'failed' — the purchased photo is kept, only the upgrade
-        // attempt's quarks (quarks_paid was set to the upgrade cost by
-        // hybrid-upgrade.ts) are refunded, and the upgrade can be retried.
-        // Full-tier hybrids fail like generate.ts (completed_at is only set
-        // once the photo tier completes, so it cleanly separates the two).
-        const revertToPhoto = Boolean(creature.is_hybrid && creature.hybrid_photo_url && creature.completed_at);
+        // Photo-tier creatures (hybrid or plain experiment) being UPGRADED to
+        // 3D revert to 'photo_ready' instead of 'failed' — the purchased
+        // photo is kept, only the upgrade attempt's quarks (quarks_paid was
+        // set to the upgrade cost by hybrid-upgrade.ts) are refunded, and the
+        // upgrade can be retried. Fresh generate.ts/hybridize.ts full-tier
+        // attempts fail outright instead (completed_at is only set once a
+        // photo tier already completed, so it cleanly separates the two).
+        const revertToPhoto = Boolean((creature.hybrid_photo_url || creature.image_url) && creature.completed_at);
         await updateCreatureModel(id, { status: revertToPhoto ? 'photo_ready' : 'failed' });
         if (creature.quarks_paid > 0) {
           try { await creditQuarks(creature.player_id, creature.quarks_paid); } catch (refundErr) {

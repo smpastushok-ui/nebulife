@@ -29,7 +29,9 @@ type ColonyResourceBundle = { minerals: number; volatiles: number; isotopes: num
 
 interface CreatureCareListProps {
   creatures: BiosphereCreature[];
-  /** Photo-tier hybrids ('photo_ready') — shown with a 3D-upgrade action. */
+  /** Photo-tier creatures ('photo_ready' — hybrid fusions or plain
+   *  experiments that fell back after a Tripo failure) — shown with a
+   *  3D-upgrade action. */
   photoHybrids?: BiosphereCreature[];
   nowMs: number;
   colonyResources?: ColonyResourceBundle;
@@ -245,7 +247,8 @@ function CreatureCareCard({
   );
 }
 
-/** Photo-tier hybrid card — owned portrait + the 50⚛ 3D upgrade action. */
+/** Photo-tier card (hybrid or plain Tripo-fallback experiment) — owned
+ *  portrait + the 3D upgrade action. */
 function PhotoHybridCard({
   hybrid, onUpgradeStarted,
 }: {
@@ -278,6 +281,10 @@ function PhotoHybridCard({
   };
 
   const photoUrl = hybrid.hybrid_photo_url ?? hybrid.image_url;
+  // A plain experiment that fell back to photo_ready (Tripo failed at
+  // creation) already paid full price — the retry is free. Only a
+  // deliberately-purchased hybridize 'photo' tier costs the full upgrade fee.
+  const upgradeCost = hybrid.is_hybrid ? HYBRID_UPGRADE_COST_QUARKS : 0;
 
   return (
     <div style={{
@@ -293,14 +300,18 @@ function PhotoHybridCard({
           />
         )}
         <span style={{ color: '#ccddee', fontSize: 10, letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-          {t('biosphere.hybrid.photo_badge')}
+          {t(hybrid.is_hybrid ? 'biosphere.hybrid.photo_badge' : 'biosphere.hybrid.photo_badge_plain')}
           {(hybrid.generation ?? 1) > 1 && (
             <span style={{ color: '#667788' }}> · {t('biosphere.generation_short', { gen: hybrid.generation })}</span>
           )}
         </span>
       </div>
       <button onClick={handleUpgrade} disabled={busy} style={careButtonStyle(!busy)}>
-        {busy ? t('biosphere.generate.working') : t('biosphere.hybrid.upgrade_button', { cost: HYBRID_UPGRADE_COST_QUARKS })}
+        {busy
+          ? t('biosphere.generate.working')
+          : upgradeCost > 0
+            ? t('biosphere.hybrid.upgrade_button', { cost: upgradeCost })
+            : t('biosphere.hybrid.upgrade_button_free')}
       </button>
       {error && <p style={{ color: '#cc4444', fontSize: 9, margin: '6px 0 0' }}>{error}</p>}
     </div>

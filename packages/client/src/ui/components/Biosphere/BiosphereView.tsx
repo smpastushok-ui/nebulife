@@ -137,9 +137,10 @@ export function BiosphereView({
     [planet.seed, planet.id],
   );
   // Legacy-stage creatures (elders that spawned an offspring) are archived to
-  // the lineage panel, and photo-tier hybrids ('photo_ready', migration 042)
-  // are portraits only: neither is rendered in the 3D scene nor counted
-  // against the 3-per-planet cap.
+  // the lineage panel, and photo-tier creatures (status 'photo_ready' —
+  // hybrid fusions, or plain experiments that fell back after a Tripo
+  // failure) are portraits only: neither is rendered in the 3D scene nor
+  // counted against the 3-per-planet cap.
   const sceneCreatures = useMemo(
     () => creatures.filter((c) => (c.stage ?? 'juvenile') !== 'legacy' && c.status !== 'photo_ready'),
     [creatures],
@@ -150,7 +151,7 @@ export function BiosphereView({
     [sceneCreatures],
   );
   const legacyCreatures = useMemo(() => creatures.filter((c) => c.stage === 'legacy'), [creatures]);
-  // Photo-tier hybrids — owned portraits awaiting the optional 3D upgrade.
+  // Photo-tier creatures — owned portraits awaiting the optional 3D upgrade.
   const photoHybrids = useMemo(() => creatures.filter((c) => c.status === 'photo_ready'), [creatures]);
   // Hybridization parents: any settled non-legacy creature with a portrait.
   const hybridEligible = useMemo(
@@ -188,8 +189,10 @@ export function BiosphereView({
       checkCreatureStatus(pendingCreatureId)
         .then((res) => {
           if (cancelled) return;
-          // 'photo_ready' is terminal too: a failed hybrid 3D upgrade reverts
-          // to the owned photo (quarks refunded server-side) — stop polling.
+          // 'photo_ready' is terminal too: either the initial creature fell
+          // back to photo-only (Tripo failed at creation), or a later 3D
+          // upgrade attempt failed and reverted to the owned photo (quarks
+          // refunded server-side) — stop polling either way.
           if (res.status === 'ready' || res.status === 'failed' || res.status === 'photo_ready') {
             setPendingCreatureId(null);
             reloadCreatures();

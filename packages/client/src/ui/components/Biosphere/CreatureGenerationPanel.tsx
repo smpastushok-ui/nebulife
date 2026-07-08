@@ -40,6 +40,7 @@ export function CreatureGenerationPanel({ planetId, biome, onClose, onGeneration
   const [message, setMessage] = useState<string | null>(null);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [quarksPaid, setQuarksPaid] = useState<number | null>(null);
+  const [photoOnly, setPhotoOnly] = useState(false);
   const [synthStep, setSynthStep] = useState(0);
   const synthTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -82,11 +83,15 @@ export function CreatureGenerationPanel({ planetId, biome, onClose, onGeneration
     if (!canRun) return;
     setPhase('submitting');
     setMessage(null);
+    setPhotoOnly(false);
     try {
       const res = await requestCreatureGeneration(planetId, selected, envEnabled ? biome : null);
       if (res.creatureId) {
         setPreviewImageUrl(res.imageUrl ?? null);
         setQuarksPaid(res.quarksPaid ?? 0);
+        // Tripo was unavailable at creation time — the portrait still landed,
+        // just without a 3D model (retryable later from the creature's card).
+        setPhotoOnly(res.status === 'photo_ready');
         setPhase('idle');
         onGenerationStarted(res.creatureId);
         return;
@@ -133,8 +138,8 @@ export function CreatureGenerationPanel({ planetId, biome, onClose, onGeneration
             alt={t('biosphere.generate.title')}
             style={{ width: '100%', borderRadius: 3, border: '1px solid #334455', display: 'block' }}
           />
-          <p style={{ color: '#44ff88', fontSize: 10, marginTop: 8 }}>
-            {t('biosphere.generate.status_model')}
+          <p style={{ color: photoOnly ? '#ff8844' : '#44ff88', fontSize: 10, marginTop: 8 }}>
+            {t(photoOnly ? 'biosphere.generate.status_photo_only' : 'biosphere.generate.status_model')}
           </p>
           <p style={{ color: '#667788', fontSize: 9, marginTop: 4 }}>
             {quarksPaid === 0 ? t('biosphere.generate.free') : t('biosphere.generate.cost_paid', { cost: quarksPaid ?? 0 })}
