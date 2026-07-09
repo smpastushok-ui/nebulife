@@ -8,6 +8,7 @@ import {
   creditQuarks,
   deductQuarks,
   getCreatureModel,
+  isTripoTaskCreationError,
   listCreaturesByPlanet,
   updateCreatureModel,
   createCreatureModelTask,
@@ -114,9 +115,52 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       newBalance = paid.quarks;
     }
 
-    // Create the Tripo task first — if it throws, the row is untouched
-    // (still 'photo_ready') and the catch block refunds any charge.
-    const tripo = await createCreatureModelTask(photoUrl);
+    // Create the Tripo task first. If Tripo rejects task creation (credits,
+    // model tier, temporary provider outage), keep the row untouched in
+    // 'photo_ready'. The portrait is already owned; only a paid upgrade charge
+    // is refunded immediately.
+    let tripo: { taskId: string };
+    try {
+      tripo = await createCreatureModelTask(photoUrl);
+    } catch (tripoErr) {
+      if (!isTripoTaskCreationError(tripoErr)) {
+        throw tripoErr;
+      }
+
+      let refunded = false;
+      if (chargedPlayerId && chargedAmount > 0) {
+        try {
+          const refundedPlayer = await creditQuarks(chargedPlayerId, chargedAmount);
+          newBalance = refundedPlayer.quarks;
+          refunded = true;
+        } catch (refundErr) {
+          console.error('[creatures/hybrid-upgrade] Refund failed:', refundErr);
+          throw refundErr;
+        } finally {
+          chargedPlayerId = null;
+          chargedAmount = 0;
+        }
+      }
+
+      console.warn('[creatures/hybrid-upgrade] Tripo task creation unavailable, keeping photo_ready:', {
+        creatureId: hybrid.id,
+        tripoStatus: tripoErr.status,
+        tripoCode: tripoErr.code,
+        tripoSuggestion: tripoErr.suggestion,
+        ...tripoErr.diagnostics,
+        refunded,
+      });
+
+      return res.status(200).json({
+        creatureId: hybrid.id,
+        status: 'photo_ready',
+        reason: 'tripo_unavailable',
+        error: '3D model is temporarily unavailable. Portrait saved; try again later.',
+        refunded,
+        quarksPaid: 0,
+        newBalance,
+      });
+    }
     await updateCreatureModel(hybrid.id, {
       status: 'generating',
       tripo_task_id: tripo.taskId,

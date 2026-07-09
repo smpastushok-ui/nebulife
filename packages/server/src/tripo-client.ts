@@ -12,6 +12,39 @@ const TRIPO_LOW_POLY_IMAGE_MODEL_VERSION = 'P1-20260311';
 
 type TripoImageFormat = 'jpg' | 'jpeg' | 'png' | 'webp';
 
+interface TripoTaskDiagnostics {
+  taskType: string;
+  modelVersion: string;
+  fileType?: TripoImageFormat;
+  imageHost?: string;
+  faceLimit?: number;
+  smartLowPoly?: boolean;
+  textureQuality?: string;
+  geometryQuality?: string;
+  pbr?: boolean;
+  texture?: boolean;
+}
+
+export class TripoTaskCreationError extends Error {
+  readonly status?: number;
+  readonly code?: number;
+  readonly suggestion?: string;
+  readonly diagnostics: TripoTaskDiagnostics;
+
+  constructor(
+    message: string,
+    diagnostics: TripoTaskDiagnostics,
+    options: { status?: number; code?: number; suggestion?: string } = {},
+  ) {
+    super(message);
+    this.name = 'TripoTaskCreationError';
+    this.status = options.status;
+    this.code = options.code;
+    this.suggestion = options.suggestion;
+    this.diagnostics = diagnostics;
+  }
+}
+
 interface TripoImageToModelOptions {
   modelVersion?: string;
   faceLimit?: number;
@@ -46,6 +79,14 @@ function inferImageFormat(imageUrl: string): TripoImageFormat {
   return 'png';
 }
 
+function getImageHost(imageUrl: string): string | undefined {
+  try {
+    return new URL(imageUrl).host;
+  } catch {
+    return undefined;
+  }
+}
+
 function buildImageToModelBody(imageUrl: string, options: TripoImageToModelOptions = {}) {
   return {
     type: 'image_to_model',
@@ -63,12 +104,71 @@ function buildImageToModelBody(imageUrl: string, options: TripoImageToModelOptio
   };
 }
 
+function getImageToModelDiagnostics(
+  imageUrl: string,
+  body: ReturnType<typeof buildImageToModelBody>,
+): TripoTaskDiagnostics {
+  return {
+    taskType: body.type,
+    modelVersion: body.model_version,
+    fileType: body.file.type,
+    imageHost: getImageHost(imageUrl),
+    faceLimit: body.face_limit,
+    smartLowPoly: body.smart_low_poly,
+    textureQuality: body.texture_quality,
+    geometryQuality: body.geometry_quality,
+    pbr: body.pbr,
+    texture: body.texture,
+  };
+}
+
+function parseTripoErrorBody(errText: string): { code?: number; message?: string; suggestion?: string } {
+  try {
+    const parsed = JSON.parse(errText) as { code?: unknown; message?: unknown; suggestion?: unknown };
+    return {
+      code: typeof parsed.code === 'number' ? parsed.code : undefined,
+      message: typeof parsed.message === 'string' ? parsed.message : undefined,
+      suggestion: typeof parsed.suggestion === 'string' ? parsed.suggestion : undefined,
+    };
+  } catch {
+    return { message: errText };
+  }
+}
+
+function logTaskCreationFailure(
+  label: string,
+  details: { status?: number; code?: number; message?: string; suggestion?: string; diagnostics: TripoTaskDiagnostics },
+): void {
+  console.warn(label, {
+    status: details.status,
+    code: details.code,
+    message: details.message,
+    suggestion: details.suggestion,
+    taskType: details.diagnostics.taskType,
+    modelVersion: details.diagnostics.modelVersion,
+    fileType: details.diagnostics.fileType,
+    imageHost: details.diagnostics.imageHost,
+    faceLimit: details.diagnostics.faceLimit,
+    smartLowPoly: details.diagnostics.smartLowPoly,
+    textureQuality: details.diagnostics.textureQuality,
+    geometryQuality: details.diagnostics.geometryQuality,
+    pbr: details.diagnostics.pbr,
+    texture: details.diagnostics.texture,
+  });
+}
+
+export function isTripoTaskCreationError(err: unknown): err is TripoTaskCreationError {
+  return err instanceof TripoTaskCreationError;
+}
+
 async function createImageToModelTask(
   imageUrl: string,
   options: TripoImageToModelOptions,
   errorPrefix: string,
 ): Promise<{ taskId: string }> {
   const apiKey = getApiKey();
+  const body = buildImageToModelBody(imageUrl, options);
+  const diagnostics = getImageToModelDiagnostics(imageUrl, body);
 
   const response = await fetch(`${TRIPO_API_BASE}/task`, {
     method: 'POST',
@@ -76,12 +176,25 @@ async function createImageToModelTask(
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
     },
-    body: JSON.stringify(buildImageToModelBody(imageUrl, options)),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`${errorPrefix} ${response.status}: ${errText}`);
+    const parsed = parseTripoErrorBody(errText);
+    const message = `${errorPrefix} ${response.status}: ${errText}`;
+    logTaskCreationFailure('[tripo-client] task creation failed', {
+      status: response.status,
+      code: parsed.code,
+      message: parsed.message,
+      suggestion: parsed.suggestion,
+      diagnostics,
+    });
+    throw new TripoTaskCreationError(message, diagnostics, {
+      status: response.status,
+      code: parsed.code,
+      suggestion: parsed.suggestion,
+    });
   }
 
   const result = (await response.json()) as TripoCreateTaskResponse;
@@ -89,7 +202,17 @@ async function createImageToModelTask(
   if (result.code !== 0) {
     const message = result.message ? `: ${result.message}` : '';
     const suggestion = result.suggestion ? ` (${result.suggestion})` : '';
-    throw new Error(`${errorPrefix} code ${result.code}${message}${suggestion}`);
+    const errorMessage = `${errorPrefix} code ${result.code}${message}${suggestion}`;
+    logTaskCreationFailure('[tripo-client] task creation failed', {
+      code: result.code,
+      message: result.message,
+      suggestion: result.suggestion,
+      diagnostics,
+    });
+    throw new TripoTaskCreationError(errorMessage, diagnostics, {
+      code: result.code,
+      suggestion: result.suggestion,
+    });
   }
 
   return { taskId: result.data.task_id };

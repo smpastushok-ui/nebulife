@@ -72,6 +72,7 @@ export interface CreatureGenerateResponse {
   quarksPaid?: number;
   newBalance?: number;
   error?: string;
+  reason?: string;
 }
 
 export interface CreatureStatusResponse {
@@ -183,6 +184,7 @@ export interface HybridUpgradeResponse {
   newBalance?: number;
   error?: string;
   reason?: string;
+  refunded?: boolean;
 }
 
 /** Runs the hybridization experiment on two same-planet creatures. */

@@ -162,7 +162,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         newBalance,
       });
     } catch (tripoErr) {
-      console.error('[creatures/generate] Tripo task creation failed, falling back to photo_ready:', tripoErr);
+      console.warn('[creatures/generate] Tripo task creation failed, falling back to photo_ready:', tripoErr);
       await updateCreatureModel(creature.id, { status: 'photo_ready', completed_at: new Date().toISOString() });
       return res.status(200).json({
         creatureId: creature.id,
@@ -170,6 +170,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         imageUrl: image.imageUrl,
         quarksPaid: cost,
         newBalance,
+        reason: 'tripo_unavailable',
       });
     }
   } catch (err) {

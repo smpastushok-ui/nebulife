@@ -5,6 +5,8 @@ export {
   createPlayer,
   createPlayerWithAuth,
   getPlayer,
+  getPremiumStatus,
+  hasActivePremiumAlpha,
   updatePlayer,
   // Auth
   getPlayerByFirebaseUid,
@@ -208,6 +210,7 @@ export {
   // Saga Chapters ("Сага Ткача" — migration 044)
   createSagaChapter,
   listSagaChapters,
+  countSagaChapters,
   hasSagaChapter,
   hasRecentSagaChapter,
 } from './db.js';
@@ -305,11 +308,13 @@ export {
   createShipModelTask,
   createShipTextModelTask,
   createCreatureModelTask,
+  isTripoTaskCreationError,
   isFinalTripoFailure,
 } from './tripo-client.js';
 
 export type {
   TripoCreateTaskResponse,
+  TripoTaskCreationError,
   TripoTaskStatus,
   TripoTaskStatusResponse,
 } from './tripo-client.js';
