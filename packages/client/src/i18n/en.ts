@@ -681,6 +681,10 @@ export const en: Record<TranslationKey, string> = {
   'civilization.contact_stage_complete_notif': 'Contact stage with the civilization on {planet} completed.',
   'civilization.strike_started_notif':         'The civilization workforce on {planet} is striking — production reduced.',
 
+  // Saga notifications
+  'saga.open_chapter_action':   'Open Saga',
+  'saga.dismiss_new_chapter':   'Dismiss new chapter notification',
+
   // Planet exploration missions
   'planet_terminal.free_ships_short':       '{count} ships',
   'planet_missions.reports_group':          'Reports',

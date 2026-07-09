@@ -46,8 +46,19 @@ export function CreatureCareList({
 }: CreatureCareListProps) {
   return (
     <div style={{
-      position: 'absolute', bottom: 16, left: 16, zIndex: 4,
-      display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 260,
+      position: 'absolute',
+      bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
+      left: 'calc(16px + env(safe-area-inset-left, 0px))',
+      zIndex: 4,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8,
+      maxWidth: 'min(260px, calc(100vw - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)))',
+      maxHeight: 'calc(100dvh - 96px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))',
+      overflowY: 'auto',
+      paddingRight: 2,
+      boxSizing: 'border-box',
+      WebkitOverflowScrolling: 'touch',
     }}>
       {creatures.map((creature) => (
         <CreatureCareCard
@@ -151,15 +162,26 @@ function CreatureCareCard({
       background: 'rgba(10,15,25,0.9)', border: '1px solid #334455', borderRadius: 4,
       padding: 10, fontFamily: 'monospace', boxShadow: '0 2px 12px rgba(0,0,0,0.5)',
     }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: isPending ? 6 : 4 }}>
         <span style={{ color: '#ccddee', fontSize: 10, letterSpacing: '0.5px', textTransform: 'uppercase' }}>
           {t(stageLabelKey(stage))}
           {(creature.generation ?? 1) > 1 && (
             <span style={{ color: '#667788' }}> · {t('biosphere.generation_short', { gen: creature.generation })}</span>
           )}
         </span>
-        {isPending && <span style={{ color: '#8899aa', fontSize: 9 }}>{t('biosphere.generate.status_model')}</span>}
       </div>
+
+      {isPending && (
+        <div style={{
+          color: '#8899aa',
+          fontSize: 9,
+          lineHeight: 1.35,
+          paddingTop: 6,
+          borderTop: '1px solid rgba(50,60,80,0.3)',
+        }}>
+          {t('biosphere.generate.status_model')}
+        </div>
+      )}
 
       {!isPending && (
         <>
@@ -264,8 +286,10 @@ function PhotoHybridCard({
     setError(null);
     try {
       const res = await upgradeHybrid(hybrid.id);
-      if (res.creatureId) {
+      if (res.status === 'generating' && res.creatureId) {
         onUpgradeStarted?.(res.creatureId);
+      } else if (res.status === 'photo_ready' && res.reason === 'tripo_unavailable') {
+        setError(t('biosphere.hybrid.error_tripo_unavailable'));
       } else {
         setError(res.error ?? t('biosphere.hybrid.error_generic'));
       }
@@ -320,11 +344,11 @@ function PhotoHybridCard({
 
 function careButtonStyle(enabled: boolean): React.CSSProperties {
   return {
-    width: '100%', marginTop: 6, padding: '6px 0',
+    width: '100%', marginTop: 6, padding: '7px 6px',
     background: enabled ? 'rgba(30,60,80,0.6)' : 'rgba(30,60,80,0.25)',
     border: `1px solid ${enabled ? '#446688' : '#2a3a4a'}`,
     color: enabled ? '#aaccee' : '#556677',
-    fontFamily: 'monospace', fontSize: 10, borderRadius: 3,
+    fontFamily: 'monospace', fontSize: 10, lineHeight: 1.25, borderRadius: 3,
     cursor: enabled ? 'pointer' : 'not-allowed',
   };
 }

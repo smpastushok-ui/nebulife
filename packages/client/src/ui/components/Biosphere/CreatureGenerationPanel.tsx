@@ -108,8 +108,11 @@ export function CreatureGenerationPanel({ planetId, biome, onClose, onGeneration
   return (
     <div
       style={{
-        position: 'absolute', top: 'calc(env(safe-area-inset-top, 0px) + 60px)', right: 16, width: 300,
-        maxHeight: 'calc(100% - 90px - env(safe-area-inset-top, 0px))',
+        position: 'absolute',
+        top: 'calc(env(safe-area-inset-top, 0px) + 60px)',
+        right: 'calc(16px + env(safe-area-inset-right, 0px))',
+        width: 300,
+        maxHeight: 'calc(100dvh - 90px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))',
         display: 'flex', flexDirection: 'column',
         background: 'rgba(10,15,25,0.94)', border: '1px solid #334455', borderRadius: 4,
         padding: 16, zIndex: 5, fontFamily: 'monospace', boxSizing: 'border-box',

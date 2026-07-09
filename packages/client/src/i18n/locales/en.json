@@ -290,7 +290,7 @@
     "biosphere": {
       "kicker": "Evolution Chamber",
       "title": "Biosphere Experiments",
-      "body": "The Biosphere is your natural selection engine. Pick two to four elements — the order defines the creature's build, cover and accents — and let the planet's biome shape the result. Up to three creatures per planet. Care for them daily, evolve them through generations, and hybridize the best pairs: top specimens earn a unique portrait and a real 3D model."
+      "body": "The Biosphere is your natural selection engine. Pick two to four elements — the order defines the creature's build, cover and accents — and let the planet's biome shape the result. Up to three creatures per planet. Care for them daily, evolve them through generations, and hybridize the best pairs: top specimens earn a unique portrait and a stable 3D form."
     },
     "hangar": {
       "kicker": "Combat Perimeter",
@@ -321,10 +321,10 @@
       "cost_hint": "1st free, then 60⚛",
       "free": "Generated for free (first creature)",
       "cost_paid": "Charged {{cost}}⚛",
-      "no_quarks": "Not enough quarks to craft this creature.",
-      "status_model": "Crafting the 3D organism...",
-      "status_photo_only": "Portrait ready. The 3D model is temporarily unavailable — you can retry it later from the creature's card.",
-      "status_failed": "Could not craft the creature. Try again.",
+      "no_quarks": "Not enough quarks to manifest this creature.",
+      "status_model": "Forming the 3D shell...",
+      "status_photo_only": "Portrait ready. The 3D form has not stabilized yet — you can restore it later from the creature's card.",
+      "status_failed": "Could not manifest the creature. Try again.",
       "working": "PROCESSING..."
     },
     "experiment": {
@@ -398,15 +398,16 @@
       "select_hint": "Select 2 parent creatures:",
       "traits_preview": "Predicted hybrid traits:",
       "tier_photo": "HYBRID PHOTO — {{cost}}⚛",
-      "tier_full": "HYBRID WITH 3D — {{cost}}⚛",
-      "upgrade_button": "CREATE 3D MODEL — {{cost}}⚛",
-      "upgrade_button_free": "RETRY 3D MODEL — FREE",
-      "result_ready": "Hybrid created. The portrait is stored in the lineage.",
+      "tier_full": "HYBRID 3D FORM — {{cost}}⚛",
+      "upgrade_button": "MANIFEST 3D FORM — {{cost}}⚛",
+      "upgrade_button_free": "STABILIZE 3D FORM — FREE",
+      "result_ready": "Hybrid manifested. The portrait is stored in the lineage.",
       "badge": "hybrid",
       "photo_badge": "hybrid photo",
       "photo_badge_plain": "portrait only",
       "parents_label": "Parents: {{parentA}} + {{parentB}}",
       "error_generic": "The experiment failed. Quarks were refunded.",
+      "error_tripo_unavailable": "3D form is temporarily unavailable. Portrait saved; try again later.",
       "error_planet_full": "The planet already has the maximum of active creatures."
     },
     "trait": {
@@ -3504,7 +3505,9 @@
     "back_to_list": "Back",
     "chapter_label": "Chapter {{roman}}",
     "empty_state": "The Saga begins with your first step. Keep exploring — the Weaver is watching, and will write when the moment is worthy.",
-    "new_chapter_toast": "A new chapter is ready: \"{{title}}\""
+    "new_chapter_toast": "A new chapter is ready: \"{{title}}\"",
+    "open_chapter_action": "Open Saga",
+    "dismiss_new_chapter": "Dismiss new chapter notification"
   },
   "landing": {
     "badge": "Living Orrery",

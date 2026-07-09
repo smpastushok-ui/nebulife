@@ -95,8 +95,11 @@ export function HybridizationPanel({
 
   return (
     <div style={{
-      position: 'absolute', top: 'calc(env(safe-area-inset-top, 0px) + 60px)', right: 16, width: 320,
-      maxHeight: 'calc(100% - 90px - env(safe-area-inset-top, 0px))',
+      position: 'absolute',
+      top: 'calc(env(safe-area-inset-top, 0px) + 60px)',
+      right: 'calc(16px + env(safe-area-inset-right, 0px))',
+      width: 320,
+      maxHeight: 'calc(100dvh - 90px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))',
       background: 'rgba(10,15,25,0.94)', border: '1px solid #334455', borderRadius: 4,
       padding: 16, zIndex: 5, fontFamily: 'monospace', overflowY: 'auto',
       boxShadow: '0 4px 20px rgba(0,0,0,0.6)',

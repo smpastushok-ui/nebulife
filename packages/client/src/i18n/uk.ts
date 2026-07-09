@@ -679,6 +679,10 @@ export const uk = {
   'civilization.contact_stage_complete_notif': 'Етап контакту з цивілізацією на планеті {planet} завершено.',
   'civilization.strike_started_notif':         'Робоча сила цивілізації на планеті {planet} страйкує — виробництво знижено.',
 
+  // Saga notifications
+  'saga.open_chapter_action':   'Відкрити сагу',
+  'saga.dismiss_new_chapter':   'Закрити сповіщення про новий розділ',
+
   // Planet exploration missions
   'planet_terminal.free_ships_short':       '{count} кораб.',
   'planet_missions.reports_group':          'Звіти',

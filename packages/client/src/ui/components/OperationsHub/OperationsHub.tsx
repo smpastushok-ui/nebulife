@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DailyDirectiveState, DirectiveDef, CometSchedule } from '@nebulife/core';
 import { DirectivesTab } from './DirectivesTab.js';
@@ -64,6 +64,11 @@ const BORDER = '#334455';
 export function OperationsHub(props: OperationsHubProps) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<OpsTab>(props.initialTab ?? 'directives');
+
+  useEffect(() => {
+    if (!props.initialTab) return;
+    setTab(props.initialTab);
+  }, [props.initialTab]);
 
   const directivesDone = props.directives.filter(
     (d) => (props.directiveState.progress[d.metric] ?? 0) >= d.target,

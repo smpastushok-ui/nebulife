@@ -6747,6 +6747,7 @@ function AppInner() {
     source?: 'system' | 'planet' | 'mission';
   } | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [sagaChapterToast, setSagaChapterToast] = useState<{ message: string; key: number } | null>(null);
   // Prominent, dedicated notification for rare Spark-of-Life drops.
   const [sparkNotice, setSparkNotice] = useState<{ spark: LifeSparkType; key: number } | null>(null);
   useEffect(() => {
@@ -13804,11 +13805,27 @@ function AppInner() {
 
   useEffect(() => {
     if (!sagaChapters.justWrittenTitle) return;
-    setToastMessage(tr('saga.new_chapter_toast', { title: sagaChapters.justWrittenTitle }));
-    const id = window.setTimeout(() => setToastMessage(null), 4200);
+    setSagaChapterToast({
+      message: tr('saga.new_chapter_toast', { title: sagaChapters.justWrittenTitle }),
+      key: Date.now(),
+    });
     sagaChapters.clearJustWritten();
-    return () => window.clearTimeout(id);
   }, [sagaChapters.justWrittenTitle, sagaChapters.clearJustWritten, tr]);
+
+  useEffect(() => {
+    if (!sagaChapterToast) return;
+    const id = window.setTimeout(() => setSagaChapterToast(null), 6500);
+    return () => window.clearTimeout(id);
+  }, [sagaChapterToast]);
+
+  const openSagaFromToast = useCallback(() => {
+    playSfx('ui-click', 0.08);
+    setSagaChapterToast(null);
+    setOpsHubTab('saga');
+    setOpsHubViewedTab('saga');
+    setShowOpsHub(true);
+    sagaChapters.markAllRead();
+  }, [sagaChapters.markAllRead]);
 
   // Chapters count as read once the Saga tab of the Operations Hub is on
   // screen (clears the unread badge; re-fires as new chapters land while
@@ -16798,6 +16815,69 @@ function AppInner() {
           sfxSlot={precursorCollection.sfxSlot}
           onComplete={() => setPrecursorAcquisitionQueue((q) => q.slice(1))}
         />
+      )}
+
+      {/* Saga notification — actionable, non-blocking, and self-dismissing. */}
+      {sagaChapterToast && !arenaPopupGate && (
+        <div
+          key={sagaChapterToast.key}
+          style={{
+            position: 'fixed',
+            bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 9805,
+            display: 'flex',
+            alignItems: 'stretch',
+            gap: 8,
+            maxWidth: 'min(520px, calc(100vw - 28px))',
+            background: 'rgba(10,15,25,0.97)',
+            border: '1px solid #4488aa',
+            borderRadius: 5,
+            boxShadow: '0 0 24px rgba(68,136,170,0.18)',
+            fontFamily: 'monospace',
+            animation: 'toastFadeIn 0.3s ease-out',
+          }}
+        >
+          <button
+            onClick={openSagaFromToast}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              background: 'transparent',
+              border: 'none',
+              color: '#aabbcc',
+              fontFamily: 'monospace',
+              fontSize: 12,
+              letterSpacing: 0.8,
+              lineHeight: 1.5,
+              padding: '10px 12px 10px 16px',
+              textAlign: 'left',
+              cursor: 'pointer',
+            }}
+          >
+            <span style={{ color: '#7bb8ff' }}>{sagaChapterToast.message}</span>
+            <span style={{ color: '#8899aa', marginLeft: 10 }}>{t('saga.open_chapter_action')}</span>
+          </button>
+          <button
+            type="button"
+            aria-label={t('saga.dismiss_new_chapter')}
+            title={t('saga.dismiss_new_chapter')}
+            onClick={() => setSagaChapterToast(null)}
+            style={{
+              width: 34,
+              border: 'none',
+              borderLeft: '1px solid rgba(68,102,136,0.45)',
+              background: 'rgba(5,10,20,0.35)',
+              color: '#667788',
+              fontFamily: 'monospace',
+              fontSize: 14,
+              cursor: 'pointer',
+            }}
+          >
+            x
+          </button>
+        </div>
       )}
 
       {/* Toast notification */}
