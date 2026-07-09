@@ -3,9 +3,11 @@ import {
   authenticate,
   getPlayer,
   createSagaChapter,
+  countSagaChapters,
   listSagaChapters,
   hasSagaChapter,
   hasRecentSagaChapter,
+  hasActivePremiumAlpha,
   generateImageWithGemini,
   generateSagaChapterText,
   buildSagaChapterPrompt,
@@ -40,9 +42,12 @@ function sanitizeContext(input: unknown): SagaMilestoneContext {
  *
  * Writes are free (retention feature, not a paywall — see GAME_BIBLE.md
  * §0.4-bis) but capped server-side at one chapter per player per 24h
- * (SAGA_DAILY_CHAPTER_CAP) to control Gemini text+image cost, and each
+ * (SAGA_DAILY_CHAPTER_CAP) to control Gemini text cost, and each
  * milestone type can only ever be written once (`UNIQUE(player_id,
  * milestone_type)`, enforced by createSagaChapter's ON CONFLICT DO NOTHING).
+ * Illustration cost policy: the player's first saga chapter always gets an
+ * image attempt; later chapters only attempt an image for active Premium Alpha
+ * accounts, checked server-side from players.premium_active/expires_at.
  *
  * Returns: { status: 'ready', chapter } | { status: 'throttled' } | { status: 'already_written', chapter }
  */
@@ -87,6 +92,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
+    const existingChapterCount = await countSagaChapters(auth.playerId);
+
     // Daily cost-control cap — independent of which milestone this is.
     if (await hasRecentSagaChapter(auth.playerId)) {
       return res.status(200).json({ status: 'throttled' });
@@ -98,10 +105,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const callsign = player.callsign ?? player.name ?? 'Commander';
 
     const { textPrompt, illustrationPrompt } = buildSagaChapterPrompt(milestoneType, context, callsign, lang);
+    const isFirstSagaChapter = existingChapterCount === 0;
+    const hasPremiumAlpha = isFirstSagaChapter ? false : await hasActivePremiumAlpha(auth.playerId);
+    const shouldGenerateImage = isFirstSagaChapter || hasPremiumAlpha;
 
-    const [rawText, image] = await Promise.all([
-      generateSagaChapterText(textPrompt),
-      generateImageWithGemini({
+    const imagePromise = shouldGenerateImage
+      ? generateImageWithGemini({
         prompt: illustrationPrompt,
         aspectRatio: '3:4',
         imageSize: '1K',
@@ -109,7 +118,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }).catch((err) => {
         console.error('[saga/generate-chapter] illustration failed:', err);
         return null;
-      }),
+      })
+      : Promise.resolve(null);
+
+    const [rawText, image] = await Promise.all([
+      generateSagaChapterText(textPrompt),
+      imagePromise,
     ]);
 
     const { title, body } = parseSagaChapterResponse(rawText, lang);
@@ -127,6 +141,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({
       status: 'ready',
+      imageSkipped: shouldGenerateImage ? undefined : 'premium_required',
       chapter: {
         id: chapter.id,
         milestoneType: chapter.milestone_type,

@@ -20,6 +20,7 @@ export interface SagaChapterView {
 export interface GenerateSagaChapterResponse {
   status: 'ready' | 'already_written' | 'throttled';
   chapter?: SagaChapterView;
+  imageSkipped?: 'premium_required';
   error?: string;
 }
 

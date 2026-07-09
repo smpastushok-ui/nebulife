@@ -150,7 +150,7 @@
 | Collection re-roll | Rarity badges, cooldown, premium "save both" | заплановано | `TODO.md` |
 | Tripo planet models | Відключено — планети лише AI-фото (deprecated) | заплановано | `GAME_BIBLE.md` §0.4-bis |
 | Creature rig / wander AI | Tripo animate + wander на HexSurface | заплановано | `NEXT_GEN_PLAN.md` §C |
-| Сага Ткача | Персональна ілюстрована хроніка гравця: Gemini пише розділ (текст + 1 ілюстрація) у голосі Ткача на кожній ключовій milestone (перша колонізація, L10/20/35, легендарна знахідка, прибуття корабля Судного дня, перша поселена істота, інтеграція цивілізації); клієнтський milestone-детект + черга в `game_state`, генерація 1/день/гравця, читалка в PlayerPage | в розробці | `packages/core/src/game/saga.ts`, `packages/server/src/saga-prompt.ts`, `api/saga/generate-chapter.ts`, `api/saga/list.ts`, `Saga/SagaReader.tsx`, `useSagaChapters.ts`, `044-saga-chapters.sql` |
+| Сага Ткача | Персональна хроніка гравця: Gemini пише розділ у голосі Ткача на кожній ключовій milestone (перша колонізація, L10/20/35, легендарна знахідка, прибуття корабля Судного дня, перша поселена істота, інтеграція цивілізації); cost-control: перший розділ гравця завжди отримує ілюстрацію, наступні ілюструються тільки для активного Premium Alpha (перевірка на сервері); клієнтський milestone-детект + черга в `game_state`, генерація 1/день/гравця, читалка в PlayerPage | в розробці | `packages/core/src/game/saga.ts`, `packages/server/src/saga-prompt.ts`, `api/saga/generate-chapter.ts`, `api/saga/list.ts`, `Saga/SagaReader.tsx`, `useSagaChapters.ts`, `044-saga-chapters.sql` |
 
 ---
 

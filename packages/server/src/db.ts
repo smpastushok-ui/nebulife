@@ -290,6 +290,18 @@ export async function getPremiumStatus(playerId: string): Promise<PremiumStatus>
   return rowToPremiumStatus(await getPlayer(playerId));
 }
 
+export async function hasActivePremiumAlpha(playerId: string): Promise<boolean> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT 1 FROM players
+    WHERE id = ${playerId}
+      AND premium_active = TRUE
+      AND (premium_expires_at IS NULL OR premium_expires_at > NOW())
+    LIMIT 1
+  `;
+  return rows.length > 0;
+}
+
 export async function updatePlayerPremium(
   playerId: string,
   status: {
@@ -5565,6 +5577,14 @@ export async function listSagaChapters(playerId: string): Promise<SagaChapterRow
   return (await sql`
     SELECT * FROM saga_chapters WHERE player_id = ${playerId} ORDER BY created_at ASC
   `) as SagaChapterRow[];
+}
+
+export async function countSagaChapters(playerId: string): Promise<number> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT COUNT(*)::int AS count FROM saga_chapters WHERE player_id = ${playerId}
+  `;
+  return Number((rows[0] as { count?: number | string } | undefined)?.count ?? 0);
 }
 
 export async function hasSagaChapter(playerId: string, milestoneType: string): Promise<boolean> {
