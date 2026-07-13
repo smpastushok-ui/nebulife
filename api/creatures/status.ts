@@ -13,6 +13,8 @@ export const config = {
   maxDuration: 30,
 };
 
+const GENERATION_RECOVERY_TIMEOUT_MS = 15 * 60 * 1000;
+
 function isMissingCreatureModelsTable(err: unknown): boolean {
   const message = err instanceof Error ? err.message : String(err);
   return message.includes('creature_models') && message.includes('does not exist');
@@ -73,7 +75,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (creature.tripo_task_id) {
-      const result = await checkModelTask(creature.tripo_task_id);
+      let result;
+      try {
+        result = await checkModelTask(creature.tripo_task_id);
+      } catch (taskErr) {
+        const attemptStartedAt = creature.completed_at ?? creature.created_at;
+        const ageMs = Date.now() - new Date(attemptStartedAt).getTime();
+        if (creature.image_url && ageMs >= GENERATION_RECOVERY_TIMEOUT_MS) {
+          const revertToPhoto = Boolean(creature.completed_at);
+          await updateCreatureModel(id, {
+            status: 'photo_ready',
+            completed_at: creature.completed_at ?? new Date().toISOString(),
+            quarks_paid: revertToPhoto ? 0 : creature.quarks_paid,
+          });
+          if (revertToPhoto && creature.quarks_paid > 0) {
+            try { await creditQuarks(creature.player_id, creature.quarks_paid); } catch (refundErr) {
+              console.error('[creatures/status] Recovery refund failed:', refundErr);
+            }
+          }
+          console.warn('[creatures/status] Recovered stale task to photo_ready:', {
+            creatureId: id,
+            ageMs,
+            providerError: taskErr instanceof Error ? taskErr.message : String(taskErr),
+          });
+          return res.status(200).json({
+            status: 'photo_ready',
+            imageUrl: creature.image_url,
+            reason: 'generation_recovered',
+          });
+        }
+        throw taskErr;
+      }
 
       if (result.status === 'success' && result.glbUrl) {
         const stored = await tryStoreGlbFromUrl(result.glbUrl, 'creature-models');
@@ -99,7 +131,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // attempts fail outright instead (completed_at is only set once a
         // photo tier already completed, so it cleanly separates the two).
         const revertToPhoto = Boolean((creature.hybrid_photo_url || creature.image_url) && creature.completed_at);
-        await updateCreatureModel(id, { status: revertToPhoto ? 'photo_ready' : 'failed' });
+        await updateCreatureModel(id, {
+          status: revertToPhoto ? 'photo_ready' : 'failed',
+          quarks_paid: revertToPhoto ? 0 : creature.quarks_paid,
+        });
         if (creature.quarks_paid > 0) {
           try { await creditQuarks(creature.player_id, creature.quarks_paid); } catch (refundErr) {
             console.error('[creatures/status] Refund failed:', refundErr);
@@ -111,10 +146,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       }
 
+      const attemptStartedAt = creature.completed_at ?? creature.created_at;
+      const ageMs = Date.now() - new Date(attemptStartedAt).getTime();
+      if (creature.image_url && ageMs >= GENERATION_RECOVERY_TIMEOUT_MS) {
+        const revertToPhoto = Boolean(creature.completed_at);
+        await updateCreatureModel(id, {
+          status: 'photo_ready',
+          completed_at: creature.completed_at ?? new Date().toISOString(),
+          quarks_paid: revertToPhoto ? 0 : creature.quarks_paid,
+        });
+        if (revertToPhoto && creature.quarks_paid > 0) {
+          try { await creditQuarks(creature.player_id, creature.quarks_paid); } catch (refundErr) {
+            console.error('[creatures/status] Timeout refund failed:', refundErr);
+          }
+        }
+        return res.status(200).json({
+          status: 'photo_ready',
+          imageUrl: creature.image_url,
+          reason: 'generation_timeout',
+        });
+      }
+
       return res.status(200).json({
         status: 'generating',
         progress: result.progress,
         imageUrl: creature.image_url,
+      });
+    }
+
+    // A persisted portrait without a task can happen if a function is
+    // interrupted between the image and Tripo updates. It is a terminal,
+    // usable photo-tier creature, never an infinite "forming" row.
+    if (creature.image_url) {
+      await updateCreatureModel(id, {
+        status: 'photo_ready',
+        completed_at: creature.completed_at ?? new Date().toISOString(),
+      });
+      return res.status(200).json({
+        status: 'photo_ready',
+        imageUrl: creature.image_url,
+        reason: 'missing_task_recovered',
       });
     }
 

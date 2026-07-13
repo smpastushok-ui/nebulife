@@ -161,6 +161,23 @@ export function isTripoTaskCreationError(err: unknown): err is TripoTaskCreation
   return err instanceof TripoTaskCreationError;
 }
 
+export type TripoTaskFailureReason =
+  | 'tripo_api_credits_unavailable'
+  | 'tripo_concurrency_limit'
+  | 'tripo_unavailable';
+
+/**
+ * Convert provider error codes into stable, non-secret API reasons. Tripo's
+ * documented code 2010 specifically means the API billing pool is exhausted
+ * (Studio/web credits are a separate balance); code 2000 is concurrency.
+ */
+export function getTripoTaskFailureReason(err: unknown): TripoTaskFailureReason {
+  if (!isTripoTaskCreationError(err)) return 'tripo_unavailable';
+  if (err.code === 2010) return 'tripo_api_credits_unavailable';
+  if (err.code === 2000) return 'tripo_concurrency_limit';
+  return 'tripo_unavailable';
+}
+
 async function createImageToModelTask(
   imageUrl: string,
   options: TripoImageToModelOptions,

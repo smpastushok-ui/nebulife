@@ -80,6 +80,7 @@ export interface CreatureStatusResponse {
   progress?: number;
   imageUrl?: string | null;
   glbUrl?: string | null;
+  reason?: string;
 }
 
 /** Element-experiment synthesis: order of `elements` matters (slot 1 body

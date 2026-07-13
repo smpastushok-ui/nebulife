@@ -309,6 +309,7 @@ export {
   createShipTextModelTask,
   createCreatureModelTask,
   isTripoTaskCreationError,
+  getTripoTaskFailureReason,
   isFinalTripoFailure,
 } from './tripo-client.js';
 

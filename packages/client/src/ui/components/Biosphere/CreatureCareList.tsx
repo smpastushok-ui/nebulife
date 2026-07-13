@@ -60,7 +60,7 @@ export function CreatureCareList({
       boxSizing: 'border-box',
       WebkitOverflowScrolling: 'touch',
     }}>
-      {creatures.map((creature) => (
+      {[...creatures, ...(photoHybrids ?? [])].map((creature) => (
         <CreatureCareCard
           key={creature.id}
           creature={creature}
@@ -69,13 +69,7 @@ export function CreatureCareList({
           onSpendResources={onSpendResources}
           onCareCompleted={onCareCompleted}
           onEvolved={onEvolved}
-        />
-      ))}
-      {(photoHybrids ?? []).map((hybrid) => (
-        <PhotoHybridCard
-          key={hybrid.id}
-          hybrid={hybrid}
-          onUpgradeStarted={onHybridUpgradeStarted}
+          onUpgradeStarted={creature.status === 'photo_ready' ? onHybridUpgradeStarted : undefined}
         />
       ))}
     </div>
@@ -92,7 +86,7 @@ function stageLabelKey(stage: CreatureStage | string): string {
 }
 
 function CreatureCareCard({
-  creature, nowMs, colonyResources, onSpendResources, onCareCompleted, onEvolved,
+  creature, nowMs, colonyResources, onSpendResources, onCareCompleted, onEvolved, onUpgradeStarted,
 }: {
   creature: BiosphereCreature;
   nowMs: number;
@@ -100,6 +94,7 @@ function CreatureCareCard({
   onSpendResources?: (delta: Partial<ColonyResourceBundle>) => void;
   onCareCompleted: () => void;
   onEvolved: (offspringId: string) => void;
+  onUpgradeStarted?: (creatureId: string) => void;
 }) {
   const { t } = useTranslation();
   const [popover, setPopover] = useState<'none' | 'care' | 'evolve'>('none');
@@ -107,7 +102,8 @@ function CreatureCareCard({
   const [error, setError] = useState<string | null>(null);
 
   const stage = (creature.stage as CreatureStage | undefined) ?? 'juvenile';
-  const isPending = creature.status !== 'ready';
+  const isPhotoReady = creature.status === 'photo_ready';
+  const isPending = creature.status !== 'ready' && !isPhotoReady;
   const vitality = Math.round(getCreatureEffectiveVitality(creature, nowMs));
   const careableToday = !isPending && isCreatureCareableNow(creature, nowMs);
   const isLow = vitality < CREATURE_VITALITY_LOW_THRESHOLD;
@@ -157,18 +153,56 @@ function CreatureCareCard({
     }
   };
 
+  const handleUpgrade = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await upgradeHybrid(creature.id);
+      if (res.status === 'generating' && res.creatureId) {
+        onUpgradeStarted?.(res.creatureId);
+      } else if (res.status === 'photo_ready' && res.reason?.startsWith('tripo_')) {
+        setError(t(
+          res.reason === 'tripo_api_credits_unavailable'
+            ? 'biosphere.hybrid.error_3d_reserves'
+            : 'biosphere.hybrid.error_tripo_unavailable',
+        ));
+      } else {
+        setError(res.error ?? t('biosphere.hybrid.error_generic'));
+      }
+    } catch (err) {
+      const reason = (err as { reason?: string })?.reason;
+      const raw = err instanceof Error ? err.message : String(err);
+      if (reason === 'planet_full') setError(t('biosphere.hybrid.error_planet_full'));
+      else if (raw.toLowerCase().includes('insufficient')) setError(t('biosphere.generate.no_quarks'));
+      else setError(t('biosphere.hybrid.error_generic'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div style={{
       background: 'rgba(10,15,25,0.9)', border: '1px solid #334455', borderRadius: 4,
       padding: 10, fontFamily: 'monospace', boxShadow: '0 2px 12px rgba(0,0,0,0.5)',
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: isPending ? 6 : 4 }}>
-        <span style={{ color: '#ccddee', fontSize: 10, letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-          {t(stageLabelKey(stage))}
-          {(creature.generation ?? 1) > 1 && (
-            <span style={{ color: '#667788' }}> · {t('biosphere.generation_short', { gen: creature.generation })}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {isPhotoReady && (creature.hybrid_photo_url ?? creature.image_url) && (
+            <img
+              src={creature.hybrid_photo_url ?? creature.image_url ?? ''}
+              alt=""
+              style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 3, border: '1px solid #334455', flexShrink: 0 }}
+            />
           )}
-        </span>
+          <span style={{ color: '#ccddee', fontSize: 10, letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+            {isPhotoReady
+              ? t(creature.is_hybrid ? 'biosphere.hybrid.photo_badge' : 'biosphere.hybrid.photo_badge_plain')
+              : t(stageLabelKey(stage))}
+            {(creature.generation ?? 1) > 1 && (
+              <span style={{ color: '#667788' }}> · {t('biosphere.generation_short', { gen: creature.generation })}</span>
+            )}
+          </span>
+        </div>
       </div>
 
       {isPending && (
@@ -215,6 +249,16 @@ function CreatureCareCard({
               style={careButtonStyle(true)}
             >
               {t('biosphere.evolve.button')}
+            </button>
+          )}
+
+          {isPhotoReady && (
+            <button onClick={handleUpgrade} disabled={busy} style={careButtonStyle(!busy)}>
+              {busy
+                ? t('biosphere.generate.working')
+                : creature.is_hybrid
+                  ? t('biosphere.hybrid.upgrade_button', { cost: HYBRID_UPGRADE_COST_QUARKS })
+                  : t('biosphere.hybrid.upgrade_button_free')}
             </button>
           )}
         </>
@@ -264,79 +308,6 @@ function CreatureCareCard({
         </div>
       )}
 
-      {error && <p style={{ color: '#cc4444', fontSize: 9, margin: '6px 0 0' }}>{error}</p>}
-    </div>
-  );
-}
-
-/** Photo-tier card (hybrid or plain Tripo-fallback experiment) — owned
- *  portrait + the 3D upgrade action. */
-function PhotoHybridCard({
-  hybrid, onUpgradeStarted,
-}: {
-  hybrid: BiosphereCreature;
-  onUpgradeStarted?: (creatureId: string) => void;
-}) {
-  const { t } = useTranslation();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleUpgrade = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await upgradeHybrid(hybrid.id);
-      if (res.status === 'generating' && res.creatureId) {
-        onUpgradeStarted?.(res.creatureId);
-      } else if (res.status === 'photo_ready' && res.reason === 'tripo_unavailable') {
-        setError(t('biosphere.hybrid.error_tripo_unavailable'));
-      } else {
-        setError(res.error ?? t('biosphere.hybrid.error_generic'));
-      }
-    } catch (err) {
-      const reason = (err as { reason?: string })?.reason;
-      const raw = err instanceof Error ? err.message : String(err);
-      if (reason === 'planet_full') setError(t('biosphere.hybrid.error_planet_full'));
-      else if (raw.toLowerCase().includes('insufficient')) setError(t('biosphere.generate.no_quarks'));
-      else setError(t('biosphere.hybrid.error_generic'));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const photoUrl = hybrid.hybrid_photo_url ?? hybrid.image_url;
-  // A plain experiment that fell back to photo_ready (Tripo failed at
-  // creation) already paid full price — the retry is free. Only a
-  // deliberately-purchased hybridize 'photo' tier costs the full upgrade fee.
-  const upgradeCost = hybrid.is_hybrid ? HYBRID_UPGRADE_COST_QUARKS : 0;
-
-  return (
-    <div style={{
-      background: 'rgba(10,15,25,0.9)', border: '1px solid #334455', borderRadius: 4,
-      padding: 10, fontFamily: 'monospace', boxShadow: '0 2px 12px rgba(0,0,0,0.5)',
-    }}>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-        {photoUrl && (
-          <img
-            src={photoUrl}
-            alt=""
-            style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 3, border: '1px solid #334455', flexShrink: 0 }}
-          />
-        )}
-        <span style={{ color: '#ccddee', fontSize: 10, letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-          {t(hybrid.is_hybrid ? 'biosphere.hybrid.photo_badge' : 'biosphere.hybrid.photo_badge_plain')}
-          {(hybrid.generation ?? 1) > 1 && (
-            <span style={{ color: '#667788' }}> · {t('biosphere.generation_short', { gen: hybrid.generation })}</span>
-          )}
-        </span>
-      </div>
-      <button onClick={handleUpgrade} disabled={busy} style={careButtonStyle(!busy)}>
-        {busy
-          ? t('biosphere.generate.working')
-          : upgradeCost > 0
-            ? t('biosphere.hybrid.upgrade_button', { cost: upgradeCost })
-            : t('biosphere.hybrid.upgrade_button_free')}
-      </button>
       {error && <p style={{ color: '#cc4444', fontSize: 9, margin: '6px 0 0' }}>{error}</p>}
     </div>
   );

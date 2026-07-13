@@ -7,6 +7,7 @@ import {
   MAX_CREATURES_PER_PLANET,
   creditQuarks,
   deductQuarks,
+  getTripoTaskFailureReason,
   getCreatureModel,
   isTripoTaskCreationError,
   listCreaturesByPlanet,
@@ -154,7 +155,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({
         creatureId: hybrid.id,
         status: 'photo_ready',
-        reason: 'tripo_unavailable',
+        reason: getTripoTaskFailureReason(tripoErr),
         error: '3D model is temporarily unavailable. Portrait saved; try again later.',
         refunded,
         quarksPaid: 0,
@@ -164,6 +165,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await updateCreatureModel(hybrid.id, {
       status: 'generating',
       tripo_task_id: tripo.taskId,
+      // Reuse completed_at as the start timestamp for this retry. Status
+      // polling uses it to apply a finite recovery timeout to old photo-tier
+      // rows without confusing row creation time with task creation time.
+      completed_at: new Date().toISOString(),
       // Refund bookkeeping: quarks_paid now holds the refundable amount for
       // the in-flight Tripo attempt (see /api/creatures/status failure path).
       quarks_paid: cost,

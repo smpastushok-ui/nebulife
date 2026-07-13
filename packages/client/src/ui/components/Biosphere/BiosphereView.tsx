@@ -125,7 +125,7 @@ export function BiosphereView({
   const [loadingCreatures, setLoadingCreatures] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [showGeneratePanel, setShowGeneratePanel] = useState(false);
-  const [pendingCreatureId, setPendingCreatureId] = useState<string | null>(null);
+  const [pendingCreatureIds, setPendingCreatureIds] = useState<string[]>([]);
   const [showLineagePanel, setShowLineagePanel] = useState(false);
   const [showHybridPanel, setShowHybridPanel] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -165,7 +165,16 @@ export function BiosphereView({
     setLoadingCreatures(true);
     setLoadError(null);
     listPlanetCreatures(planet.id)
-      .then((list) => setCreatures(list))
+      .then((list) => {
+        setCreatures(list);
+        // Resume polling persisted in-flight rows when Biosphere is reopened.
+        // This also recovers tasks whose polling was displaced by a second
+        // back-to-back creation in older clients.
+        const generatingIds = list.filter((c) => c.status === 'generating').map((c) => c.id);
+        if (generatingIds.length > 0) {
+          setPendingCreatureIds((current) => [...new Set([...current, ...generatingIds])]);
+        }
+      })
       .catch((err) => setLoadError(err instanceof Error ? err.message : String(err)))
       .finally(() => setLoadingCreatures(false));
   }, [planet.id]);
@@ -180,33 +189,36 @@ export function BiosphereView({
     return () => window.clearInterval(id);
   }, []);
 
-  // ── Poll generation status for the pending creature ─────────────────────
+  // ── Poll generation status for every pending creature ───────────────────
 
   useEffect(() => {
-    if (!pendingCreatureId) return;
+    if (pendingCreatureIds.length === 0) return;
     let cancelled = false;
     const poll = () => {
-      checkCreatureStatus(pendingCreatureId)
-        .then((res) => {
-          if (cancelled) return;
-          // 'photo_ready' is terminal too: either the initial creature fell
-          // back to photo-only (Tripo failed at creation), or a later 3D
-          // upgrade attempt failed and reverted to the owned photo (quarks
-          // refunded server-side) — stop polling either way.
-          if (res.status === 'ready' || res.status === 'failed' || res.status === 'photo_ready') {
-            setPendingCreatureId(null);
-            reloadCreatures();
-          } else {
-            timer = window.setTimeout(poll, 4000);
-          }
-        })
-        .catch(() => {
-          if (!cancelled) timer = window.setTimeout(poll, 6000);
+      Promise.allSettled(pendingCreatureIds.map(async (creatureId) => ({
+        creatureId,
+        result: await checkCreatureStatus(creatureId),
+      }))).then((settled) => {
+        if (cancelled) return;
+        const terminalIds = settled.flatMap((entry) => {
+          if (entry.status !== 'fulfilled') return [];
+          const { creatureId, result } = entry.value;
+          return result.status === 'ready' || result.status === 'failed' || result.status === 'photo_ready'
+            ? [creatureId]
+            : [];
         });
+        if (terminalIds.length > 0) {
+          setPendingCreatureIds((current) => current.filter((id) => !terminalIds.includes(id)));
+          reloadCreatures();
+          return;
+        }
+        const allFailed = settled.every((entry) => entry.status === 'rejected');
+        timer = window.setTimeout(poll, allFailed ? 6000 : 4000);
+      });
     };
     let timer = window.setTimeout(poll, 3000);
     return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [pendingCreatureId, reloadCreatures]);
+  }, [pendingCreatureIds, reloadCreatures]);
 
   // ── Babylon.js scene init (once) ─────────────────────────────────────────
 
@@ -577,7 +589,7 @@ export function BiosphereView({
           biome={getBiosphereBiome(planet)}
           onClose={() => setShowGeneratePanel(false)}
           onGenerationStarted={(creatureId) => {
-            setPendingCreatureId(creatureId);
+            setPendingCreatureIds((current) => [...new Set([...current, creatureId])]);
             setShowGeneratePanel(false);
             reloadCreatures();
           }}
@@ -591,7 +603,9 @@ export function BiosphereView({
           activeCreatureCount={activeCreatureCount}
           maxCreatures={MAX_BIOSPHERE_CREATURES}
           onClose={() => setShowHybridPanel(false)}
-          onHybridGenerating={(creatureId) => { setPendingCreatureId(creatureId); }}
+          onHybridGenerating={(creatureId) => {
+            setPendingCreatureIds((current) => [...new Set([...current, creatureId])]);
+          }}
           onChanged={reloadCreatures}
         />
       )}
@@ -607,8 +621,14 @@ export function BiosphereView({
           colonyResources={colonyResources}
           onSpendResources={onSpendResources}
           onCareCompleted={() => { onCareCompleted?.(); reloadCreatures(); }}
-          onEvolved={(offspringId) => { setPendingCreatureId(offspringId); reloadCreatures(); }}
-          onHybridUpgradeStarted={(creatureId) => { setPendingCreatureId(creatureId); reloadCreatures(); }}
+          onEvolved={(offspringId) => {
+            setPendingCreatureIds((current) => [...new Set([...current, offspringId])]);
+            reloadCreatures();
+          }}
+          onHybridUpgradeStarted={(creatureId) => {
+            setPendingCreatureIds((current) => [...new Set([...current, creatureId])]);
+            reloadCreatures();
+          }}
         />
       )}
 

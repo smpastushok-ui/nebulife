@@ -9,6 +9,7 @@ import {
   updateCreatureModel,
   generateImageWithGemini,
   createCreatureModelTask,
+  getTripoTaskFailureReason,
   CREATURE_GENERATION_COST_QUARKS,
   MAX_CREATURES_PER_PLANET,
   buildCreatureImagePrompt,
@@ -170,7 +171,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         imageUrl: image.imageUrl,
         quarksPaid: cost,
         newBalance,
-        reason: 'tripo_unavailable',
+        reason: getTripoTaskFailureReason(tripoErr),
       });
     }
   } catch (err) {

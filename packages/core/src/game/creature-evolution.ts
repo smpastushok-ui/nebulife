@@ -96,7 +96,9 @@ export function applyDailyCare(state: CreatureCareState, nowMs: number): CareApp
   if (getCareBlockReason(state, nowMs) !== null) return null;
   const snapshotAt = state.lastCareAtMs ?? state.createdAtMs;
   const effective = computeEffectiveVitality(state.vitality, snapshotAt, nowMs);
-  const vitality = Math.min(CREATURE_VITALITY_MAX, effective + CREATURE_VITALITY_CARE_GAIN);
+  // creature_models.vitality is an INTEGER. Real-time decay is fractional for
+  // smooth client previews, but care persists a whole-number snapshot.
+  const vitality = Math.round(Math.min(CREATURE_VITALITY_MAX, effective + CREATURE_VITALITY_CARE_GAIN));
   const careDays = state.careDays + 1;
   const stage = computeStageFromCareDays(careDays, state.stage);
   return { vitality, careDays, stage };

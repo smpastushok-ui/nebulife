@@ -1016,13 +1016,19 @@ export async function updateCreatureModel(
 
 export type CareOutcome =
   | { ok: true; creature: CreatureModelRow }
-  | { ok: false; reason: 'not_found' | 'forbidden' | CareBlockReason };
+  | { ok: false; reason: 'not_found' | 'forbidden' | 'creature_unavailable' | CareBlockReason };
 
 /** Validates once-per-UTC-day server-side, then updates vitality/care_days/stage. */
 export async function careForCreature(id: string, playerId: string, nowMs = Date.now()): Promise<CareOutcome> {
   const creature = await getCreatureModel(id);
   if (!creature) return { ok: false, reason: 'not_found' };
   if (creature.player_id !== playerId) return { ok: false, reason: 'forbidden' };
+  // A portrait is already a player-owned living artifact. It remains
+  // careable while its optional 3D shell is unavailable, but incomplete or
+  // failed rows must not advance through the evolution loop.
+  if (creature.status !== 'ready' && creature.status !== 'photo_ready') {
+    return { ok: false, reason: 'creature_unavailable' };
+  }
 
   const state: CreatureCareState = {
     vitality: creature.vitality,

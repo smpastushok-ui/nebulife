@@ -376,7 +376,9 @@
       "type_volatile_feed": "Volatile feed — {{amount}} volatiles",
       "error_generic": "Could not care for this creature. Try again.",
       "error_already_cared_today": "This creature has already been cared for today.",
-      "error_no_longer_needs_care": "This creature no longer needs daily care."
+      "error_no_longer_needs_care": "This creature no longer needs daily care.",
+      "error_creature_unavailable": "This creature is not ready for care yet.",
+      "error_storage_unavailable": "The biosphere care archive is temporarily unavailable."
     },
     "evolve": {
       "button": "NEW GENERATION",
@@ -407,6 +409,7 @@
       "photo_badge_plain": "portrait only",
       "parents_label": "Parents: {{parentA}} + {{parentB}}",
       "error_generic": "The experiment failed. Quarks were refunded.",
+      "error_3d_reserves": "3D-forming reserves are depleted. Portrait saved; restoration will resume after the fabrication channel is replenished.",
       "error_tripo_unavailable": "3D form is temporarily unavailable. Portrait saved; try again later.",
       "error_planet_full": "The planet already has the maximum of active creatures."
     },

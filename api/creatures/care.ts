@@ -1,9 +1,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { authenticate, careForCreature, RATE_LIMITS } from '@nebulife/server';
 
-function isMissingCreatureModelsTable(err: unknown): boolean {
+function isCreatureEvolutionStorageMissing(err: unknown): boolean {
   const message = err instanceof Error ? err.message : String(err);
-  return message.includes('creature_models') && message.includes('does not exist');
+  const code = typeof err === 'object' && err !== null && 'code' in err
+    ? String((err as { code?: unknown }).code ?? '')
+    : '';
+  return (message.includes('creature_models') && message.includes('does not exist'))
+    || code === '42703'
+    || (message.includes('column') && message.includes('does not exist'));
 }
 
 const REASON_MESSAGES: Record<string, string> = {
@@ -11,6 +16,7 @@ const REASON_MESSAGES: Record<string, string> = {
   forbidden: 'Forbidden',
   already_cared_today: 'This creature has already been cared for today',
   no_longer_needs_care: 'This creature no longer needs daily care',
+  creature_unavailable: 'This creature is not ready for care yet',
 };
 
 /**
@@ -56,8 +62,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     return res.status(200).json({ creature: outcome.creature });
   } catch (err) {
-    if (isMissingCreatureModelsTable(err)) {
-      return res.status(503).json({ error: 'Creature evolution database migration is not installed' });
+    if (isCreatureEvolutionStorageMissing(err)) {
+      return res.status(503).json({
+        error: 'Creature evolution storage is temporarily unavailable',
+        reason: 'storage_unavailable',
+      });
     }
     console.error('[creatures/care] Error:', err);
     return res.status(500).json({ error: err instanceof Error ? err.message : 'Internal error' });
