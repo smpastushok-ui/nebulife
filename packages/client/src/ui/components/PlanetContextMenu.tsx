@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Planet, Star, ResourceGroup, PlanetMission, PlanetMissionType, PlanetRevealLevel, PlacedBuilding, ProducibleType, PlanetReportSummary, Ship, PlanetTerraformState, CargoShipment, Civilization, CivilizationContactState, ContactStageId, TechTreeState } from '@nebulife/core';
 import {
@@ -15,6 +15,7 @@ const GROUP_T_KEY: Record<ResourceGroup, string> = {
   isotope:  'resource_display.desc.isotopes_name',
 };
 import { derivePlanetVisuals } from '../../game/rendering/PlanetVisuals.js';
+import { useSuppressOpeningClick } from '../../game/input/useSuppressOpeningClick.js';
 import { PremiumHelpButton } from './PremiumHelp.js';
 import { ResourceIcon, RESOURCE_COLORS } from './ResourceIcon.js';
 
@@ -1109,16 +1110,15 @@ export function PlanetContextMenu({
   const [activeTab, setActiveTab] = useState<TabId>('actions');
   const [expandedGroup, setExpandedGroup] = useState<ResourceGroup | null>(null);
   const [reportsOpen, setReportsOpen] = useState(Boolean(reportSummary));
-  // Delay backdrop + menu items activation to prevent the touch "click" event
-  // (fired ~100ms after the pointerdown that opened the menu) from immediately
-  // closing the menu or triggering navigation on mobile.
-  const [backdropActive, setBackdropActive] = useState(false);
-  const [itemsActive, setItemsActive] = useState(false);
-  useEffect(() => {
-    const t1 = setTimeout(() => setBackdropActive(true), 150);
-    const t2 = setTimeout(() => setItemsActive(true), 220);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, []);
+  // The planet tap that opens this menu is a `pointerdown` (SystemScene),
+  // fired before the pointer is released. The SAME gesture's trailing
+  // browser `click` is hit-tested against the CURRENT DOM at release time —
+  // i.e. against this menu, which has already mounted — and would otherwise
+  // instantly land on and activate whichever item now sits under the
+  // release point (e.g. "На поверхню"), performing a second, unintended
+  // navigation. This suppresses exactly that one trailing click; every
+  // subsequent click/tap (or keyboard Enter/Space) activates normally.
+  useSuppressOpeningClick(true);
 
   const isSurfacePlanet = planet.type === 'rocky' || planet.type === 'terrestrial' || planet.type === 'dwarf';
   const hasSurfaceOrOrbitalView = isSurfacePlanet || planet.type === 'gas-giant' || planet.type === 'ice-giant';
@@ -1207,7 +1207,7 @@ export function PlanetContextMenu({
   if (isDestroyed) {
     return (
       <>
-        <div style={backdropStyle} onClick={backdropActive ? onClose : undefined} />
+        <div style={backdropStyle} onClick={onClose} />
         <div style={centeredMenuStyle}>
           <div style={{
             padding: '10px 14px 8px', fontSize: 13, color: '#ccddee',
@@ -1241,7 +1241,7 @@ export function PlanetContextMenu({
 
   return (
     <>
-      <div style={backdropStyle} onClick={backdropActive ? onClose : undefined} />
+      <div style={backdropStyle} onClick={onClose} />
       <div style={centeredMenuStyle}>
         {/* ── Header: name + HOME tag ── */}
         <div style={{
@@ -1268,19 +1268,19 @@ export function PlanetContextMenu({
         <div style={{ padding: '4px 0', minHeight: 80 }}>
           {activeTab === 'actions' && (
             <>
-              <MenuItem icon="◎" label={t('nav.exosphere')} onClick={itemsActive ? onViewPlanet : undefined} color="#88ccaa" tutorialId="planet-exosphere-btn" />
+              <MenuItem icon="◎" label={t('nav.exosphere')} onClick={onViewPlanet} color="#88ccaa" tutorialId="planet-exosphere-btn" />
               {onToggleFavorite && (
                 <MenuItem
                   icon={isFavorite ? '★' : '☆'}
                   label={isFavorite ? t('context.actions.unfavorite') : t('context.actions.favorite')}
-                  onClick={itemsActive ? () => onToggleFavorite(planet.id) : undefined}
+                  onClick={() => onToggleFavorite(planet.id)}
                   color={isFavorite ? '#7bb8ff' : '#8899aa'}
                 />
               )}
               {hasSurfaceOrOrbitalView && onSurface && (
                 surfaceDisabledReason
                   ? <MenuItem icon="▲" label={t('nav.surface_btn')} disabled title={surfaceDisabledReason} right="!" />
-                  : <MenuItem icon="▲" label={t('nav.surface_btn')} onClick={itemsActive ? onSurface : undefined} color="#88ccaa" />
+                  : <MenuItem icon="▲" label={t('nav.surface_btn')} onClick={onSurface} color="#88ccaa" />
               )}
               {isSystemAccessible && (
                 <CollapsibleGroup
@@ -1450,7 +1450,7 @@ export function PlanetContextMenu({
                           label={planetSkinStatus?.exosphere === 'succeed'
                             ? t('planet.skin_exosphere_ready')
                             : <>{t('planet.skin_exosphere_label', { cost: exosphereSkinCost })}<QuarkIcon /></>}
-                          onClick={itemsActive && !isSkinGenerating && planetSkinStatus?.exosphere !== 'succeed' && canAffordExosphereSkin
+                          onClick={!isSkinGenerating && planetSkinStatus?.exosphere !== 'succeed' && canAffordExosphereSkin
                             ? () => onGeneratePlanetSkin('exosphere')
                             : undefined}
                           color={planetSkinStatus?.exosphere === 'succeed' ? '#88ccaa' : canAffordExosphereSkin ? '#ddaa44' : '#445566'}
@@ -1474,7 +1474,7 @@ export function PlanetContextMenu({
                         <MenuItem
                           icon="◉"
                           label={<>{t('planet.photo_exosphere_label', { cost: exosphereCost })}<QuarkIcon /></>}
-                          onClick={canAffordExosphere && itemsActive ? () => onTelescopePhoto('exosphere') : undefined}
+                          onClick={canAffordExosphere ? () => onTelescopePhoto('exosphere') : undefined}
                           color={canAffordExosphere ? '#ddaa44' : '#445566'}
                           disabled={!canAffordExosphere}
                         />
@@ -1490,7 +1490,7 @@ export function PlanetContextMenu({
                             <MenuItem
                               icon="▣"
                               label={<>{t('planet.photo_biosphere_label', { cost: biosphereCost })}<QuarkIcon /></>}
-                              onClick={canAffordBiosphere && itemsActive ? () => onTelescopePhoto('biosphere') : undefined}
+                              onClick={canAffordBiosphere ? () => onTelescopePhoto('biosphere') : undefined}
                               color={canAffordBiosphere ? '#ddaa44' : '#445566'}
                               disabled={!canAffordBiosphere}
                             />
@@ -1504,7 +1504,7 @@ export function PlanetContextMenu({
                             <MenuItem
                               icon="▽"
                               label={<>{t('planet.photo_aerial_label', { cost: aerialCost })}<QuarkIcon /></>}
-                              onClick={canAffordAerial && itemsActive ? () => onTelescopePhoto('aerial') : undefined}
+                              onClick={canAffordAerial ? () => onTelescopePhoto('aerial') : undefined}
                               color={canAffordAerial ? '#ddaa44' : '#445566'}
                               disabled={!canAffordAerial}
                             />

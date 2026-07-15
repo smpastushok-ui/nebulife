@@ -414,8 +414,23 @@ export {
   validateCreatureElementCombo,
   buildExperimentCreatureDescription,
   buildExperimentTraits,
+  pickExperimentBodyPlan,
 } from './creature-experiment.js';
-export type { CreatureBiome, CreatureElementDef } from './creature-experiment.js';
+export type { CreatureBiome, CreatureElementDef, CreatureSizeClass, CreatureSilhouette } from './creature-experiment.js';
+
+// Biosphere creature lore — structured bilingual biography + parameters
+// (never the raw generation prompt — see creature-lore.ts header).
+export {
+  CREATURE_LORE_SCHEMA_VERSION,
+  CREATURE_LORE_BOUNDS,
+  STARTER_CREATURE_LORE,
+  isLocalizedText,
+  isCreatureLore,
+  localizedCreatureText,
+  buildFallbackCreatureLore,
+  parseCreatureLoreCandidate,
+} from './creature-lore.js';
+export type { LocalizedText, CreatureLore, CreatureLoreFallbackInput } from './creature-lore.js';
 
 // Megastructures — "Мегаструктури кластера" collective cluster construction
 export {

@@ -7,6 +7,13 @@ import type { Language } from '@nebulife/core';
 import { GameEngine } from './game/GameEngine.js';
 import { UniverseEngine } from './game/UniverseEngine.js';
 import {
+  enqueuePrecursorAcquisition,
+  dequeuePrecursorAcquisition,
+  type PrecursorAcquisitionQueueItem,
+} from './game/precursor-queue.js';
+import { startPrecursorUnlockSequence } from './game/precursor-unlock-sequence.js';
+import { extendAstraGate, POST_OVERLAY_ASTRA_PAUSE_MS } from './game/astra-onboarding-pacing.js';
+import {
   getSystemSharedState,
   sendHeartbeat,
   recordDestruction,
@@ -2380,7 +2387,14 @@ function AppInner() {
   precursorCollectionRef.current = precursorCollection;
   // Queue (rather than single value) because multiple planet missions can
   // report_ready in the same tick — cinematics are shown one at a time.
-  const [precursorAcquisitionQueue, setPrecursorAcquisitionQueue] = useState<{ cardId: string; rarity: PrecursorRarity }[]>([]);
+  // Enqueue is idempotent (coalesces a duplicate/racing grant of the SAME
+  // card — see game/precursor-queue.ts) and each entry carries a stable,
+  // acquisition-unique `id` used as the React key so a second card queuing
+  // up mid-cinematic never remounts/restarts the one currently showing.
+  const [precursorAcquisitionQueue, setPrecursorAcquisitionQueue] = useState<PrecursorAcquisitionQueueItem[]>([]);
+  const [ringUnlockQueue, setRingUnlockQueue] = useState<number[]>([]);
+  const [ringUnlockSequenceActive, setRingUnlockSequenceActive] = useState(false);
+  const ringUnlockSequenceRef = useRef<ReturnType<typeof startPrecursorUnlockSequence> | null>(null);
 
   // DEV-ONLY verification hook — `?precursor_test=1` grants one unowned test
   // card and immediately plays the acquisition cinematic, so the flow can be
@@ -2396,7 +2410,7 @@ function AppInner() {
       owned: { ...prev.owned, [testCard.id]: { acquiredAt: Date.now(), missionType: 'orbital_scan', systemId: 'dev-test' } },
       archiveViewed: false,
     }));
-    setPrecursorAcquisitionQueue((q) => [...q, { cardId: testCard.id, rarity: testCard.rarity }]);
+    setPrecursorAcquisitionQueue((q) => enqueuePrecursorAcquisition(q, testCard.id, testCard.rarity));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -5878,21 +5892,32 @@ function AppInner() {
         // One roll per completed mission report. Core-only cards only enter the
         // pool when the researched planet sits in a core-zone system — same
         // coreDepth convention used by the civilization module (ringIndex - 3).
+        //
+        // `grantedThisSweep` is updated SYNCHRONOUSLY as the loop runs (unlike
+        // `precursorCollectionRef.current`, which only reflects reality once
+        // React actually applies the queued `setPrecursorCollection` updaters —
+        // i.e. NOT yet, for any report after the first, within this same
+        // sweep). Without this, two reports resolving in the same tick could
+        // independently roll the same still-unowned card and each queue their
+        // own acquisition cinematic for it — a duplicate signal. `precursorAcquisitionQueue`
+        // enqueue below is a second, defense-in-depth idempotency layer.
+        const grantedThisSweep = new Set(Object.keys(precursorCollectionRef.current.owned));
         for (const report of reportsToAdd) {
           const dropSystem = allSystems.find((entry) => entry.id === report.systemId);
           const isCoreZone = ((dropSystem?.ringIndex ?? 0) - 3) > 0;
-          const ownedIds = new Set(Object.keys(precursorCollectionRef.current.owned));
           const drop = rollPrecursorCardDrop({
             missionType: report.missionType,
             isCoreZone,
-            ownedCardIds: ownedIds,
+            ownedCardIds: grantedThisSweep,
           });
           if (!drop) continue;
 
           if (drop.cardId) {
             const cardId = drop.cardId;
+            if (grantedThisSweep.has(cardId)) continue; // coalesce same-tick duplicate
+            grantedThisSweep.add(cardId);
             setPrecursorCollection((prev) => {
-              if (prev.owned[cardId]) return prev; // already granted this tick (defensive)
+              if (prev.owned[cardId]) return prev; // already granted (defensive)
               const next: PrecursorCollectionState = {
                 ...prev,
                 owned: {
@@ -5904,7 +5929,7 @@ function AppInner() {
               precursorCollectionRef.current = next;
               return next;
             });
-            setPrecursorAcquisitionQueue((q) => [...q, { cardId, rarity: drop.rarity }]);
+            setPrecursorAcquisitionQueue((q) => enqueuePrecursorAcquisition(q, cardId, drop.rarity));
             // First card → ASTRA explains the Precursor collection (one-shot,
             // deferred by the queue until the acquisition overlay closes).
             enqueueAstraOnboarding('precursor');
@@ -6367,6 +6392,11 @@ function AppInner() {
   // PAGES (Operations Hub, Hangar, Genesis Lab, Biosphere, Cosmic Archive)
   // intentionally do NOT block — contextual explainers appear over them the
   // same way unlock popups appear over scenes.
+  //
+  // `darkLevelTransition.visible` / `warpActive` are included so ASTRA never
+  // starts narrating in the same beat as a scene-entry transition (e.g. the
+  // fade played by `handleEnterSystem` right after the Precursor card closes,
+  // or `runDarkLevelTransition` bumps opacity — both usually < 1s.
   const astraOnboardingBlocked =
     needsOnboarding || needsCallsign || authLoading || !serverHydrated
     || cinematicActive || cinematicVideoPlaying
@@ -6379,9 +6409,42 @@ function AppInner() {
     || levelUpNotification !== null || levelUpQueue.length > 0
     || showFeedbackPrompt || showAppReviewPrompt || appReviewPromptPending
     || precursorAcquisitionQueue.length > 0
+    || ringUnlockQueue.length > 0 || ringUnlockSequenceActive
+    || darkLevelTransition.visible || warpActive
     || !!emergencyTransmission || showGuestReminder || showLinkModal
     || !!activeLifeform || showAlphaSignalPromo
     || showExitConfirm;
+
+  // Precursor acquisition cinematic just closed (card auto-dismissed, or the
+  // player pressed "Continue"/tapped after the anti-accidental floor). Push
+  // ASTRA's shared quiet-window gate forward by a short, dedicated pause so
+  // its queued "precursor" explainer — or anything else waiting — never
+  // starts in the exact same beat as whatever follows the card. This reuses
+  // the existing `astraOnboardingGateUntilRef` mechanism (already used for
+  // the 60s gap BETWEEN two onboarding popups); it never pulls the gate
+  // closer, only ever pushes it out.
+  const precursorQueueHadItemsRef = useRef(false);
+  useEffect(() => {
+    const hasItems = precursorAcquisitionQueue.length > 0;
+    if (
+      !hasItems
+      && precursorQueueHadItemsRef.current
+      && ringUnlockQueue.length === 0
+      && !ringUnlockSequenceActive
+    ) {
+      astraOnboardingGateUntilRef.current = extendAstraGate(
+        astraOnboardingGateUntilRef.current,
+        Date.now(),
+        POST_OVERLAY_ASTRA_PAUSE_MS,
+      );
+      setAstraOnboardingGateTick((n) => n + 1);
+    }
+    precursorQueueHadItemsRef.current = hasItems;
+  }, [
+    precursorAcquisitionQueue.length,
+    ringUnlockQueue.length,
+    ringUnlockSequenceActive,
+  ]);
 
   useEffect(() => {
     if (activeAstraOnboarding !== null || astraOnboardingQueue.length === 0) return;
@@ -9025,16 +9088,57 @@ function AppInner() {
     if (uniqueRings.length === 0) return;
 
     const startOrQueue = () => {
-      uniqueRings.forEach((ring, index) => {
-        window.setTimeout(() => {
-          engineRef.current?.playRingUnlock(ring);
-        }, index * 900);
+      setRingUnlockQueue((queued) => {
+        const next = [...queued];
+        for (const ring of uniqueRings) {
+          if (!next.includes(ring)) next.push(ring);
+        }
+        return next;
       });
     };
 
     if (enqueueIfArena(startOrQueue)) return;
     startOrQueue();
   }, [enqueueIfArena]);
+
+  // Explicit card → unlock(s) → quiet beat → ASTRA lifecycle. The queued
+  // unlock cannot start while any acquisition card is visible. GalaxyScene
+  // reports real animation completion through GameEngine; the sequence adds
+  // one bounded fallback in case the Pixi scene is destroyed or stalls.
+  useEffect(() => {
+    if (
+      precursorAcquisitionQueue.length > 0
+      || ringUnlockSequenceRef.current
+      || ringUnlockQueue.length === 0
+    ) return;
+
+    const rings = [...ringUnlockQueue];
+    setRingUnlockQueue((queued) => queued.filter((ring) => !rings.includes(ring)));
+    setRingUnlockSequenceActive(true);
+
+    let controller: ReturnType<typeof startPrecursorUnlockSequence>;
+    controller = startPrecursorUnlockSequence({
+      rings,
+      startUnlock: (ring, onComplete) => {
+        let cancelled = false;
+        engineRef.current?.playRingUnlock(ring, () => {
+          if (!cancelled) onComplete();
+        });
+        return () => { cancelled = true; };
+      },
+      onReadyForAstra: () => {
+        if (ringUnlockSequenceRef.current !== controller) return;
+        ringUnlockSequenceRef.current = null;
+        setRingUnlockSequenceActive(false);
+      },
+    });
+    ringUnlockSequenceRef.current = controller;
+  }, [precursorAcquisitionQueue.length, ringUnlockQueue]);
+
+  useEffect(() => () => {
+    ringUnlockSequenceRef.current?.cancel();
+    ringUnlockSequenceRef.current = null;
+  }, []);
 
   // Sync effective max ring to engine (controls BFS depth into galactic core).
   //
@@ -13413,6 +13517,11 @@ function AppInner() {
       return;
     }
     setShowCosmicArchive(false);
+    setState((prev) => ({
+      ...prev,
+      showPlanetMenu: false,
+      planetClickPos: null,
+    }));
     playSfx('go-to-exosphera', 0.5);
     setSurfaceTarget({
       planet: state.selectedPlanet,
@@ -16805,15 +16914,18 @@ function AppInner() {
       {/* Quark accrual toast queue (singleton renderer; enqueueQuarkToast from anywhere) */}
       {!arenaPopupGate && <QuarkToastRenderer />}
 
-      {/* Precursor Signals acquisition cinematic — shown one at a time from the queue */}
+      {/* Precursor Signals acquisition cinematic — shown one at a time from the
+          queue. Keyed by the acquisition's own stable `id` (NOT queue length)
+          so a second card queuing up mid-cinematic never remounts/restarts
+          the one currently showing — see game/precursor-queue.ts. */}
       {precursorAcquisitionQueue[0] && (
         <PrecursorAcquisitionOverlay
-          key={precursorAcquisitionQueue[0].cardId + precursorAcquisitionQueue[0].rarity + precursorAcquisitionQueue.length}
+          key={precursorAcquisitionQueue[0].id}
           cardId={precursorAcquisitionQueue[0].cardId}
           rarity={precursorAcquisitionQueue[0].rarity}
           name={tr(`precursor.names.${precursorAcquisitionQueue[0].cardId}`)}
           sfxSlot={precursorCollection.sfxSlot}
-          onComplete={() => setPrecursorAcquisitionQueue((q) => q.slice(1))}
+          onComplete={() => setPrecursorAcquisitionQueue((q) => dequeuePrecursorAcquisition(q))}
         />
       )}
 

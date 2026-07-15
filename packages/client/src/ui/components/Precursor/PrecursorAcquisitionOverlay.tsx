@@ -3,27 +3,28 @@ import { useTranslation } from 'react-i18next';
 import { RARITY_COLORS, type DiscoveryRarity } from '@nebulife/core';
 import type { PrecursorRarity } from '@nebulife/core';
 import { playSfx } from '../../../audio/SfxPlayer.js';
+import {
+  startPrecursorAcquisitionTimeline,
+  PRECURSOR_ACQUISITION_SCHEDULE,
+  type PrecursorAcquisitionPhase,
+} from '../../../game/precursor-acquisition-timeline.js';
 import { PrecursorCardFace } from './PrecursorCardFace.js';
 
 // ---------------------------------------------------------------------------
-// PrecursorAcquisitionOverlay — full-screen "класна анімація" cinematic shown
-// when a new Precursor Signal card is acquired.
+// PrecursorAcquisitionOverlay — full-screen cinematic shown when a new
+// Precursor Signal card is acquired.
 //
-// Phases (transform/opacity only — 60fps rule, GAME_BIBLE.md §3):
-//   static      (0    - 900ms)  dark overlay + scanline/noise buildup, "DECODING SIGNAL..."
-//   materialize (900  - 1500ms) card-back fades in with a rarity-colored glow burst
-//   flip        (1500 - 2700ms) slow 3D flip from card-back to face
-//   revealed    (2700 - 4500ms) name + rarity label fade in, then auto-dismiss
-//
-// Tap/click anywhere skips straight to completion.
+// Sequencing lives in `game/precursor-acquisition-timeline.ts` (pure, unit
+// tested) — this component only renders phases and forwards dismiss intent.
+// Two ways to end the cinematic:
+//   - auto-dismiss after the full schedule plays out, or
+//   - a DELIBERATE dismiss (tap/click on the card, the "Continue" button, or
+//     Escape/Enter) — but ONLY once the anti-accidental floor has elapsed.
+//     Before that floor, dismiss attempts are silently ignored so a stray
+//     tap can never cut the card down to ~1s (see timeline module for the
+//     full root-cause note).
+// Either path calls `onComplete` at most once.
 // ---------------------------------------------------------------------------
-
-type Phase = 'static' | 'materialize' | 'flip' | 'revealed';
-
-const T_MATERIALIZE = 900;
-const T_FLIP = 1500;
-const T_REVEALED = 2700;
-const T_AUTO_DISMISS = 4500;
 
 export interface PrecursorAcquisitionOverlayProps {
   cardId: string;
@@ -41,40 +42,67 @@ export const PrecursorAcquisitionOverlay: React.FC<PrecursorAcquisitionOverlayPr
   onComplete,
 }) => {
   const { t } = useTranslation();
-  const [phase, setPhase] = useState<Phase>('static');
-  const doneRef = useRef(false);
-  const timersRef = useRef<number[]>([]);
-  const color = RARITY_COLORS[rarity as DiscoveryRarity];
-
-  const finish = () => {
-    if (doneRef.current) return;
-    doneRef.current = true;
-    for (const id of timersRef.current) window.clearTimeout(id);
-    onComplete();
-  };
+  const [phase, setPhase] = useState<PrecursorAcquisitionPhase>('static');
+  const [dismissReady, setDismissReady] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const controllerRef = useRef<ReturnType<typeof startPrecursorAcquisitionTimeline> | null>(null);
 
   useEffect(() => {
-    timersRef.current.push(window.setTimeout(() => {
-      setPhase('materialize');
-      playSfx(`precursor/acquire-${sfxSlot}.mp3`, 0.55);
-    }, T_MATERIALIZE));
-    timersRef.current.push(window.setTimeout(() => setPhase('flip'), T_FLIP));
-    timersRef.current.push(window.setTimeout(() => setPhase('revealed'), T_REVEALED));
-    timersRef.current.push(window.setTimeout(() => finish(), T_AUTO_DISMISS));
-    return () => { for (const id of timersRef.current) window.clearTimeout(id); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    setPhase('static');
+    setDismissReady(false);
 
+    const controller = startPrecursorAcquisitionTimeline({
+      onPhaseChange: setPhase,
+      onMaterialize: () => playSfx(`precursor/acquire-${sfxSlot}.mp3`, 0.55),
+      onComplete,
+    });
+    controllerRef.current = controller;
+
+    // Flip the "may dismiss" affordance on exactly once the anti-accidental
+    // floor elapses. Mirrors the timeline's own `minDismissMs` so the visible
+    // "Continue" button and the actual dismiss gate never drift apart.
+    const readyTimer = window.setTimeout(
+      () => setDismissReady(true),
+      PRECURSOR_ACQUISITION_SCHEDULE.minDismissMs,
+    );
+
+    dialogRef.current?.focus();
+
+    return () => {
+      window.clearTimeout(readyTimer);
+      controller.cancel();
+      controllerRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cardId, rarity]);
+
+  const handleDismiss = (e?: React.SyntheticEvent) => {
+    // Isolate this modal: never let the tap/click/key that dismisses the
+    // card leak into whatever is underneath (system map, CommandBar, ...).
+    e?.stopPropagation();
+    controllerRef.current?.requestDismiss();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+      handleDismiss(e);
+    }
+  };
+
+  const color = RARITY_COLORS[rarity as DiscoveryRarity];
   const flipped = phase === 'flip' || phase === 'revealed';
   const cardVisible = phase !== 'static';
 
   return (
     <div
+      ref={dialogRef}
       role="dialog"
       aria-modal="true"
-      aria-label="Precursor signal acquired"
-      onClick={finish}
-      onTouchStart={finish}
+      aria-label={t('precursor.acquisition_intercepted')}
+      tabIndex={-1}
+      onClick={handleDismiss}
+      onTouchStart={handleDismiss}
+      onKeyDown={handleKeyDown}
       style={{
         position: 'fixed',
         inset: 0,
@@ -87,8 +115,9 @@ export const PrecursorAcquisitionOverlay: React.FC<PrecursorAcquisitionOverlayPr
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        cursor: 'pointer',
+        cursor: dismissReady ? 'pointer' : 'default',
         userSelect: 'none',
+        outline: 'none',
         animation: 'precursorOverlayFadeIn 0.3s ease-out',
       }}
     >
@@ -194,18 +223,44 @@ export const PrecursorAcquisitionOverlay: React.FC<PrecursorAcquisitionOverlayPr
         </div>
       </div>
 
+      {/* Deliberate dismiss affordance — only appears once the anti-accidental
+          floor has elapsed. A real <button> (not the backdrop) is the primary,
+          keyboard/a11y-friendly way to acknowledge and move on. */}
       <div
         style={{
           position: 'absolute',
           bottom: 'calc(28px + env(safe-area-inset-bottom, 0px))',
-          fontSize: 9,
-          color: '#445566',
-          letterSpacing: 1,
-          opacity: phase === 'revealed' ? 1 : 0,
-          transition: 'opacity 0.6s ease-out 0.4s',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 8,
+          opacity: dismissReady ? 1 : 0,
+          transition: 'opacity 0.4s ease-out',
+          pointerEvents: dismissReady ? 'auto' : 'none',
         }}
       >
-        {t('precursor.acquisition_skip')}
+        <button
+          type="button"
+          disabled={!dismissReady}
+          aria-hidden={!dismissReady}
+          tabIndex={dismissReady ? 0 : -1}
+          onClick={(e) => { e.stopPropagation(); handleDismiss(e); }}
+          style={{
+            padding: '8px 28px',
+            background: 'rgba(30,60,80,0.6)',
+            border: '1px solid #446688',
+            color: '#aaccee',
+            fontFamily: 'monospace',
+            fontSize: 12,
+            borderRadius: 3,
+            cursor: 'pointer',
+          }}
+        >
+          {t('precursor.acquisition_continue')}
+        </button>
+        <div style={{ fontSize: 9, color: '#445566', letterSpacing: 1 }}>
+          {t('precursor.acquisition_skip')}
+        </div>
       </div>
 
       <style>{`

@@ -1,4 +1,4 @@
-import type { CreatureBiome } from '@nebulife/core';
+import type { CreatureBiome, CreatureLore } from '@nebulife/core';
 import { authFetch } from '../auth/api-client.js';
 
 const API_BASE = '/api';
@@ -53,6 +53,10 @@ export interface BiosphereCreature {
   parent_b_id: string | null;
   is_hybrid: boolean;
   hybrid_photo_url: string | null;
+  /** Structured bilingual player-facing profile (migration 045). Missing or
+   * null on legacy rows; description/prompt_used are internal-only and must
+   * never be rendered as fallback copy. */
+  lore?: CreatureLore | null;
 }
 
 export interface CareResponse {
@@ -68,6 +72,7 @@ export interface EvolveResponse {
   quarksPaid?: number;
   newBalance?: number;
   mutations?: CreatureTraitMutation[];
+  lore?: CreatureLore;
   error?: string;
   reason?: string;
 }
@@ -80,6 +85,7 @@ export interface CreatureGenerateResponse {
   newBalance?: number;
   error?: string;
   reason?: string;
+  lore?: CreatureLore;
 }
 
 export interface CreatureStatusResponse {
@@ -88,6 +94,7 @@ export interface CreatureStatusResponse {
   imageUrl?: string | null;
   glbUrl?: string | null;
   reason?: string;
+  lore?: CreatureLore | null;
 }
 
 /** Element-experiment synthesis: order of `elements` matters (slot 1 body
@@ -183,6 +190,7 @@ export interface HybridizeResponse {
   newBalance?: number;
   error?: string;
   reason?: string;
+  lore?: CreatureLore;
 }
 
 export interface HybridUpgradeResponse {

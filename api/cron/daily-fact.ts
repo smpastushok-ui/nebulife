@@ -1,8 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { saveMessage, getDailyContent, getRecentDailyContent, saveDailyContent, getAllPlayerIds } from '../../packages/server/src/db.js';
+import { saveMessageOnce, getDailyContent, getRecentDailyContent, saveDailyContent, getAllPlayerIds } from '../../packages/server/src/db.js';
 import { generateDailyFunFact } from '../../packages/server/src/gemini-client.js';
+import { buildDailyContentHistory, dailyDeliveryKey } from '../../packages/server/src/daily-content-generator.js';
 
 const BATCH_SIZE = 200;
+// Cooldown window for the fingerprint dedup check (separate from the
+// smaller "recent facts" text hint sent to the prompt — see gemini-client).
+const FACT_HISTORY_WINDOW_DAYS = 120;
 
 /**
  * GET /api/cron/daily-fact
@@ -21,23 +25,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Guard against double-delivery — skip if already sent today
-    const alreadySent = await getDailyContent('fun_fact_sent');
-    if (alreadySent) {
-      return res.status(200).json({ skipped: true, reason: 'already delivered today' });
-    }
-
+    const today = new Date().toISOString().slice(0, 10);
     // Get or generate today's fun fact
     let factText: string;
+    let source: 'gemini' | 'fallback' | 'cached' = 'cached';
     const existing = await getDailyContent('fun_fact');
     if (existing) {
       factText = existing.content_json;
     } else {
-      factText = await generateDailyFunFact({
-        date: new Date().toISOString().slice(0, 10),
-        recentFacts: await getRecentDailyContent('fun_fact', 14),
+      const recentRows = await getRecentDailyContent('fun_fact', FACT_HISTORY_WINDOW_DAYS);
+      const history = buildDailyContentHistory('fun_fact', recentRows);
+      const generated = await generateDailyFunFact({
+        date: today,
+        recentFacts: recentRows,
+        history,
       });
-      await saveDailyContent('fun_fact', factText);
+      const canonical = await saveDailyContent('fun_fact', generated.contentJson, generated.fingerprint, generated.keyTerms);
+      factText = canonical.content_json;
+      source = generated.source;
     }
 
     // Deliver to each player
@@ -49,8 +54,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await Promise.all(
         batch.map(async (pid) => {
           try {
-            await saveMessage('system', 'A.S.T.R.A.', `astra:${pid}`, factText);
-            delivered++;
+            const row = await saveMessageOnce(
+              'system',
+              'A.S.T.R.A.',
+              `astra:${pid}`,
+              factText,
+              dailyDeliveryKey('fun_fact', today, pid),
+            );
+            if (row) delivered++;
           } catch (err) {
             console.warn(`[daily-fact] Failed for ${pid}:`, err);
           }
@@ -58,10 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
     }
 
-    // Mark delivery done for today — prevents re-delivery on cron retries
-    await saveDailyContent('fun_fact_sent', new Date().toISOString());
-
-    return res.status(200).json({ processed: delivered, total: allPlayerIds.length });
+    return res.status(200).json({ processed: delivered, total: allPlayerIds.length, source });
   } catch (err) {
     // Genuine generation/delivery failure (e.g. Gemini quota/model error) —
     // return 500 so Vercel's cron monitoring can actually flag it. Returning

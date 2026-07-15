@@ -45,9 +45,26 @@ export function selectNextLesson(
     }
   }
 
-  // All lessons completed — cycle back to the beginning
+  // All lessons completed at least once — rotate through the LEAST recently
+  // completed lesson instead of always restarting at allLessons[0]. Without
+  // this, a player who finishes the whole curriculum would be served the
+  // exact same topic (and therefore near-identical Gemini-generated lesson
+  // content + quiz) every single day forever. Sorting by completion date
+  // (oldest first) is fully deterministic given completedLessons — no RNG
+  // needed — and spreads repeats evenly across the whole catalog instead of
+  // hammering one topic.
   const allLessons = getLessonsForCategories(selectedTopics);
-  return allLessons.length > 0 ? allLessons[0] : null;
+  if (allLessons.length === 0) return null;
+  let oldest = allLessons[0];
+  let oldestDate = completedLessons[oldest.id] ?? '';
+  for (const lesson of allLessons) {
+    const date = completedLessons[lesson.id] ?? '';
+    if (date < oldestDate || (date === oldestDate && lesson.id < oldest.id)) {
+      oldest = lesson;
+      oldestDate = date;
+    }
+  }
+  return oldest;
 }
 
 /**

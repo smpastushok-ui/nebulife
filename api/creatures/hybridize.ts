@@ -5,6 +5,7 @@ import {
   HYBRID_PHOTO_COST_QUARKS,
   HYBRID_FULL_COST_QUARKS,
   pickHybridTraits,
+  seedFromString,
   type TraitMutation,
 } from '@nebulife/core';
 import {
@@ -17,6 +18,7 @@ import {
   listCreaturesByPlanet,
   updateCreatureModel,
   generateImageWithGeminiFromImages,
+  generateCreatureLore,
   createCreatureModelTask,
   buildHybridDescription,
   buildHybridImagePrompt,
@@ -161,17 +163,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     createdHybridId = created.hybrid.id;
 
-    // Multi-image fusion: both parents' portraits + the fusion prompt.
-    const image = await generateImageWithGeminiFromImages({
-      prompt: buildHybridImagePrompt(traits),
-      imageUrls: [parentA.image_url, parentB.image_url],
-      aspectRatio: '1:1',
-      imageSize: '1K',
-      uploadPrefix: 'creatures',
-    });
+    // Multi-image fusion and bilingual profile generation run concurrently.
+    // The player-facing profile is persisted once on this row and survives
+    // all later Tripo status polling / photo-to-3D upgrade transitions.
+    const elementSymbols = [parentA, parentB].flatMap((parent) =>
+      Array.isArray(parent.traits)
+        ? parent.traits
+          .filter((trait): trait is { category: string; trait: string } =>
+            Boolean(trait) && typeof trait === 'object'
+            && typeof (trait as { category?: unknown }).category === 'string'
+            && typeof (trait as { trait?: unknown }).trait === 'string')
+          .filter((trait) => trait.category === 'element')
+          .map((trait) => trait.trait)
+        : []);
+    const [image, lore] = await Promise.all([
+      generateImageWithGeminiFromImages({
+        prompt: buildHybridImagePrompt(traits),
+        imageUrls: [parentA.image_url, parentB.image_url],
+        aspectRatio: '1:1',
+        imageSize: '1K',
+        uploadPrefix: 'creatures',
+      }),
+      generateCreatureLore({
+        designBrief: description,
+        fallbackSymbols: [...new Set(elementSymbols)].slice(0, 4),
+        fallbackBiome: null,
+        seed: seedFromString(created.hybrid.id),
+        kindLabel: 'a coherent hybrid descendant of two established Biosphere organisms',
+      }),
+    ]);
     await updateCreatureModel(created.hybrid.id, {
       image_url: image.imageUrl,
       hybrid_photo_url: image.imageUrl,
+      lore,
     });
 
     if (tier === 'photo') {
@@ -185,6 +209,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         creatureId: created.hybrid.id,
         status: 'photo_ready',
         photoUrl: image.imageUrl,
+        lore,
         traits,
         quarksPaid: cost,
         newBalance,
@@ -201,6 +226,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       creatureId: created.hybrid.id,
       status: 'generating',
       photoUrl: image.imageUrl,
+      lore,
       traits,
       quarksPaid: cost,
       newBalance,

@@ -17,3 +17,20 @@ export {
   validateQuestCriteria,
   validateCalculationAnswer,
 } from './quest-validator.js';
+
+export {
+  normalizeText,
+  extractKeyTerms,
+  computeContentFingerprint,
+  jaccardSimilarity,
+  checkForDuplicate,
+  pickDeterministicIndex,
+  pickNonDuplicateFallback,
+  DEFAULT_NEAR_DUPLICATE_THRESHOLD,
+} from './content-dedup.js';
+export type {
+  ContentFingerprint,
+  DuplicateHistoryEntry,
+  DuplicateCheckResult,
+  FallbackPick,
+} from './content-dedup.js';

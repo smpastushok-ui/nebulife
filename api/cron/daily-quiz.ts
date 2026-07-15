@@ -1,8 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { saveMessage, getDailyContent, saveDailyContent, getAllPlayerIds } from '../../packages/server/src/db.js';
+import { saveMessageOnce, getDailyContent, getRecentDailyContent, saveDailyContent, getAllPlayerIds } from '../../packages/server/src/db.js';
 import { generateDailyQuiz } from '../../packages/server/src/gemini-client.js';
+import { buildDailyContentHistory, dailyDeliveryKey } from '../../packages/server/src/daily-content-generator.js';
 
 const BATCH_SIZE = 200;
+// Cooldown window: how many past days of quizzes are checked for exact/near
+// duplicates before accepting a new one. 1 row/day, so 180 days is ~6
+// months of history — generous anti-repeat coverage at negligible DB cost.
+const QUIZ_HISTORY_WINDOW_DAYS = 180;
 
 /**
  * GET /api/cron/daily-quiz
@@ -21,14 +26,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Dedup: skip if today's quiz already exists
+    const today = new Date().toISOString().slice(0, 10);
+    let quizJson: string;
+    let source: 'gemini' | 'fallback' | 'cached' = 'cached';
+
+    // Reuse today's canonical row when present, but still run idempotent
+    // per-player delivery. This lets a retry fill players missed by a partial
+    // prior run without giving anyone a duplicate message.
     const existing = await getDailyContent('quiz');
     if (existing) {
-      return res.status(200).json({ processed: 0, reason: 'already_delivered' });
+      quizJson = existing.content_json;
+    } else {
+      const recentQuizzes = await getRecentDailyContent('quiz', QUIZ_HISTORY_WINDOW_DAYS);
+      const history = buildDailyContentHistory('quiz', recentQuizzes);
+      const generated = await generateDailyQuiz({ date: today, history });
+      const canonical = await saveDailyContent('quiz', generated.contentJson, generated.fingerprint, generated.keyTerms);
+      quizJson = canonical.content_json;
+      source = generated.source;
     }
-
-    const quizJson = await generateDailyQuiz();
-    await saveDailyContent('quiz', quizJson);
 
     // Deliver to each player's astra channel
     const allPlayerIds = await getAllPlayerIds();
@@ -39,8 +54,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await Promise.allSettled(
         batch.map(async (pid) => {
           try {
-            await saveMessage('system', 'A.S.T.R.A.', `astra:${pid}`, quizJson);
-            delivered++;
+            const row = await saveMessageOnce(
+              'system',
+              'A.S.T.R.A.',
+              `astra:${pid}`,
+              quizJson,
+              dailyDeliveryKey('quiz', today, pid),
+            );
+            if (row) delivered++;
           } catch (err) {
             console.warn(`[daily-quiz] Failed for ${pid}:`, err);
           }
@@ -48,7 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
     }
 
-    return res.status(200).json({ processed: delivered, total: allPlayerIds.length });
+    return res.status(200).json({ processed: delivered, total: allPlayerIds.length, source });
   } catch (err) {
     // Genuine generation/delivery failure (e.g. Gemini quota/model error) —
     // return 500 so Vercel's cron monitoring can actually flag it. Returning

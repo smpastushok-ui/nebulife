@@ -8,6 +8,7 @@ import {
   listCreaturesByPlanet,
   updateCreatureModel,
   generateImageWithGemini,
+  generateCreatureLore,
   createCreatureModelTask,
   getTripoTaskFailureReason,
   CREATURE_GENERATION_COST_QUARKS,
@@ -117,31 +118,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const creatureId = `creature_${auth.playerId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     // The creature id embeds timestamp + entropy, so seeding from it gives
     // each experiment a fresh (but reproducible from the stored row) result.
+    const loreSeed = seedFromString(creatureId);
     const description = buildExperimentCreatureDescription(
       combo.symbols,
       biome,
-      seedFromString(creatureId),
+      loreSeed,
     );
+    const imagePrompt = buildCreatureImagePrompt(description);
     const creature = await createCreatureModel({
       id: creatureId,
       playerId: auth.playerId,
       planetId,
       description,
-      promptUsed: description,
+      promptUsed: imagePrompt,
       status: 'generating',
       quarksPaid: cost,
       traits: buildExperimentTraits(combo.symbols),
     });
     createdCreatureId = creature.id;
 
-    const imagePrompt = buildCreatureImagePrompt(description);
-    const image = await generateImageWithGemini({
-      prompt: imagePrompt,
-      aspectRatio: '1:1',
-      imageSize: '1K',
-      uploadPrefix: 'creatures',
-    });
-    await updateCreatureModel(creature.id, { image_url: image.imageUrl });
+    // The portrait and bilingual field record are independent and generated
+    // concurrently: one controlled text call adds no serial latency. Lore
+    // generation never throws — malformed/provider output resolves to the
+    // deterministic core fallback with the same body-plan seed.
+    const [image, lore] = await Promise.all([
+      generateImageWithGemini({
+        prompt: imagePrompt,
+        aspectRatio: '1:1',
+        imageSize: '1K',
+        uploadPrefix: 'creatures',
+      }),
+      generateCreatureLore({
+        designBrief: description,
+        fallbackSymbols: combo.symbols,
+        fallbackBiome: biome,
+        seed: loreSeed,
+        kindLabel: 'a newly synthesized element-driven species',
+      }),
+    ]);
+    await updateCreatureModel(creature.id, { image_url: image.imageUrl, lore });
 
     // The portrait is the valuable, already-paid-for deliverable. If Tripo is
     // unavailable (no credit, outage, invalid key) don't discard it: land the
@@ -159,6 +174,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         creatureId: creature.id,
         status: 'generating',
         imageUrl: image.imageUrl,
+        lore,
         quarksPaid: cost,
         newBalance,
       });
@@ -169,6 +185,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         creatureId: creature.id,
         status: 'photo_ready',
         imageUrl: image.imageUrl,
+        lore,
         quarksPaid: cost,
         newBalance,
         reason: getTripoTaskFailureReason(tripoErr),

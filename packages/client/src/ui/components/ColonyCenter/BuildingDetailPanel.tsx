@@ -7,7 +7,6 @@ import { BUILDING_DEFS, ELEMENTS, PRODUCIBLE_ASSET_PATHS, PRODUCIBLE_DEFS, RARIT
 import { ResourceIcon, RESOURCE_COLORS, type ResourceType } from '../ResourceIcon.js';
 import { buildingName, buildingDesc } from '../../../i18n/building-labels.js';
 import { formatSignedRatePerHour, formatHourlyAmount, tickRateToHourly } from '../../../i18n/format-rate.js';
-import { watchAdsWithProgress, isNativePlatform } from '../../../services/ads-service.js';
 import {
   deriveBuildingDetailStats,
   getBuildingPassiveEffects,
@@ -1397,7 +1396,6 @@ export function BuildingDetailPanel({
   const [confirmDemolish, setConfirmDemolish] = useState(false);
   const [observatoryProgram, setObservatoryProgram] = useState<ObservatorySearchProgram>('routine_sky_watch');
   const [observatoryNow, setObservatoryNow] = useState(() => Date.now());
-  const [observatoryAdsRunning, setObservatoryAdsRunning] = useState(false);
   const [separationNow, setSeparationNow] = useState(() => Date.now());
   const [extractionNow, setExtractionNow] = useState(() => Date.now());
   const [separationGroup, setSeparationGroup] = useState<SeparationGroup>('mineral');
@@ -2517,31 +2515,17 @@ export function BuildingDetailPanel({
                       key={duration}
                       duration={duration}
                       chance={chance}
-                      disabled={stats.isShutdown || !hasObservatorySlot || !onStartObservatorySearch || observatoryAdsRunning}
-                      onClick={async () => {
-                        if (!hasObservatorySlot || observatoryAdsRunning) return;
-                        // Ad gate only where rewarded ads can actually show
-                        // (AdMob = native shells). On web showRewardedAd
-                        // instantly returns rewarded:false, which silently
-                        // blocked the search for every non-premium player.
-                        // The 24h "Unique Signature" scan is exempt: it is the
-                        // long-commitment premium search and must start freely.
-                        const adsGated = !isPremium && isNativePlatform() && duration !== '24h';
-                        if (adsGated) {
-                          setObservatoryAdsRunning(true);
-                          const result = await watchAdsWithProgress('research_data', 3, () => {});
-                          setObservatoryAdsRunning(false);
-                          if (!result.rewarded) {
-                            addInfoReport(t('observatory.ad_gate_title'), t('observatory.ad_gate_failed'));
-                            return;
-                          }
-                        }
+                      disabled={stats.isShutdown || !hasObservatorySlot || !onStartObservatorySearch}
+                      onClick={() => {
+                        if (!hasObservatorySlot) return;
+                        // Standard/Rare/Unique patrols all start freely — no
+                        // rewarded-ad requirement on any duration tier.
                         const started = onStartObservatorySearch?.(duration, selectedObservatoryProgram, observatoryCount);
                         if (started === false) {
                           addInfoReport(t('observatory.title_short'), t('observatory.search_not_started'));
                           return;
                         }
-                        addInfoReport(t('observatory.in_progress'), adsGated ? t('observatory.search_started_after_ads') : t('observatory.search_started'));
+                        addInfoReport(t('observatory.in_progress'), t('observatory.search_started'));
                       }}
                     />
                   );

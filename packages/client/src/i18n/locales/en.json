@@ -422,7 +422,21 @@
       "viewer_no_asset": "3D model not ready yet. Showing the portrait instead.",
       "viewer_no_preview": "No preview image available for this creature.",
       "viewer_default_model": "Showing a default specimen model (drag to rotate, scroll/pinch to zoom)",
-      "description_label": "Description",
+      "viewer_aria": "Interactive 360-degree model of {{name}}",
+      "profile_label": "Field profile",
+      "story_label": "Field history",
+      "size_label": "Height / length",
+      "weight_label": "Weight",
+      "lifespan_label": "Lifespan",
+      "temperament_label": "Temperament",
+      "diet_label": "Diet",
+      "habitat_behavior_label": "Habitat and behavior",
+      "legacy_profile_unavailable": "This legacy specimen has no verified field profile. Its technical reconstruction notes are hidden.",
+      "unit_cm": "{{value}} cm",
+      "unit_m": "{{value}} m",
+      "unit_g": "{{value}} g",
+      "unit_kg": "{{value}} kg",
+      "unit_years": "{{value}} years",
       "traits_label": "Traits",
       "vitality_label": "Vitality",
       "age_label": "Age",
@@ -1123,7 +1137,28 @@
     "resource_vent": "Volatiles",
     "resource_water": "Water",
     "hide_minimap": "Hide minimap",
-    "show_minimap": "Show minimap"
+    "show_minimap": "Show minimap",
+    "unlock_cost": "cost",
+    "unlock_cost_short": {
+      "minerals": "MIN",
+      "volatiles": "VOL",
+      "isotopes": "ISO",
+      "water": "H2O",
+      "researchData": "SCI"
+    },
+    "unlock_insufficient_action": "Not enough resources: {{missing}}. Send resources to this planet via Logistics, or unlock the hex with quarks.",
+    "quarks_unlock": {
+      "title": "UNLOCK SLOT WITH QUARKS",
+      "body": "Not enough resources on this planet? Send cargo here through Logistics, or instantly unlock this hex for 10 quarks.",
+      "cancel": "Cancel",
+      "confirm": "10 ⚛ UNLOCK"
+    },
+    "hint_5slots": {
+      "badge": "HINT",
+      "title": "Your colony wakes up",
+      "body": "You've unlocked your first 5 slots. Each revealed hex either drops a resource or becomes a build spot. Yields taper from the centre outward — inner slots are the most generous. Running low? Tap any locked hex to pay 10 quarks instead. Work the first ring systematically: on the home planet it's guaranteed to give you all 4 resource types.",
+      "ok": "GOT IT"
+    }
   },
   "quest": {
     "counter": "QUEST {{step}}/{{total}}",
@@ -1351,11 +1386,8 @@
     "report_duplicate": "duplicate",
     "search_explainer": "Space research searches for unique events and objects for the catalog. Level chance: {{chance}}% at this observatory level; levels 1-5 give 10%, 20%, 30%, 35%, and 40%. Longer searches change the target rarity, and 24-hour searches never return empty.",
     "search_started": "Observatory search started. Results will arrive when the session completes.",
-    "search_started_after_ads": "3 ads watched. Observatory search started.",
     "title_short": "Observatory",
     "search_not_started": "Search not started: no free observatory slot, or the program is unavailable at this level.",
-    "ad_gate_title": "Observatory ads",
-    "ad_gate_failed": "Watch 3 ads before starting the search. Premium removes this wait.",
     "search_no_signal_log": "Observatory search completed: no stable cosmic signal detected.",
     "search_found_log": "Observatory detected a new cosmic event: {{name}}.",
     "search_duplicate_log": "Observatory detected a repeated cosmic event: {{name}}.",
@@ -1588,7 +1620,6 @@
     "go_to_surface": "Descend to Surface",
     "hab_temp": "Temp.",
     "hab_atm": "Atm.",
-    "hab_water": "Water",
     "hab_grav": "Grav.",
     "hab_rad": "Rad.",
     "unknown": "unknown",
@@ -2189,6 +2220,9 @@
     "tooltip_research_progress": "System research progress",
     "home_system": "Home System",
     "ring_label": "Ring {{ring}}",
+    "ring_neighbors": "Neighboring stars",
+    "ring_neighbors_far": "Second player neighborhood",
+    "ring_sector_core": "Stellar sector core",
     "ring_locked_hint": "research all systems in the previous ring",
     "unlock_via_quarks_tooltip": "Unlock this system for {{cost}} ⚛",
     "researched_btn": "Researched",
@@ -2478,6 +2512,8 @@
   "chat": {
     "title": "Chat",
     "quiz_label": "QUIZ",
+    "quiz_correct": "Correct! +{{xp}} XP",
+    "quiz_wrong": "Incorrect.",
     "tab_global": "Global",
     "tab_system": "System",
     "minimize": "Minimize",
@@ -2959,29 +2995,6 @@
     "subtitle": "Capillary network expanding",
     "systems_online": "{{count}} systems online"
   },
-  "surface": {
-    "unlock_cost": "cost",
-    "unlock_cost_short": {
-      "minerals": "MIN",
-      "volatiles": "VOL",
-      "isotopes": "ISO",
-      "water": "H2O",
-      "researchData": "SCI"
-    },
-    "unlock_insufficient_action": "Not enough resources: {{missing}}. Send resources to this planet via Logistics, or unlock the hex with quarks.",
-    "quarks_unlock": {
-      "title": "UNLOCK SLOT WITH QUARKS",
-      "body": "Not enough resources on this planet? Send cargo here through Logistics, or instantly unlock this hex for 10 quarks.",
-      "cancel": "Cancel",
-      "confirm": "10 ⚛ UNLOCK"
-    },
-    "hint_5slots": {
-      "badge": "HINT",
-      "title": "Your colony wakes up",
-      "body": "You've unlocked your first 5 slots. Each revealed hex either drops a resource or becomes a build spot. Yields taper from the centre outward — inner slots are the most generous. Running low? Tap any locked hex to pay 10 quarks instead. Work the first ring systematically: on the home planet it's guaranteed to give you all 4 resource types.",
-      "ok": "GOT IT"
-    }
-  },
   "colony_center": {
     "title": "COLONY CENTER",
     "back": "Back",
@@ -3414,7 +3427,8 @@
     "acquisition_duplicate_title": "SIGNAL ALREADY CATALOGUED",
     "acquisition_duplicate_body": "Every known signal of this class is already archived",
     "acquisition_consolation": "+{{amount}} for a redundant transmission",
-    "acquisition_skip": "Tap to skip",
+    "acquisition_continue": "Continue",
+    "acquisition_skip": "Tap the card to continue",
     "names": {
       "signal-origin": "Origin Point",
       "signal-weaver": "The Weaver's Seal",

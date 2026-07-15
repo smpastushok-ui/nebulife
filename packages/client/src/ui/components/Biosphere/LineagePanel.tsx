@@ -7,6 +7,7 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { BiosphereCreature } from '../../../api/creature-api.js';
+import { getCreatureSummary } from './creature-profile.js';
 
 interface LineagePanelProps {
   creatures: BiosphereCreature[];
@@ -14,7 +15,7 @@ interface LineagePanelProps {
 }
 
 export function LineagePanel({ creatures, onClose }: LineagePanelProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const sorted = [...creatures].sort((a, b) => {
     const genDiff = (a.generation ?? 1) - (b.generation ?? 1);
     if (genDiff !== 0) return genDiff;
@@ -106,7 +107,8 @@ export function LineagePanel({ creatures, onClose }: LineagePanelProps) {
                 </p>
               )}
               <p style={{ color: '#8899aa', fontSize: 9, margin: '4px 0', lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                {creature.description}
+                {getCreatureSummary(creature, i18n.resolvedLanguage ?? i18n.language)
+                  ?? t('biosphere.detail.legacy_profile_unavailable')}
               </p>
               {Array.isArray(creature.traits) && creature.traits.length > 0 && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>

@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 // Pure game logic (constants + deterministic mutations) comes straight from
 // @nebulife/core — the server package does not re-export it.
-import { OFFSPRING_COST_QUARKS, pickMutations } from '@nebulife/core';
+import { OFFSPRING_COST_QUARKS, pickMutations, seedFromString } from '@nebulife/core';
 import {
   authenticate,
   countPlayerOffspring,
@@ -11,6 +11,7 @@ import {
   spawnOffspring,
   updateCreatureModel,
   generateImageWithGemini,
+  generateCreatureLore,
   createCreatureModelTask,
   buildCreatureImagePrompt,
   buildOffspringDescription,
@@ -116,13 +117,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     createdOffspringId = spawnResult.offspring.id;
 
     const imagePrompt = buildCreatureImagePrompt(offspringDescription);
-    const image = await generateImageWithGemini({
-      prompt: imagePrompt,
-      aspectRatio: '1:1',
-      imageSize: '1K',
-      uploadPrefix: 'creatures',
-    });
-    await updateCreatureModel(spawnResult.offspring.id, { image_url: image.imageUrl });
+    const inheritedElements = Array.isArray(parent.traits)
+      ? parent.traits
+        .filter((trait): trait is { category: string; trait: string } =>
+          Boolean(trait) && typeof trait === 'object'
+          && typeof (trait as { category?: unknown }).category === 'string'
+          && typeof (trait as { trait?: unknown }).trait === 'string')
+        .filter((trait) => trait.category === 'element')
+        .map((trait) => trait.trait)
+      : [];
+    const [image, lore] = await Promise.all([
+      generateImageWithGemini({
+        prompt: imagePrompt,
+        aspectRatio: '1:1',
+        imageSize: '1K',
+        uploadPrefix: 'creatures',
+      }),
+      generateCreatureLore({
+        designBrief: offspringDescription,
+        fallbackSymbols: inheritedElements,
+        fallbackBiome: null,
+        seed: seedFromString(spawnResult.offspring.id),
+        kindLabel: 'a mutated offspring of an established Biosphere organism',
+      }),
+    ]);
+    await updateCreatureModel(spawnResult.offspring.id, { image_url: image.imageUrl, lore });
 
     const tripo = await createCreatureModelTask(image.imageUrl);
     await updateCreatureModel(spawnResult.offspring.id, { tripo_task_id: tripo.taskId });
@@ -134,6 +153,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       creatureId: spawnResult.offspring.id,
       status: 'generating',
       imageUrl: image.imageUrl,
+      lore,
       quarksPaid: cost,
       newBalance,
       mutations,

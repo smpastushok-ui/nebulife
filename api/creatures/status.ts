@@ -60,18 +60,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         progress: 100,
         imageUrl: creature.image_url,
         glbUrl: creature.glb_url,
+        lore: creature.lore ?? null,
       });
     }
 
     if (creature.status === 'failed') {
-      return res.status(200).json({ status: 'failed', imageUrl: creature.image_url });
+      return res.status(200).json({ status: 'failed', imageUrl: creature.image_url, lore: creature.lore ?? null });
     }
 
     // Photo-tier hybrids ("дослід схрещування", migration 042) are terminal
     // until upgraded — early return so a stale tripo_task_id from a reverted
     // upgrade attempt is never re-polled (which would re-refund).
     if (creature.status === 'photo_ready') {
-      return res.status(200).json({ status: 'photo_ready', imageUrl: creature.image_url });
+      return res.status(200).json({ status: 'photo_ready', imageUrl: creature.image_url, lore: creature.lore ?? null });
     }
 
     if (creature.tripo_task_id) {
@@ -101,6 +102,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(200).json({
             status: 'photo_ready',
             imageUrl: creature.image_url,
+            lore: creature.lore ?? null,
             reason: 'generation_recovered',
           });
         }
@@ -119,6 +121,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           progress: 100,
           imageUrl: creature.image_url,
           glbUrl: updated?.glb_url ?? result.glbUrl,
+          lore: creature.lore ?? null,
         });
       }
 
@@ -143,6 +146,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json({
           status: revertToPhoto ? 'photo_ready' : 'failed',
           imageUrl: creature.image_url,
+          lore: creature.lore ?? null,
         });
       }
 
@@ -163,6 +167,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json({
           status: 'photo_ready',
           imageUrl: creature.image_url,
+          lore: creature.lore ?? null,
           reason: 'generation_timeout',
         });
       }
@@ -171,6 +176,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         status: 'generating',
         progress: result.progress,
         imageUrl: creature.image_url,
+        lore: creature.lore ?? null,
       });
     }
 
@@ -185,11 +191,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({
         status: 'photo_ready',
         imageUrl: creature.image_url,
+        lore: creature.lore ?? null,
         reason: 'missing_task_recovered',
       });
     }
 
-    return res.status(200).json({ status: creature.status, imageUrl: creature.image_url });
+    return res.status(200).json({ status: creature.status, imageUrl: creature.image_url, lore: creature.lore ?? null });
   } catch (err) {
     if (isMissingCreatureModelsTable(err)) {
       return res.status(503).json({ error: 'Creature generation database migration is not installed' });

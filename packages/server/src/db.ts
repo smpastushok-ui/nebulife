@@ -911,6 +911,11 @@ export interface CreatureModelRow {
   parent_b_id: string | null;
   is_hybrid: boolean;
   hybrid_photo_url: string | null;
+  // Structured bilingual lore (migration 045) — JSONB CreatureLore from
+  // @nebulife/core creature-lore.ts, or null for legacy rows created before
+  // this feature shipped. NEVER derive player-facing text from `description`
+  // or `prompt_used` — those stay internal generation-brief text only.
+  lore: unknown;
 }
 
 export async function createCreatureModel(m: {
@@ -987,9 +992,36 @@ export async function updateCreatureModel(
     quarks_paid: number;
     completed_at: string;
     hybrid_photo_url: string;
+    lore: unknown;
   }>,
 ): Promise<CreatureModelRow | null> {
   const sql = getSQL();
+  let loreUpdatedRow: CreatureModelRow | null = null;
+  if (updates.lore !== undefined) {
+    try {
+      const loreRows = await sql`
+        UPDATE creature_models
+        SET lore = ${JSON.stringify(updates.lore)}::jsonb
+        WHERE id = ${id}
+        RETURNING *
+      `;
+      loreUpdatedRow = (loreRows[0] as CreatureModelRow) ?? null;
+    } catch (err) {
+      // Backward-compatible deployment safety: migration 045 must be applied
+      // before production rollout, but an accidentally reversed order must
+      // not break image/Tripo generation or existing row updates. The lore is
+      // simply absent until the migration is installed; the client then shows
+      // its neutral localized legacy fallback and never the visual prompt.
+      const code = (err as { code?: string } | null)?.code;
+      const message = err instanceof Error ? err.message : String(err);
+      if (code !== '42703' && !message.includes('column "lore"')) throw err;
+      console.warn('[db] creature_models.lore missing; apply migration 045-creature-lore.sql');
+    }
+  }
+
+  const hasNonLoreUpdate = Object.entries(updates).some(([key, value]) => key !== 'lore' && value !== undefined);
+  if (!hasNonLoreUpdate) return loreUpdatedRow ?? getCreatureModel(id);
+
   const rows = await sql`
     UPDATE creature_models
     SET status = COALESCE(${updates.status ?? null}, status),
@@ -2348,6 +2380,29 @@ export async function saveMessage(
   return rows[0] as MessageRow;
 }
 
+/**
+ * Idempotent system-message delivery. The dedupe key is persisted under a
+ * partial unique index added by migration 046, so concurrent cron invocations
+ * and Vercel retries cannot insert the same daily broadcast twice for one
+ * player. Returns null when another invocation already inserted it.
+ */
+export async function saveMessageOnce(
+  senderId: string,
+  senderName: string,
+  channel: string,
+  content: string,
+  dedupeKey: string,
+): Promise<MessageRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    INSERT INTO messages (sender_id, sender_name, channel, content, dedupe_key)
+    VALUES (${senderId}, ${senderName}, ${channel}, ${content}, ${dedupeKey})
+    ON CONFLICT (dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING
+    RETURNING *
+  `;
+  return (rows[0] as MessageRow | undefined) ?? null;
+}
+
 /** Resolve a player id by exact callsign (case-insensitive). Used by the
  *  admin "voice of the universe" broadcaster to target a single player. */
 export async function getPlayerIdByCallsign(
@@ -2815,30 +2870,50 @@ export async function getDailyContent(
   return (rows[0] as { content_json: string }) ?? null;
 }
 
+/**
+ * Fetches recent daily_content rows for a content type, including the
+ * dedup fingerprint/key_terms columns (046-daily-content-fingerprint.sql).
+ * Rows generated before that migration have fingerprint/key_terms = NULL —
+ * callers using @nebulife/core's checkForDuplicate() simply skip those
+ * entries (graceful start, no backfill needed).
+ *
+ * Bounded to a generous but finite cap (400 rows): daily_content only ever
+ * grows by 1 row/day/type, so even a multi-year lookback window is trivial
+ * for Postgres — this cap exists purely as a defensive ceiling, not because
+ * table growth is a real concern.
+ */
 export async function getRecentDailyContent(
   contentType: string,
   limit: number = 14,
-): Promise<Array<{ content_date: string; content_json: string }>> {
+): Promise<Array<{ content_date: string; content_json: string; fingerprint: string | null; key_terms: string[] | null }>> {
   const sql = getSQL();
   return (await sql`
-    SELECT content_date::text, content_json
+    SELECT content_date::text, content_json, fingerprint, key_terms
     FROM daily_content
     WHERE content_type = ${contentType}
     ORDER BY content_date DESC
-    LIMIT ${Math.max(1, Math.min(60, Math.floor(limit)))}
-  `) as Array<{ content_date: string; content_json: string }>;
+    LIMIT ${Math.max(1, Math.min(400, Math.floor(limit)))}
+  `) as Array<{ content_date: string; content_json: string; fingerprint: string | null; key_terms: string[] | null }>;
 }
 
 export async function saveDailyContent(
   contentType: string,
   contentJson: string,
-): Promise<void> {
+  fingerprint?: string | null,
+  keyTerms?: string[] | null,
+): Promise<{ content_json: string; fingerprint: string | null; key_terms: string[] | null }> {
   const sql = getSQL();
-  await sql`
-    INSERT INTO daily_content (content_type, content_json)
-    VALUES (${contentType}, ${contentJson})
-    ON CONFLICT (content_type, content_date) DO NOTHING
+  const rows = await sql`
+    INSERT INTO daily_content (content_type, content_json, fingerprint, key_terms)
+    VALUES (${contentType}, ${contentJson}, ${fingerprint ?? null}, ${keyTerms ?? null})
+    ON CONFLICT (content_type, content_date) DO UPDATE
+      SET content_json = daily_content.content_json
+    RETURNING
+      content_json,
+      fingerprint,
+      key_terms
   `;
+  return rows[0] as { content_json: string; fingerprint: string | null; key_terms: string[] | null };
 }
 
 // ---------------------------------------------------------------------------

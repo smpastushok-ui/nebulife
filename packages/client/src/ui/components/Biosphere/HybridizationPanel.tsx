@@ -18,6 +18,7 @@ import {
   type CreatureTraitMutation,
   type HybridTier,
 } from '../../../api/creature-api.js';
+import { getCreatureSummary } from './creature-profile.js';
 
 interface HybridizationPanelProps {
   /** Eligible parents only: status 'ready', non-legacy, portrait available. */
@@ -37,7 +38,7 @@ type PanelPhase = 'select' | 'submitting' | 'photo_done' | 'error';
 export function HybridizationPanel({
   eligibleCreatures, activeCreatureCount, maxCreatures, onClose, onHybridGenerating, onChanged,
 }: HybridizationPanelProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [phase, setPhase] = useState<PanelPhase>('select');
   const [message, setMessage] = useState<string | null>(null);
@@ -181,7 +182,8 @@ export function HybridizationPanel({
                       display: 'block', color: '#667788', fontSize: 8, overflow: 'hidden',
                       textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                     }}>
-                      {creature.description}
+                      {getCreatureSummary(creature, i18n.resolvedLanguage ?? i18n.language)
+                        ?? t('biosphere.detail.legacy_profile_unavailable')}
                     </span>
                   </span>
                   {selected && <span style={{ color: '#7bb8ff', fontSize: 10 }}>[{selectedIds.indexOf(creature.id) + 1}]</span>}

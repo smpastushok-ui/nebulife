@@ -1354,12 +1354,14 @@ export class GalaxyScene {
    *  when the tier grows and by auto-promote paths. */
   private ringUnlockStart = 0;
   private ringUnlockTarget = 0;
+  private ringUnlockOnComplete: (() => void) | null = null;
   private branchUnlockStart = 0;
   private branchUnlockSourceId: string | null = null;
   private branchUnlockTargets = new Set<string>();
-  playRingUnlock(newRing: number): void {
+  playRingUnlock(newRing: number, onComplete?: () => void): void {
     this.ringUnlockStart = this.time;
     this.ringUnlockTarget = newRing;
+    this.ringUnlockOnComplete = onComplete ?? null;
   }
 
   playBranchUnlock(sourceSystemId: string): void {
@@ -2276,6 +2278,20 @@ export class GalaxyScene {
     }
 
     // ── Normal animation ──────────────────────────────────────
+
+    // Lifecycle completion is tied to the scene's own animation clock, not a
+    // separate App timer. This pauses naturally with the Pixi ticker in a
+    // background tab and lets the UI sequence advance exactly when the
+    // map-native unlock has actually finished.
+    if (this.ringUnlockStart > 0 && t - this.ringUnlockStart >= 5_000) {
+      for (const node of this.systemNodes.values()) {
+        if (node.ringIndex === this.ringUnlockTarget) node.container.scale.set(1);
+      }
+      this.ringUnlockStart = 0;
+      const onComplete = this.ringUnlockOnComplete;
+      this.ringUnlockOnComplete = null;
+      onComplete?.();
+    }
 
     // Process pending expand (delayed after previous collapses)
     if (this.pendingExpandId && this.pendingExpandDelay > 0) {
@@ -3263,6 +3279,7 @@ export class GalaxyScene {
   /* ── Cleanup ───────────────────────────────────────────────── */
 
   destroy() {
+    this.ringUnlockOnComplete = null;
     if (this.tapTracker) {
       clearTimeout(this.tapTracker.timer);
       this.tapTracker = null;

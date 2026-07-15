@@ -66,7 +66,7 @@ export class GameEngine {
   private researchState: ResearchState = { slots: [], systems: {} };
   private _neighborSystems: Array<{ system: StarSystem; ownerIndex: number }> = [];
   private _coreSystems: Array<{ system: StarSystem; coreId: number; depth: number; coreNeighborIds: number[] }> = [];
-  private pendingRingUnlocks: number[] = [];
+  private pendingRingUnlocks: Array<{ ring: number; onComplete?: () => void }> = [];
   private pendingBranchUnlocks: string[] = [];
 
   /** Galaxy-wide cluster info for background visualization */
@@ -284,8 +284,8 @@ export class GameEngine {
     if (this.pendingRingUnlocks.length > 0) {
       const pending = [...this.pendingRingUnlocks];
       this.pendingRingUnlocks = [];
-      pending.forEach((ring, index) => {
-        window.setTimeout(() => this.playRingUnlock(ring), index * 900);
+      pending.forEach((entry, index) => {
+        window.setTimeout(() => this.playRingUnlock(entry.ring, entry.onComplete), index * 900);
       });
     }
     if (this.pendingBranchUnlocks.length > 0) {
@@ -400,12 +400,12 @@ export class GameEngine {
   }
 
   /** Start the map-native ring growth animation and frame its real nodes. */
-  playRingUnlock(newRing: number): void {
+  playRingUnlock(newRing: number, onComplete?: () => void): void {
     if (!this.galaxyScene) {
-      this.pendingRingUnlocks.push(newRing);
+      this.pendingRingUnlocks.push({ ring: newRing, onComplete });
       return;
     }
-    this.galaxyScene.playRingUnlock(newRing);
+    this.galaxyScene.playRingUnlock(newRing, onComplete);
     this.camera.focusOnOrigin(this.galaxyScene.getUnlockFrameRadius(newRing), 1800);
   }
 

@@ -2288,7 +2288,9 @@ function QuizCard({
       </div>
       {revealed && (
         <div style={{ color: '#8899aa', fontSize: 10, fontFamily: 'monospace', lineHeight: '1.4', borderTop: '1px solid #223344', paddingTop: 5 }}>
-          {selected === data.correctIndex ? `Правильно! +${data.xpReward} XP` : 'Неправильно.'}
+          {selected === data.correctIndex
+            ? t('chat.quiz_correct', { xp: data.xpReward })
+            : t('chat.quiz_wrong')}
           {' '}{data.explanation}
         </div>
       )}

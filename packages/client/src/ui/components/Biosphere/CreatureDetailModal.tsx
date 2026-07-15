@@ -20,6 +20,7 @@ import '@babylonjs/loaders/glTF';
 import { formatCreatureAgeBucket, type CreatureAgeUnit } from '@nebulife/core';
 import { DEFAULT_CREATURE_GLB_URL, type BiosphereCreature, type CreatureStage } from '../../../api/creature-api.js';
 import { getCreatureEffectiveVitality } from './creature-vitality.js';
+import { getCreatureProfile, localizeCreatureField } from './creature-profile.js';
 
 interface CreatureDetailModalProps {
   creature: BiosphereCreature;
@@ -43,7 +44,7 @@ function ageKeyFor(unit: CreatureAgeUnit): string {
 }
 
 export function CreatureDetailModal({ creature, allCreatures, nowMs, onClose }: CreatureDetailModalProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   // Escape closes the card (not the whole Biosphere — BiosphereView defers
   // to this modal while it is open, see its own Escape handler).
@@ -62,6 +63,19 @@ export function CreatureDetailModal({ creature, allCreatures, nowMs, onClose }: 
   const stage = (creature.stage as CreatureStage | undefined) ?? 'juvenile';
   const isPhotoReady = creature.status === 'photo_ready';
   const portraitUrl = creature.hybrid_photo_url ?? creature.image_url ?? null;
+  const profile = getCreatureProfile(creature);
+  const locale = i18n.resolvedLanguage ?? i18n.language;
+  const localized = (field: { uk: string; en: string }) => localizeCreatureField(field, locale);
+  const numberFormatter = useMemo(
+    () => new Intl.NumberFormat(locale.startsWith('uk') ? 'uk-UA' : 'en-US', { maximumFractionDigits: 2 }),
+    [locale],
+  );
+  const formatSize = (sizeCm: number): string => sizeCm >= 100
+    ? t('biosphere.detail.unit_m', { value: numberFormatter.format(sizeCm / 100) })
+    : t('biosphere.detail.unit_cm', { value: numberFormatter.format(sizeCm) });
+  const formatWeight = (weightKg: number): string => weightKg < 1
+    ? t('biosphere.detail.unit_g', { value: numberFormatter.format(weightKg * 1000) })
+    : t('biosphere.detail.unit_kg', { value: numberFormatter.format(weightKg) });
 
   const byId = useMemo(() => new Map(allCreatures.map((c) => [c.id, c])), [allCreatures]);
   const parentLabel = (parentId: string | null): string | null => {
@@ -136,7 +150,7 @@ export function CreatureDetailModal({ creature, allCreatures, nowMs, onClose }: 
         {/* Isolated 360-degree viewer */}
         <div style={{
           height: 'min(38vh, 300px)', minHeight: 200, flexShrink: 0,
-          position: 'relative', background: '#020510',
+          position: 'relative', background: '#f4f5f2',
           borderBottom: '1px solid rgba(60,100,160,0.15)',
         }}>
           <CreatureGLBViewer
@@ -178,14 +192,43 @@ export function CreatureDetailModal({ creature, allCreatures, nowMs, onClose }: 
             </p>
           )}
 
-          <div style={{ marginBottom: 10 }}>
-            <p style={{ color: '#667788', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 4px' }}>
-              {t('biosphere.detail.description_label')}
+          {profile ? (
+            <>
+              <section aria-labelledby="creature-profile-summary" style={{ marginBottom: 10 }}>
+                <p id="creature-profile-summary" style={{ color: '#667788', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 4px' }}>
+                  {t('biosphere.detail.profile_label')}
+                </p>
+                <p style={{ color: '#aabbcc', fontSize: 10, lineHeight: 1.5, margin: 0 }}>
+                  {localized(profile.summary)}
+                </p>
+              </section>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 6, marginBottom: 10 }}>
+                <ProfileField label={t('biosphere.detail.size_label')} value={formatSize(profile.sizeCm)} />
+                <ProfileField label={t('biosphere.detail.weight_label')} value={formatWeight(profile.weightKg)} />
+                <ProfileField
+                  label={t('biosphere.detail.lifespan_label')}
+                  value={t('biosphere.detail.unit_years', { count: profile.lifespanYears, value: numberFormatter.format(profile.lifespanYears) })}
+                />
+                <ProfileField label={t('biosphere.detail.temperament_label')} value={localized(profile.temperament)} />
+                <ProfileField label={t('biosphere.detail.diet_label')} value={localized(profile.diet)} />
+                <ProfileField label={t('biosphere.detail.habitat_behavior_label')} value={localized(profile.habitatBehavior)} />
+              </div>
+
+              <section aria-labelledby="creature-story" style={{ marginBottom: 10 }}>
+                <p id="creature-story" style={{ color: '#667788', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 4px' }}>
+                  {t('biosphere.detail.story_label')}
+                </p>
+                <p style={{ color: '#aabbcc', fontSize: 10, lineHeight: 1.55, margin: 0 }}>
+                  {localized(profile.story)}
+                </p>
+              </section>
+            </>
+          ) : (
+            <p style={{ color: '#8899aa', fontSize: 10, lineHeight: 1.5, margin: '0 0 10px' }}>
+              {t('biosphere.detail.legacy_profile_unavailable')}
             </p>
-            <p style={{ color: '#aabbcc', fontSize: 10, lineHeight: 1.5, margin: 0 }}>
-              {creature.description}
-            </p>
-          </div>
+          )}
 
           {Array.isArray(creature.traits) && creature.traits.length > 0 && (
             <div>
@@ -206,6 +249,22 @@ export function CreatureDetailModal({ creature, allCreatures, nowMs, onClose }: 
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function ProfileField({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{
+      padding: '6px 7px', background: 'rgba(20,30,40,0.55)',
+      border: '1px solid rgba(50,70,90,0.65)', borderRadius: 3,
+    }}>
+      <span style={{ display: 'block', color: '#667788', fontSize: 8, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 3 }}>
+        {label}
+      </span>
+      <span style={{ display: 'block', color: '#aabbcc', fontSize: 9, lineHeight: 1.4 }}>
+        {value}
+      </span>
     </div>
   );
 }
@@ -251,7 +310,11 @@ function CreatureGLBViewer({
     }
 
     const scene = new Scene(engine);
-    scene.clearColor = new Color4(0.008, 0.016, 0.03, 1);
+    // Requirement: only this isolated specimen viewer uses a very light
+    // neutral studio field. The modal and the rest of Nebulife remain in the
+    // Game Bible dark palette.
+    scene.clearColor = new Color4(0.957, 0.961, 0.949, 1);
+    scene.ambientColor = new Color3(0.35, 0.35, 0.35);
 
     const camera = new ArcRotateCamera('creatureViewerCam', -Math.PI / 2.6, Math.PI / 2.3, 3.2, Vector3.Zero(), scene);
     camera.lowerRadiusLimit = 1.4;
@@ -270,13 +333,13 @@ function CreatureGLBViewer({
     camera.attachControl(canvas, true);
 
     const sun = new DirectionalLight('creatureSun', new Vector3(-0.5, -1.2, -0.6), scene);
-    sun.intensity = 1.4;
-    sun.diffuse = new Color3(1, 0.98, 0.94);
+    sun.intensity = 1.15;
+    sun.diffuse = new Color3(1, 0.99, 0.96);
 
     const ambient = new HemisphericLight('creatureAmbient', new Vector3(0, 1, 0), scene);
-    ambient.intensity = 0.55;
-    ambient.diffuse = new Color3(0.6, 0.7, 0.85);
-    ambient.groundColor = new Color3(0.05, 0.07, 0.1);
+    ambient.intensity = 0.9;
+    ambient.diffuse = new Color3(0.88, 0.92, 1);
+    ambient.groundColor = new Color3(0.6, 0.62, 0.65);
 
     let disposed = false;
     const handleResize = () => engine.resize();
@@ -345,9 +408,12 @@ function CreatureGLBViewer({
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <canvas
         ref={canvasRef}
+        role="application"
+        aria-label={t('biosphere.detail.viewer_aria', { name: creatureLabel })}
+        tabIndex={0}
         style={{
           position: 'absolute', inset: 0, width: '100%', height: '100%',
-          touchAction: 'none', outline: 'none',
+          touchAction: 'none', outline: 'none', background: '#f4f5f2',
           visibility: showCanvas ? 'visible' : 'hidden',
         }}
       />
@@ -367,7 +433,7 @@ function CreatureGLBViewer({
         )
       )}
       {status === 'loading' && (
-        <FooterHint text={t('biosphere.detail.viewer_loading')} color="#8899aa" />
+        <FooterHint text={t('biosphere.detail.viewer_loading')} color="#334455" />
       )}
       {status === 'failed' && fallbackImageUrl && (
         <FooterHint text={t('biosphere.detail.viewer_unavailable')} color="#8899aa" />
@@ -380,7 +446,7 @@ function CreatureGLBViewer({
       {status === 'ready' && (
         <FooterHint
           text={isBundledFallback ? t('biosphere.detail.viewer_default_model') : t('biosphere.detail.viewer_hint')}
-          color="#556677"
+          color="#334455"
         />
       )}
     </div>

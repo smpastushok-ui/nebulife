@@ -1,5 +1,13 @@
 import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 import { put } from '@vercel/blob';
+import { pickNonDuplicateFallback, computeContentFingerprint } from '@nebulife/core';
+import {
+  generateNonDuplicateContent,
+  DuplicateContentExhaustedError,
+  ContentGenerationExhaustedError,
+  type DailyContentHistoryEntry,
+} from './daily-content-generator.js';
+import { QUIZ_FALLBACK_POOL, FACT_FALLBACK_POOL } from './daily-content-fallback.js';
 
 // ---------------------------------------------------------------------------
 // Gemini AI Image Generation Client
@@ -513,6 +521,43 @@ Respond ONLY as JSON:
 // 2026-05-25), which is the root cause of the daily-quiz/daily-fact outage.
 const DAILY_MODEL = 'gemini-3.1-flash-lite';
 
+// Bounded retry budget: 1 initial attempt + 2 retries. Never unbounded —
+// if Gemini keeps colliding with recent history past this budget, callers
+// fall back to the curated pool (daily-content-fallback.ts) instead of
+// hammering the API indefinitely.
+const DAILY_CONTENT_MAX_ATTEMPTS = 3;
+
+export interface DailyGenerationResult {
+  /** Same JSON shape as the previous plain-string return value — persisted as-is to daily_content.content_json. */
+  contentJson: string;
+  /** Deterministic dedup fingerprint for this content — persist alongside contentJson for future history checks. */
+  fingerprint: string;
+  keyTerms: string[];
+  /** 'fallback' means Gemini could not produce a non-duplicate candidate within the retry budget. */
+  source: 'gemini' | 'fallback';
+}
+
+async function callGeminiJson(prompt: string, thinkingBudget: number): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY must be set');
+  const ai = new GoogleGenAI({ apiKey });
+  const response = await ai.models.generateContent({
+    model: DAILY_MODEL,
+    contents: prompt,
+    config: { thinkingConfig: { thinkingBudget } },
+  });
+  const text = response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+  return text.replace(/```json?\n?/gi, '').replace(/```/g, '').trim();
+}
+
+function formatPromptExclusions(history: readonly DailyContentHistoryEntry[]): string {
+  const exclusions = history.slice(0, 20).map((entry) => {
+    if (entry.displayText) return entry.displayText.slice(0, 240);
+    return (entry.keyTerms ?? []).slice(0, 10).join(', ');
+  }).filter(Boolean);
+  return exclusions.length > 0 ? exclusions.map((text) => `- ${text}`).join('\n') : 'No previous content available.';
+}
+
 /**
  * Generate a daily quiz about space/astrophysics.
  * Returns a validated BILINGUAL quiz JSON string with shape:
@@ -523,17 +568,32 @@ const DAILY_MODEL = 'gemini-3.1-flash-lite';
  * Single Gemini call produces both translations so cron cost stays flat
  * and every player gets their own language. Client picks the right sub-
  * object based on i18n.language at render time.
+ *
+ * Anti-repeat: `history` should be the bounded recent-quiz window from
+ * `daily_content` (see api/cron/daily-quiz.ts). Each candidate is
+ * fingerprinted (packages/core content-dedup) and rejected/retried
+ * (bounded, see DAILY_CONTENT_MAX_ATTEMPTS) if it collides with history;
+ * after the retry budget is exhausted, a curated fallback question is
+ * picked deterministically instead of returning a duplicate.
  */
-export async function generateDailyQuiz(): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error('GEMINI_API_KEY must be set');
+export async function generateDailyQuiz(
+  options: { date?: string; history?: DailyContentHistoryEntry[] } = {},
+): Promise<DailyGenerationResult> {
+  const date = options.date ?? new Date().toISOString().slice(0, 10);
+  const history = options.history ?? [];
+  const promptExclusions = formatPromptExclusions(history);
 
-  const prompt = `You are the daily quiz generator for Nebulife — a cozy
+  const buildPrompt = (lastDuplicateText: string | null): string => `You are the daily quiz generator for Nebulife — a cozy
 space simulator. Create one original question about space, astrophysics,
 planetology or stellar navigation. Vary the difficulty day to day (easy →
 hard), occasionally playful. The SAME question must be produced in both
 Ukrainian and English with identical meaning; options translated in the
 SAME order so correctIndex matches across languages.
+${lastDuplicateText
+    ? `\nYour previous attempt ("${lastDuplicateText}") duplicated recent content — produce a DIFFERENT question about a different object/topic/fact entirely.\n`
+    : ''}
+Recent questions/fact signatures to exclude:
+${promptExclusions}
 
 Respond with ONLY pure JSON (no markdown, no prose):
 {"type":"quiz","data":{
@@ -550,48 +610,81 @@ Rules:
 - One correct, one plausible miss, one humorous, one absurd
 - Tone: in-character bridge AI. English must be native, not a calque.`;
 
-  const ai = new GoogleGenAI({ apiKey });
-  const response = await ai.models.generateContent({
-    model: DAILY_MODEL,
-    contents: prompt,
-    config: { thinkingConfig: { thinkingBudget: 384 } },
-  });
-
-  const text = response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-  const cleaned = text.replace(/```json?\n?/gi, '').replace(/```/g, '').trim();
-
-  const parsed = JSON.parse(cleaned);
-  if (parsed?.type !== 'quiz' || !parsed?.data?.uk || !parsed?.data?.en) {
-    throw new Error('Invalid bilingual quiz JSON structure');
+  try {
+    const result = await generateNonDuplicateContent<string>({
+      history,
+      maxAttempts: DAILY_CONTENT_MAX_ATTEMPTS,
+      generate: async (_attempt, lastDuplicateText) => {
+        const cleaned = await callGeminiJson(buildPrompt(lastDuplicateText), 384);
+        const parsed = JSON.parse(cleaned);
+        if (parsed?.type !== 'quiz' || !parsed?.data?.uk || !parsed?.data?.en) {
+          throw new Error('Invalid bilingual quiz JSON structure');
+        }
+        for (const l of ['uk', 'en'] as const) {
+          const d = parsed.data[l];
+          if (
+            !d?.question
+            || !Array.isArray(d?.options)
+            || d.options.length !== 4
+            || !Number.isInteger(d.correctIndex)
+            || d.correctIndex < 0
+            || d.correctIndex > 3
+          ) {
+            throw new Error(`Invalid ${l} quiz payload`);
+          }
+        }
+        if (parsed.data.uk.correctIndex !== parsed.data.en.correctIndex) {
+          throw new Error('Quiz correctIndex must match across languages');
+        }
+        const en = parsed.data.en;
+        return {
+          payload: cleaned,
+          fingerprintTexts: [en.question, en.options[en.correctIndex]],
+          displayText: en.question,
+        };
+      },
+    });
+    return { contentJson: result.payload, fingerprint: result.fingerprint.fingerprint, keyTerms: result.fingerprint.keyTerms, source: 'gemini' };
+  } catch (err) {
+    if (!(err instanceof DuplicateContentExhaustedError) && !(err instanceof ContentGenerationExhaustedError)) throw err;
+    const picked = pickNonDuplicateFallback(
+      QUIZ_FALLBACK_POOL,
+      date,
+      history,
+      (entry) => computeContentFingerprint(entry.en.question, entry.en.options[entry.en.correctIndex]),
+    );
+    const contentJson = JSON.stringify({
+      type: 'quiz',
+      data: {
+        uk: { ...picked.item.uk, xpReward: 50 },
+        en: { ...picked.item.en, xpReward: 50 },
+      },
+    });
+    return { contentJson, fingerprint: picked.fingerprint.fingerprint, keyTerms: picked.fingerprint.keyTerms, source: 'fallback' };
   }
-  for (const l of ['uk', 'en'] as const) {
-    const d = parsed.data[l];
-    if (!d?.question || !Array.isArray(d?.options) || d.options.length !== 4) {
-      throw new Error(`Invalid ${l} quiz payload`);
-    }
-  }
-
-  return cleaned;
 }
 
-/**
- * Generate a daily fun fact about space.
- * Returns a short fact string in Ukrainian.
- */
 /**
  * Generate a daily fun fact about space.
  * Returns a BILINGUAL JSON string: '{"uk":"...","en":"..."}'. The cron
  * job saves this whole blob to daily_content; clients parse and pick
  * the right language at render time (same approach as generateDailyQuiz).
+ *
+ * Anti-repeat: `history` is the bounded recent-fact window from
+ * `daily_content`. The prompt still lists recent fact TEXT as a soft hint
+ * (kept for extra topic-variety guidance to the model), but the actual
+ * accept/reject decision is the deterministic fingerprint check — not the
+ * model's own judgement. See generateDailyQuiz doc comment for the
+ * retry/fallback contract.
  */
 export async function generateDailyFunFact(options: {
   date?: string;
   recentFacts?: Array<{ content_date: string; content_json: string }>;
-} = {}): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error('GEMINI_API_KEY must be set');
+  history?: DailyContentHistoryEntry[];
+} = {}): Promise<DailyGenerationResult> {
   const date = options.date ?? new Date().toISOString().slice(0, 10);
-  const recentFacts = (options.recentFacts ?? [])
+  const history = options.history ?? [];
+  const recentFactsText = (options.recentFacts ?? [])
     .map((entry) => {
       try {
         const parsed = JSON.parse(entry.content_json) as { uk?: string; en?: string };
@@ -600,10 +693,10 @@ export async function generateDailyFunFact(options: {
         return `${entry.content_date}: ${entry.content_json}`;
       }
     })
-    .slice(0, 14)
+    .slice(0, 20)
     .join('\n');
 
-  const prompt = `You are A.S.T.R.A. — onboard AI of the cozy space sim Nebulife.
+  const buildPrompt = (lastDuplicateText: string | null): string => `You are A.S.T.R.A. — onboard AI of the cozy space sim Nebulife.
 Produce ONE short, scientifically accurate, unexpected fact about space,
 astrophysics, stars, planets or the universe. Max 2–3 sentences. No emoji.
 Produce the SAME fact in both Ukrainian and English.
@@ -611,9 +704,11 @@ Produce the SAME fact in both Ukrainian and English.
 Today is ${date}. This fact is a daily broadcast, so it must feel fresh.
 Do NOT repeat the object, hook, comparison, or main topic from recent facts.
 Avoid neutron-star density unless it is not present in recent facts.
-
+${lastDuplicateText
+    ? `\nYour previous attempt ("${lastDuplicateText}") was rejected as a duplicate/near-duplicate of recent content — pick a CLEARLY different object and fact entirely.\n`
+    : ''}
 Recent facts to avoid:
-${recentFacts || 'No previous facts available.'}
+${recentFactsText || 'No previous facts available.'}
 
 Formatting:
   • Ukrainian form: "Командоре, а ви знали, що <факт>?"
@@ -626,20 +721,31 @@ rays, brown dwarfs, rogue planets, gravitational lensing, planetary rings.
 Respond with ONLY pure JSON (no markdown):
 {"uk":"...","en":"..."}`;
 
-  const ai = new GoogleGenAI({ apiKey });
-  const response = await ai.models.generateContent({
-    model: DAILY_MODEL,
-    contents: prompt,
-    config: { thinkingConfig: { thinkingBudget: 192 } },
-  });
-
-  const text = response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-  const cleaned = text.replace(/```json?\n?/gi, '').replace(/```/g, '').trim();
-  const parsed = JSON.parse(cleaned) as { uk?: string; en?: string };
-  if (!parsed.uk || !parsed.en) {
-    throw new Error('Invalid bilingual fun-fact JSON structure');
+  try {
+    const result = await generateNonDuplicateContent<string>({
+      history,
+      maxAttempts: DAILY_CONTENT_MAX_ATTEMPTS,
+      generate: async (_attempt, lastDuplicateText) => {
+        const cleaned = await callGeminiJson(buildPrompt(lastDuplicateText), 192);
+        const parsed = JSON.parse(cleaned) as { uk?: string; en?: string };
+        if (!parsed.uk || !parsed.en) {
+          throw new Error('Invalid bilingual fun-fact JSON structure');
+        }
+        return { payload: cleaned, fingerprintTexts: [parsed.en], displayText: parsed.en! };
+      },
+    });
+    return { contentJson: result.payload, fingerprint: result.fingerprint.fingerprint, keyTerms: result.fingerprint.keyTerms, source: 'gemini' };
+  } catch (err) {
+    if (!(err instanceof DuplicateContentExhaustedError) && !(err instanceof ContentGenerationExhaustedError)) throw err;
+    const picked = pickNonDuplicateFallback(
+      FACT_FALLBACK_POOL,
+      date,
+      history,
+      (entry) => computeContentFingerprint(entry.en),
+    );
+    const contentJson = JSON.stringify({ uk: picked.item.uk, en: picked.item.en });
+    return { contentJson, fingerprint: picked.fingerprint.fingerprint, keyTerms: picked.fingerprint.keyTerms, source: 'fallback' };
   }
-  return cleaned;
 }
 
 // ---------------------------------------------------------------------------
@@ -813,6 +919,111 @@ export async function generateSagaChapterText(prompt: string): Promise<string> {
     config: { thinkingConfig: { thinkingBudget: 256 } },
   });
   return response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+}
+
+// ---------------------------------------------------------------------------
+// Biosphere creature lore — structured bilingual biography + parameters
+// ---------------------------------------------------------------------------
+// Separate from the image-prompt "design brief" (creature-prompt.ts /
+// @nebulife/core creature-experiment.ts) — that text is a technical visual
+// prompt and MUST NEVER be shown to the player. This call produces the
+// player-facing record instead: a short science-fiction biography plus
+// realistic-unit parameters, always bilingual (uk+en) in one response so the
+// client can render either language without a second round-trip. Runs in
+// parallel with the portrait image call (see api/creatures/generate.ts) so
+// it adds no extra latency to the pipeline. Cheap text-only model, matching
+// generateDailyQuiz/generateLifeformBrief's cost profile (~$0.0005/call).
+// Uses the SAME deterministic fallback (buildFallbackCreatureLore) on any
+// missing key, timeout, or malformed response, so the pipeline never blocks
+// or fails on this step, and merges field-by-field on partial AI output
+// (parseCreatureLoreCandidate) instead of discarding a mostly-good response.
+// ---------------------------------------------------------------------------
+
+import {
+  buildFallbackCreatureLore,
+  parseCreatureLoreCandidate,
+  type CreatureBiome,
+  type CreatureLore,
+} from '@nebulife/core';
+
+const CREATURE_LORE_MODEL = 'gemini-3.1-flash-lite';
+const CREATURE_LORE_TIMEOUT_MS = 12_000;
+
+export interface CreatureLoreGenerationInput {
+  /** Internal design-brief/context text (English, never shown to players). */
+  designBrief: string;
+  /** Best-effort element symbols behind this organism, may be empty (e.g.
+   *  offspring/hybrids that no longer carry the original element recipe). */
+  fallbackSymbols: string[];
+  fallbackBiome: CreatureBiome | null;
+  /** Deterministic seed — same seed as the creature's own id/description. */
+  seed: number;
+  /** Short English clause describing how this creature came to be, purely
+   *  for prompt context (e.g. "a mutated offspring of an existing organism"). */
+  kindLabel: string;
+}
+
+/**
+ * Generates the player-facing lore record for a Biosphere creature. Never
+ * throws — always resolves to a fully valid CreatureLore (AI result merged
+ * with the deterministic fallback, or the fallback alone on any failure).
+ */
+export async function generateCreatureLore(input: CreatureLoreGenerationInput): Promise<CreatureLore> {
+  const fallback = buildFallbackCreatureLore({
+    symbols: input.fallbackSymbols,
+    biome: input.fallbackBiome,
+    seed: input.seed,
+  });
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return fallback;
+
+  const prompt = `You are a xenobiology field-notes writer for the cozy space game Nebulife.
+Below is an internal visual design brief for an alien organism (used only to
+generate its portrait — do not repeat it verbatim, do not mention prompts,
+AI, or image generation anywhere in your answer):
+
+"${input.designBrief}"
+
+Context: this organism is ${input.kindLabel}.
+
+Write the player-facing field record for this exact organism, in BOTH
+Ukrainian and English with equivalent meaning (not a literal word-for-word
+translation, natural idiomatic phrasing in each language). Keep it grounded,
+scientific-but-readable, no emoji, no markdown, no meta-commentary.
+
+Respond with ONLY pure JSON (no markdown fences):
+{
+  "summary": {"uk":"1 short sentence, max 200 chars","en":"1 short sentence, max 200 chars"},
+  "story": {"uk":"2-4 sentence science-fiction biography, max 650 chars","en":"2-4 sentence science-fiction biography, max 650 chars"},
+  "temperament": {"uk":"short phrase, max 150 chars","en":"short phrase, max 150 chars"},
+  "diet": {"uk":"short phrase describing what it eats, max 150 chars","en":"short phrase describing what it eats, max 150 chars"},
+  "habitatBehavior": {"uk":"short phrase describing habitat/behavior, max 150 chars","en":"short phrase describing habitat/behavior, max 150 chars"},
+  "sizeCm": <realistic body height/length in centimeters, number, consistent with the brief>,
+  "weightKg": <realistic body weight in kilograms, number, consistent with sizeCm>,
+  "lifespanYears": <realistic lifespan in years, number>
+}`;
+
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const generationPromise = ai.models.generateContent({
+      model: CREATURE_LORE_MODEL,
+      contents: prompt,
+      config: { thinkingConfig: { thinkingBudget: 256 } },
+    });
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Creature lore generation timeout')), CREATURE_LORE_TIMEOUT_MS),
+    );
+    const response = await Promise.race([generationPromise, timeoutPromise]);
+
+    const text = response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+    const cleaned = text.replace(/```json?\n?/gi, '').replace(/```/g, '').trim();
+    const parsed = JSON.parse(cleaned);
+    return parseCreatureLoreCandidate(parsed, fallback);
+  } catch (err) {
+    console.warn('[creature-lore] generation failed, using deterministic fallback:', err instanceof Error ? err.message : err);
+    return fallback;
+  }
 }
 
 function finalize(brief: LifeformBrief, scale: LifeformScale, mediumClause?: string): LifeformBriefResult {

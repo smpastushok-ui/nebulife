@@ -164,6 +164,23 @@ const SILHOUETTES = [
 ] as const;
 
 const SIZE_CLASSES = ['small', 'medium-sized', 'large'] as const;
+export type CreatureSizeClass = typeof SIZE_CLASSES[number];
+export type CreatureSilhouette = typeof SILHOUETTES[number];
+
+/**
+ * Deterministically picks the organism's body-plan size class and silhouette
+ * from the experiment seed. Extracted from buildExperimentCreatureDescription
+ * so creature-lore.ts (structured bio/params, generated alongside the image
+ * prompt — never shown to the player as raw prompt text) can derive numeric
+ * size/weight from the SAME size class the image-prompt description uses,
+ * keeping the two representations of "how big is this creature" coherent.
+ */
+export function pickExperimentBodyPlan(seed: number): { size: CreatureSizeClass; silhouette: CreatureSilhouette } {
+  const rng = new SeededRNG(seed >>> 0);
+  const size = rng.pick(SIZE_CLASSES);
+  const silhouette = rng.pick(SILHOUETTES);
+  return { size, silhouette };
+}
 
 /**
  * Builds the stored creature description (and the "design brief" half of the
@@ -176,9 +193,7 @@ export function buildExperimentCreatureDescription(
   biome: CreatureBiome | null,
   seed: number,
 ): string {
-  const rng = new SeededRNG(seed >>> 0);
-  const size = rng.pick(SIZE_CLASSES);
-  const silhouette = rng.pick(SILHOUETTES);
+  const { size, silhouette } = pickExperimentBodyPlan(seed);
 
   const defs = symbols
     .map((s) => ELEMENT_BY_SYMBOL.get(s))

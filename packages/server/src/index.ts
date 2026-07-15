@@ -352,8 +352,8 @@ export { buildLifeformPhotoPrompt, buildLifeformVideoPrompt } from './lifeform-p
 export type { LifeformRarity } from './lifeform-prompt-builder.js';
 
 // Gemini AI image generation + moderation + A.S.T.R.A. chat + daily content
-export { generateImageWithGemini, generateImageWithGeminiFromImages, computeAspectRatio, moderateMessage, chatWithAstra, generateDailyQuiz, generateDailyFunFact, generateSagaChapterText } from './gemini-client.js';
-export type { GeminiGenerateImageRequest, GeminiGenerateImageFromImagesRequest, GeminiGenerateImageResult, ModerationResult, ModerationVerdict, AstraMessage, AstraChatResult } from './gemini-client.js';
+export { generateImageWithGemini, generateImageWithGeminiFromImages, computeAspectRatio, moderateMessage, chatWithAstra, generateDailyQuiz, generateDailyFunFact, generateSagaChapterText, generateCreatureLore } from './gemini-client.js';
+export type { GeminiGenerateImageRequest, GeminiGenerateImageFromImagesRequest, GeminiGenerateImageResult, ModerationResult, ModerationVerdict, AstraMessage, AstraChatResult, CreatureLoreGenerationInput } from './gemini-client.js';
 
 // "Сага Ткача" — narrator + illustration prompt builders (migration 044)
 export { buildSagaChapterPrompt, parseSagaChapterResponse } from './saga-prompt.js';
