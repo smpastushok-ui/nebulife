@@ -104,6 +104,34 @@ export function applyDailyCare(state: CreatureCareState, nowMs: number): CareApp
   return { vitality, careDays, stage };
 }
 
+// ── Age display (derived, server-authoritative — never persisted) ─────────
+
+export type CreatureAgeUnit = 'just_hatched' | 'hours' | 'days' | 'weeks';
+
+export interface CreatureAgeBucket {
+  unit: CreatureAgeUnit;
+  /** 0 for 'just_hatched' (no count shown); otherwise the whole-number magnitude. */
+  count: number;
+}
+
+const HOUR_MS = 60 * 60 * 1000;
+const WEEK_MS = 7 * DAY_MS;
+
+/**
+ * Buckets a creature's age (now - createdAt) into a coarse display unit —
+ * the detail card never shows exact durations, only "just hatched" / N
+ * hours / N days / N weeks (i18n). `createdAtMs` must be the server
+ * `created_at` timestamp; the client clock never determines age (anti-cheat,
+ * matches computeEffectiveVitality's server-authoritative snapshot rule).
+ */
+export function formatCreatureAgeBucket(createdAtMs: number, nowMs: number): CreatureAgeBucket {
+  const ageMs = Math.max(0, nowMs - createdAtMs);
+  if (ageMs < HOUR_MS) return { unit: 'just_hatched', count: 0 };
+  if (ageMs < DAY_MS) return { unit: 'hours', count: Math.floor(ageMs / HOUR_MS) };
+  if (ageMs < WEEK_MS) return { unit: 'days', count: Math.floor(ageMs / DAY_MS) };
+  return { unit: 'weeks', count: Math.floor(ageMs / WEEK_MS) };
+}
+
 // ── Care types (map to colony resources spent client-side) ─────────────────
 
 export type CareResourceType = 'minerals' | 'water' | 'volatiles';

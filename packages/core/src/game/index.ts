@@ -379,6 +379,7 @@ export {
   computeStageFromCareDays,
   getCareBlockReason,
   applyDailyCare,
+  formatCreatureAgeBucket,
   CARE_TYPES,
   OFFSPRING_COST_QUARKS,
   TRAIT_CATEGORIES,
@@ -398,6 +399,8 @@ export type {
   CareTypeDef,
   TraitCategory,
   TraitMutation,
+  CreatureAgeUnit,
+  CreatureAgeBucket,
 } from './creature-evolution.js';
 
 // Biosphere creature experiments — element-driven synthesis

@@ -3,6 +3,13 @@ import { authFetch } from '../auth/api-client.js';
 
 const API_BASE = '/api';
 
+// Bundled default/starter creature GLB (BIOSPHERE_CREATURES_V2_PLAN.md §9.2 —
+// "запечена" стартова істота). Served as a static client asset, never via
+// Gemini/Tripo. Used only as a **local fallback/default** 3D representation
+// when a creature has no personal glb_url (or its remote GLB fails to load)
+// — a real personal `glb_url` always takes priority and is never replaced.
+export const DEFAULT_CREATURE_GLB_URL = '/creatures/starter/starter.glb';
+
 export type CreatureGenerationStatus =
   | 'queued'
   | 'generating'

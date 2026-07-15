@@ -15,7 +15,7 @@ import {
   Vector3, Color3, Color4,
   MeshBuilder, Mesh, AbstractMesh, TransformNode,
   StandardMaterial, DynamicTexture,
-  VertexBuffer, SceneLoader,
+  VertexBuffer, SceneLoader, PointerEventTypes,
 } from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
 import type { Planet, Star } from '@nebulife/core';
@@ -23,12 +23,14 @@ import { getBiosphereBiome, getBiospherePalette } from '../../../game/rendering/
 import {
   listPlanetCreatures,
   checkCreatureStatus,
+  DEFAULT_CREATURE_GLB_URL,
   type BiosphereCreature,
 } from '../../../api/creature-api.js';
 import { CreatureGenerationPanel } from './CreatureGenerationPanel.js';
 import { CreatureCareList } from './CreatureCareList.js';
 import { LineagePanel } from './LineagePanel.js';
 import { HybridizationPanel } from './HybridizationPanel.js';
+import { CreatureDetailModal } from './CreatureDetailModal.js';
 
 export const MAX_BIOSPHERE_CREATURES = 3;
 
@@ -81,10 +83,18 @@ function numToColor3(c: number): Color3 {
 
 const PATCH_SIZE = 16;
 const RENDER_FPS_CAP = 30;
+// Accent blue (#7bb8ff, see CLAUDE.md palette) — selection rim highlight.
+const SELECTED_OUTLINE_COLOR = new Color3(0.482, 0.722, 1);
 
 interface CreatureAnim {
   root: TransformNode;
+  /** Everything belonging to this creature that must be disposed together
+   *  (loaded GLB meshes + the invisible pick-box + the blob shadow disc is
+   *  tracked separately below). */
   meshes: AbstractMesh[];
+  /** Subset of `meshes` that are the actual loaded GLB geometry (excludes
+   *  the invisible pick-box) — used for the selection outline highlight. */
+  glbMeshes: AbstractMesh[];
   shadow: Mesh;
   baseX: number;
   baseZ: number;
@@ -129,6 +139,8 @@ export function BiosphereView({
   const [showLineagePanel, setShowLineagePanel] = useState(false);
   const [showHybridPanel, setShowHybridPanel] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
+  // Tap/click-selected creature — opens CreatureDetailModal (params + 360 GLB viewer).
+  const [selectedCreatureId, setSelectedCreatureId] = useState<string | null>(null);
 
   const palette = useMemo(() => getBiospherePalette(planet), [planet]);
   // NaN-safe terrain seed shared by the ground mesh and creature placement.
@@ -157,6 +169,10 @@ export function BiosphereView({
   const hybridEligible = useMemo(
     () => creatures.filter((c) => c.status === 'ready' && (c.stage ?? 'juvenile') !== 'legacy' && c.image_url),
     [creatures],
+  );
+  const selectedCreature = useMemo(
+    () => (selectedCreatureId ? creatures.find((c) => c.id === selectedCreatureId) ?? null : null),
+    [creatures, selectedCreatureId],
   );
 
   // ── Load creature list ────────────────────────────────────────────────
@@ -259,6 +275,18 @@ export function BiosphereView({
     camera.panningSensibility = 0; // no panning — patch is small, orbit only
     camera.attachControl(canvas, true);
 
+    // ── Tap/click selection — resolves the creatureId from the picked
+    // mesh's metadata (set on both the loaded GLB meshes and their invisible
+    // pick-box, see the GLB sync effect below). Tapping empty space/terrain
+    // deselects. Scene.onPointerObservable already runs the pick for TAP
+    // events, respecting mesh.isPickable — no manual scene.pick() needed.
+    const pointerObserver = scene.onPointerObservable.add((pointerInfo) => {
+      if (pointerInfo.type !== PointerEventTypes.POINTERTAP) return;
+      const pickedMesh = pointerInfo.pickInfo?.hit ? pointerInfo.pickInfo.pickedMesh : null;
+      const creatureId = (pickedMesh?.metadata as { nebulifeCreatureId?: string } | null)?.nebulifeCreatureId ?? null;
+      setSelectedCreatureId(creatureId);
+    });
+
     // ── Lighting: 1 directional (sun) + minimal ambient fill ───────────────
     const sun = new DirectionalLight('bioSun', new Vector3(-0.6, -1.4, -0.5), scene);
     sun.intensity = 1.3;
@@ -353,6 +381,7 @@ export function BiosphereView({
     return () => {
       cancelled = true;
       window.removeEventListener('resize', handleResize);
+      scene.onPointerObservable.remove(pointerObserver);
       camera.detachControl();
       for (const anim of creatureAnimsRef.current.values()) {
         anim.meshes.forEach((m) => m.dispose());
@@ -386,6 +415,7 @@ export function BiosphereView({
         anim.meshes.forEach((m) => m.dispose());
         anim.shadow.dispose();
         anims.delete(id);
+        setSelectedCreatureId((current) => (current === id ? null : current));
       }
     }
 
@@ -401,7 +431,12 @@ export function BiosphereView({
       const baseZ = Math.sin(angle) * radius;
       const baseY = terrainHeight(baseX, baseZ, terrainSeed) * 0.9;
 
-      SceneLoader.ImportMeshAsync('', '', creature.glb_url, scene)
+      // creature.glb_url (this creature's own successfully generated model)
+      // always takes priority. Only if it fails to load (deleted blob,
+      // network error, corrupt file — the personal GLB itself is never
+      // swapped preemptively) do we retry once with the bundled default/
+      // starter model, so a broken remote asset doesn't leave an empty slot.
+      const loadGlb = (url: string, isFallback: boolean) => SceneLoader.ImportMeshAsync('', '', url, scene)
         .then((result) => {
           loadingGlbIdsRef.current.delete(creature.id);
           if (!sceneRef.current || sceneRef.current !== scene) {
@@ -417,12 +452,38 @@ export function BiosphereView({
           const all = [root, ...descendants];
           const minY = Math.min(...all.map((m) => m.getBoundingInfo().boundingBox.minimumWorld.y));
           const maxY = Math.max(...all.map((m) => m.getBoundingInfo().boundingBox.maximumWorld.y));
+          const minX = Math.min(...all.map((m) => m.getBoundingInfo().boundingBox.minimumWorld.x));
+          const maxX = Math.max(...all.map((m) => m.getBoundingInfo().boundingBox.maximumWorld.x));
+          const minZ = Math.min(...all.map((m) => m.getBoundingInfo().boundingBox.minimumWorld.z));
+          const maxZ = Math.max(...all.map((m) => m.getBoundingInfo().boundingBox.maximumWorld.z));
           const height = Math.max(0.0001, maxY - minY);
           const targetHeight = 1.4;
           const scale = targetHeight / height;
           root.scaling.setAll(scale);
           root.position.set(baseX, baseY - minY * scale, baseZ);
-          meshes.forEach((m) => { m.isPickable = false; m.receiveShadows = false; });
+
+          // Pickable so tap/click can select this creature (BIOSPHERE_CREATURES_V2_PLAN
+          // §6.1 root cause fix — was hardcoded `false`, which silently swallowed every tap).
+          const pickMetadata = { nebulifeCreatureId: creature.id };
+          meshes.forEach((m) => { m.isPickable = true; m.receiveShadows = false; m.metadata = pickMetadata; });
+
+          // Invisible bounding-box collider, parented to root so it inherits
+          // its scaling/position/animation automatically — makes tap
+          // reliable across the whole silhouette even where the actual GLB
+          // geometry is thin (e.g. limbs, tentacles) or has picking gaps.
+          const pickBox = MeshBuilder.CreateBox(`bioPickBox_${creature.id}`, {
+            width: Math.max(0.05, maxX - minX),
+            height: Math.max(0.05, maxY - minY),
+            depth: Math.max(0.05, maxZ - minZ),
+          }, scene);
+          pickBox.parent = root;
+          pickBox.position.set((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
+          // NOTE: `isVisible = false` would also make it unpickable (Babylon's
+          // default pick predicate requires isVisible) — `visibility = 0`
+          // keeps it fully transparent while staying pickable.
+          pickBox.visibility = 0;
+          pickBox.isPickable = true;
+          pickBox.metadata = pickMetadata;
 
           const shadow = MeshBuilder.CreateDisc(`bioShadow_${creature.id}`, { radius: 0.7, tessellation: 24 }, scene);
           shadow.rotation.x = Math.PI / 2;
@@ -433,7 +494,8 @@ export function BiosphereView({
           const rand = mulberry32(hashString(creature.id));
           anims.set(creature.id, {
             root,
-            meshes,
+            meshes: [...meshes, pickBox],
+            glbMeshes: meshes,
             shadow,
             baseX, baseZ, baseY,
             phase: rand() * Math.PI * 2,
@@ -447,19 +509,46 @@ export function BiosphereView({
           });
         })
         .catch((err) => {
-          loadingGlbIdsRef.current.delete(creature.id);
-          console.error(`[BiosphereView] Failed to load creature GLB ${creature.id}:`, err);
+          console.error(`[BiosphereView] Failed to load creature GLB ${creature.id} (fallback=${isFallback}):`, err);
+          if (isFallback || !sceneRef.current || sceneRef.current !== scene) {
+            // Bundled default also failed (or the scene was unmounted) —
+            // give up quietly; no personal or generic 3D asset is possible.
+            loadingGlbIdsRef.current.delete(creature.id);
+            return;
+          }
+          loadGlb(DEFAULT_CREATURE_GLB_URL, true);
         });
+
+      loadGlb(creature.glb_url, false);
     });
   }, [readyCreatures, sceneMounted, terrainSeed]);
 
-  // ── Keyboard: Escape closes ──────────────────────────────────────────────
+  // ── Selection highlight — rim outline on the tapped creature only ───────
 
   useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    for (const [id, anim] of creatureAnimsRef.current) {
+      const selected = id === selectedCreatureId;
+      anim.glbMeshes.forEach((m) => {
+        m.renderOutline = selected;
+        m.outlineWidth = 0.03;
+        m.outlineColor = SELECTED_OUTLINE_COLOR;
+      });
+    }
+  }, [selectedCreatureId, readyCreatures]);
+
+  // ── Keyboard: Escape closes ──────────────────────────────────────────────
+  // While the creature detail modal is open, ITS OWN Escape handler closes
+  // just the modal (clears selectedCreatureId) — this handler no-ops so the
+  // whole Biosphere doesn't close underneath it.
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || selectedCreatureId) return;
+      onClose();
+    };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [onClose]);
+  }, [onClose, selectedCreatureId]);
 
   const canGenerateMore = activeCreatureCount < MAX_BIOSPHERE_CREATURES;
 
@@ -636,6 +725,17 @@ export function BiosphereView({
           offspring generations and hybrids (with both parents). */}
       {showLineagePanel && (
         <LineagePanel creatures={creatures} onClose={() => setShowLineagePanel(false)} />
+      )}
+
+      {/* Creature detail card — tap/click a settled creature to open params
+          + an isolated 360-degree GLB viewer (BIOSPHERE_CREATURES_V2_PLAN §6). */}
+      {selectedCreature && (
+        <CreatureDetailModal
+          creature={selectedCreature}
+          allCreatures={creatures}
+          nowMs={nowMs}
+          onClose={() => setSelectedCreatureId(null)}
+        />
       )}
     </div>
   );

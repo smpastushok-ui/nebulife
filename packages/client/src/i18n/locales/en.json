@@ -413,6 +413,26 @@
       "error_tripo_unavailable": "3D form is temporarily unavailable. Portrait saved; try again later.",
       "error_planet_full": "The planet already has the maximum of active creatures."
     },
+    "detail": {
+      "close": "Close card",
+      "unnamed": "Unnamed specimen",
+      "viewer_hint": "Drag to rotate, scroll/pinch to zoom",
+      "viewer_loading": "Loading 3D model...",
+      "viewer_unavailable": "3D model unavailable. Showing the portrait instead.",
+      "viewer_no_asset": "3D model not ready yet. Showing the portrait instead.",
+      "viewer_no_preview": "No preview image available for this creature.",
+      "viewer_default_model": "Showing a default specimen model (drag to rotate, scroll/pinch to zoom)",
+      "description_label": "Description",
+      "traits_label": "Traits",
+      "vitality_label": "Vitality",
+      "age_label": "Age",
+      "age_just_hatched": "just hatched",
+      "age_hours": "{{count}}h",
+      "age_days": "{{count}}d",
+      "age_weeks": "{{count}}w",
+      "cost_label": "Synthesis cost",
+      "cost_free": "free"
+    },
     "trait": {
       "size": {
         "dwarf": "dwarf size",
