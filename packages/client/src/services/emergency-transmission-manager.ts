@@ -1,80 +1,51 @@
 export type EmergencyTransmissionSource = 'youtube';
 
+import { authFetch } from '../auth/api-client.js';
+import i18n from '../i18n/index.js';
+
 export interface EmergencyTransmissionEpisode {
   id: string;
-  titleKey: string;
-  summaryKey: string;
+  title: string;
+  summary: string;
   source: EmergencyTransmissionSource;
   youtubeId: string;
   releasedAt: string;
 }
 
 interface EmergencyTransmissionStoredState {
-  day: string;
-  shownToday: number;
   seenEpisodes: Record<string, number>;
 }
 
-export interface EmergencyTransmissionDecision {
-  show: boolean;
-  reason: 'allowed' | 'session_cap' | 'daily_cap' | 'none_released';
-  episode?: EmergencyTransmissionEpisode;
-}
-
 const STORAGE_PREFIX = 'nebulife_emergency_transmissions';
-const SESSION_KEY = '__nebulife_emergency_transmission_session_count__';
-const DAILY_SHOW_LIMIT = 1;
+const PENDING_PREFIX = 'nebulife_emergency_transmission_pending';
+const YOUTUBE_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
 
-export const EMERGENCY_TRANSMISSION_EPISODES: readonly EmergencyTransmissionEpisode[] = [
-  {
+const COMPATIBILITY_EPISODE = {
     id: 'frontier-dispatch-001',
-    titleKey: 'emergency_transmission.episodes.frontier_001.title',
-    summaryKey: 'emergency_transmission.episodes.frontier_001.summary',
     source: 'youtube',
     youtubeId: 'Keu09e2e0I4',
     releasedAt: '2026-06-23T00:00:00.000Z',
-  },
-];
-
-function todayKey(now: number): string {
-  return new Date(now).toISOString().slice(0, 10);
-}
+} as const;
 
 function storageKey(playerId: string): string {
   return `${STORAGE_PREFIX}_${playerId || 'local'}`;
 }
 
-function getSessionCount(): number {
-  const value = (globalThis as unknown as Record<string, unknown>)[SESSION_KEY];
-  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+function emptyState(): EmergencyTransmissionStoredState {
+  return { seenEpisodes: {} };
 }
 
-function setSessionCount(value: number): void {
-  (globalThis as unknown as Record<string, unknown>)[SESSION_KEY] = value;
-}
-
-function emptyState(now: number): EmergencyTransmissionStoredState {
-  return {
-    day: todayKey(now),
-    shownToday: 0,
-    seenEpisodes: {},
-  };
-}
-
-function readState(playerId: string, now: number): EmergencyTransmissionStoredState {
+function readState(playerId: string): EmergencyTransmissionStoredState {
   try {
     const parsed = JSON.parse(localStorage.getItem(storageKey(playerId)) ?? 'null') as Partial<EmergencyTransmissionStoredState> | null;
-    if (!parsed || typeof parsed !== 'object') return emptyState(now);
-    const day = parsed.day === todayKey(now) ? parsed.day : todayKey(now);
+    if (!parsed || typeof parsed !== 'object') return emptyState();
     return {
-      day,
-      shownToday: parsed.day === day && typeof parsed.shownToday === 'number' ? parsed.shownToday : 0,
       seenEpisodes: parsed.seenEpisodes && typeof parsed.seenEpisodes === 'object'
         ? parsed.seenEpisodes as Record<string, number>
         : {},
     };
   } catch {
-    return emptyState(now);
+    return emptyState();
   }
 }
 
@@ -87,6 +58,7 @@ function writeState(playerId: string, state: EmergencyTransmissionStoredState): 
 }
 
 export function buildYouTubeEmbedUrl(youtubeId: string): string {
+  if (!YOUTUBE_ID_PATTERN.test(youtubeId)) return 'about:blank';
   const params = new URLSearchParams({
     autoplay: '1',
     mute: '1',
@@ -104,27 +76,123 @@ export function buildYouTubeEmbedUrl(youtubeId: string): string {
   return `https://www.youtube.com/embed/${encodeURIComponent(youtubeId)}?${params.toString()}`;
 }
 
-export function shouldShowEmergencyTransmission(input: {
+function localizedCompatibilityEpisode(language: 'uk' | 'en'): EmergencyTransmissionEpisode {
+  const t = i18n.getFixedT(language);
+  return {
+    ...COMPATIBILITY_EPISODE,
+    title: t('emergency_transmission.episodes.frontier_001.title'),
+    summary: t('emergency_transmission.episodes.frontier_001.summary'),
+  };
+}
+
+function fallbackEpisode(playerId: string, language: 'uk' | 'en', now: number): EmergencyTransmissionEpisode | null {
+  const state = readState(playerId);
+  if (state.seenEpisodes[COMPATIBILITY_EPISODE.id] || Date.parse(COMPATIBILITY_EPISODE.releasedAt) > now) return null;
+  state.seenEpisodes[COMPATIBILITY_EPISODE.id] = now;
+  writeState(playerId, state);
+  return localizedCompatibilityEpisode(language);
+}
+
+function pendingKey(playerId: string): string {
+  return `${PENDING_PREFIX}_${playerId || 'local'}`;
+}
+
+function getClaimToken(playerId: string, episodeId: string): string {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(pendingKey(playerId)) ?? 'null') as { episodeId?: string; token?: string } | null;
+    if (parsed?.episodeId === episodeId && typeof parsed.token === 'string') return parsed.token;
+    const token = crypto.randomUUID();
+    localStorage.setItem(pendingKey(playerId), JSON.stringify({ episodeId, token }));
+    return token;
+  } catch {
+    return crypto.randomUUID();
+  }
+}
+
+function clearClaimToken(playerId: string): void {
+  try { localStorage.removeItem(pendingKey(playerId)); } catch { /* non-critical */ }
+}
+
+const inFlight = new Map<string, Promise<EmergencyTransmissionEpisode | null>>();
+
+export function requestEmergencyTransmission(input: {
   playerId: string;
+  language: 'uk' | 'en';
   now?: number;
-}): EmergencyTransmissionDecision {
+  fetcher?: typeof authFetch;
+}): Promise<EmergencyTransmissionEpisode | null> {
+  const existing = inFlight.get(input.playerId);
+  if (existing) return existing;
+  const promise = requestEmergencyTransmissionInternal(input)
+    .finally(() => inFlight.delete(input.playerId));
+  inFlight.set(input.playerId, promise);
+  return promise;
+}
+
+async function requestEmergencyTransmissionInternal(input: {
+  playerId: string;
+  language: 'uk' | 'en';
+  now?: number;
+  fetcher?: typeof authFetch;
+}): Promise<EmergencyTransmissionEpisode | null> {
   const now = input.now ?? Date.now();
-  if (getSessionCount() >= 1) return { show: false, reason: 'session_cap' };
+  const fetcher = input.fetcher ?? authFetch;
+  const legacySeenEpisodeIds = Object.keys(readState(input.playerId).seenEpisodes);
+  let compatibilityFallbackAllowed = false;
+  try {
+    const sync = await fetcher('/api/emergency-transmissions/claim', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ legacySeenEpisodeIds }),
+    });
+    if (!sync.ok) {
+      compatibilityFallbackAllowed = [401, 404, 503].includes(sync.status);
+      throw new Error(`sync:${sync.status}`);
+    }
 
-  const state = readState(input.playerId, now);
-  if (state.shownToday >= DAILY_SHOW_LIMIT) return { show: false, reason: 'daily_cap' };
+    const next = await fetcher(`/api/emergency-transmissions/next?language=${input.language}`);
+    if (!next.ok) {
+      compatibilityFallbackAllowed = [401, 404, 503].includes(next.status);
+      throw new Error(`next:${next.status}`);
+    }
+    const data = await next.json() as { episode?: EmergencyTransmissionEpisode | null };
+    if (!data.episode) return null;
+    if (!YOUTUBE_ID_PATTERN.test(data.episode.youtubeId)) return null;
 
-  const episode = EMERGENCY_TRANSMISSION_EPISODES
-    .filter((candidate) => Date.parse(candidate.releasedAt) <= now)
-    .filter((candidate) => !state.seenEpisodes[candidate.id])
-    .sort((a, b) => Date.parse(b.releasedAt) - Date.parse(a.releasedAt))[0];
+    const claimToken = getClaimToken(input.playerId, data.episode.id);
+    const claim = await fetcher('/api/emergency-transmissions/claim', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ episodeId: data.episode.id, claimToken, legacySeenEpisodeIds }),
+    });
+    if (claim.status === 409) {
+      clearClaimToken(input.playerId);
+      return null;
+    }
+    if (!claim.ok) throw new Error(`claim:${claim.status}`);
 
-  if (!episode) return { show: false, reason: 'none_released' };
+    const state = readState(input.playerId);
+    state.seenEpisodes[data.episode.id] = now;
+    writeState(input.playerId, state);
+    clearClaimToken(input.playerId);
+    return data.episode;
+  } catch (error) {
+    // During migration/API rollout, preserve the current single episode. If a
+    // claim request may have reached the backend, keep its token and retry
+    // instead of risking a second display.
+    if (String(error).includes('claim:') || !compatibilityFallbackAllowed) return null;
+    return fallbackEpisode(input.playerId, input.language, now);
+  }
+}
 
-  state.shownToday += 1;
-  state.seenEpisodes[episode.id] = now;
-  writeState(input.playerId, state);
-  setSessionCount(getSessionCount() + 1);
-
-  return { show: true, reason: 'allowed', episode };
+export async function acknowledgeEmergencyTransmissionClosed(episodeId: string): Promise<void> {
+  try {
+    await authFetch('/api/emergency-transmissions/close', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ episodeId }),
+    });
+  } catch {
+    // Closing analytics must never trap the player in the modal.
+  }
 }

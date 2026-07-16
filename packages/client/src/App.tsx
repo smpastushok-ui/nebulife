@@ -371,7 +371,11 @@ import { setAdsUnlockedAfterSettlement, setAdsGeoAllowed } from './services/ad-r
 import { isWebAccessTemporarilyOpen } from './services/web-access-gate.js';
 import { interstitialManager } from './services/interstitial-manager.js';
 import { shouldShowAlphaPromo, type AlphaPromoTrigger } from './services/alpha-promo-manager.js';
-import { shouldShowEmergencyTransmission, type EmergencyTransmissionEpisode } from './services/emergency-transmission-manager.js';
+import {
+  acknowledgeEmergencyTransmissionClosed,
+  requestEmergencyTransmission,
+  type EmergencyTransmissionEpisode,
+} from './services/emergency-transmission-manager.js';
 import {
   generateSystemPhoto, pollSystemPhotoStatus,
   generateSystemMission, pollMissionStatus,
@@ -12825,17 +12829,24 @@ function AppInner() {
     // Yield to ASTRA onboarding explainers (active or about to show).
     if (activeAstraOnboarding !== null || astraOnboardingQueue.length > 0) return;
 
-    const decision = shouldShowEmergencyTransmission({ playerId: playerId.current });
-    if (!decision.show || !decision.episode) return;
-
+    let cancelled = false;
     const id = window.setTimeout(() => {
-      setEmergencyTransmission(decision.episode ?? null);
-      void trackEvent('emergency_transmission_shown', {
-        episode_id: decision.episode?.id,
-        source: decision.episode?.source,
+      void requestEmergencyTransmission({
+        playerId: playerId.current,
+        language: lang === 'uk' ? 'uk' : 'en',
+      }).then((episode) => {
+        if (cancelled || !episode) return;
+        setEmergencyTransmission(episode);
+        void trackEvent('emergency_transmission_shown', {
+          episode_id: episode.id,
+          source: episode.source,
+        });
       });
     }, 900);
-    return () => window.clearTimeout(id);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(id);
+    };
   }, [
     emergencyTransmission,
     serverHydrated,
@@ -12858,6 +12869,7 @@ function AppInner() {
     showChaosModal,
     activeAstraOnboarding,
     astraOnboardingQueue.length,
+    lang,
   ]);
 
   // ── Award XP & level-up detection (assign to ref for stable callbacks) ──
@@ -16151,6 +16163,7 @@ function AppInner() {
         <EmergencyTransmissionModal
           episode={emergencyTransmission}
           onClose={() => {
+            void acknowledgeEmergencyTransmissionClosed(emergencyTransmission.id);
             void trackEvent('emergency_transmission_closed', {
               episode_id: emergencyTransmission.id,
               source: emergencyTransmission.source,

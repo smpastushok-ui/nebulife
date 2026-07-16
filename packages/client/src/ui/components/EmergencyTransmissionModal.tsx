@@ -58,7 +58,7 @@ export function EmergencyTransmissionModal({ episode, onClose }: EmergencyTransm
               <iframe
                 className="emergencyTransmissionIframe"
                 src={embedUrl}
-                title={t(episode.titleKey)}
+                title={episode.title}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 referrerPolicy="strict-origin-when-cross-origin"
                 allowFullScreen={false}
@@ -67,8 +67,8 @@ export function EmergencyTransmissionModal({ episode, onClose }: EmergencyTransm
           </div>
 
           <div className="emergencyTransmissionCopy">
-            <div className="emergencyTransmissionEpisode">{t(episode.titleKey)}</div>
-            <div className="emergencyTransmissionSummary">{t(episode.summaryKey)}</div>
+            <div className="emergencyTransmissionEpisode">{episode.title}</div>
+            <div className="emergencyTransmissionSummary">{episode.summary}</div>
             <div className="emergencyTransmissionHint">{t('emergency_transmission.autoplay_hint')}</div>
           </div>
 

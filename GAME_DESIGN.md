@@ -57,6 +57,14 @@
 
 > Source: `packages/core/src/game/research.ts`, `packages/core/src/constants/balance.ts`
 
+### Emergency Transmission
+- Сюжетні YouTube-випуски зберігаються у серверному каталозі Neon і видаються у стабільному порядку: `release_at` від найстарішого, потім `sort_order` та `id`.
+- Єдине frequency-обмеження: конкретний `episode_id` може бути показаний конкретному `player_id` лише один раз. Денних і сесійних quota немає.
+- Показ отримує атомарний claim з унікальністю `(player_id, episode_id)` безпосередньо перед відкриттям модалу; повтор запиту з тим самим claim token ідемпотентний.
+- UI не відкриває включення поверх onboarding, катсцен, звітів або інших важливих модалів.
+
+> Source: `api/emergency-transmissions/*`, `packages/client/src/services/emergency-transmission-manager.ts`, migration `047-emergency-transmissions.sql`
+
 ### Planet Exploration Missions
 - Після повного research зоряної системи планети відкриваються тільки до Tier 1: базова орбіта, тип, температура, rough water/atmosphere signal.
 - `orbital_probe` з орбітальним payload + дослідницьким шатлом відкриває Tier 2: повна атмосфера, гідросфера, магнітне поле, moons, групові ресурси і habitability factors.

@@ -249,6 +249,14 @@
               <div class="nav-item" data-section="sec-polls">Опитування</div>
             </div>
           </div>
+          <div class="nav-group" id="grpContent">
+            <div class="nav-group-title" data-group="grpContent">
+              <span class="chev">&#9662;</span> Контент
+            </div>
+            <div class="nav-items">
+              <div class="nav-item" data-section="sec-transmissions">Екстрені включення</div>
+            </div>
+          </div>
         </nav>
       </aside>
 
@@ -500,6 +508,23 @@
           <div class="panel" id="pollResultsPanel" style="display:none">
             <h2>Результати опитування</h2>
             <div id="pollResultsBody"></div>
+          </div>
+        </div>
+
+        <!-- ════════════ SECTION: EMERGENCY TRANSMISSIONS ════════════ -->
+        <div class="section" id="sec-transmissions">
+          <div class="panel">
+            <h2>Emergency Transmission — каталог</h2>
+            <p class="hint" style="margin-top:-6px;margin-bottom:12px">
+              Опубліковані й увімкнені випуски доставляються кожному гравцю один раз,
+              від найстарішого до найновішого. Видалення архівує запис і зберігає історію показів.
+            </p>
+            <div class="actions" style="margin-bottom:14px">
+              <button id="btnTransmissionLoad" type="button">Оновити список</button>
+              <button id="btnTransmissionAdd" type="button" class="primary">+ Додати випуск</button>
+            </div>
+            <div id="transmissionList"><div class="daily-empty">Введи адмін-секрет і натисни «Оновити список».</div></div>
+            <div class="out" id="transmissionOut"></div>
           </div>
         </div>
       </div>
@@ -1201,6 +1226,144 @@
 
     document.querySelector('.nav-item[data-section="sec-polls"]').addEventListener('click', function () {
       if (!pollsLoaded && $('secret').value.trim()) loadPollsList();
+    });
+
+    // ════════════ EMERGENCY TRANSMISSIONS section logic ════════════
+    var transmissionsLoaded = false;
+
+    function setTransmissionOut(kind, msg) {
+      var el = $('transmissionOut');
+      el.className = 'out ' + kind;
+      el.textContent = msg;
+    }
+
+    async function transmissionApi(payload) {
+      var secret = $('secret').value.trim();
+      if (!secret) { setTransmissionOut('err', 'Спочатку введи адмін-секрет.'); return null; }
+      persistSecret();
+      payload.secret = secret;
+      var res = await fetch('/api/admin/emergency-transmissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      var data = await res.json().catch(function () { return {}; });
+      if (!res.ok) {
+        setTransmissionOut('err', '[' + res.status + '] ' + (data.message || data.error || 'Помилка запиту'));
+        return null;
+      }
+      return data;
+    }
+
+    function localDateTime(iso) {
+      if (!iso) return '';
+      var d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return '';
+      var local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+      return local.toISOString().slice(0, 16);
+    }
+
+    function transmissionCardHtml(item, idx) {
+      var isNew = !item.id;
+      var archived = !!item.archivedAt;
+      return '' +
+        '<div class="daily-card' + (archived || item.enabled === false ? ' disabled' : '') + '" data-id="' + esc(item.id || '') + '">' +
+          '<div class="card-head"><span class="card-idx">' +
+            (isNew ? 'Новий випуск' : esc(item.id) + (archived ? ' · архів' : '')) +
+          '</span><div class="card-controls">' +
+            '<span class="checkbox-row"><input type="checkbox" class="f-enabled"' + (item.enabled ? ' checked' : '') + '><label>увімкнено</label></span>' +
+            '<span class="checkbox-row"><input type="checkbox" class="f-published"' + (item.published ? ' checked' : '') + '><label>опубліковано</label></span>' +
+          '</div></div>' +
+          '<div class="row">' +
+            '<div class="field"><label>ID випуску</label><input class="f-id" maxlength="80" value="' + esc(item.id || '') + '"' + (isNew ? '' : ' readonly') + '></div>' +
+            '<div class="field"><label>YouTube URL або ID</label><input class="f-youtube" value="' + esc(item.youtubeId || '') + '" placeholder="https://youtu.be/…"></div>' +
+          '</div>' +
+          '<div class="row">' +
+            '<div class="field"><label>Дата публікації</label><input type="datetime-local" class="f-release" value="' + esc(localDateTime(item.releaseAt)) + '"></div>' +
+            '<div class="field"><label>Порядок</label><input type="number" class="f-sort" value="' + esc(item.sortOrder == null ? idx + 1 : item.sortOrder) + '"></div>' +
+          '</div>' +
+          '<div class="row">' +
+            '<div class="field"><label>Заголовок (UK)</label><input class="f-title-uk" maxlength="200" value="' + esc(item.titleUk || '') + '"></div>' +
+            '<div class="field"><label>Title (EN)</label><input class="f-title-en" maxlength="200" value="' + esc(item.titleEn || '') + '"></div>' +
+          '</div>' +
+          '<div class="row">' +
+            '<div class="field"><label>Опис (UK)</label><textarea class="f-summary-uk" maxlength="1000">' + esc(item.summaryUk || '') + '</textarea></div>' +
+            '<div class="field"><label>Summary (EN)</label><textarea class="f-summary-en" maxlength="1000">' + esc(item.summaryEn || '') + '</textarea></div>' +
+          '</div>' +
+          '<div class="card-actions"><button type="button" class="primary small btn-save-transmission">Зберегти</button>' +
+            (isNew || archived ? '' : '<button type="button" class="danger small btn-archive-transmission">Архівувати</button>') +
+          '</div>' +
+        '</div>';
+    }
+
+    function bindTransmissionCard(card) {
+      card.querySelector('.btn-save-transmission').addEventListener('click', async function () {
+        var btn = this; btn.disabled = true;
+        try {
+          var releaseValue = card.querySelector('.f-release').value;
+          var data = await transmissionApi({
+            op: 'save',
+            id: card.querySelector('.f-id').value.trim(),
+            youtubeUrl: card.querySelector('.f-youtube').value.trim(),
+            releaseAt: releaseValue ? new Date(releaseValue).toISOString() : '',
+            sortOrder: parseInt(card.querySelector('.f-sort').value, 10) || 0,
+            titleUk: card.querySelector('.f-title-uk').value.trim(),
+            titleEn: card.querySelector('.f-title-en').value.trim(),
+            summaryUk: card.querySelector('.f-summary-uk').value.trim(),
+            summaryEn: card.querySelector('.f-summary-en').value.trim(),
+            enabled: card.querySelector('.f-enabled').checked,
+            published: card.querySelector('.f-published').checked
+          });
+          if (data && data.ok) {
+            setTransmissionOut('ok', 'Збережено: ' + data.item.id);
+            loadTransmissions();
+          }
+        } finally { btn.disabled = false; }
+      });
+      var archive = card.querySelector('.btn-archive-transmission');
+      if (archive) archive.addEventListener('click', async function () {
+        var id = card.getAttribute('data-id');
+        if (!confirm('Архівувати випуск ' + id + '? Історія показів збережеться.')) return;
+        var data = await transmissionApi({ op: 'archive', id: id });
+        if (data && data.ok) { setTransmissionOut('ok', 'Архівовано: ' + id); loadTransmissions(); }
+      });
+    }
+
+    function renderTransmissions(items) {
+      var list = $('transmissionList');
+      if (!items.length) {
+        list.innerHTML = '<div class="daily-empty">Каталог порожній.</div>';
+        return;
+      }
+      list.innerHTML = items.map(transmissionCardHtml).join('');
+      list.querySelectorAll('.daily-card').forEach(bindTransmissionCard);
+    }
+
+    async function loadTransmissions() {
+      var btn = $('btnTransmissionLoad'); btn.disabled = true;
+      try {
+        var data = await transmissionApi({ op: 'list' });
+        if (!data) return;
+        transmissionsLoaded = true;
+        renderTransmissions(data.items || []);
+      } finally { btn.disabled = false; }
+    }
+
+    $('btnTransmissionLoad').addEventListener('click', loadTransmissions);
+    $('btnTransmissionAdd').addEventListener('click', function () {
+      var list = $('transmissionList');
+      var wrap = document.createElement('div');
+      wrap.innerHTML = transmissionCardHtml({
+        id: '', youtubeId: '', titleUk: '', titleEn: '', summaryUk: '', summaryEn: '',
+        releaseAt: new Date().toISOString(), sortOrder: 0, enabled: false, published: false
+      }, 0);
+      var card = wrap.firstChild;
+      list.insertBefore(card, list.firstChild);
+      bindTransmissionCard(card);
+      card.querySelector('.f-id').focus();
+    });
+    document.querySelector('.nav-item[data-section="sec-transmissions"]').addEventListener('click', function () {
+      if (!transmissionsLoaded && $('secret').value.trim()) loadTransmissions();
     });
   </script>
 </body>

@@ -5688,3 +5688,159 @@ export async function hasRecentSagaChapter(playerId: string, withinMs = 24 * 60 
   `;
   return rows.length > 0;
 }
+
+// ---------------------------------------------------------------------------
+// Emergency Transmissions (migration 047)
+// ---------------------------------------------------------------------------
+
+export interface EmergencyTransmissionEpisodeRow {
+  id: string;
+  youtube_id: string;
+  title_uk: string;
+  title_en: string;
+  summary_uk: string;
+  summary_en: string;
+  release_at: string;
+  sort_order: number;
+  enabled: boolean;
+  published: boolean;
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function getNextEmergencyTransmission(playerId: string): Promise<EmergencyTransmissionEpisodeRow | null> {
+  const sql = getSQL();
+  const rows = await sql`
+    SELECT e.*
+    FROM emergency_transmission_episodes e
+    WHERE e.enabled = TRUE AND e.published = TRUE
+      AND e.archived_at IS NULL AND e.release_at <= NOW()
+      AND NOT EXISTS (
+        SELECT 1 FROM emergency_transmission_claims c
+        WHERE c.player_id = ${playerId} AND c.episode_id = e.id
+      )
+    ORDER BY e.release_at ASC, e.sort_order ASC, e.id ASC
+    LIMIT 1
+  `;
+  return (rows[0] as EmergencyTransmissionEpisodeRow | undefined) ?? null;
+}
+
+export async function syncLegacyEmergencyTransmissionClaims(playerId: string, episodeIds: string[]): Promise<number> {
+  if (episodeIds.length === 0) return 0;
+  const sql = getSQL();
+  const rows = await sql`
+    INSERT INTO emergency_transmission_claims (player_id, episode_id, claim_source)
+    SELECT ${playerId}, e.id, 'legacy_sync'
+    FROM emergency_transmission_episodes e
+    WHERE e.id = ANY(${episodeIds})
+    ON CONFLICT (player_id, episode_id) DO NOTHING
+    RETURNING episode_id
+  `;
+  return rows.length;
+}
+
+export interface ClaimEmergencyTransmissionResult {
+  claimed: boolean;
+  episode: EmergencyTransmissionEpisodeRow | null;
+}
+
+export async function claimEmergencyTransmission(input: {
+  playerId: string;
+  episodeId: string;
+  claimToken: string;
+}): Promise<ClaimEmergencyTransmissionResult> {
+  const sql = getSQL();
+  const inserted = await sql`
+    INSERT INTO emergency_transmission_claims (player_id, episode_id, claim_token, claim_source)
+    SELECT ${input.playerId}, e.id, ${input.claimToken}::uuid, 'display'
+    FROM emergency_transmission_episodes e
+    WHERE e.id = ${input.episodeId}
+      AND e.enabled = TRUE AND e.published = TRUE
+      AND e.archived_at IS NULL AND e.release_at <= NOW()
+    ON CONFLICT (player_id, episode_id) DO NOTHING
+    RETURNING episode_id
+  `;
+  const owned = await sql`
+    SELECT e.*
+    FROM emergency_transmission_claims c
+    JOIN emergency_transmission_episodes e ON e.id = c.episode_id
+    WHERE c.player_id = ${input.playerId}
+      AND c.episode_id = ${input.episodeId}
+      AND c.claim_token = ${input.claimToken}::uuid
+    LIMIT 1
+  `;
+  return {
+    claimed: inserted.length > 0 || owned.length > 0,
+    episode: (owned[0] as EmergencyTransmissionEpisodeRow | undefined) ?? null,
+  };
+}
+
+export async function closeEmergencyTransmission(playerId: string, episodeId: string): Promise<boolean> {
+  const sql = getSQL();
+  const rows = await sql`
+    UPDATE emergency_transmission_claims
+    SET closed_at = COALESCE(closed_at, NOW())
+    WHERE player_id = ${playerId} AND episode_id = ${episodeId}
+    RETURNING episode_id
+  `;
+  return rows.length > 0;
+}
+
+export async function listEmergencyTransmissionEpisodes(): Promise<EmergencyTransmissionEpisodeRow[]> {
+  const sql = getSQL();
+  return (await sql`
+    SELECT * FROM emergency_transmission_episodes
+    ORDER BY archived_at NULLS FIRST, release_at ASC, sort_order ASC, id ASC
+  `) as EmergencyTransmissionEpisodeRow[];
+}
+
+export async function saveEmergencyTransmissionEpisode(input: {
+  id: string;
+  youtubeId: string;
+  titleUk: string;
+  titleEn: string;
+  summaryUk: string;
+  summaryEn: string;
+  releaseAt: string;
+  sortOrder: number;
+  enabled: boolean;
+  published: boolean;
+}): Promise<EmergencyTransmissionEpisodeRow> {
+  const sql = getSQL();
+  const rows = await sql`
+    INSERT INTO emergency_transmission_episodes (
+      id, youtube_id, title_uk, title_en, summary_uk, summary_en,
+      release_at, sort_order, enabled, published, archived_at
+    ) VALUES (
+      ${input.id}, ${input.youtubeId}, ${input.titleUk}, ${input.titleEn},
+      ${input.summaryUk}, ${input.summaryEn}, ${input.releaseAt},
+      ${input.sortOrder}, ${input.enabled}, ${input.published}, NULL
+    )
+    ON CONFLICT (id) DO UPDATE SET
+      youtube_id = EXCLUDED.youtube_id,
+      title_uk = EXCLUDED.title_uk,
+      title_en = EXCLUDED.title_en,
+      summary_uk = EXCLUDED.summary_uk,
+      summary_en = EXCLUDED.summary_en,
+      release_at = EXCLUDED.release_at,
+      sort_order = EXCLUDED.sort_order,
+      enabled = EXCLUDED.enabled,
+      published = EXCLUDED.published,
+      archived_at = NULL,
+      updated_at = NOW()
+    RETURNING *
+  `;
+  return rows[0] as EmergencyTransmissionEpisodeRow;
+}
+
+export async function archiveEmergencyTransmissionEpisode(id: string): Promise<boolean> {
+  const sql = getSQL();
+  const rows = await sql`
+    UPDATE emergency_transmission_episodes
+    SET archived_at = NOW(), enabled = FALSE, published = FALSE, updated_at = NOW()
+    WHERE id = ${id} AND archived_at IS NULL
+    RETURNING id
+  `;
+  return rows.length > 0;
+}

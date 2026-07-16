@@ -103,6 +103,7 @@
 | Player search | Пошук гравців за callsign | реалізовано | `api/players/search.ts` |
 | Player feedback | "Message the Weaver" — likes/dislikes від L12+ | реалізовано | `PlayerFeedbackPrompt.tsx`, `api/feedback/submit.ts` |
 | Weekly digest share | Share card для Telegram/Discord (OG image) | заплановано | `TODO.md`, `DigestModal.tsx` |
+| Emergency Transmission | Neon-каталог YouTube-випусків; атомарний exact-once показ кожної пари player/episode; захищений CRUD в адмін-консолі | реалізовано | `api/emergency-transmissions/*`, `api/admin/emergency-transmissions.ts`, `emergency-transmission-manager.ts`, `047-emergency-transmissions.sql` |
 | Referral program | +10⚛ обом за запрошеного гравця | заплановано | `TODO.md` |
 | Клани | Cluster як guild, лідер, прапор, реєстр | заплановано | `GAME_BIBLE.md` §0.4-E, `TODO.md` |
 | Territorial control | Passive bonus за контроль core zone | заплановано | `TODO.md`, `NEXT_GEN_PLAN.md` |

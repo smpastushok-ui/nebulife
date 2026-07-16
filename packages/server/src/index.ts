@@ -213,6 +213,14 @@ export {
   countSagaChapters,
   hasSagaChapter,
   hasRecentSagaChapter,
+  // Emergency Transmissions
+  getNextEmergencyTransmission,
+  syncLegacyEmergencyTransmissionClaims,
+  claimEmergencyTransmission,
+  closeEmergencyTransmission,
+  listEmergencyTransmissionEpisodes,
+  saveEmergencyTransmissionEpisode,
+  archiveEmergencyTransmissionEpisode,
 } from './db.js';
 
 export type {
@@ -264,7 +272,17 @@ export type {
   ContributeOutcome,
   MegastructureBuilderView,
   SagaChapterRow,
+  EmergencyTransmissionEpisodeRow,
+  ClaimEmergencyTransmissionResult,
 } from './db.js';
+
+export {
+  extractYouTubeId,
+  sanitizeLegacyEpisodeIds,
+  isMissingEmergencyTransmissionSchema,
+  EMERGENCY_EPISODE_ID_PATTERN,
+  YOUTUBE_ID_PATTERN,
+} from './emergency-transmissions.js';
 
 // Weekly Digest Generator
 export { generateWeeklyNewsText, generateDigestImage, getCurrentWeekMonday, verifyNewsItems } from './digest-generator.js';
