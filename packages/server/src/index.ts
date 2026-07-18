@@ -361,6 +361,14 @@ export { buildPlanetModelPrompt } from './planet-model-prompt-builder.js';
 // Planet skin prompt builder
 export { buildPlanetSkinPrompt, PLANET_SKIN_EXOSPHERE_COST_QUARKS } from './planet-skin-prompt-builder.js';
 export type { PlanetSkinKind } from './planet-skin-prompt-builder.js';
+export {
+  measureHorizontalSeam,
+  normalizePlanetTexture,
+  PLANET_TEXTURE_HEIGHT,
+  PLANET_TEXTURE_VERSION,
+  PLANET_TEXTURE_WIDTH,
+} from './planet-texture-normalizer.js';
+export type { PlanetTextureNormalizationResult } from './planet-texture-normalizer.js';
 
 // System photo/mission prompt builder
 export { buildSystemPhotoPrompt, buildMissionVideoPrompt, buildGeminiSystemPhotoPrompt } from './system-photo-prompt-builder.js';

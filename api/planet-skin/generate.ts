@@ -1,6 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import type { StarSystem } from '@nebulife/core';
-import sharp from 'sharp';
 import { put } from '@vercel/blob';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
 import {
@@ -16,6 +15,10 @@ import {
   PLANET_SKIN_EXOSPHERE_COST_QUARKS,
   type PlanetSkinKind,
 } from '../../packages/server/src/planet-skin-prompt-builder.js';
+import {
+  normalizePlanetTexture,
+  PLANET_TEXTURE_VERSION,
+} from '../../packages/server/src/planet-texture-normalizer.js';
 
 export const config = {
   maxDuration: 60,
@@ -29,9 +32,11 @@ function isTextureMapUrl(url: string | null | undefined): boolean {
   if (!url) return false;
   try {
     const { pathname } = new URL(url);
-    return pathname.endsWith('.webp') && pathname.includes('/planet-skins/textures/');
+    return pathname.endsWith('.webp')
+      && pathname.includes(`/planet-skins/textures/${PLANET_TEXTURE_VERSION}/`);
   } catch {
-    return url.endsWith('.webp') && url.includes('/planet-skins/textures/');
+    return url.endsWith('.webp')
+      && url.includes(`/planet-skins/textures/${PLANET_TEXTURE_VERSION}/`);
   }
 }
 
@@ -41,52 +46,16 @@ async function convertGeneratedSkinToTextureMap(imageUrl: string, skinId: string
     throw new Error(`Failed to fetch generated planet skin: ${response.status}`);
   }
   const source = Buffer.from(await response.arrayBuffer());
-  const image = sharp(source, { failOn: 'none' });
-  const metadata = await image.metadata();
-  const sourceWidth = metadata.width ?? 0;
-  const sourceHeight = metadata.height ?? 0;
-  if (sourceWidth <= 0 || sourceHeight <= 0) {
-    throw new Error('Generated planet skin has invalid dimensions');
-  }
+  const normalized = await normalizePlanetTexture(source);
 
-  const targetWidth = Math.min(sourceWidth, sourceHeight * 2);
-  const targetHeight = Math.floor(targetWidth / 2);
-  const cropLeft = Math.max(0, Math.floor((sourceWidth - targetWidth) / 2));
-  const cropTop = Math.max(0, Math.floor((sourceHeight - targetHeight) / 2));
-  const cropped = await image
-    .extract({
-      left: cropLeft,
-      top: cropTop,
-      width: Math.floor(targetWidth),
-      height: targetHeight,
-    })
-    .resize(2048, 1024, { fit: 'fill' })
-    .toBuffer();
-  const edgeBlend = 64;
-  const leftEdge = await sharp(cropped)
-    .extract({ left: 0, top: 0, width: edgeBlend, height: 1024 })
-    .toBuffer();
-  const rightEdge = await sharp(cropped)
-    .extract({ left: 2048 - edgeBlend, top: 0, width: edgeBlend, height: 1024 })
-    .toBuffer();
-  const blendedLeft = await sharp(leftEdge)
-    .composite([{ input: rightEdge, blend: 'lighten' }])
-    .toBuffer();
-  const blendedRight = await sharp(rightEdge)
-    .composite([{ input: leftEdge, blend: 'lighten' }])
-    .toBuffer();
-  const texture = await sharp(cropped)
-    .composite([
-      { input: blendedLeft, left: 0, top: 0 },
-      { input: blendedRight, left: 2048 - edgeBlend, top: 0 },
-    ])
-    .webp({ quality: 88, effort: 4 })
-    .toBuffer();
-
-  const blob = await put(`planet-skins/textures/${skinId}.webp`, texture, {
-    access: 'public',
-    contentType: 'image/webp',
-  });
+  const blob = await put(
+    `planet-skins/textures/${PLANET_TEXTURE_VERSION}/${skinId}.webp`,
+    normalized.buffer,
+    {
+      access: 'public',
+      contentType: 'image/webp',
+    },
+  );
   return blob.url;
 }
 

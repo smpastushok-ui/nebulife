@@ -46,8 +46,9 @@ function describeAtmosphere(planet: Planet): string {
 
 /**
  * Builds a texture-map prompt, not a cinematic camera prompt.
- * Nano Banana 2 is asked for a 21:9 panoramic map; backend crops it to 2:1
- * before the client wraps it on a sphere.
+ * Nano Banana 2 is asked for its supported 21:9 panoramic canvas. The backend
+ * center-crops without stretching, repairs the longitude join, and encodes an
+ * exact 2:1 map before the client wraps it on a sphere.
  */
 export function buildPlanetSkinPrompt(system: StarSystem, planet: Planet, kind: PlanetSkinKind): string {
   const star = system.star;
@@ -67,19 +68,20 @@ export function buildPlanetSkinPrompt(system: StarSystem, planet: Planet, kind: 
 
   return [
     'Create a seamless equirectangular planetary texture map for wrapping onto a 3D sphere.',
-    'FORMAT: 21:9 ultra-wide longitude-latitude panorama texture map. The game backend will center-crop it to a 2:1 texture map.',
-    'CRITICAL SAFE CROP: keep all important terrain/cloud detail inside the central 95% width; avoid unique features only at the far left or far right edges.',
+    'FORMAT: one continuous 21:9 longitude-latitude panorama canvas; the backend will center-crop it without stretching and encode an exact 2:1 map.',
+    'CRITICAL SAFE CROP: keep important terrain and cloud detail inside the central 85% width; the outer strips are longitude overlap allowance.',
     'CRITICAL: fill the entire image with surface/atmosphere texture data only. No black space, no planet silhouette, no circular planet in frame, no camera view, no background, no starfield, no spacecraft.',
     'This is not a photograph of a planet in space. It is a flat diffuse albedo texture map that will be wrapped onto a 3D sphere by game code.',
     'Projection must be longitude-latitude equirectangular, horizontally seamless at the left and right edges, minimal polar distortion.',
     'SEAMLESS WRAP: the far left and far right edges must match in color, terrain and cloud continuation; avoid a visible vertical seam after wrapping.',
+    'The panorama must be a single coherent map: no collage, no tiled/repeated panels, no vertical slices, no stitching boundaries, no duplicated continents.',
     `Use case: ${useCase}.`,
     `Planet: ${planet.name}, type ${planet.type}, ${temp}, radius ${planet.radiusEarth.toFixed(2)} Earth radii, mass ${planet.massEarth.toFixed(2)} Earth masses.`,
     `Visual identity: ${surface}.`,
     `Atmosphere: ${atmosphere}.`,
     `Hydrosphere: ${waterPct}. Biology: ${planet.hasLife ? `${planet.lifeComplexity} life signatures` : 'no visible life'}.`,
     `Orbital context: ${moons}, orbit ${planet.orbit.semiMajorAxisAU.toFixed(2)} AU around a ${star.spectralClass}${star.subType} star (${Math.round(star.temperatureK)}K).`,
-    'Flat matte diffuse texture, no strong directional lighting, no terminator shadow, no black night side, no glossy highlights; the game renderer adds all lighting.',
+    'Flat matte diffuse albedo texture, uniform exposure, no baked directional lighting, no terminator shadow, no black night side, no glossy highlights; the game renderer adds all lighting.',
     'Do not add labels, borders, UI, text, black bars, vignettes, lens flares, or empty margins.',
     'Scientific realism, NASA planetary map style, high detail terrain/cloud pattern, natural muted colors, procedural uniqueness.',
   ].join(' ');

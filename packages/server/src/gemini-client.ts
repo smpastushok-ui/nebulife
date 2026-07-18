@@ -40,13 +40,14 @@ const SUPPORTED_RATIOS: Array<{ label: string; value: number }> = [
   { label: '1:1', value: 1 },
   { label: '4:3', value: 4 / 3 },
   { label: '16:9', value: 16 / 9 },
+  { label: '21:9', value: 21 / 9 },
 ];
 
 export interface GeminiGenerateImageRequest {
   prompt: string;
   screenWidth?: number;
   screenHeight?: number;
-  aspectRatio?: string; // Override: '16:9' | '9:16' | '4:3' | '3:4' | '1:1'
+  aspectRatio?: string; // Override: '21:9' | '16:9' | '9:16' | '4:3' | '3:4' | '1:1'
   imageSize?: string;
   uploadPrefix?: string;
 }

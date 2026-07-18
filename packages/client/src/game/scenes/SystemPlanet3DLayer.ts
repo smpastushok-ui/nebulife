@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { Planet, Star } from '@nebulife/core';
 import { coronaFragmentShader, coronaVertexShader, sunFragmentShader, sunVertexShader } from '../shaders/SunShaders.js';
 import { getDeviceTier } from '../../utils/device-tier.js';
+import { configurePlanetTexture } from '../rendering/PlanetTexture.js';
 
 export interface SystemPlanet3DNode {
   planet: Planet;
@@ -146,11 +147,6 @@ const PLANET_FRAG = `
   void main() {
     vec2 uv = vec2(fract(vUv.x + uLongitude), vUv.y);
     vec3 base = uHasMap > 0.5 ? texture2D(uMap, uv).rgb : vec3(0.42, 0.48, 0.52);
-    if (uHasMap > 0.5) {
-      float seam = smoothstep(0.0, 0.035, uv.x) * (1.0 - smoothstep(0.965, 1.0, uv.x));
-      vec3 wrapSample = texture2D(uMap, vec2(fract(uv.x + 0.5), uv.y)).rgb;
-      base = mix(wrapSample, base, seam);
-    }
     vec3 n = normalize(vWorldNormal);
     vec3 lightDir = normalize(uLightDir);
     float daylight = dot(n, lightDir);
@@ -667,12 +663,7 @@ export class SystemPlanet3DLayer {
         texture.dispose();
         return;
       }
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.wrapS = THREE.RepeatWrapping;
-      texture.wrapT = THREE.ClampToEdgeWrapping;
-      texture.minFilter = THREE.LinearMipmapLinearFilter;
-      texture.magFilter = THREE.LinearFilter;
-      texture.anisotropy = Math.min(this.renderer.capabilities.getMaxAnisotropy(), 8);
+      configurePlanetTexture(texture, this.renderer.capabilities.getMaxAnisotropy());
       this.textureCache.set(textureUrl, texture);
       record.texture = texture;
       record.texturePending = false;

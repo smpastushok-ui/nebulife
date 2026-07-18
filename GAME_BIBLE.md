@@ -1067,6 +1067,14 @@ GET /api/surface/status/:id (polling кожні 5с)
 - Surface resource widget показує локальні ресурси планети як `добуто / ліміт`; розділені хімічні елементи показуються тільки після L48.
 - Solid planets отримують deterministic economy floor для finite stocks: у середньому ресурсна цінність планети ≈ 1.5× від орієнтовної вартості її тераформування, але без прямого 1:1 повернення. Seed-based variance і природні bias-и розкидають багатство між minerals / volatiles / isotopes / water, щоб гравець обирав ціль уважно.
 
+### 12.6 Planet skin texture contract
+
+- Нові globe skins зберігаються як versioned WebP у `planet-skins/textures/v2/`, завжди **2048×1024 (2:1)**.
+- Gemini генерує один безперервний flat equirectangular albedo panorama без диска планети, космічного фону, baked lighting, collage/vertical slices або тексту.
+- Сервер робить center-crop `fit: cover` без деформації чи тайлінгу, seam-aware horizontal feather, deterministic 180° longitude offset і WebP encode.
+- Three.js використовує sRGB, horizontal repeat, vertical clamp, mipmaps, linear filtering та capped anisotropy. Shader не підмішує довільну протилежну довготу біля UV seam.
+- Legacy/raw/v1 URL не накладаються на сферу: клієнт лишає procedural fallback. Повторна генерація існуючого legacy skin безкоштовно ремонтує запис у v2; live DB backfill автоматично не запускається.
+
 ---
 
 ## 13. 3D моделі кораблів (Tripo)

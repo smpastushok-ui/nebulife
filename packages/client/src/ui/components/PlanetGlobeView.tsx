@@ -21,6 +21,7 @@ import {
   STAR_SPRITE_POSITION,
 } from '../../game/rendering/PlanetVisuals.js';
 import { createAaaPlanetMaterial } from '../../game/rendering/AaaPlanetVisuals.js';
+import { configurePlanetTexture } from '../../game/rendering/PlanetTexture.js';
 
 // GLSL shader imports (Vite ?raw)
 import planetVertSrc from '../../shaders/planet/planet.vert.glsl?raw';
@@ -660,13 +661,7 @@ function createPlanetSphere(
   const geometry = new THREE.SphereGeometry(1, segs, segs);
   const generatedTexture = textureUrl ? new THREE.TextureLoader().load(textureUrl) : null;
   if (generatedTexture) {
-    generatedTexture.colorSpace = THREE.SRGBColorSpace;
-    generatedTexture.wrapS = THREE.RepeatWrapping;
-    generatedTexture.wrapT = THREE.ClampToEdgeWrapping;
-    generatedTexture.minFilter = THREE.LinearMipmapLinearFilter;
-    generatedTexture.magFilter = THREE.LinearFilter;
-    generatedTexture.anisotropy = Math.max(1, Math.min(maxAnisotropy, 8));
-    generatedTexture.generateMipmaps = true;
+    configurePlanetTexture(generatedTexture, maxAnisotropy);
   }
   const aaaMaterial = !generatedTexture && lod.aaaExosphere
     ? createAaaPlanetMaterial(planet, star, visuals, lod.exosphereQuality)

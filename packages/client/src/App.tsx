@@ -6,6 +6,7 @@ import i18n, { LanguageProvider, useT } from './i18n/index.js';
 import type { Language } from '@nebulife/core';
 import { GameEngine } from './game/GameEngine.js';
 import { UniverseEngine } from './game/UniverseEngine.js';
+import { isNormalizedPlanetTextureUrl as isPlanetTextureMapUrl } from './game/rendering/PlanetTexture.js';
 import {
   enqueuePrecursorAcquisition,
   dequeuePrecursorAcquisition,
@@ -1440,16 +1441,6 @@ function clearAccountScopedLocalStorage(nextUid?: string): void {
 
 function getUnlockPopupStorageKey(playerId: string, id: UnlockPopupKind): string {
   return `nebulife_unlock_popup_${playerId || 'guest'}_${id}`;
-}
-
-function isPlanetTextureMapUrl(url: string | null | undefined): url is string {
-  if (!url) return false;
-  try {
-    const parsed = new URL(url, window.location.origin);
-    return parsed.pathname.endsWith('.webp') && parsed.pathname.includes('/planet-skins/textures/');
-  } catch {
-    return url.endsWith('.webp') && url.includes('/planet-skins/textures/');
-  }
 }
 
 // Crash guard for the WebGL boot intro. A shader/WebGL failure must never
