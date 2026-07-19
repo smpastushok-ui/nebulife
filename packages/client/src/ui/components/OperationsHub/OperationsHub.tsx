@@ -20,6 +20,7 @@ export type OpsTab = 'directives' | 'rating' | 'signals' | 'event' | 'megastruct
 
 export interface OperationsHubProps {
   initialTab?: OpsTab;
+  targetEventId?: string | null;
   /** Notifies the host about tab switches (drives first-time onboarding triggers). */
   onTabChange?: (tab: OpsTab) => void;
   onClose: () => void;
@@ -193,6 +194,7 @@ export function OperationsHub(props: OperationsHubProps) {
               claiming={props.cometClaiming}
               onStartTracking={props.onStartCometTracking}
               playerId={props.playerId}
+              targetEventId={props.targetEventId}
               onLiveEventClaimed={props.onLiveEventClaimed}
             />
           )}

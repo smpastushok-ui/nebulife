@@ -1346,7 +1346,14 @@
     "research_available_in": "Доступно через {{time}}",
     "research_window": "Вікно закриється через {{time}}",
     "research_logged": "Дослідження зафіксовано",
-    "research_inactive": "Подія неактивна"
+    "research_inactive": "Подія неактивна",
+    "research_tracking": "Фіксація сигналу обсерваторією",
+    "reveal_received": "Спостереження завершено",
+    "reveal_replay": "Переглянути спостереження",
+    "reveal_no_media": "Дослідження зафіксовано. До цієї події не додано візуальних матеріалів.",
+    "reveal_media_error": "Матеріал події не вдалося завантажити. Повторіть перегляд із досьє події.",
+    "reveal_video_hint": "Запустіть запис кнопкою відтворення. Звук залишається під вашим контролем.",
+    "deep_link_unavailable": "Досьє цієї події більше недоступне."
   },
   "observatory": {
     "title": "Обсерваторія Nebulife",
@@ -1360,6 +1367,8 @@
     "xp_progress": "{{current}} / {{required}} XP",
     "max_level": "Максимальний рівень досягнуто",
     "active_searches": "Активні пошуки",
+    "command_title": "Поточна операція",
+    "slots_status": "Активні канали: {{active}} / {{max}}",
     "catalog_progress": "Знайдено сигналів каталогу: {{found}}",
     "program_label": "Фокус обсерваторії",
     "in_progress": "Пошуки в процесі",
@@ -1991,6 +2000,7 @@
     "tab_rating": "РЕЙТИНГ",
     "tab_signals": "СИГНАЛИ",
     "tab_event": "ПОДІЯ",
+    "push_event_target": "Ціль сповіщення знайдено. Перегляньте подію та скористайтеся підсвіченою дією спостереження.",
     "tab_megastructure": "МАЯК",
     "tab_saga": "САГА",
     "loading": "Завантаження…",

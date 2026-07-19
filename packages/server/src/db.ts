@@ -3039,7 +3039,7 @@ export interface CosmicEventRow {
 }
 
 /**
- * Upcoming cosmic events (event_time in the future), soonest first.
+ * Active (24h research window) and upcoming cosmic events, soonest first.
  * Read-only; events are authored directly in the `cosmic_events` table.
  * Returns [] gracefully if the table does not exist yet (pre-migration).
  */
@@ -3050,7 +3050,7 @@ export async function getUpcomingCosmicEvents(limit = 10): Promise<CosmicEventRo
       SELECT id, title_uk, title_en, description_uk, description_en,
              event_time, photo_url, video_url
       FROM cosmic_events
-      WHERE event_time > NOW()
+      WHERE event_time + INTERVAL '24 hours' > NOW()
       ORDER BY event_time ASC
       LIMIT ${limit}
     `;
@@ -3058,6 +3058,25 @@ export async function getUpcomingCosmicEvents(limit = 10): Promise<CosmicEventRo
   } catch (err) {
     console.error('getUpcomingCosmicEvents error (table missing?):', err);
     return [];
+  }
+}
+
+/** Authoritative event lookup for push deep links and completed-event replay. */
+export async function getCosmicEventById(id: string): Promise<CosmicEventRow | null> {
+  if (!/^\d{1,20}$/.test(id)) return null;
+  const sql = getSQL();
+  try {
+    const rows = await sql`
+      SELECT id, title_uk, title_en, description_uk, description_en,
+             event_time, photo_url, video_url
+      FROM cosmic_events
+      WHERE id = ${id}
+      LIMIT 1
+    `;
+    return (rows[0] as CosmicEventRow) ?? null;
+  } catch (err) {
+    console.error('getCosmicEventById error:', err);
+    return null;
   }
 }
 

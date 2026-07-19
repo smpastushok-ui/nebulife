@@ -66,6 +66,7 @@ import {
   COMET_TRACKING_DURATION_MS,
   getLiveEventDef,
   liveEventPhotoUrl,
+  LIVE_EVENT_ASSET_BASE,
   pickDailyDirectives,
   normalizeDailyDirectiveState,
   bumpDirectiveMetric,
@@ -320,6 +321,7 @@ import { ColonyFoundingPrompt } from './ui/components/ColonyFoundingPrompt.js';
 import { getPlayer, createPlayer, getDiscoveries, saveDiscoveryToServer, updatePlayer, updateFcmToken, sendTestPush, fetchUniverseInfo, uploadPlayerAvatar, removePlayerAvatar, fetchGalaxyStats, type GalaxyStats } from './api/player-api.js';
 import type { DiscoveryData } from './api/player-api.js';
 import { requestPushPermissionDetailed, startForegroundListener, ensurePushTokenIfGranted, startTokenRefreshListener } from './notifications/push-service.js';
+import { captureInitialPushIntent, consumePushIntent, parsePushIntent, persistPushIntent } from './notifications/push-intent.js';
 import { getCurrentUser, onAuthChange, signOut, ensureGuestSession } from './auth/auth-service.js';
 import { getDeviceId } from './auth/device-id.js';
 import { authFetch, apiFetch } from './auth/api-client.js';
@@ -357,7 +359,9 @@ import { applyPlanetMissionDurationMultiplier, getPlanetMissionDurationMultiplie
 import { ElementResultCard } from './ui/components/ColonyCenter/ElementResultCard.js';
 import type { ElementResult } from './ui/components/ColonyCenter/ElementResultCard.js';
 import { DnaConstructorGame } from './ui/components/ColonyCenter/DnaConstructorGame.js';
-import { fetchUpcomingCosmicEvents } from './api/events-api.js';
+import { fetchCosmicEventById, fetchUpcomingCosmicEvents } from './api/events-api.js';
+import { CosmicEventRevealHost, enqueueCosmicEventReveal } from './ui/components/CosmicEventReveal.js';
+import { CosmicEventDetailModal, readResearchedEventIds, writeResearchedEvent } from './ui/components/ColonyCenter/BuildingDetailPanel.js';
 import { SpaceAmbient } from './audio/SpaceAmbient.js';
 import type { SharedLessonInfo } from './ui/components/Academy/AcademyDashboard.js';
 import { PlayerPage } from './ui/components/PlayerPage.js';
@@ -2858,6 +2862,10 @@ function AppInner() {
   });
   const [showOpsHub, setShowOpsHub] = useState(false);
   const [opsHubTab, setOpsHubTab] = useState<OpsTab>('directives');
+  const [opsTargetEventId, setOpsTargetEventId] = useState<string | null>(null);
+  const [deepLinkedCosmicEvent, setDeepLinkedCosmicEvent] = useState<CosmicEvent | null>(null);
+  const [, setDeepLinkedEventResearchVersion] = useState(0);
+  const [pushIntentVersion, setPushIntentVersion] = useState(0);
   /** Tab the player currently LOOKS at inside the Operations Hub (initialTab
    *  + live onTabChange) — drives the first-time Beacon onboarding trigger. */
   const [opsHubViewedTab, setOpsHubViewedTab] = useState<OpsTab>('directives');
@@ -12365,6 +12373,12 @@ function AppInner() {
           planetId: null,
           photoUrl: COMET_PHOTO_URL,
         }).catch((err) => console.warn('[comet] gallery save failed:', err));
+        enqueueCosmicEventReveal({
+          key: `comet-herald:${result.occurrenceDate}`,
+          titleUk: i18n.getFixedT('uk')('ops.comet_name'),
+          titleEn: i18n.getFixedT('en')('ops.comet_name'),
+          photoUrl: COMET_PHOTO_URL,
+        });
         addLogEntry('science', i18n.t('ops.log_comet_claimed'));
         scheduleSyncToServer();
       })
@@ -12408,6 +12422,13 @@ function AppInner() {
     // Epic gallery entry (event-only catalog type, bundled art)
     const sysId = (surfaceTargetRef.current?.system ?? homeInfoRef.current?.system)?.id ?? 'home';
     const photoUrl = liveEventPhotoUrl(eventId);
+    enqueueCosmicEventReveal({
+      key: `${eventId}:${occurrenceDate}`,
+      titleUk: cat.nameUk,
+      titleEn: cat.nameEn,
+      photoUrl,
+      videoUrl: `${LIVE_EVENT_ASSET_BASE}/${eventId}.mp4`,
+    });
     const entry: DiscoveryData = {
       id: `${eventId}-${occurrenceDate}`,
       player_id: playerId.current,
@@ -12657,14 +12678,17 @@ function AppInner() {
     updatePlayer(pid, { preferred_language: lang }).catch(() => {});
   }, [lang]);
 
-  // ── URL param: ?action=open-digest (from push notification click) ─────
+  // Capture an allowlisted push intent before auth/game-state hydration. The
+  // pending value is consumed only after the app is ready, so scene defaults
+  // cannot overwrite cold-start navigation.
   useEffect(() => {
     try {
+      captureInitialPushIntent();
       const url = new URL(window.location.href);
-      if (url.searchParams.get('action') === 'open-digest') {
-        window.dispatchEvent(new CustomEvent('nebulife:open-digest'));
-        url.searchParams.delete('action');
-        url.searchParams.delete('weekDate');
+      if (url.searchParams.has('action')) {
+        ['action', 'target', 'eventId', 'occurrenceDate', 'weekDate', 'notificationId'].forEach((key) => {
+          url.searchParams.delete(key);
+        });
         window.history.replaceState({}, '', url.toString());
       }
     } catch { /* ignore */ }
@@ -12679,6 +12703,8 @@ function AppInner() {
         setToastMessage('Test push received');
         setTimeout(() => setToastMessage(null), 2500);
       }
+      // Foreground receipt is informative only. Navigation happens on the
+      // explicit notification action event below.
     };
     const handlePushDigest = () => {
       window.dispatchEvent(new CustomEvent('nebulife:open-digest'));
@@ -12687,11 +12713,16 @@ function AppInner() {
     // iOS deliberately ignores external redirects from push (App Store 4.5.4).
     const handleOpenNotification = (event: Event) => {
       const detail = (event as CustomEvent<{ action?: string; data?: Record<string, string> }>).detail;
-      if (detail?.action !== 'open-url') return;
-      if (Capacitor.getPlatform() !== 'android') return;
-      const url = detail.data?.link ?? detail.data?.url ?? '';
-      if (/^https?:\/\//i.test(url)) {
-        window.open(url, '_blank', 'noopener,noreferrer');
+      const data = { ...(detail?.data ?? {}), ...(detail?.action ? { action: detail.action } : {}) };
+      const intent = parsePushIntent(data);
+      if (intent) {
+        persistPushIntent(intent);
+        setPushIntentVersion((value) => value + 1);
+        return;
+      }
+      if (detail?.action === 'open-url' && Capacitor.getPlatform() === 'android') {
+        const url = detail.data?.link ?? detail.data?.url ?? '';
+        if (/^https?:\/\//i.test(url)) window.open(url, '_blank', 'noopener,noreferrer');
       }
     };
     window.addEventListener('nebulife:push-notification', handleForegroundPush);
@@ -12706,11 +12737,13 @@ function AppInner() {
       };
     }
     const handleSwMessage = (e: MessageEvent) => {
-      if (e.data?.type === 'open-digest') {
-        window.dispatchEvent(new CustomEvent('nebulife:open-digest', {
-          detail: { weekDate: e.data.weekDate },
-        }));
-      }
+      const raw = e.data?.data && typeof e.data.data === 'object'
+        ? { ...e.data.data, action: e.data.type ?? e.data.data.action }
+        : { action: e.data?.type ?? '', weekDate: e.data?.weekDate ?? '' };
+      const intent = parsePushIntent(raw);
+      if (!intent) return;
+      persistPushIntent(intent);
+      setPushIntentVersion((value) => value + 1);
     };
     navigator.serviceWorker.addEventListener('message', handleSwMessage);
     return () => {
@@ -12721,6 +12754,36 @@ function AppInner() {
       window.removeEventListener('nebulife:open-notification', handleOpenNotification);
     };
   }, []);
+
+  useEffect(() => {
+    const hydrated = serverHydrated || !isFirebaseConfigured;
+    if (!hydrated || authLoading || needsOnboarding || needsCallsign) return;
+    const intent = consumePushIntent();
+    if (!intent) return;
+
+    if (intent.kind === 'digest') {
+      window.dispatchEvent(new CustomEvent('nebulife:open-digest', {
+        detail: { weekDate: intent.weekDate ?? '' },
+      }));
+      return;
+    }
+    if (intent.kind === 'operations-event') {
+      setOpsTargetEventId(intent.eventId ?? null);
+      setOpsHubTab('event');
+      setOpsHubViewedTab('event');
+      setShowOpsHub(true);
+      return;
+    }
+
+    fetchCosmicEventById(intent.eventId).then((event) => {
+      if (event) {
+        setDeepLinkedCosmicEvent(event);
+      } else {
+        setToastMessage(i18n.t('events.deep_link_unavailable'));
+        window.setTimeout(() => setToastMessage(null), 3500);
+      }
+    });
+  }, [authLoading, needsCallsign, needsOnboarding, pushIntentVersion, serverHydrated]);
 
   // ── FCM token acquisition + (re)registration ──────────────────────────
   // Root-cause fix for "I get no pushes": the FCM token was saved ONLY when a
@@ -16037,8 +16100,9 @@ function AppInner() {
       {showOpsHub && (
         <OperationsHub
           initialTab={opsHubTab}
+          targetEventId={opsTargetEventId}
           onTabChange={setOpsHubViewedTab}
-          onClose={() => setShowOpsHub(false)}
+          onClose={() => { setShowOpsHub(false); setOpsTargetEventId(null); }}
           playerId={playerId.current}
           playerLevel={playerLevel}
           directiveState={dailyDirectives}
@@ -16062,6 +16126,19 @@ function AppInner() {
           sagaUnreadCount={sagaChapters.unreadCount}
         />
       )}
+      {deepLinkedCosmicEvent && (
+        <CosmicEventDetailModal
+          event={deepLinkedCosmicEvent}
+          telescopeAvailable
+          researched={readResearchedEventIds().has(deepLinkedCosmicEvent.id)}
+          onResearch={(eventId) => {
+            writeResearchedEvent(eventId);
+            setDeepLinkedEventResearchVersion((value) => value + 1);
+          }}
+          onClose={() => setDeepLinkedCosmicEvent(null)}
+        />
+      )}
+      <CosmicEventRevealHost />
       {/* Cosmic event countdown moved off-screen into the orbital telescope /
           observatory building (see HexSurface buildingCountdowns overlay). */}
       {/* Player Page (profile, quarks, logout, reset) */}

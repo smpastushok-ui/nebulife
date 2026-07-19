@@ -159,6 +159,16 @@ function nextUtcHour(hourUtc: number): string {
  * Comet Herald event push. mode 'tomorrow' = heads-up the day before;
  * mode 'today' = window-open reminder on the fly-by day.
  */
+export function buildCometPushData(occurrenceDate: string): Record<string, string> {
+  return {
+    action: 'open-event',
+    target: 'operations',
+    eventId: 'comet-herald',
+    occurrenceDate,
+    link: `/?action=open-event&target=operations&eventId=comet-herald&occurrenceDate=${encodeURIComponent(occurrenceDate)}`,
+  };
+}
+
 export async function enqueueCometEventPush(input: PushEventBase & {
   occurrenceDate: string;
   mode: 'tomorrow' | 'today';
@@ -180,11 +190,7 @@ export async function enqueueCometEventPush(input: PushEventBase & {
     playerId: input.playerId,
     type: 'comet_event',
     ...copy,
-    data: {
-      action: 'open-game',
-      occurrenceDate: input.occurrenceDate,
-      link: '/?action=open-game',
-    },
+    data: buildCometPushData(input.occurrenceDate),
     priority: 4,
     maxAttempts: 2,
     dedupeKey: `comet:${input.playerId}:${input.occurrenceDate}:${input.mode}`,

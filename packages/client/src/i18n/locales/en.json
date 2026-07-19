@@ -1346,7 +1346,14 @@
     "research_available_in": "Available in {{time}}",
     "research_window": "Window closes in {{time}}",
     "research_logged": "Research logged",
-    "research_inactive": "Event inactive"
+    "research_inactive": "Event inactive",
+    "research_tracking": "Locking observatory signal",
+    "reveal_received": "Observation complete",
+    "reveal_replay": "View observation",
+    "reveal_no_media": "Research is logged. No visual media is attached to this event.",
+    "reveal_media_error": "The event media could not be loaded. You can retry from the event dossier.",
+    "reveal_video_hint": "Use the play control to start the recording. Sound remains under your control.",
+    "deep_link_unavailable": "This event dossier is no longer available."
   },
   "observatory": {
     "title": "Nebulife Observatory",
@@ -1360,6 +1367,8 @@
     "xp_progress": "{{current}} / {{required}} XP",
     "max_level": "Maximum level reached",
     "active_searches": "Active searches",
+    "command_title": "Current operation",
+    "slots_status": "{{active}} / {{max}} channels active",
     "catalog_progress": "{{found}} catalog signals found",
     "program_label": "Observatory focus",
     "in_progress": "Searches in progress",
@@ -1991,6 +2000,7 @@
     "tab_rating": "RATING",
     "tab_signals": "SIGNALS",
     "tab_event": "EVENT",
+    "push_event_target": "Notification target acquired. Review this event and use the highlighted observation action.",
     "tab_megastructure": "BEACON",
     "tab_saga": "SAGA",
     "loading": "Loading…",

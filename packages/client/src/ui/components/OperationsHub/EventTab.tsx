@@ -28,6 +28,7 @@ interface EventTabProps {
   trackingStartedAt: number | null;
   claiming: boolean;
   onStartTracking: () => void;
+  targetEventId?: string | null;
   /** Live events (self-contained section below the comet). */
   playerId: string;
   onLiveEventClaimed: (
@@ -89,14 +90,23 @@ function CometArt() {
   );
 }
 
-export function EventTab({ schedule, claimed, trackingStartedAt, claiming, onStartTracking, playerId, onLiveEventClaimed }: EventTabProps) {
+export function EventTab({ schedule, claimed, trackingStartedAt, claiming, onStartTracking, playerId, targetEventId, onLiveEventClaimed }: EventTabProps) {
   const { t, i18n } = useTranslation();
   const [now, setNow] = useState(Date.now());
+  const targetRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    if (!targetEventId) return;
+    window.setTimeout(() => {
+      targetRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      targetRef.current?.focus();
+    }, 120);
+  }, [targetEventId]);
 
   const tracking = trackingStartedAt != null && now - trackingStartedAt < COMET_TRACKING_DURATION_MS;
   const trackingPct = trackingStartedAt != null
@@ -110,10 +120,19 @@ export function EventTab({ schedule, claimed, trackingStartedAt, claiming, onSta
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {targetEventId && (
+        <div role="status" style={{
+          border: '1px solid #7bb8ff', borderRadius: 4, padding: '9px 10px',
+          background: 'rgba(123,184,255,0.1)', color: '#cfe3ff', fontSize: 10, lineHeight: 1.45,
+        }}>
+          {t('ops.push_event_target')}
+        </div>
+      )}
       {/* Hero */}
-      <div style={{
+      <div ref={targetEventId === 'comet-herald' ? targetRef : undefined} tabIndex={targetEventId === 'comet-herald' ? -1 : undefined} style={{
         border: `1px solid ${BORDER}`, borderRadius: 4, overflow: 'hidden',
         background: 'rgba(4,8,16,0.9)',
+        outline: targetEventId === 'comet-herald' ? '2px solid rgba(123,184,255,0.8)' : 'none',
       }}>
         <CometArt />
         <div style={{ padding: '10px 12px', borderTop: `1px solid ${BORDER}` }}>
@@ -211,7 +230,7 @@ export function EventTab({ schedule, claimed, trackingStartedAt, claiming, onSta
       </div>
 
       {/* Recurring live events */}
-      <LiveEventsSection playerId={playerId} now={now} onClaimed={onLiveEventClaimed} />
+      <LiveEventsSection playerId={playerId} now={now} targetEventId={targetEventId} targetRef={targetRef} onClaimed={onLiveEventClaimed} />
     </div>
   );
 }
@@ -237,9 +256,11 @@ function loadLiveClaims(): LiveClaims {
   return {};
 }
 
-function LiveEventsSection({ playerId, now, onClaimed }: {
+function LiveEventsSection({ playerId, now, targetEventId, targetRef, onClaimed }: {
   playerId: string;
   now: number;
+  targetEventId?: string | null;
+  targetRef: React.RefObject<HTMLDivElement | null>;
   onClaimed: EventTabProps['onLiveEventClaimed'];
 }) {
   const { t } = useTranslation();
@@ -308,6 +329,8 @@ function LiveEventsSection({ playerId, now, onClaimed }: {
           trackingStartedAt={trackingStarts[def.id] ?? null}
           claiming={claimingIds[def.id] ?? false}
           error={errorId === def.id}
+          highlighted={targetEventId === def.id}
+          targetRef={targetEventId === def.id ? targetRef : undefined}
           onStartTracking={() => startTracking(def)}
         />
       ))}
@@ -370,7 +393,7 @@ function LiveEventMedia({ eventId }: { eventId: string }) {
   );
 }
 
-function LiveEventCard({ def, schedule, now, claimed, trackingStartedAt, claiming, error, onStartTracking }: {
+function LiveEventCard({ def, schedule, now, claimed, trackingStartedAt, claiming, error, highlighted, targetRef, onStartTracking }: {
   def: LiveEventDef;
   schedule: LiveEventSchedule;
   now: number;
@@ -378,6 +401,8 @@ function LiveEventCard({ def, schedule, now, claimed, trackingStartedAt, claimin
   trackingStartedAt: number | null;
   claiming: boolean;
   error: boolean;
+  highlighted?: boolean;
+  targetRef?: React.RefObject<HTMLDivElement | null>;
   onStartTracking: () => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -396,10 +421,11 @@ function LiveEventCard({ def, schedule, now, claimed, trackingStartedAt, claimin
   const borderColor = claimed ? 'rgba(68,255,136,0.4)' : active ? ACCENT : BORDER;
 
   return (
-    <div style={{
+    <div ref={targetRef} tabIndex={highlighted ? -1 : undefined} style={{
       border: `1px solid ${borderColor}`, borderRadius: 4, overflow: 'hidden',
       background: 'rgba(4,8,16,0.9)',
       animation: active && !claimed ? 'opsSoftPulse 2.4s infinite' : undefined,
+      outline: highlighted ? '2px solid rgba(123,184,255,0.8)' : 'none',
     }}>
       <div style={{ display: 'flex', gap: 10, padding: 10 }}>
         <LiveEventMedia eventId={def.id} />

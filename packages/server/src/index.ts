@@ -221,6 +221,9 @@ export {
   listEmergencyTransmissionEpisodes,
   saveEmergencyTransmissionEpisode,
   archiveEmergencyTransmissionEpisode,
+  // Cosmic Events
+  getUpcomingCosmicEvents,
+  getCosmicEventById,
 } from './db.js';
 
 export type {
@@ -274,6 +277,7 @@ export type {
   SagaChapterRow,
   EmergencyTransmissionEpisodeRow,
   ClaimEmergencyTransmissionResult,
+  CosmicEventRow,
 } from './db.js';
 
 export {

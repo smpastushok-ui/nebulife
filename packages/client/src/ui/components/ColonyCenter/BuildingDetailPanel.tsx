@@ -19,6 +19,7 @@ import {
 } from './building-detail-model.js';
 import { type ElementResult, resultAccent } from './ElementResultCard.js';
 import { useBiosphereCareAvailable } from '../../../hooks/useBiosphereCareAvailable.js';
+import { enqueueCosmicEventReveal } from '../CosmicEventReveal.js';
 
 type ColonyResources = Record<ColonyResourceKey, number>;
 
@@ -86,6 +87,7 @@ const CARD_BG = 'rgba(10,15,25,0.62)';
 const BORDER = '#233344';
 const ACTIVE_BORDER = '#446688';
 const EVENT_RESEARCH_WINDOW_MS = 24 * 60 * 60 * 1000;
+const EVENT_RESEARCH_DURATION_MS = 8_000;
 const EVENT_RESEARCH_STORAGE_KEY = 'nebulife_cosmic_event_research';
 
 /** Selectable bulk groups for the quantum separator, in display order. */
@@ -139,7 +141,7 @@ function formatCountdown(ms: number): string {
   return d > 0 ? `${d}d ${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(h)}:${pad(m)}:${pad(s)}`;
 }
 
-function readResearchedEventIds(): Set<string> {
+export function readResearchedEventIds(): Set<string> {
   try {
     const parsed = JSON.parse(localStorage.getItem(EVENT_RESEARCH_STORAGE_KEY) ?? '{}') as Record<string, unknown>;
     return new Set(Object.entries(parsed).filter(([, value]) => typeof value === 'number').map(([id]) => id));
@@ -148,7 +150,7 @@ function readResearchedEventIds(): Set<string> {
   }
 }
 
-function writeResearchedEvent(id: string): void {
+export function writeResearchedEvent(id: string): void {
   try {
     const parsed = JSON.parse(localStorage.getItem(EVENT_RESEARCH_STORAGE_KEY) ?? '{}') as Record<string, unknown>;
     localStorage.setItem(EVENT_RESEARCH_STORAGE_KEY, JSON.stringify({ ...parsed, [id]: Date.now() }));
@@ -254,10 +256,10 @@ function CosmicEventVisual({ event, imageless, accent }: { event: CosmicEvent; i
     return (
       <video
         src={event.videoUrl}
-        autoPlay
-        loop
         muted
+        controls
         playsInline
+        preload="metadata"
         style={{ width: '100%', aspectRatio: '16 / 7', objectFit: 'cover', borderRadius: 7, border: `1px solid ${accent}55` }}
       />
     );
@@ -300,7 +302,7 @@ function CosmicEventVisual({ event, imageless, accent }: { event: CosmicEvent; i
   );
 }
 
-function CosmicEventDetailModal({
+export function CosmicEventDetailModal({
   event,
   imageless,
   telescopeAvailable,
@@ -318,10 +320,39 @@ function CosmicEventDetailModal({
   const { t, i18n } = useTranslation();
   const accent = imageless ? '#8899aa' : '#7bb8ff';
   const { title, desc } = eventText(event, i18n.language);
+  const [trackingStartedAt, setTrackingStartedAt] = useState<number | null>(null);
+  const [trackingNow, setTrackingNow] = useState(() => Date.now());
+  const completionRef = useRef(false);
   const eventDate = new Intl.DateTimeFormat(i18n.language?.startsWith('uk') ? 'uk-UA' : 'en-US', {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(event.eventTime));
+
+  useEffect(() => {
+    if (trackingStartedAt == null) return;
+    const finishAt = trackingStartedAt + EVENT_RESEARCH_DURATION_MS;
+    const tick = () => {
+      const now = Date.now();
+      setTrackingNow(now);
+      if (now < finishAt || completionRef.current) return;
+      completionRef.current = true;
+      onResearch(event.id);
+      enqueueCosmicEventReveal({
+        key: `cosmic-event:${event.id}`,
+        titleUk: event.titleUk,
+        titleEn: event.titleEn,
+        photoUrl: event.photoUrl,
+        videoUrl: event.videoUrl,
+      });
+    };
+    tick();
+    const timer = window.setInterval(tick, 250);
+    return () => window.clearInterval(timer);
+  }, [event, onResearch, trackingStartedAt]);
+
+  const trackingProgress = trackingStartedAt == null
+    ? 0
+    : Math.min(100, ((trackingNow - trackingStartedAt) / EVENT_RESEARCH_DURATION_MS) * 100);
 
   return createPortal((
     <div
@@ -391,7 +422,37 @@ function CosmicEventDetailModal({
 
         {telescopeAvailable ? (
           <div style={{ marginTop: 14 }}>
-            <EventResearchButton event={event} researched={researched} onResearch={onResearch} />
+            {trackingStartedAt != null && !researched ? (
+              <div role="status" aria-live="polite" style={{ display: 'grid', gap: 7 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, color: '#9fd0ff', fontSize: 10 }}>
+                  <span>{t('events.research_tracking')}</span>
+                  <span>{Math.round(trackingProgress)}%</span>
+                </div>
+                <div style={{ height: 7, borderRadius: 3, overflow: 'hidden', border: '1px solid #334455', background: '#020510' }}>
+                  <div style={{ width: `${trackingProgress}%`, height: '100%', background: '#4488aa', transition: 'width 0.2s linear' }} />
+                </div>
+              </div>
+            ) : researched ? (
+              <button
+                type="button"
+                onClick={() => enqueueCosmicEventReveal({
+                  key: `cosmic-event:${event.id}`,
+                  titleUk: event.titleUk,
+                  titleEn: event.titleEn,
+                  photoUrl: event.photoUrl,
+                  videoUrl: event.videoUrl,
+                }, { replay: true })}
+                style={{
+                  width: '100%', padding: '10px 12px', borderRadius: 4,
+                  border: '1px solid #44ff88', background: 'rgba(68,255,136,0.08)',
+                  color: '#44ff88', fontFamily: 'monospace', cursor: 'pointer',
+                }}
+              >
+                {t('events.reveal_replay')}
+              </button>
+            ) : (
+              <EventResearchButton event={event} researched={false} onResearch={() => setTrackingStartedAt(Date.now())} />
+            )}
           </div>
         ) : imageless && (
           <div style={{ marginTop: 14, color: '#ffb080', fontSize: 10.5, lineHeight: 1.5, padding: 10, borderRadius: 6, background: 'rgba(255,136,68,0.08)', border: '1px solid rgba(255,136,68,0.25)' }}>
@@ -479,7 +540,27 @@ function CosmicEventCard({
               {imageless ? t('events.timing_only') : event.videoUrl ? t('events.video_ready') : event.photoUrl ? t('events.image_ready') : t('events.telemetry_only')}
             </span>
             {telescopeAvailable && (
-              <EventResearchButton event={event} researched={researched} onResearch={onResearch} compact={compact} />
+              researched ? (
+                <button
+                  type="button"
+                  onClick={() => setDetailsOpen(true)}
+                  style={{
+                    minWidth: compact ? 112 : undefined,
+                    padding: '7px 9px',
+                    borderRadius: 4,
+                    border: '1px solid rgba(68,255,136,0.45)',
+                    background: 'rgba(68,255,136,0.08)',
+                    color: '#88ccaa',
+                    fontFamily: 'monospace',
+                    fontSize: 9,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t('events.reveal_replay')}
+                </button>
+              ) : (
+                <EventResearchButton event={event} researched={false} onResearch={() => setDetailsOpen(true)} compact={compact} />
+              )
             )}
             <span style={{ flex: 1 }} />
             <button
@@ -2125,6 +2206,83 @@ export function BuildingDetailPanel({
           </div>
         )}
 
+        {type === 'observatory' && (
+          <section aria-labelledby="observatory-command-title" style={{
+            flexShrink: 0,
+            border: '1px solid #446688',
+            borderRadius: 6,
+            background: 'rgba(10,15,25,0.82)',
+            padding: compact ? 10 : 12,
+            display: 'grid',
+            gap: 9,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+              <div id="observatory-command-title" style={{ color: '#cfe3ff', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase' }}>
+                {t('observatory.command_title')}
+              </div>
+              <div style={{ color: hasObservatorySlot ? '#88bb99' : '#ff8844', fontSize: 9 }}>
+                {t('observatory.slots_status', { active: activeObservatorySessions.length, max: maxObservatorySessions })}
+              </div>
+            </div>
+
+            {activeObservatorySessions.length > 0 && (
+              <div aria-label={t('observatory.in_progress')} style={{ display: 'grid', gap: 6 }}>
+                {activeObservatorySessions.map((session) => (
+                  <ObservatorySessionCard key={session.id} session={session} now={observatoryNow} />
+                ))}
+              </div>
+            )}
+
+            <label style={{ display: 'grid', gap: 4, color: '#667788', fontSize: 9, letterSpacing: 1, textTransform: 'uppercase' }}>
+              {t('observatory.program_label')}
+              <select
+                value={selectedObservatoryProgram}
+                onChange={(event) => setObservatoryProgram(event.target.value as ObservatorySearchProgram)}
+                style={{
+                  width: '100%', background: '#07101c', border: '1px solid #334455',
+                  borderRadius: 3, color: '#aabbcc', fontFamily: 'monospace',
+                  fontSize: 11, padding: '8px 9px',
+                }}
+              >
+                {observatoryPrograms.map((program) => (
+                  <option key={program} value={program}>{t(OBSERVATORY_PROGRAM_LABEL[program])}</option>
+                ))}
+              </select>
+            </label>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6 }}>
+              {OBSERVATORY_DURATIONS.map((duration) => {
+                const disabled = stats.isShutdown || !hasObservatorySlot || !onStartObservatorySearch;
+                const style = OBSERVATORY_DURATION_STYLE[duration];
+                return (
+                  <button
+                    key={duration}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => {
+                      const started = onStartObservatorySearch?.(duration, selectedObservatoryProgram, observatoryCount);
+                      addInfoReport(
+                        t('observatory.title_short'),
+                        started === false ? t('observatory.search_not_started') : t('observatory.search_started'),
+                      );
+                    }}
+                    style={{
+                      minHeight: 48, padding: '7px 4px', borderRadius: 3,
+                      border: `1px solid ${disabled ? '#223344' : style.accent}`,
+                      background: disabled ? 'rgba(10,15,25,0.35)' : style.glow,
+                      color: disabled ? '#556677' : '#d8e6f2',
+                      fontFamily: 'monospace', cursor: disabled ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    <span style={{ display: 'block', color: disabled ? '#556677' : style.accent, fontSize: 8, letterSpacing: 1 }}>{style.code}</span>
+                    <span style={{ display: 'block', marginTop: 3, fontSize: 11 }}>{t(`observatory.duration.${duration}`)}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         {type === 'radar_tower' && (() => {
           const events = upcomingEvents ?? [];
           return (
@@ -2464,85 +2622,17 @@ export function BuildingDetailPanel({
                 })}
               </div>
 
-              <div style={{ display: 'grid', gap: 7 }}>
-                <div style={{ fontSize: 10, color: '#667788', letterSpacing: 1.5, textTransform: 'uppercase' }}>
-                  {t('observatory.program_label')}
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: compact ? '1fr' : 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8 }}>
-                  {observatoryPrograms.map((program) => (
-                    <button
-                      key={program}
-                      type="button"
-                      onClick={() => setObservatoryProgram(program)}
-                      style={{
-                        textAlign: 'left',
-                        background: selectedObservatoryProgram === program ? 'rgba(68,136,170,0.18)' : 'rgba(5,10,20,0.42)',
-                        border: `1px solid ${selectedObservatoryProgram === program ? ACTIVE_BORDER : BORDER}`,
-                        borderRadius: 4,
-                        color: '#aabbcc',
-                        fontFamily: 'monospace',
-                        padding: '9px 10px',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <div style={{ color: '#9fd0ff', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1 }}>
-                        {t(OBSERVATORY_PROGRAM_LABEL[program])}
-                      </div>
-                      <div style={{ marginTop: 4, color: '#667788', fontSize: 9, lineHeight: 1.35 }}>
-                        {t(OBSERVATORY_PROGRAM_DESC[program])}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {activeObservatorySessions.length > 0 && (
-                <div style={{ display: 'grid', gap: 8 }}>
-                  <div style={{ fontSize: 10, color: '#667788', letterSpacing: 1.5, textTransform: 'uppercase' }}>
-                    {t('observatory.in_progress')}
-                  </div>
-                  {activeObservatorySessions.map((session) => (
-                    <ObservatorySessionCard key={session.id} session={session} now={observatoryNow} />
-                  ))}
-                </div>
-              )}
-
-              <div style={{ display: 'grid', gridTemplateColumns: compact ? '1fr' : 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
-                {OBSERVATORY_DURATIONS.map((duration) => {
-                  const chance = Math.round(getObservatorySearchChance(duration, observatoryLevel) * 100);
-                  return (
-                    <ObservatoryDurationButton
-                      key={duration}
-                      duration={duration}
-                      chance={chance}
-                      disabled={stats.isShutdown || !hasObservatorySlot || !onStartObservatorySearch}
-                      onClick={() => {
-                        if (!hasObservatorySlot) return;
-                        // Standard/Rare/Unique patrols all start freely — no
-                        // rewarded-ad requirement on any duration tier.
-                        const started = onStartObservatorySearch?.(duration, selectedObservatoryProgram, observatoryCount);
-                        if (started === false) {
-                          addInfoReport(t('observatory.title_short'), t('observatory.search_not_started'));
-                          return;
-                        }
-                        addInfoReport(t('observatory.in_progress'), t('observatory.search_started'));
-                      }}
-                    />
-                  );
-                })}
-              </div>
-
-              <div style={{ display: 'grid', gap: 7 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
-                  <div style={{ fontSize: 10, color: '#667788', letterSpacing: 1.5, textTransform: 'uppercase' }}>
+              <details style={{ borderTop: '1px solid rgba(51,68,85,0.55)', paddingTop: 8 }}>
+                <summary style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', cursor: 'pointer' }}>
+                  <span style={{ fontSize: 10, color: '#8899aa', letterSpacing: 1.5, textTransform: 'uppercase' }}>
                     {t('observatory.reports')}
-                  </div>
-                  <div style={{ fontSize: 9, color: '#556677' }}>
+                  </span>
+                  <span style={{ fontSize: 9, color: '#556677' }}>
                     {t('observatory.reports_count', { count: observatoryReports.length })}
-                  </div>
-                </div>
+                  </span>
+                </summary>
                 {observatoryReports.length > 0 ? (
-                  <div style={{ display: 'grid', gap: 6 }}>
+                  <div style={{ display: 'grid', gap: 6, marginTop: 8 }}>
                     {observatoryReports.map((report) => (
                       <ObservatoryReportCard
                         key={report.id}
@@ -2564,7 +2654,7 @@ export function BuildingDetailPanel({
                     {t('observatory.no_reports')}
                   </div>
                 )}
-              </div>
+              </details>
             </div>
           </Section>
         )}
