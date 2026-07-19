@@ -8,6 +8,8 @@ function isMissingPlanetSkinTable(err: unknown): boolean {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  res.setHeader('Cache-Control', 'private, no-store, no-cache, must-revalidate');
+  res.setHeader('Vary', 'Authorization');
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -22,7 +24,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Missing systemId for planet skin lookup' });
       }
       const skinKind = kind === 'exosphere' ? 'exosphere' : 'system';
-      const skin = await getPlanetSkin(systemId, planetId, skinKind);
+      const skin = await getPlanetSkin(auth.playerId, systemId, planetId, skinKind);
       return res.status(200).json({ skins: skin ? [skin] : [] });
     }
 
@@ -30,7 +32,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Missing systemId or planetId' });
     }
 
-    const skins = await getPlanetSkinsForSystem(systemId);
+    const skins = await getPlanetSkinsForSystem(auth.playerId, systemId);
     return res.status(200).json({ skins });
   } catch (err) {
     if (isMissingPlanetSkinTable(err)) {

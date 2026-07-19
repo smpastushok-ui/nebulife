@@ -1,13 +1,23 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import {
+  acquireIdempotencyKey,
+  completeIdempotencyKey,
+  getFeedbackEligibility,
+  getPlayer,
+  normalizeFeedbackIdempotencyKey,
+  RATE_LIMITS,
+  releaseIdempotencyKey,
+  savePlayerFeedback,
+  validateFeedbackPayload,
+} from '@nebulife/server';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
-import { getPlayer, savePlayerFeedback } from '../../packages/server/src/db.js';
-import { RATE_LIMITS } from '../../packages/server/src/rate-limiter.js';
 
 // ---------------------------------------------------------------------------
 // POST /api/feedback/submit
 //
-// Player-facing endpoint backing the one-shot "what do you like / dislike"
-// popup shown once an account reaches level 12+ (see PlayerFeedbackPrompt.tsx).
+// Player-facing endpoint backing both the level-12 survey and the opt-in
+// "Message the Weaver" support channel. The latter is deliberately available
+// at every level, including Firebase anonymous accounts.
 // Auth: Bearer token (same convention as api/messages/list.ts).
 //
 // Level 12 is a client-side gate (the popup itself only fires past that
@@ -17,63 +27,82 @@ import { RATE_LIMITS } from '../../packages/server/src/rate-limiter.js';
 // rather than that the account genuinely just leveled up.
 // ---------------------------------------------------------------------------
 
-const MAX_FIELD_LENGTH = 2000;
-const MIN_LEVEL_SERVER_GUARD = 8;
+const ENDPOINT = '/api/feedback/submit';
 
-function readString(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : '';
+function sendError(
+  res: VercelResponse,
+  status: number,
+  code: string,
+): VercelResponse {
+  return res.status(status).json({ error: { code } });
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return sendError(res, 405, 'method_not_allowed');
   }
 
+  let acquiredKey: string | null = null;
   try {
     const auth = await authenticate(req, res);
     if (!auth) return;
 
-    if (!await RATE_LIMITS.feedback(auth.playerId)) {
-      return res.status(429).json({ error: 'Too many requests' });
+    const parsed = validateFeedbackPayload(req.body);
+    if (!parsed.ok) {
+      return sendError(res, parsed.status, parsed.code);
     }
 
-    const body = (req.body ?? {}) as Record<string, unknown>;
-    const likesText = readString(body.likesText).slice(0, MAX_FIELD_LENGTH);
-    const dislikesText = readString(body.dislikesText).slice(0, MAX_FIELD_LENGTH);
-    const language = (readString(body.language) === 'en' ? 'en' : 'uk');
-    const clientLevel = typeof body.level === 'number' && Number.isFinite(body.level)
-      ? Math.max(0, Math.floor(body.level))
-      : 0;
-
-    if (!likesText && !dislikesText) {
-      return res.status(400).json({ error: 'empty_feedback', message: 'Напиши хоча б щось одне — що подобається чи що ні.' });
+    if (!await RATE_LIMITS.feedback(auth.playerId)) {
+      return sendError(res, 429, 'rate_limited');
     }
 
     const player = await getPlayer(auth.playerId);
     if (!player) {
-      return res.status(404).json({ error: 'player_not_found' });
+      return sendError(res, 404, 'player_not_found');
     }
 
-    const effectiveLevel = Math.max(player.player_level ?? 0, clientLevel);
-    if (effectiveLevel < MIN_LEVEL_SERVER_GUARD) {
-      return res.status(403).json({
-        error: 'level_too_low',
-        message: 'Цей опитувальник доступний з 12 рівня.',
-      });
+    const eligibility = getFeedbackEligibility(parsed.source, player.player_level, parsed.clientLevel);
+    if (!eligibility.allowed) {
+      return sendError(res, 403, eligibility.code);
+    }
+
+    const rawIdempotencyKey = req.headers['x-idempotency-key'];
+    const clientKey = normalizeFeedbackIdempotencyKey(rawIdempotencyKey);
+    if (parsed.source === 'weaver' && !clientKey) {
+      return sendError(res, 400, 'idempotency_key_required');
+    }
+    if (clientKey) {
+      acquiredKey = `feedback:${auth.playerId}:${clientKey}`;
+      const acquired = await acquireIdempotencyKey(acquiredKey, auth.playerId, ENDPOINT);
+      if (!acquired.acquired) {
+        if ('record' in acquired && acquired.record.response_body) {
+          return res
+            .status(acquired.record.response_status ?? 200)
+            .json(acquired.record.response_body);
+        }
+        return sendError(res, 409, 'duplicate_in_progress');
+      }
     }
 
     const row = await savePlayerFeedback({
       playerId: auth.playerId,
       callsign: player.callsign ?? null,
-      level: effectiveLevel,
-      likesText: likesText || null,
-      dislikesText: dislikesText || null,
-      language,
+      level: eligibility.effectiveLevel,
+      likesText: parsed.likesText || null,
+      dislikesText: parsed.dislikesText || null,
+      language: parsed.language,
     });
 
-    return res.status(200).json({ ok: true, id: row.id });
+    const responseBody = { ok: true, id: row.id };
+    if (acquiredKey) {
+      await completeIdempotencyKey(acquiredKey, 200, responseBody);
+    }
+    return res.status(200).json(responseBody);
   } catch (err) {
+    if (acquiredKey) {
+      await releaseIdempotencyKey(acquiredKey).catch(() => {});
+    }
     console.error('[feedback/submit] failed:', err);
-    return res.status(500).json({ error: err instanceof Error ? err.message : 'Internal error' });
+    return sendError(res, 500, 'server_error');
   }
 }

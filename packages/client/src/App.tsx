@@ -56,7 +56,7 @@ import { PrecursorAcquisitionOverlay } from './ui/components/Precursor/Precursor
 import type {
   Planet, Star, StarSystem, ResearchState, SystemResearchState, Discovery, CatalogEntry,
 } from '@nebulife/core';
-import { getCatalogEntry, getCatalogName, BUILDING_DEFS, LIFE_SPARK_TYPES } from '@nebulife/core';
+import { getCatalogEntry, getCatalogName, BUILDING_DEFS, LIFE_SPARK_TYPES, planetSkinIdentityKey } from '@nebulife/core';
 import { rollLifeformFind, rollLifeformHarvestFind, isLifeformTriggerBuilding, rollIngredientDrop, rollLifeSparkDrop, buildLifeformPlanetContext, simpleLifeformPhoto, simpleLifeformVideo, simpleLifeformName, simpleKeyFromAssetUrl, pickUnseenSimpleLifeform, LIFEFORM_FIND_COOLDOWN_MS } from '@nebulife/core';
 import {
   getCometSchedule,
@@ -404,9 +404,17 @@ import {
   setAnalyticsUserId,
 } from './analytics/firebase-analytics.js';
 
-const planetSkinKey = (systemId: string, planetId: string, kind: PlanetSkinKind | string): string => (
-  `${systemId}::${planetId}::${kind}`
-);
+const planetSkinKey = (
+  ownerPlayerId: string,
+  systemId: string,
+  planetId: string,
+  kind: PlanetSkinKind | string,
+): string => planetSkinIdentityKey({
+  playerId: ownerPlayerId,
+  systemId,
+  planetId,
+  kind: kind === 'exosphere' ? 'exosphere' : 'system',
+});
 
 const planetObjectKey = (systemId: string, planetId: string): string => `${systemId}::${planetId}`;
 
@@ -8592,7 +8600,7 @@ function AppInner() {
         setPlanetSkins((prev) => {
           const next = new Map(prev);
           for (const skin of skins) {
-            next.set(planetSkinKey(skin.system_id, skin.planet_id, skin.kind), skin);
+            next.set(planetSkinKey(playerId.current, skin.system_id, skin.planet_id, skin.kind), skin);
           }
           return next;
         });
@@ -8605,7 +8613,7 @@ function AppInner() {
     if (state.scene !== 'system' || !state.selectedSystem) return;
     const textures: Record<string, string> = {};
     for (const planet of state.selectedSystem.planets) {
-      const skin = planetSkins.get(planetSkinKey(state.selectedSystem.id, planet.id, 'system'));
+      const skin = planetSkins.get(planetSkinKey(playerId.current, state.selectedSystem.id, planet.id, 'system'));
       if (skin?.status === 'succeed' && isPlanetTextureMapUrl(skin.texture_url)) {
         textures[planet.id] = skin.texture_url;
       }
@@ -10448,7 +10456,7 @@ function AppInner() {
     const sys = targetSystem ?? state.selectedSystem;
     if (!planet || !sys) return;
     const skinKind: PlanetSkinKind = 'exosphere';
-    const key = planetSkinKey(sys.id, planet.id, skinKind);
+    const key = planetSkinKey(playerId.current, sys.id, planet.id, skinKind);
     const cost = 50;
 
     if (cost > 0 && quarks < cost) {
@@ -10462,6 +10470,7 @@ function AppInner() {
       const next = new Map(prev);
       next.set(key, {
         id: `temp-${key}`,
+        owner_player_id: playerId.current,
         planet_id: planet.id,
         system_id: sys.id,
         kind: skinKind,
@@ -10487,6 +10496,7 @@ function AppInner() {
           const next = new Map(prev);
           next.set(key, {
             id: skinId,
+            owner_player_id: playerId.current,
             planet_id: planet.id,
             system_id: sys.id,
             kind: skinKind,
@@ -10523,6 +10533,7 @@ function AppInner() {
               next.set(key, {
                 ...(existing ?? {
                   id: skinId,
+                  owner_player_id: playerId.current,
                   planet_id: planet.id,
                   system_id: sys.id,
                   kind: skinKind,
@@ -13799,7 +13810,7 @@ function AppInner() {
     if (state.scene !== 'planet-view') {
       setExosphereLoaded(false);
     }
-  }, [state.scene]);
+  }, [state.scene, state.selectedSystem?.id, state.selectedPlanet?.id]);
 
   // Determine which panel to show for the selected system
   // (panels open via context menu actions, not directly from click)
@@ -15238,8 +15249,8 @@ function AppInner() {
           onTelescopePhoto={(photoKind) => handlePlanetTelescopePhoto(photoKind)}
           onGeneratePlanetSkin={handleGeneratePlanetSkin}
           planetSkinStatus={{
-            system: planetSkins.get(planetSkinKey(state.selectedSystem!.id, state.selectedPlanet.id, 'system'))?.status as 'generating' | 'pending' | 'processing' | 'succeed' | 'failed' | undefined,
-            exosphere: planetSkins.get(planetSkinKey(state.selectedSystem!.id, state.selectedPlanet.id, 'exosphere'))?.status as 'generating' | 'pending' | 'processing' | 'succeed' | 'failed' | undefined,
+            system: planetSkins.get(planetSkinKey(playerId.current, state.selectedSystem!.id, state.selectedPlanet.id, 'system'))?.status as 'generating' | 'pending' | 'processing' | 'succeed' | 'failed' | undefined,
+            exosphere: planetSkins.get(planetSkinKey(playerId.current, state.selectedSystem!.id, state.selectedPlanet.id, 'exosphere'))?.status as 'generating' | 'pending' | 'processing' | 'succeed' | 'failed' | undefined,
           }}
           canGenerateSurfacePhotos={
             canLandOnPlanet(state.selectedPlanet, state.selectedSystem).allowed && isSolidPlanetForLanding(state.selectedPlanet)
@@ -15764,14 +15775,14 @@ function AppInner() {
           key={(() => {
             const p = state.scene === 'planet-view' && state.selectedPlanet ? state.selectedPlanet : homeInfo.planet;
             const sys = state.scene === 'planet-view' && state.selectedSystem ? state.selectedSystem : homeInfo.system;
-            const exosphereUrl = planetSkins.get(planetSkinKey(sys.id, p.id, 'exosphere'))?.texture_url;
-            const systemUrl = planetSkins.get(planetSkinKey(sys.id, p.id, 'system'))?.texture_url;
+            const exosphereUrl = planetSkins.get(planetSkinKey(playerId.current, sys.id, p.id, 'exosphere'))?.texture_url;
+            const systemUrl = planetSkins.get(planetSkinKey(playerId.current, sys.id, p.id, 'system'))?.texture_url;
             const skinUrl = isPlanetTextureMapUrl(exosphereUrl)
               ? exosphereUrl
               : isPlanetTextureMapUrl(systemUrl)
                 ? systemUrl
                 : '';
-            return `${p.id}-${p.type}-${p.habitability.overall.toFixed(2)}-${skinUrl}`;
+            return `${planetSkinKey(playerId.current, sys.id, p.id, 'exosphere')}|${skinUrl}`;
           })()}
           ref={globeRef}
           planet={state.scene === 'planet-view' && state.selectedPlanet ? state.selectedPlanet : homeInfo.planet}
@@ -15787,8 +15798,8 @@ function AppInner() {
           textureUrl={(() => {
             const p = state.scene === 'planet-view' && state.selectedPlanet ? state.selectedPlanet : homeInfo.planet;
             const sys = state.scene === 'planet-view' && state.selectedSystem ? state.selectedSystem : homeInfo.system;
-            const exosphereUrl = planetSkins.get(planetSkinKey(sys.id, p.id, 'exosphere'))?.texture_url;
-            const systemUrl = planetSkins.get(planetSkinKey(sys.id, p.id, 'system'))?.texture_url;
+            const exosphereUrl = planetSkins.get(planetSkinKey(playerId.current, sys.id, p.id, 'exosphere'))?.texture_url;
+            const systemUrl = planetSkins.get(planetSkinKey(playerId.current, sys.id, p.id, 'system'))?.texture_url;
             if (isPlanetTextureMapUrl(exosphereUrl)) return exosphereUrl;
             if (isPlanetTextureMapUrl(systemUrl)) return systemUrl;
             return null;
@@ -15832,7 +15843,7 @@ function AppInner() {
             return quarks >= getPlanetPhotoCost('exosphere') ? 'idle' : 'disabled';
           })()}
           planetSkinStatus={(() => {
-            const status = planetSkins.get(planetSkinKey(state.selectedSystem!.id, state.selectedPlanet!.id, 'exosphere'))?.status;
+            const status = planetSkins.get(planetSkinKey(playerId.current, state.selectedSystem!.id, state.selectedPlanet!.id, 'exosphere'))?.status;
             if (status === 'succeed') return 'ready';
             if (status === 'generating' || status === 'pending' || status === 'processing') return 'generating';
             return quarks >= 50 ? 'idle' : 'disabled';
@@ -17293,6 +17304,7 @@ function AppInner() {
           forceExpanded={isTutorialActive && (activeTutorialStep?.id === 'astra-handoff' || activeTutorialStep?.id === 'astra-chat-tabs' || activeTutorialStep?.id === 'astra-chat-close')}
           hideCollapsedButton={tutorialMinimized}
           isPremium={isPremiumActive}
+          weaverFeedbackAvailable={isFirebaseConfigured && firebaseUser !== null}
         />
       )}
 

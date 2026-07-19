@@ -1209,6 +1209,7 @@ export async function createHybridCreature(input: CreateHybridInput): Promise<Cr
 
 export interface PlanetSkinRow {
   id: string;
+  owner_player_id: string | null;
   planet_id: string;
   system_id: string;
   kind: string;
@@ -1238,15 +1239,17 @@ export async function savePlanetSkin(data: {
   const status = data.status ?? 'generating';
   const rows = await sql`
     INSERT INTO planet_skins (
-      id, planet_id, system_id, kind, generated_by, kling_task_id,
+      id, owner_player_id, planet_id, system_id, kind, generated_by, kling_task_id,
       prompt_used, status, texture_url, quarks_paid, completed_at
     )
     VALUES (
-      ${data.id}, ${data.planetId}, ${data.systemId}, ${data.kind}, ${data.playerId},
+      ${data.id}, ${data.playerId}, ${data.planetId}, ${data.systemId}, ${data.kind}, ${data.playerId},
       ${data.klingTaskId ?? null}, ${data.promptUsed}, ${status}, ${data.textureUrl ?? null},
       ${data.quarksPaid ?? 0}, ${status === 'succeed' ? new Date().toISOString() : null}
     )
-    ON CONFLICT (system_id, planet_id, kind) DO UPDATE SET
+    ON CONFLICT (owner_player_id, system_id, planet_id, kind)
+      WHERE owner_player_id IS NOT NULL
+    DO UPDATE SET
       generated_by = COALESCE(planet_skins.generated_by, EXCLUDED.generated_by),
       kling_task_id = EXCLUDED.kling_task_id,
       prompt_used = EXCLUDED.prompt_used,
@@ -1260,6 +1263,7 @@ export async function savePlanetSkin(data: {
 }
 
 export async function getPlanetSkin(
+  playerId: string,
   systemId: string,
   planetId: string,
   kind: 'system' | 'exosphere',
@@ -1267,28 +1271,35 @@ export async function getPlanetSkin(
   const sql = getSQL();
   const rows = await sql`
     SELECT * FROM planet_skins
-    WHERE system_id = ${systemId} AND planet_id = ${planetId} AND kind = ${kind}
+    WHERE owner_player_id = ${playerId}
+      AND system_id = ${systemId}
+      AND planet_id = ${planetId}
+      AND kind = ${kind}
   `;
   return (rows[0] as PlanetSkinRow) ?? null;
 }
 
-export async function getPlanetSkinById(id: string): Promise<PlanetSkinRow | null> {
+export async function getPlanetSkinById(id: string, playerId: string): Promise<PlanetSkinRow | null> {
   const sql = getSQL();
-  const rows = await sql`SELECT * FROM planet_skins WHERE id = ${id}`;
+  const rows = await sql`
+    SELECT * FROM planet_skins
+    WHERE id = ${id} AND owner_player_id = ${playerId}
+  `;
   return (rows[0] as PlanetSkinRow) ?? null;
 }
 
-export async function getPlanetSkinsForSystem(systemId: string): Promise<PlanetSkinRow[]> {
+export async function getPlanetSkinsForSystem(playerId: string, systemId: string): Promise<PlanetSkinRow[]> {
   const sql = getSQL();
   return (await sql`
     SELECT * FROM planet_skins
-    WHERE system_id = ${systemId}
+    WHERE owner_player_id = ${playerId} AND system_id = ${systemId}
     ORDER BY created_at DESC
   `) as PlanetSkinRow[];
 }
 
 export async function updatePlanetSkin(
   id: string,
+  playerId: string,
   updates: Partial<{
     status: string;
     texture_url: string;
@@ -1306,7 +1317,7 @@ export async function updatePlanetSkin(
         prompt_used = COALESCE(${updates.prompt_used ?? null}, prompt_used),
         quarks_paid = COALESCE(${updates.quarks_paid ?? null}, quarks_paid),
         completed_at = CASE WHEN ${updates.status ?? null} IN ('succeed', 'failed') THEN NOW() ELSE completed_at END
-    WHERE id = ${id}
+    WHERE id = ${id} AND owner_player_id = ${playerId}
     RETURNING *
   `;
   return (rows[0] as PlanetSkinRow) ?? null;

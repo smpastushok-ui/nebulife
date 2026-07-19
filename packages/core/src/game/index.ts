@@ -299,6 +299,16 @@ export {
 } from './planet-exploration.js';
 export type { PlanetMissionResources, PlanetMissionStartCheck } from './planet-exploration.js';
 
+// Canonical identity for player-owned planet skins
+export {
+  planetSkinIdentityKey,
+  planetSkinStorageKey,
+} from './planet-skin-identity.js';
+export type {
+  PlanetSkinIdentity,
+  PlanetSkinIdentityKind,
+} from './planet-skin-identity.js';
+
 // Terraforming rules
 export {
   isTerraformable,

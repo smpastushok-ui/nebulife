@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useImperativeHandle, forwardRef, useCallback,
 import { useTranslation } from 'react-i18next';
 import * as THREE from 'three';
 import { OrbitLoader } from './OrbitLoader.js';
+import { LatestPlanetRequest } from './planet-transition.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -79,17 +80,38 @@ function releaseWebGLRenderer(renderer: THREE.WebGLRenderer): void {
   renderer.dispose();
 }
 
-function validatePlanetTextureMap(url: string): Promise<boolean> {
-  return new Promise((resolve) => {
+const PLANET_TEXTURE_TIMEOUT_MS = 10_000;
+
+function loadPlanetTextureMap(url: string, signal: AbortSignal): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
     const img = new Image();
+    const timeout = window.setTimeout(() => {
+      img.src = '';
+      reject(new Error('timeout'));
+    }, PLANET_TEXTURE_TIMEOUT_MS);
+    const finish = () => window.clearTimeout(timeout);
+    signal.addEventListener('abort', () => {
+      finish();
+      img.src = '';
+      reject(new DOMException('Aborted', 'AbortError'));
+    }, { once: true });
     img.onload = () => {
+      finish();
       const ratio = img.naturalWidth / Math.max(1, img.naturalHeight);
       // Existing bad premium skins were 16:9 "planet in space" images. A
       // sphere texture map must be close to 2:1, otherwise black space becomes
       // a giant black patch when wrapped around the globe.
-      resolve(ratio >= 1.9 && ratio <= 2.15);
+      if (ratio < 1.9 || ratio > 2.15) {
+        reject(new Error('invalid-aspect-ratio'));
+        return;
+      }
+      resolve(img);
     };
-    img.onerror = () => resolve(false);
+    img.onerror = () => {
+      finish();
+      reject(new Error('network'));
+    };
+    img.crossOrigin = 'anonymous';
     img.src = url;
   });
 }
@@ -640,7 +662,7 @@ function createPlanetSphere(
   star: Star,
   lod: ExosphereLOD,
   maxAnisotropy: number,
-  textureUrl?: string | null,
+  textureImage?: HTMLImageElement | null,
 ): { mesh: THREE.Mesh; uniforms: Record<string, THREE.IUniform> } {
   const visuals = derivePlanetVisuals(planet, star);
   const uniforms = planetVisualsToUniforms(visuals, planet, star);
@@ -657,9 +679,9 @@ function createPlanetSphere(
   // 192×192 → ~74K triangles; low tier drops to 48 (~2.4K), mid to 96 (~18K).
   // Silhouette is still smooth at 48 because the planet occupies < 40 % of
   // viewport height and most users never zoom past 2×.
-  const segs = textureUrl ? Math.min(192, Math.max(lod.planetSegments, 128)) : lod.planetSegments;
+  const segs = textureImage ? Math.min(192, Math.max(lod.planetSegments, 128)) : lod.planetSegments;
   const geometry = new THREE.SphereGeometry(1, segs, segs);
-  const generatedTexture = textureUrl ? new THREE.TextureLoader().load(textureUrl) : null;
+  const generatedTexture = textureImage ? new THREE.Texture(textureImage) : null;
   if (generatedTexture) {
     configurePlanetTexture(generatedTexture, maxAnisotropy);
   }
@@ -1574,8 +1596,12 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
     const onDoubleClickRef = useRef(onDoubleClick);
     onDoubleClickRef.current = onDoubleClick;
     const [renderFallback, setRenderFallback] = useState(false);
-    const [validatedTextureUrl, setValidatedTextureUrl] = useState<string | null>(null);
+    const [validatedTextureImage, setValidatedTextureImage] = useState<HTMLImageElement | null>(null);
     const [textureValidationPending, setTextureValidationPending] = useState(() => Boolean(textureUrl));
+    const [textureLoadError, setTextureLoadError] = useState<string | null>(null);
+    const [textureRetryNonce, setTextureRetryNonce] = useState(0);
+    const textureRequestRef = useRef(new LatestPlanetRequest());
+    const transitionStartedAtRef = useRef(performance.now());
 
     const cleanup = useCallback(() => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
@@ -1589,26 +1615,31 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
     }, []);
 
     useEffect(() => {
-      let cancelled = false;
-      setValidatedTextureUrl(null);
+      const request = textureRequestRef.current.begin();
+      transitionStartedAtRef.current = performance.now();
+      setSceneLoaded(false);
+      setValidatedTextureImage(null);
+      setTextureLoadError(null);
       setTextureValidationPending(Boolean(textureUrl));
       if (!textureUrl) return;
 
-      validatePlanetTextureMap(textureUrl).then((isValid) => {
-        if (cancelled) return;
-        setTextureValidationPending(false);
-        if (!isValid) {
-          console.warn('[PlanetGlobeView] Ignoring non-equirectangular planet skin texture:', textureUrl);
-          setValidatedTextureUrl(null);
-          return;
-        }
-        setValidatedTextureUrl(textureUrl);
-      });
+      loadPlanetTextureMap(textureUrl, request.signal)
+        .then((image) => {
+          if (!textureRequestRef.current.isCurrent(request.sequence)) return;
+          setValidatedTextureImage(image);
+          setTextureValidationPending(false);
+        })
+        .catch((error: unknown) => {
+          if (request.signal.aborted || !textureRequestRef.current.isCurrent(request.sequence)) return;
+          console.warn('[PlanetGlobeView] Falling back to procedural planet texture:', textureUrl, error);
+          setTextureLoadError(error instanceof Error ? error.message : 'network');
+          setTextureValidationPending(false);
+        });
 
-      return () => { cancelled = true; };
-    }, [textureUrl]);
+      return () => textureRequestRef.current.abort();
+    }, [textureRetryNonce, textureUrl]);
 
-    const waitingForSkinTexture = Boolean(textureUrl) && textureValidationPending && !validatedTextureUrl;
+    const waitingForSkinTexture = Boolean(textureUrl) && textureValidationPending && !validatedTextureImage;
 
     useImperativeHandle(ref, () => ({
       zoomIn() {
@@ -1817,7 +1848,7 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
 
       // 3. Planet sphere
       const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
-      const { mesh: planetMesh, uniforms: planetUniforms } = createPlanetSphere(scene, planet, star, lod, maxAnisotropy, validatedTextureUrl);
+      const { mesh: planetMesh, uniforms: planetUniforms } = createPlanetSphere(scene, planet, star, lod, maxAnisotropy, validatedTextureImage);
 
       // 4. Cloud layer. Valid 2:1 skins are diffuse maps; atmosphere/clouds
       // remain physical overlays so generated planets match procedural ones.
@@ -1860,13 +1891,13 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       // to the lit side). Bumping ambient fill 0.7 → 1.4 and the key light
       // 1.2 → 1.8 brightens the sphere across tiers without washing out the
       // high-end look (bloom still stacks on top on ultra).
-      const ambient = new THREE.AmbientLight(0x5577aa, validatedTextureUrl ? 0.42 : 2.2);
+      const ambient = new THREE.AmbientLight(0x5577aa, validatedTextureImage ? 0.42 : 2.2);
       scene.add(ambient);
       // Hemisphere fill — sky-tinted top, warm-dark bottom. Lifts the dark
       // hemisphere so the planet never goes fully black.
-      const hemi = new THREE.HemisphereLight(0x7799cc, 0x332211, validatedTextureUrl ? 0.16 : 0.6);
+      const hemi = new THREE.HemisphereLight(0x7799cc, 0x332211, validatedTextureImage ? 0.16 : 0.6);
       scene.add(hemi);
-      const dirLight = new THREE.DirectionalLight(0xfff2dd, validatedTextureUrl ? 0.8 : 2.5);
+      const dirLight = new THREE.DirectionalLight(0xfff2dd, validatedTextureImage ? 0.8 : 2.5);
       dirLight.position.copy(STAR_SPRITE_POSITION);
       scene.add(dirLight);
 
@@ -2109,14 +2140,18 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
       // since the heavy WebGL rebuild can block the main thread for seconds.
       // By the time `build()` returns, the scene is fully constructed and the
       // first frame has already rendered (animate() ran once above). Keep the
-      // loader up for a short, fixed grace window so it never just flashes, then
-      // reveal the live exosphere. (Was a blind 3.5s — far longer than needed and
-      // unrelated to actual readiness.)
+      // loader up only for a tiny anti-flicker floor measured from transition
+      // start. Texture decode already completed before build() and animate()
+      // rendered the first real frame, so readiness is not timer-driven.
+      const antiFlickerRemaining = Math.max(
+        0,
+        120 - (performance.now() - transitionStartedAtRef.current),
+      );
       const loadTimer = setTimeout(() => {
         setSceneLoaded(true);
         _planetGlobeEverLoadedOnce = true;
         onSceneLoaded?.();
-      }, mode === 'home' ? 400 : 700);
+      }, antiFlickerRemaining);
 
       // --- Resize handler ---
       const onResize = () => {
@@ -2164,6 +2199,13 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
               tex.dispose();
             }
           });
+          if (material instanceof THREE.ShaderMaterial) {
+            const uniformTexture = material.uniforms.uMap?.value;
+            if (uniformTexture instanceof THREE.Texture && !seen.has(uniformTexture)) {
+              seen.add(uniformTexture);
+              uniformTexture.dispose();
+            }
+          }
           material.dispose();
         };
 
@@ -2191,7 +2233,7 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
         window.clearTimeout(slowHintTimer);
         teardown?.();
       };
-    }, [planet.id, planet.type, planet.habitability.overall, star.id, validatedTextureUrl, waitingForSkinTexture]); // Re-create scene when planet/star/skin/promoted visuals change
+    }, [planet.id, planet.type, planet.habitability.overall, star.id, system.id, validatedTextureImage, waitingForSkinTexture]); // Re-create scene when canonical target or skin changes
 
     const showSkinLoadingMask = waitingForSkinTexture;
 
@@ -2255,6 +2297,9 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
         )}
         {!sceneLoaded && (mode !== 'home' || _planetGlobeEverLoadedOnce) && (
           <div
+            role="status"
+            aria-live="polite"
+            aria-busy="true"
             style={{
               position: 'absolute',
               inset: 0,
@@ -2283,6 +2328,47 @@ const PlanetGlobeView = forwardRef<PlanetGlobeViewHandle, PlanetGlobeViewProps>(
                     defaultValue: slowLoadHint ? 'Loading the exosphere may take a few seconds' : 'Syncing exosphere telemetry',
                   })}
             />
+          </div>
+        )}
+        {sceneLoaded && textureLoadError && textureUrl && (
+          <div
+            role="alert"
+            style={{
+              position: 'absolute',
+              left: 'max(12px, env(safe-area-inset-left, 0px))',
+              right: 'max(12px, env(safe-area-inset-right, 0px))',
+              bottom: 'max(12px, env(safe-area-inset-bottom, 0px))',
+              zIndex: 92,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+              padding: '8px 10px',
+              background: 'rgba(10,15,25,0.92)',
+              border: '1px solid #cc4444',
+              borderRadius: 4,
+              color: '#aabbcc',
+              fontFamily: 'monospace',
+              fontSize: 10,
+            }}
+          >
+            <span>{t('loading.exosphereFallback')}</span>
+            <button
+              type="button"
+              onClick={() => setTextureRetryNonce((value) => value + 1)}
+              style={{
+                padding: '5px 9px',
+                background: 'rgba(30,60,80,0.6)',
+                border: '1px solid #446688',
+                borderRadius: 3,
+                color: '#7bb8ff',
+                fontFamily: 'monospace',
+                fontSize: 10,
+                cursor: 'pointer',
+              }}
+            >
+              {t('loading.retryTexture')}
+            </button>
           </div>
         )}
       </div>

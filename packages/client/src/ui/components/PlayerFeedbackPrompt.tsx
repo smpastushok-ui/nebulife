@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { playSfx } from '../../audio/SfxPlayer.js';
-import { submitPlayerFeedback } from '../../api/player-feedback-api.js';
+import {
+  FeedbackApiError,
+  submitPlayerFeedback,
+} from '../../api/player-feedback-api.js';
 
 type PromptMode = 'form' | 'thanks';
 
@@ -19,6 +22,9 @@ interface PlayerFeedbackPromptProps {
   likesPlaceholderKey?: string;
   dislikesLabelKey?: string;
   dislikesPlaceholderKey?: string;
+  thanksTitleKey?: string;
+  thanksBodyKey?: string;
+  source?: 'survey' | 'weaver';
 }
 
 const MAX_FIELD_LENGTH = 2000;
@@ -33,6 +39,9 @@ export function PlayerFeedbackPrompt({
   likesPlaceholderKey = 'feedback_prompt.likes_placeholder',
   dislikesLabelKey = 'feedback_prompt.dislikes_label',
   dislikesPlaceholderKey = 'feedback_prompt.dislikes_placeholder',
+  thanksTitleKey = 'feedback_prompt.thanks_title',
+  thanksBodyKey = 'feedback_prompt.thanks_body',
+  source = 'survey',
 }: PlayerFeedbackPromptProps) {
   const { t, i18n } = useTranslation();
   const [mode, setMode] = useState<PromptMode>('form');
@@ -40,6 +49,8 @@ export function PlayerFeedbackPrompt({
   const [dislikes, setDislikes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const idempotencyKeyRef = useRef<string | null>(null);
+  const submittingRef = useRef(false);
 
   const canSubmit = (likes.trim().length > 0 || dislikes.trim().length > 0) && !submitting;
 
@@ -49,21 +60,31 @@ export function PlayerFeedbackPrompt({
   };
 
   const submit = async () => {
-    if (!canSubmit) return;
+    if (!canSubmit || submittingRef.current) return;
+    submittingRef.current = true;
     playSfx('ui-click', 0.05);
     setSubmitting(true);
     setError(null);
     try {
+      if (source === 'weaver' && !idempotencyKeyRef.current) {
+        idempotencyKeyRef.current = crypto.randomUUID();
+      }
       await submitPlayerFeedback({
         likesText: likes.trim().slice(0, MAX_FIELD_LENGTH),
         dislikesText: dislikes.trim().slice(0, MAX_FIELD_LENGTH),
         level: playerLevel,
         language: i18n.language.startsWith('uk') ? 'uk' : 'en',
-      });
+        source,
+      }, idempotencyKeyRef.current ?? undefined);
       setMode('thanks');
-    } catch {
-      setError(t('feedback_prompt.error'));
+    } catch (err) {
+      const code = err instanceof FeedbackApiError ? err.code : 'server_error';
+      setError(t(
+        source === 'weaver' ? `weaver_feedback.errors.${code}` : 'feedback_prompt.error',
+        { defaultValue: t('feedback_prompt.error') },
+      ));
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -172,8 +193,8 @@ export function PlayerFeedbackPrompt({
 
         {mode === 'thanks' && (
           <>
-            <h2 id="feedback-prompt-title" style={styles.title}>{t('feedback_prompt.thanks_title')}</h2>
-            <p style={styles.body}>{t('feedback_prompt.thanks_body')}</p>
+            <h2 id="feedback-prompt-title" style={styles.title}>{t(thanksTitleKey)}</h2>
+            <p style={styles.body}>{t(thanksBodyKey)}</p>
             <button type="button" className="fb-prompt-btn fb-prompt-btn-primary" style={styles.doneButton} onClick={close}>
               {t('common.understood')}
             </button>

@@ -102,6 +102,8 @@ interface ChatWidgetProps {
   hideCollapsedButton?: boolean;
   /** Premium unlock state for A.S.T.R.A. chat. */
   isPremium?: boolean;
+  /** True once a Firebase-backed identity (anonymous or linked) is ready. */
+  weaverFeedbackAvailable?: boolean;
 }
 
 type Tab = 'global' | 'dm-list' | 'dm-chat' | 'system' | 'astra';
@@ -176,7 +178,7 @@ function getDigestWeekDateFromMessage(msg: MessageData): string | null {
 // research ticks, countdown, etc.) previously forced a full re-render of
 // the entire chat tree. Memo blocks those; real chat updates come from
 // this component's own internal polling + setState so they still render.
-function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = [], logEntries = [], onSystemNotifRead, onNavigateToPlanet, onNavigateToSystem, onOpenPlanetMissionReport, onOpenSystemReport, onOpenLogDiscovery, onOpenLifeform, onOpenObservatoryReport, onOpenResult, lastDigestSeen, latestDigestWeekDate, preferredLanguage, digestLoading = false, onAwardXP, quizAnswers = {}, onQuizAnswer, onDigestSeen, playerLevel = 1, forceCollapsed = false, forceExpanded = false, hideCollapsedButton = false, isPremium = false }: ChatWidgetProps) {
+function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = [], logEntries = [], onSystemNotifRead, onNavigateToPlanet, onNavigateToSystem, onOpenPlanetMissionReport, onOpenSystemReport, onOpenLogDiscovery, onOpenLifeform, onOpenObservatoryReport, onOpenResult, lastDigestSeen, latestDigestWeekDate, preferredLanguage, digestLoading = false, onAwardXP, quizAnswers = {}, onQuizAnswer, onDigestSeen, playerLevel = 1, forceCollapsed = false, forceExpanded = false, hideCollapsedButton = false, isPremium = false, weaverFeedbackAvailable = true }: ChatWidgetProps) {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(true);
   const [viewport, setViewport] = useState(() => ({
@@ -1031,24 +1033,30 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
                 }}>
-                  {t('weaver_feedback.chat_teaser')}
+                  {weaverFeedbackAvailable
+                    ? t('weaver_feedback.chat_teaser')
+                    : t('weaver_feedback.auth_required')}
                 </span>
                 <button
                   type="button"
                   onClick={() => { playSfx('ui-click', 0.06); setShowWeaverFeedback(true); }}
+                  disabled={!weaverFeedbackAvailable}
                   style={{
                     flexShrink: 0,
                     background: 'rgba(123,184,255,0.12)',
                     border: '1px solid rgba(123,184,255,0.45)',
                     borderRadius: 3,
-                    color: '#7bb8ff',
+                    color: weaverFeedbackAvailable ? '#7bb8ff' : '#667788',
                     fontFamily: 'monospace',
                     fontSize: 10,
                     padding: '4px 9px',
-                    cursor: 'pointer',
+                    cursor: weaverFeedbackAvailable ? 'pointer' : 'not-allowed',
+                    opacity: weaverFeedbackAvailable ? 1 : 0.55,
                   }}
                 >
-                  {t('weaver_feedback.chat_button')}
+                  {weaverFeedbackAvailable
+                    ? t('weaver_feedback.chat_button')
+                    : t('weaver_feedback.account_required_button')}
                 </button>
               </div>
             )}
@@ -1615,9 +1623,10 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
 
       {/* "Message the Weaver" — reuses the level-12+ feedback modal with
           alternate copy, always available from the global chat tab. */}
-      {showWeaverFeedback && (
+      {showWeaverFeedback && weaverFeedbackAvailable && (
         <PlayerFeedbackPrompt
           playerLevel={playerLevel}
+          source="weaver"
           onClose={() => setShowWeaverFeedback(false)}
           kickerKey="weaver_feedback.kicker"
           titleKey="weaver_feedback.title"
@@ -1626,6 +1635,8 @@ function ChatWidgetInner({ playerId, playerName, onUnreadChange, systemNotifs = 
           likesPlaceholderKey="weaver_feedback.likes_placeholder"
           dislikesLabelKey="weaver_feedback.dislikes_label"
           dislikesPlaceholderKey="weaver_feedback.dislikes_placeholder"
+          thanksTitleKey="weaver_feedback.thanks_title"
+          thanksBodyKey="weaver_feedback.thanks_body"
         />
       )}
     </>

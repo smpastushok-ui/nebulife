@@ -1,10 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import type { StarSystem } from '@nebulife/core';
+import { planetSkinStorageKey, type StarSystem } from '@nebulife/core';
 import { put } from '@vercel/blob';
 import { authenticate } from '../../packages/server/src/auth-middleware.js';
 import {
   creditQuarks,
   deductQuarks,
+  getPlayer,
   getPlanetSkin,
   savePlanetSkin,
   updatePlanetSkin,
@@ -19,6 +20,7 @@ import {
   normalizePlanetTexture,
   PLANET_TEXTURE_VERSION,
 } from '../../packages/server/src/planet-texture-normalizer.js';
+import { validatePlanetSkinTarget } from '../../packages/server/src/planet-skin-access.js';
 
 export const config = {
   maxDuration: 60,
@@ -40,7 +42,11 @@ function isTextureMapUrl(url: string | null | undefined): boolean {
   }
 }
 
-async function convertGeneratedSkinToTextureMap(imageUrl: string, skinId: string): Promise<string> {
+async function convertGeneratedSkinToTextureMap(
+  imageUrl: string,
+  storageKey: string,
+  skinId: string,
+): Promise<string> {
   const response = await fetch(imageUrl);
   if (!response.ok) {
     throw new Error(`Failed to fetch generated planet skin: ${response.status}`);
@@ -49,7 +55,7 @@ async function convertGeneratedSkinToTextureMap(imageUrl: string, skinId: string
   const normalized = await normalizePlanetTexture(source);
 
   const blob = await put(
-    `planet-skins/textures/${PLANET_TEXTURE_VERSION}/${skinId}.webp`,
+    `planet-skins/textures/${PLANET_TEXTURE_VERSION}/${storageKey}/${skinId}.webp`,
     normalized.buffer,
     {
       access: 'public',
@@ -60,6 +66,8 @@ async function convertGeneratedSkinToTextureMap(imageUrl: string, skinId: string
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.setHeader('Vary', 'Authorization');
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -77,15 +85,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(403).json({ error: 'Forbidden: player mismatch' });
   }
 
-  const system = systemData as StarSystem;
-  const planet = system.planets.find((p) => p.id === planetId);
-  if (!planet) {
-    return res.status(400).json({ error: 'Planet not found in system data' });
+  const playerRecord = await getPlayer(auth.playerId);
+  if (!playerRecord) {
+    return res.status(404).json({ error: 'Player not found' });
   }
+  const access = validatePlanetSkinTarget(
+    playerRecord,
+    systemId,
+    planetId,
+    systemData as StarSystem,
+  );
+  if (access.ok === false) {
+    return res.status(access.status).json({ error: access.error });
+  }
+  const system = access.system;
+  const planet = system.planets.find((p) => p.id === planetId)
+    ?? (systemData as StarSystem).planets.find((p) => p.id === planetId)!;
 
   let charged = false;
   try {
-    const existing = await getPlanetSkin(systemId, planetId, kind);
+    const existing = await getPlanetSkin(playerId, systemId, planetId, kind);
     if (existing && existing.status === 'succeed' && isTextureMapUrl(existing.texture_url)) {
       return res.status(200).json({
         skinId: existing.id,
@@ -108,7 +127,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       charged = true;
     }
 
-    const skinId = existing?.id ?? `ps_${kind}_${systemId}_${planetId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+    const skinId = existing?.id ?? `ps_${kind}_${playerId}_${systemId}_${planetId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
       .replace(/[^a-zA-Z0-9_-]+/g, '_');
     const prompt = buildPlanetSkinPrompt(system, planet, kind);
     // Nano Banana 2 Lite maxes out at 1K — convertGeneratedSkinToTextureMap()
@@ -120,9 +139,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       imageSize: '1K',
       uploadPrefix: 'planet-skins/raw-21x9',
     });
-    const textureUrl = await convertGeneratedSkinToTextureMap(generated.imageUrl, skinId);
+    const storageKey = planetSkinStorageKey({ playerId, systemId, planetId, kind });
+    const textureUrl = await convertGeneratedSkinToTextureMap(generated.imageUrl, storageKey, skinId);
     const skin = existing
-      ? await updatePlanetSkin(existing.id, {
+      ? await updatePlanetSkin(existing.id, playerId, {
         status: 'succeed',
         texture_url: textureUrl,
         kling_task_id: null,

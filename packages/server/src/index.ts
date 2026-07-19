@@ -407,6 +407,19 @@ export type { AuthResult } from './auth-middleware.js';
 // Rate limiter
 export { checkRateLimit, RATE_LIMITS, getClientIP } from './rate-limiter.js';
 
+// Player feedback validation / eligibility
+export {
+  FEEDBACK_MAX_FIELD_LENGTH,
+  FEEDBACK_MIN_SURVEY_LEVEL,
+  getFeedbackEligibility,
+  normalizeFeedbackIdempotencyKey,
+  validateFeedbackPayload,
+} from './feedback-submission.js';
+export type {
+  FeedbackSource,
+  FeedbackValidationResult,
+} from './feedback-submission.js';
+
 // Photo tokens (HMAC-signed tokens for ad-rewarded photo generation)
 export { generatePhotoToken, verifyPhotoToken } from './photo-token.js';
 

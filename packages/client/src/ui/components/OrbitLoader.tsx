@@ -24,13 +24,16 @@ const ORBIT_CSS = `
 @keyframes nbOrbitSpin { to { transform: rotate(360deg); } }
 @keyframes nbOrbitSpinRev { to { transform: rotate(-360deg); } }
 @keyframes nbOrbitPulse { 0%,100% { transform: scale(1); opacity: 0.85; } 50% { transform: scale(1.5); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  [data-nebulife-orbit-loader] * { animation: none !important; }
+}
 `;
 
 export function OrbitLoader({ label, subLabel, size = 120 }: OrbitLoaderProps) {
   const dot = Math.max(5, Math.round(size * 0.058));
   const core = Math.max(10, Math.round(size * 0.117));
   return (
-    <div style={styles.wrap}>
+    <div data-nebulife-orbit-loader style={styles.wrap}>
       <style>{ORBIT_CSS}</style>
       <div style={{ position: 'relative', width: size, height: size }}>
         <div style={{ ...styles.ring, ...styles.ringOuter }} />

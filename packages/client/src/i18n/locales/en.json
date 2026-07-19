@@ -2389,7 +2389,9 @@
     "exosphereSlow": "Loading the exosphere may take a few seconds",
     "returningToOrbit": "Returning to orbit...",
     "syncingNavigation": "Syncing navigation...",
-    "syncingNavigationSlow": "This may take a few seconds"
+    "syncingNavigationSlow": "This may take a few seconds",
+    "exosphereFallback": "Skin channel unavailable. Procedural planet restored.",
+    "retryTexture": "Retry skin"
   },
   "gallery": {
     "discovered_count": "Discovered: {{count}} / {{total}}",
@@ -2663,10 +2665,24 @@
     "body": "This goes straight to the creator of Nebulife. Praise, a complaint, an idea, or just a \"thanks\" — it all works. The signal is received, decoded, translated, and read carefully. The best feedback and ideas make it straight into the game.",
     "chat_teaser": "Want to message the creator of this universe directly?",
     "chat_button": "Message the Weaver",
+    "auth_required": "Sign in or continue as an online guest to use the direct channel.",
+    "account_required_button": "Account required",
     "likes_label": "What you love / want to thank us for",
     "likes_placeholder": "e.g. I love the galaxy design...",
     "dislikes_label": "What's missing, broken, or you'd like to see",
-    "dislikes_placeholder": "e.g. needs a better explanation for..."
+    "dislikes_placeholder": "e.g. needs a better explanation for...",
+    "thanks_title": "Signal accepted",
+    "thanks_body": "Your message was saved in the Weaver's direct channel.",
+    "errors": {
+      "auth_required": "Your session is not ready. Sign in or continue as an online guest.",
+      "player_not_found": "Your profile is still being created. Wait a moment and try again.",
+      "level_too_low": "The direct channel is available from level one. Update the game and try again.",
+      "empty_feedback": "Write at least one message.",
+      "rate_limited": "Too many signals. Try again in an hour.",
+      "duplicate_in_progress": "This signal is already being sent. Wait a moment.",
+      "network_error": "The server cannot be reached. Check your connection and try again.",
+      "server_error": "The server did not accept the signal. Please try again later."
+    }
   },
   "polls": {
     "badge": "POLL",

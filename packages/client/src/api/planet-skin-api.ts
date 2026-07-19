@@ -8,6 +8,7 @@ export type PlanetSkinStatus = 'generating' | 'pending' | 'processing' | 'succee
 
 export interface PlanetSkin {
   id: string;
+  owner_player_id: string | null;
   planet_id: string;
   system_id: string;
   kind: PlanetSkinKind | string;
