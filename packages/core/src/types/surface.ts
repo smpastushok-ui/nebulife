@@ -6,7 +6,7 @@
 // ---------------------------------------------------------------------------
 
 import type { PlanetType } from './planet.js';
-import { RESEARCH_DATA_RATE } from '../constants/balance.js';
+import { RESEARCH_DATA_RATE, SPACEPORT_UNLOCK_LEVEL } from '../constants/balance.js';
 
 /** Terrain type determined by elevation noise sampling */
 export type TerrainType =
@@ -283,7 +283,7 @@ export const BUILDING_DEFS: Record<BuildingType, BuildingDef> = {
     size: 2, sizeW: 2, sizeH: 2,
     requiresTerrain: FLAT_LAND,
     cost: [{ resource: 'minerals', amount: 50 }, { resource: 'volatiles', amount: 30 }, { resource: 'isotopes', amount: 10 }],
-    levelRequired: 35, techRequired: 'phy-orbital-mech', maxPerPlanet: 1,
+    levelRequired: SPACEPORT_UNLOCK_LEVEL, techRequired: 'phy-orbital-mech', maxPerPlanet: 1,
     energyOutput: 0, energyConsumption: 16, energyStorageAdd: 0,
     production: [], consumption: [],
     allowedPlanetTypes: ROCKY_DWARF, requiresAtmosphere: false,

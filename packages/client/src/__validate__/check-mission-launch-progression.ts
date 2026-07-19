@@ -16,6 +16,7 @@ import {
   ONE_SHOT_PAYLOAD_TYPES,
   PRODUCIBLE_DEFS,
   RESEARCH_TRANSPORT_TYPES,
+  SPACEPORT_UNLOCK_LEVEL,
   canStartPlanetMission,
   createEmptyManifest,
   isShipProducible,
@@ -106,11 +107,16 @@ check(getRequiredMissionCarrier('surface_landing') === 'rover_dropcraft', 'surfa
 check(getRequiredMissionCarrier('deep_atmosphere_probe') === 'atmo_probe_carrier', 'deep_atmosphere_probe: requires atmosphere probe carrier');
 
 const thrustNode = ALL_NODES.find((node) => node.id === 'phy-thrust-1');
+const orbitalMechanicsNode = ALL_NODES.find((node) => node.id === 'phy-orbital-mech');
 
 check(BUILDING_DEFS.landing_pad.levelRequired === 10, 'landing_pad: unlocks at level 10');
 check(BUILDING_DEFS.landing_pad.techRequired === 'phy-thrust-1', 'landing_pad: requires Thrust I');
 check(thrustNode?.levelRequired === 10, 'phy-thrust-1: available at level 10');
-check(BUILDING_DEFS.spaceport.levelRequired >= 35, 'spaceport: remains late heavy logistics');
+check(BUILDING_DEFS.spaceport.levelRequired === SPACEPORT_UNLOCK_LEVEL, 'spaceport: unlocks at canonical level');
+check(SPACEPORT_UNLOCK_LEVEL === 20, 'spaceport: canonical unlock level is 20');
+check(BUILDING_DEFS.spaceport.levelRequired > 19, 'spaceport: remains level-locked below 20');
+check(!(BUILDING_DEFS.spaceport.levelRequired > 20), 'spaceport: level gate is open at 20');
+check(orbitalMechanicsNode?.levelRequired === SPACEPORT_UNLOCK_LEVEL, 'phy-orbital-mech: available at spaceport unlock level');
 
 const cargoShip: Ship = {
   id: 'ship-1',

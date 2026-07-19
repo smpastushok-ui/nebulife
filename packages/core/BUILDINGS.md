@@ -6,7 +6,7 @@
 | 1 | colony_hub | Центр колонії | 4x4 | 1 | — | 1 |
 | 2 | resource_storage | Ресурсний модуль | 2x2 | 3 | — | 6 |
 | 3 | landing_pad | Посадковий майданчик | 3x3 | 18 | phy-thrust-1 | 2 |
-| 4 | spaceport | Космопорт | 5x5 | 35 | phy-orbital-mech | 1 |
+| 4 | spaceport | Космопорт | 5x5 | 20 | phy-orbital-mech | 1 |
 
 ## Energy (5)
 | # | BuildingType | Назва (UA) | Розмір | Рівень | Технологія | Макс |

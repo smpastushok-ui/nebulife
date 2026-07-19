@@ -2,6 +2,8 @@
 // Technology Research Tree — types, Astronomy branch nodes, helpers
 // ---------------------------------------------------------------------------
 
+import { SPACEPORT_UNLOCK_LEVEL } from '../constants/balance.js';
+
 // ── Types ──────────────────────────────────────────────────────────────────
 
 export type TechBranch = 'astronomy' | 'physics' | 'chemistry' | 'biology';
@@ -446,8 +448,8 @@ export const PHYSICS_NODES: TechNode[] = [
   {
     id: 'phy-orbital-mech', branch: 'physics',
     name: 'Орбітальна механіка',
-    description: 'Розблоковує Космопорт (буд. рів. 35). +15% швидкість кораблів.',
-    levelRequired: 25, prerequisiteId: 'phy-drill', epoch: 2, xpReward: 50,
+    description: `Розблоковує Космопорт (буд. рів. ${SPACEPORT_UNLOCK_LEVEL}). +15% швидкість кораблів.`,
+    levelRequired: SPACEPORT_UNLOCK_LEVEL, prerequisiteId: 'phy-drill', epoch: 2, xpReward: 50,
     effects: [
       { type: 'building_unlock', value: 1 },
       { type: 'ship_speed_mult', value: 1.15 },

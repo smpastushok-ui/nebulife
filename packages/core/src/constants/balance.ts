@@ -43,6 +43,9 @@ export const MAX_CONCURRENT_RESEARCH = 3;
 /** Ring levels accessible from home planet observatories. */
 export const HOME_RESEARCH_MAX_RING = 2;
 
+/** Player level that unlocks the Spaceport building and its prerequisite tech. */
+export const SPACEPORT_UNLOCK_LEVEL = 20;
+
 // --- Research Data ---
 /** Starting research data charges for new players. */
 export const INITIAL_RESEARCH_DATA = 70;
